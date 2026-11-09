@@ -1,3 +1,7 @@
+/* Reading a wave from the cartridge and setting it up (MAT3 waves.c _ReadWave, _SetupWaveModel): a wave is stored
+ * raw, LZSS-compressed or deflated (wave_storage_kinds); a model wave is a WAD whose model, texture and palette
+ * tables go into gRomObjDefPtrs, gTexDefPtrs and gPalDefPtrs, with their addresses rebased and their display lists
+ * relocated (waves/group.c has the waves). */
 #include "game/game.h"
 #define OSIoMesg OSIoMesgView   /* this file's own OSIoMesg: include/game's OSIoMesg is another type */
 #define OSIoMesgHdr OSIoMesgHdrView   /* this file's own OSIoMesgHdr: include/game's OSIoMesgHdr is another type */
@@ -6,8 +10,6 @@
 typedef struct OSMesgQueue { void *mtqueue; void *fullqueue; s32 validCount; s32 first; s32 msgCount; OSMesg *msg; } OSMesgQueue;
 typedef struct OSIoMesgHdr { u16 type; u8 pri; u8 status; OSMesgQueue *retQueue; } OSIoMesgHdr;
 typedef struct OSIoMesg { OSIoMesgHdr hdr; void *dramAddr; u32 devAddr; u32 size; void *piHandle; } OSIoMesg;
-
-typedef struct anon_base_TOCentries_c { u32 *base; s32 TOCentries; void *TOC; } anon_base_TOCentries_c; /* mb_wad.c */
 
 /* The loaded records keep their N64 layout on PC (port/assets/wad.c swaps their scalars in place): their pointer
  * fields are 32-bit RDRAM-window addresses, which widen to host pointers (docs/port/ASSETS.md section 5). */
@@ -82,6 +84,22 @@ VIEW(s32[], gWaveSizes);
 VIEW(OSMesgQueue, rom_dma_queue);
 #define rom_dma_queue rom_dma_queue_view
 
+/* A model WAD's tables, by tag. */
+#define WAD_TAG_OBHD 0x4F424844     /* 'OBHD': the models (tModelDef) */
+#define WAD_TAG_TXHD 0x54584844     /* 'TXHD': the textures (tTexture) */
+#define WAD_TAG_PLHD 0x504C4844     /* 'PLHD': the palettes */
+#define WAD_TAG_PTHD 0x50544844     /* 'PTHD': a track's target paths (tBasicTargetPath) */
+#define WAD_TAG_TXLD 0x54584C44     /* 'TXLD': the texture load commands */
+#define WAD_TAG_IMAG 0x494D4147     /* 'IMAG': the texels and palettes */
+/* The waves that hold a track's target paths. */
+#define WAVE_TRACK_PATHS_FIRST 101
+#define WAVE_TRACK_PATHS_END 120
+/* The sections of a model's display lists relocate_model_dl keeps (its markers name the case each is for). */
+#define DL_KEEP_ONE_PLAYER 2
+#define DL_KEEP_TWO_PLAYERS 4
+#define DL_KEEP_FORWARD 8           /* the track run the usual way */
+#define DL_KEEP_BACKWARD 0x10       /* the track run backwards */
+
 #define MBGetFromWad(wad, tag, count) ((uintptr_t)MBGetFromWad(wad, tag, count))
 /* relocate_texture_loads walks TXLD from start to end as Gfx pointers. */
 void relocate_texture_loads(void *start, void *end, s32 IMAGptr);
@@ -95,10 +113,17 @@ s32 osRecvMesg(OSMesgQueue *mq, OSMesg *msg, s32 flags);
 void lzss_decompress(s32 src, void *dst);
 void inflate_decompress(s32 src, void *dst, s32 flag);
 
-/* PC: video.detail high keeps the one-player sections of the models' display lists in split screen too (the LOD
+/* Sets up wave instance idx once its file is in (MAT3 _SetupWaveModel): for a model WAD, fills the instance's
+ * entries of the model, texture, palette (and, for a track wave, target path) tables, rebases the textures' and
+ * palettes' data to the WAD's IMAG block and relocates the texture loads; the first time (first set) also rebases
+ * each level of detail's display and vertex lists and relocates the display lists, keeping the sections for this
+ * race's player count and direction (and mirroring them for a mirrored track). With first clear, after the heap has
+ * moved a handle wave, the tables are rebased by how far it moved. Then the instance is ready, and mirrored to the
+ * current direction.
+ * PC: video.detail high keeps the one-player sections of the models' display lists in split screen too (the LOD
  * markers relocate_model_dl rewrites: docs/port/DETAIL.md 2.5); PC_DETAIL_PLAYERS is pc_game_types.h's. */
 void SetupWaveModel(s32 idx, s32 first) {
-    anon_base_TOCentries_c wad;
+    WadHandle wad;
     u8 *WADptr;
     s32 TXLDptr;
     s32 TXLDcnt;
@@ -118,14 +143,14 @@ void SetupWaveModel(s32 idx, s32 first) {
         return;
     }
     if (PC_DETAIL_PLAYERS(gNumPlayers) == 1) {
-        flags = 2;
+        flags = DL_KEEP_ONE_PLAYER;
     } else if (gNumPlayers == 2) {
-        flags = 4;
+        flags = DL_KEEP_TWO_PLAYERS;
     }
     if (gBackwards != 0) {
-        flags |= 0x10;
+        flags |= DL_KEEP_BACKWARD;
     } else {
-        flags |= 8;
+        flags |= DL_KEEP_FORWARD;
     }
     if (gWaveInstance[idx].handle != 0) {
         WADptr = HANDLE_BLOCK(gWaveInstance[idx].ptr);
@@ -140,33 +165,31 @@ void SetupWaveModel(s32 idx, s32 first) {
         MBOffsetWad(&wad, N64AS(WADptr), N64AS(offset));
     }
     gWaveInstance[idx].lastPtr = HANDLE_BLOCK(gWaveInstance[idx].ptr);
-    gRomObjDefPtrs[modelIdx].romObjDefs = N64PTR(tModelDef *, MBGetFromWad(&wad, 0x4F424844, &gRomObjDefPtrs[modelIdx].count));
-    gTexDefPtrs[modelIdx].texDefs = N64PTR(tTexture *, MBGetFromWad(&wad, 0x54584844, &gTexDefPtrs[modelIdx].count));
-    gPalDefPtrs[modelIdx].palDefs = N64PTR(anon_name_start_18 *, MBGetFromWad(&wad, 0x504C4844, &gPalDefPtrs[modelIdx].count));
-    if (gWaveInstance[idx].wave >= 101 && gWaveInstance[idx].wave < 120) {
-        gTargetPaths.paths = N64PTR(tBasicTargetPath *, MBGetFromWad(&wad, 0x50544844, &gTargetPaths.count));
+    gRomObjDefPtrs[modelIdx].romObjDefs = N64PTR(tModelDef *, MBGetFromWad(&wad, WAD_TAG_OBHD, &gRomObjDefPtrs[modelIdx].count));
+    gTexDefPtrs[modelIdx].texDefs = N64PTR(tTexture *, MBGetFromWad(&wad, WAD_TAG_TXHD, &gTexDefPtrs[modelIdx].count));
+    gPalDefPtrs[modelIdx].palDefs = N64PTR(anon_name_start_18 *, MBGetFromWad(&wad, WAD_TAG_PLHD, &gPalDefPtrs[modelIdx].count));
+    if (gWaveInstance[idx].wave >= WAVE_TRACK_PATHS_FIRST && gWaveInstance[idx].wave < WAVE_TRACK_PATHS_END) {
+        gTargetPaths.paths = N64PTR(tBasicTargetPath *, MBGetFromWad(&wad, WAD_TAG_PTHD, &gTargetPaths.count));
     }
-    TXLDptr = MBGetFromWad(&wad, 0x54584C44, &TXLDcnt);
-    IMAGptr = MBGetFromWad(&wad, 0x494D4147, NULL);
+    TXLDptr = MBGetFromWad(&wad, WAD_TAG_TXLD, &TXLDcnt);
+    IMAGptr = MBGetFromWad(&wad, WAD_TAG_IMAG, NULL);
     relocate_texture_loads(TXLDptr, TXLDptr + TXLDcnt, IMAGptr);
     for (i = 0; i < gTexDefPtrs[modelIdx].count; i++) {
         gTexDefPtrs[modelIdx].texDefs[i].texBase += IMAGptr;
     }
-    do {
-    } while (0);
     for (i = 0; i < gPalDefPtrs[modelIdx].count; i++) {
         gPalDefPtrs[modelIdx].palDefs[i].palBase += IMAGptr;
     }
     if (first != 0) {
         for (i = 0; i < gRomObjDefPtrs[modelIdx].count; i++) {
             for (j = 0; j < gRomObjDefPtrs[modelIdx].romObjDefs[i].lodCount; j++) {
-                gRomObjDefPtrs[modelIdx].romObjDefs[i].lod[j].displayList = (WADP(u32))((u32)gRomObjDefPtrs[modelIdx].romObjDefs[i].lod[j].displayList + N64A((first ? WADptr : offset)));
-                gRomObjDefPtrs[modelIdx].romObjDefs[i].lod[j].vtxList = (WADP(u32))((u32)gRomObjDefPtrs[modelIdx].romObjDefs[i].lod[j].vtxList + N64A((first ? WADptr : offset)));
-                relocate_model_dl(N64PTR0(u32 *, gRomObjDefPtrs[modelIdx].romObjDefs[i].lod[j].displayList), N64AS((first ? WADptr : offset)), -1, gMirrorWaves ? 1 : 0, flags);
+                gRomObjDefPtrs[modelIdx].romObjDefs[i].lod[j].displayList = (WADP(u32))((u32)gRomObjDefPtrs[modelIdx].romObjDefs[i].lod[j].displayList + N64A(WADptr));
+                gRomObjDefPtrs[modelIdx].romObjDefs[i].lod[j].vtxList = (WADP(u32))((u32)gRomObjDefPtrs[modelIdx].romObjDefs[i].lod[j].vtxList + N64A(WADptr));
+                relocate_model_dl(N64PTR0(u32 *, gRomObjDefPtrs[modelIdx].romObjDefs[i].lod[j].displayList), N64AS(WADptr), -1, gMirrorWaves ? 1 : 0, flags);
             }
         }
     }
-    if (gWaveInstance[idx].wave >= 101 && gWaveInstance[idx].wave < 120) {
+    if (gWaveInstance[idx].wave >= WAVE_TRACK_PATHS_FIRST && gWaveInstance[idx].wave < WAVE_TRACK_PATHS_END) {
         for (i = 0; i < gTargetPaths.count; i++) {
             gTargetPaths.paths[i].pts = gTargetPaths.paths[i].pts + N64A((first ? WADptr : offset));
             gTargetPaths.paths[i].trigPtr = gTargetPaths.paths[i].trigPtr + N64A((first ? WADptr : offset));
@@ -180,6 +203,7 @@ void SetupWaveModel(s32 idx, s32 first) {
  * re-setup after a heap move (first = 0) converts nothing. */
 #define SetupWaveModel(slot, first) ((first) ? pc_wave_loaded(gWaveInstance[slot].wave, gWaveInstance[slot].handle ? HANDLE_BLOCK(gWaveInstance[slot].ptr) : gWaveInstance[slot].ptr, gWaveInstance[slot].size) : (void)0, SetupWaveModel(slot, first))
 
+/* Reads size bytes at cartridge offset rom into dst by PI DMA, and waits for it. */
 void wave_rom_read(u8 *dst, s32 rom, s32 size) {
     OSIoMesg mb;
 
@@ -189,6 +213,8 @@ void wave_rom_read(u8 *dst, s32 rom, s32 size) {
     osRecvMesg(&rom_dma_queue, NULL, 1);
 }
 
+/* Reads wave instance slot's wave from the cartridge into its block, as the wave is stored (wave_storage_kinds: 0
+ * raw, 1 LZSS, else deflate), then sets it up (MAT3 _ReadWave). Runs on the game thread or the background loader. */
 void ReadWave(s32 slot) {
     anon_loaded_ready_14 *r;
     u8 *dst;
@@ -226,8 +252,8 @@ void ReadWave(s32 slot) {
     SetupWaveModel(slot, 1);
 }
 
-/* Re-relocates a handle wave after the heap moved it (Dreamcast func_8C065862; no GC counterpart):
- * `first` = 0, so _SetupWaveModel applies the offset path. */
+/* Sets up a handle wave again after the heap moved it: its tables are rebased by the distance (SetupWaveModel with
+ * first = 0). */
 void relocate_wave_model(s32 idx) {
     SetupWaveModel(idx, 0);
 }

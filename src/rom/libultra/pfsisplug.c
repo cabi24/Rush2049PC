@@ -1,15 +1,7 @@
-/* GENERATED ROM-aligned TU — segment 0x10d60 (rom/lib_10d60)
- * layout map 1eec946940dcffacc041b948c1e7606f7b20389466a7f58bb42d30e32fe0ed79.
- * Slots are GLOBAL_ASM passthroughs until promoted; do not hand-edit
- * passthrough lines. */
+/* libultra's osPfsIsPlug (pfsisplug.c): which controllers have a pak plugged in. */
 #include "../rom_tu.h"
 
-/* PROMOTED 2026-10-11 — osPfsIsPlug
- * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
- * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
+/* Which controllers have a pak plugged in: a bit per port in *pattern. Returns 0 or the serial bus's error. */
 extern u8 __osPfsPifRam[64];
 extern u8 __osMaxControllers;
 extern void __osSiGetAccess(void);
@@ -62,12 +54,7 @@ s32 osPfsIsPlug(OSMesgQueue* mq, u8* pattern) {
     return ret;
 }
 
-/* PROMOTED 2026-10-11 — __osPfsRequestData
- * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
- * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
+/* Fills the PIF buffer with command cmd for every controller (for osPfsIsPlug). */
 extern u8 __osContLastCmd;
 void __osPfsRequestData(u8 cmd) {
     u8* ptr = (u8*)&__osPfsPifRam;
@@ -93,12 +80,7 @@ void __osPfsRequestData(u8 cmd) {
     *ptr = 0xFE;
 }
 
-/* PROMOTED 2026-10-11 — __osPfsGetInitData
- * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
- * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
+/* Reads the status osPfsIsPlug asked into data, and the ports with a pak into *pattern. */
 #define CHNL_ERR(format) (((format).rxsize & 0xC0) >> 4)
 extern u8 __osPfsPifRam[64];
 extern u8 __osMaxControllers;

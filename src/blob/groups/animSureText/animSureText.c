@@ -1,5 +1,7 @@
+/* The pause screen's "are you sure" text (MAT3 pausescr.c animSureText): an animation function of a blit. */
 #include "game/game.h"
 
+/* The blit the animation function runs for (MAT3 _tBlit_2's leading fields). */
 typedef struct MenuItem {
     void *Name, *Image, *Info;
     u16 TexIndex;
@@ -39,6 +41,7 @@ VIEW(s16[2], pause_titlePos);
 VIEW(StrTable, gText);
 #define gText gText_view
 
+/* Sets item's hidden flag to off, redrawing its blit when that changes; returns the flag. */
 s32 item_disable_B9C8(MenuItem *item, s32 off)
 {
     if (off != item->dirty) {
@@ -48,6 +51,9 @@ s32 item_disable_B9C8(MenuItem *item, s32 off)
     return item->dirty;
 }
 
+/* For restart and quit (gPauseState 7 and 8: MAT3 kPauseRestart, kPauseQuit): the question (message 216) under
+ * the title, and yes and no beside each other a quarter of its width from the centre, the chosen one (pause_gYes)
+ * highlighted. Hidden in the other pause states. Returns 1: the blit stays. */
 s32 animSureText(MenuItem *item) {
     s32 w;
     s32 x;

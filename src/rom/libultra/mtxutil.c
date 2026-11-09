@@ -1,15 +1,7 @@
-/* GENERATED ROM-aligned TU — segment 0x9de0 (rom/lib_9de0)
- * layout map f4d21241ed69e607619775287abc7b113e3dd26a0a988799dd883df6aa3b91a7.
- * Slots are GLOBAL_ASM passthroughs until promoted; do not hand-edit
- * passthrough lines. */
+/* libultra's matrix utilities (mtxutil.c): float matrices to the RSP's fixed-point form and back, identities. */
 #include "../rom_tu.h"
 
-/* PROMOTED 2026-10-01 — guMtxF2L
- * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
- * Flags:    -g0 -O2 -mips2 -G 0 -non_shared -Wab,-r4300_mul
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
+/* The float matrix mf as the RSP's fixed-point Mtx m (16.16: integer halves first, fractions after). */
 void guMtxF2L(float mf[4][4], Mtx *m)
 {
 	int	i, j;
@@ -29,12 +21,7 @@ void guMtxF2L(float mf[4][4], Mtx *m)
 	}
 }
 
-/* PROMOTED 2026-07-11 — guMtxL2F
- * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
- * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
+/* The fixed-point Mtx m as a float matrix mf. */
 void guMtxL2F(f32 mf[4][4], Mtx *m) {
     s32 i, j;
     u32 e1, e2;
@@ -57,12 +44,7 @@ void guMtxL2F(f32 mf[4][4], Mtx *m) {
     }
 }
 
-/* PROMOTED 2026-07-11 — guMtxIdentF
- * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
- * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
+/* mf = the identity. */
 void guMtxIdentF(f32 mtx[4][4]) {
     s32 i, j;
     f32 one = 1.0f;
@@ -79,12 +61,7 @@ void guMtxIdentF(f32 mtx[4][4]) {
     }
 }
 
-/* PROMOTED 2026-07-12 — guMtxIdent
- * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
- * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
+/* m = the identity, fixed-point. */
 void guMtxIdent(u16 *mtx) {
     f32 temp[4][4];
 

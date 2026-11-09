@@ -1,15 +1,7 @@
-/* GENERATED ROM-aligned TU — segment 0x8800 (rom/lib_8800)
- * layout map 50222c5fd248f9c10dc181392f4eb6f96365093256559b4f270ae9ee18a2a3d3.
- * Slots are GLOBAL_ASM passthroughs until promoted; do not hand-edit
- * passthrough lines. */
+/* The C library's strchr, strlen and memcpy, as the game links its own (libultra's string.c). */
 #include "../rom_tu.h"
 
-/* PROMOTED 2026-07-11 — strchr
- * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
- * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
+/* The first c in the string s, or 0. */
 char *strchr(const char *s, int c) {
     const char ch = c;
 
@@ -22,12 +14,7 @@ char *strchr(const char *s, int c) {
     return (char *)s;
 }
 
-/* PROMOTED 2026-07-11 — strlen
- * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
- * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
+/* The length of the string s. */
 u32 strlen(const char *str) {
     const char *p;
 
@@ -40,12 +27,7 @@ u32 strlen(const char *str) {
     return (u32)(p - str);
 }
 
-/* PROMOTED 2026-07-11 — memcpy
- * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
- * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
+/* Copies n bytes from s2 to s1; returns s1. */
 void *memcpy(void *s1, const void *s2, u32 n) {
     char *su1 = (char *)s1;
     const char *su2 = (const char *)s2;

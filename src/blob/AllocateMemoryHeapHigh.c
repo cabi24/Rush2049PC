@@ -1,28 +1,10 @@
+/* AllocateMemoryHeapHigh (MAT3 memsys.c): allocation from the top of a heap, for the long-lived buffers (the frame
+ * buffers) so that they stay out of the way of what comes and goes at the bottom. include/game/heap.h has the
+ * headers; memsys/group.c the rest of the heap. */
 #include "game/game.h"
+#include "game/heap.h"
 #define OSMesgQueue OSMesgQueueView   /* this file's own OSMesgQueue: include/game's OSMesgQueue is another type */
 
-enum n64p_Block { n64p_Block_ };
-enum n64p_Heap { n64p_Heap_ };
-enum n64p_void { n64p_void_ };
-typedef struct Block {
-    /* 0x00 */ u32 magic;
-    /* 0x04 */ enum n64p_Block next;
-    /* 0x08 */ enum n64p_Block prev;
-    /* 0x0C */ u32 size;
-    /* 0x10 */ enum n64p_void owner;
-    /* 0x14 */ s8 used;
-    /* 0x15 */ u8 tag;
-    /* 0x16 */ u8 pad16[10];
-} Block; /* 0x20 */
-typedef struct Heap {
-    /* 0x00 */ u32 magic;
-    /* 0x04 */ enum n64p_Heap next;
-    /* 0x08 */ enum n64p_Block first;
-    /* 0x0C */ enum n64p_Block last;
-} Heap;
-/* N64-address fields (tools/port/ptr64_u32fields.py) */
-#define N64P(x) _Generic((x), enum n64p_Block: (struct Block *)PC_N64P(x), enum n64p_Heap: (struct Heap *)PC_N64P(x), enum n64p_void: (void *)PC_N64P(x), default: (x))
-#define N64W(x) PC_N64W(x)
 typedef struct OSMesgQueue OSMesgQueue;
 
 VIEW(OSMesgQueue, heap_lock_queue);
@@ -30,58 +12,61 @@ VIEW(OSMesgQueue, heap_lock_queue);
 s32 osRecvMesg(OSMesgQueue *, void **, s32);
 s32 osSendMesg(OSMesgQueue *, void *, s32);
 
-Heap *ConvertHeap(Heap *heap);
-
-void *AllocateMemoryHeapHigh(Heap *heap, u32 size)
+/* Takes size bytes (rounded up to 32) from the highest free chunk of heap (0: the main heap) that holds them: from
+ * the chunk's top end when the rest is worth keeping as a free chunk (at least HEAP_MIN_SPLIT bytes), else the
+ * whole chunk. Returns the data's address. Takes the heap lock.
+ * Original game: when no free chunk is large enough the search ends at chunk 0 and the code goes on to read it (the
+ * MAT3 code calls the heap's out-of-memory callback there). The totals it keeps are never used. */
+void *AllocateMemoryHeapHigh(tHeap *heap, u32 size)
 {
-    Block *n;
-    Block *b;
-    u32 total;
-    u32 largest;
-    u32 bs;
+    tMemoryChunk *taken;
+    tMemoryChunk *chunk;
+    u32 freeTotal;
+    u32 largestFree;
+    u32 chunkSize;
 
     osRecvMesg(&heap_lock_queue, 0, 1);
-    total = 0;
-    largest = 0;
+    freeTotal = 0;
+    largestFree = 0;
     heap = ConvertHeap(heap);
     size = (size + 31) & ~31;
-    for (b = N64P(heap->last); b != 0; b = N64P(b->prev)) {
-        if (b->used == 0) {
-            bs = b->size;
-            total += bs;
-            if (largest < bs) {
-                largest = bs;
+    for (chunk = N64P(heap->lastChunk); chunk != 0; chunk = N64P(chunk->prev)) {
+        if (chunk->used == 0) {
+            chunkSize = chunk->size;
+            freeTotal += chunkSize;
+            if (largestFree < chunkSize) {
+                largestFree = chunkSize;
             }
-            if (bs >= size) {
+            if (chunkSize >= size) {
                 break;
             }
         }
     }
-    bs = b->size;
-    if (bs - size >= 64) {
-        n = (Block *)((u8 *)b + bs - size);
-        bs = b->size;
-        n->next = b->next;
-        if (n->next != 0) {
-            N64P(n->next)->prev = N64W(n);
+    chunkSize = chunk->size;
+    if (chunkSize - size >= HEAP_MIN_SPLIT) {
+        taken = (tMemoryChunk *)((u8 *)chunk + chunkSize - size);
+        chunkSize = chunk->size;
+        taken->next = chunk->next;
+        if (taken->next != 0) {
+            N64P(taken->next)->prev = N64W(taken);
         } else {
-            heap->last = N64W(n);
+            heap->lastChunk = N64W(taken);
         }
-        n->prev = N64W(b);
-        n->size = size;
-        n->owner = 0;
-        n->used = 1;
-        n->tag = 0;
-        n->pad16[0] = 0;
-        n->magic = 0xFEDCBA98;
-        b->next = N64W(n);
-        b->size = b->size - size - 32;
-        b = n;
+        taken->prev = N64W(chunk);
+        taken->size = size;
+        taken->master = 0;
+        taken->used = 1;
+        taken->internal = 0;
+        taken->locked = 0;
+        taken->magic = HEAP_MAGIC_WORD;
+        chunk->next = N64W(taken);
+        chunk->size = chunk->size - size - HEAP_CHUNK_HEADER;
+        chunk = taken;
     } else {
-        b->owner = 0;
-        b->used = 1;
-        b->tag = 0;
+        chunk->master = 0;
+        chunk->used = 1;
+        chunk->internal = 0;
     }
     osSendMesg(&heap_lock_queue, 0, 0);
-    return (u8 *)b + 32;
+    return (u8 *)chunk + HEAP_CHUNK_HEADER;
 }

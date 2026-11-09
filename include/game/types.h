@@ -22,6 +22,7 @@ struct Bank;
 struct Basis;
 struct Blit;
 struct Block;
+struct BSTNode;
 struct Box104;
 struct C96Handle;
 struct CCar;
@@ -200,6 +201,7 @@ struct SaveData;
 struct Sequence20;
 struct SequencePageEntry;
 struct SequencePlayParams;
+struct SequenceHead;
 struct SequenceTimedValue;
 struct SfdSampleRange;
 struct Shot;
@@ -623,12 +625,12 @@ typedef struct PcSched { /* 0x2C0 bytes */
     u8 padB0[432];                   /* 0xB0 */
     u8 pad260[28];                   /* 0x260 */
     s32 retraceCount;                /* 0x27C */
-    s32 audioListPending;            /* 0x280 */
+    s32 doAudio;                     /* 0x280 */
     struct OSScClient_s *clientList; /* 0x288 */
-    struct OSScTask_s *rspTaskHead;  /* 0x290 */
-    struct OSScTask_s *rspTaskTail;  /* 0x298 */
-    struct OSScTask_s *rdpTaskHead;  /* 0x2A0 */
-    struct OSScTask_s *rdpTaskTail;  /* 0x2A8 */
+    struct OSScTask_s *audioListHead; /* 0x290 */
+    struct OSScTask_s *gfxListHead;  /* 0x298 */
+    struct OSScTask_s *audioListTail; /* 0x2A0 */
+    struct OSScTask_s *gfxListTail;  /* 0x2A8 */
     struct OSScTask_s *curRSPTask;   /* 0x2B0 */
     struct OSScTask_s *curRDPTask;   /* 0x2B8 */
 } PcSched;
@@ -663,18 +665,16 @@ typedef struct ScreenPos { /* 0x8 bytes */
     s32 y; /* 0x4 */
 } ScreenPos;
 
-typedef struct Segs { /* 0x1A0 bytes */
-    PcScTaskShape task0; /* 0x0 */
-    void *buf88;         /* 0xA0 */
-    s16 n92;             /* 0xA8 */
-    u8 other94[30];      /* 0xAA */
-    uintptr_t f124;      /* 0xC8 */
-    PcScTaskShape task1; /* 0xD0 */
-    void *buf216;        /* 0x170 */
-    s16 n220;            /* 0x178 */
-    u8 other222[30];     /* 0x17A */
-    uintptr_t f252;      /* 0x198 */
-} Segs;
+/* A frame's record (frame_records[2]: the frame being built and the one being drawn, frame_record_index). The PC's
+ * layout: the scheduler's task is the PC's OSScTask. */
+typedef struct FrameRecord { /* 0xD0 bytes */
+    PcScTaskShape task;     /* 0x0: the frame's RSP task (StartGraphics, EndGraphics) */
+    u8 *commands;           /* 0xA0: its command buffer (pc_frame_dl): dynamic data, matrices from +1728, the
+                             * display list from PC_GLIST_OFFSET */
+    s16 doneMsgType;        /* 0xA8: the message the task sends the main thread when done: OS_SC_DONE_MSG */
+    u8 doneMsgRest[30];     /* 0xAA */
+    uintptr_t colorBuffer;  /* 0xC8: the frame buffer it draws into (a window address) */
+} FrameRecord;
 
 typedef struct SequenceSlotTrack { /* 0x18 bytes */
     void *start;  /* 0x0 */
@@ -741,20 +741,47 @@ typedef struct tCheckpoint { /* 0x50 bytes */
     f32 distToNext;  /* 0x4C */
 } tCheckpoint;
 
-/* ---- memory: the heap, the asset wads and waves, lists and trees */
+/* ---- memory: the heap, the asset wads and waves, lists and trees
+ *
+ * The heap's own headers are in game/heap.h, which only the heap's files include. */
 
+/* A wave instance (MAT3 waves.c's, an anonymous struct there): one of the 64 slots of gWaveInstance, each holding one
+ * loaded asset file (a "wave": a model WAD, a font, a sound bank ...) in a heap block. Host layout on the PC. */
 typedef struct anon_loaded_ready_14 { /* 0x20 bytes */
-    s8 loaded;   /* 0x0 */
-    s8 ready;    /* 0x1 */
-    s8 locked;   /* 0x2 */
-    s8 model;    /* 0x3 */
-    u8 mirrored; /* 0x4 */
-    s8 handle;   /* 0x5 */
-    u8 wave;     /* 0x6 */
-    u32 size;    /* 0x8 */
-    u8 *ptr;     /* 0x10 */
-    u8 *lastPtr; /* 0x18 */
+    s8 loaded;   /* 0x0: the file has been read into the block */
+    s8 ready;    /* 0x1: and set up (SetupWaveModel) */
+    s8 locked;   /* 0x2: InitWaves keeps it (LockWaveInstance) */
+    s8 model;    /* 0x3: the wave is a model WAD (wave_is_model) */
+    u8 mirrored; /* 0x4: its display lists are mirrored (MirrorWaveInstance) */
+    s8 handle;   /* 0x5: ptr is a heap handle (a master slot) rather than the block */
+    u8 wave;     /* 0x6: which wave (an index into gWaveSizes, wave_rom_offsets ...) */
+    u32 size;    /* 0x8: the block's size */
+    u8 *ptr;     /* 0x10: the block, or its handle; 0 for a free slot */
+    u8 *lastPtr; /* 0x18: a handle wave's block when it was last set up: the heap may move it */
 } anon_loaded_ready_14;
+
+/* A WAD's table of contents entry (MAT3 anon_tag_address_c): a four-character tag ('TXHD', 'OBHD' ...), where the
+ * data is and how long. address is the file's offset until MBSetupWad rebases it to the data's 32-bit window
+ * address. The WAD keeps its N64 layout in the window (port/assets swaps it to host byte order). */
+typedef struct WadEntry { /* 0xC bytes */
+    u32 tag;     /* 0x0 */
+    u32 address; /* 0x4 */
+    u32 length;  /* 0x8: in bytes, or a count of records */
+} WadEntry;
+
+/* A WAD file's first two words: its table of contents (an offset, a window address once rebased) and how many
+ * entries it has. */
+typedef struct WadFileHeader { /* 0x8 bytes */
+    u32 toc;        /* 0x0 */
+    s32 TOCentries; /* 0x4 */
+} WadFileHeader;
+
+/* A WAD's handle (MAT3 anon_base_TOCentries_c), filled by MBSetupWad or MBOffsetWad; host layout. */
+typedef struct WadHandle { /* 0x18 bytes */
+    WadFileHeader *base; /* 0x0: the file */
+    s32 TOCentries;      /* 0x8 */
+    WadEntry *TOC;       /* 0x10 */
+} WadHandle;
 
 typedef struct config_s { /* 0x8 bytes */
     u16 good_length; /* 0x0 */
@@ -1169,14 +1196,54 @@ typedef struct TextTables { /* 0x48 bytes */
 
 /* ---- input: controllers and the Rumble Pak */
 
+/* A controller as ControllerUpdate leaves it for ControlIRQ: gControllerData[4] (MAT3 tPadInfo, which also has the
+ * buttons the pad offers and moves the sticks to 0x0C). */
 typedef struct ControllerState { /* 0x10 bytes */
-    s8 connected; /* 0x0 */
-    u8 pad1[3];   /* 0x1 */
-    u32 buttons;  /* 0x4 */
-    s8 stick[2];  /* 0x8 */
-    s8 unkA[4];   /* 0xA */
-    u8 padE[2];   /* 0xE */
+    s8 attached;   /* 0x0: plugged in */
+    u8 pad1[3];    /* 0x1 */
+    u32 buttons;   /* 0x4: held, in the game's button bits (n64_button_map) */
+    s8 stick[2];   /* 0x8: x, y, about -80..80 */
+    s8 stick2[2];  /* 0xA: a second stick: the N64 has none (0) */
+    u8 analog[2];  /* 0xC: analog triggers, 0-255 (the controls 0x15 and 0x16): the N64 has none (0) */
+    u8 padE[2];    /* 0xE */
 } ControllerState;
+
+/* A player's input record (MAT3 tPadState), one of gPlayers[4], in the PC's layout (the save pointer is 8 bytes).
+ * Each frame UpdateRushControls copies its controller's state here; UpdateModelControls turns it into the car's
+ * steering, throttle, brake and gear. The record's type is still each file's own (gPlayers is declared by
+ * InitOptions.c); this is the input files' view of it. */
+typedef struct tPadState { /* 0x50 bytes */
+    u8 slot;                        /* 0x0: the car the player drives (model[], gGameCar[]) */
+    u8 controller;                  /* 0x1: the controller port, 5 for none */
+    u32 edges;                      /* 0x4: buttons newly pressed this frame */
+    u32 levels;                     /* 0x8: buttons held */
+    u32 autoEdges;                  /* 0xC: pressed, and repeated while held (UpdateControls) */
+    f32 analog[2];                  /* 0x10: the stick, x and y, -1..1 */
+    u32 controls[10];               /* 0x18: each control's button bits (gControlTable[gNewControls[...]]) */
+    u16 numCrashes;                 /* 0x40 */
+    s8 trans;                       /* 0x42 */
+    u8 pad43;
+    s32 listener;                   /* 0x44: the player's sound listener, -1 for none */
+    struct tPlayerProfile **save;   /* 0x48: the player's profile on a Controller Pak (a handle), or 0 */
+} tPadState;
+
+/* The controls the car reads, by their index in gNewControls[player][] and tPadState.controls[]
+ * (UpdateModelControls; 7 and 8 are the front end's). */
+#define CONTROL_GAS 0
+#define CONTROL_BRAKE 1
+#define CONTROL_STEER 2         /* how the stick steers (CONTROL_VALUE_STICK_DEAD or not) */
+#define CONTROL_SHIFT_UP 3
+#define CONTROL_SHIFT_DOWN 4
+#define CONTROL_REVERSE 5       /* held: reverse gear and full throttle */
+#define CONTROL_ABORT 6         /* pressed: abort the car (respawn) */
+#define CONTROL_WINGS 9         /* held: the wings */
+/* The values in tPadState.controls[] that aren't button bits (ReadGasAndBrake, ReadSteeringWheel). */
+#define CONTROL_VALUE_STICK_Y 0x13      /* the stick's y axis: up the gas, down the brake */
+#define CONTROL_VALUE_ANALOG_1 0x15     /* the first analog trigger (none on the N64) */
+#define CONTROL_VALUE_ANALOG_2 0x16     /* the second analog trigger (none on the N64) */
+#define CONTROL_VALUE_STICK_DEAD 0x19   /* the stick, with a dead zone: steering, or the y axis as above */
+/* The controller port of a player who has none. */
+#define CONTROLLER_NONE 5
 
 /* ---- save: the Controller Pak, profiles, records, options and passwords */
 

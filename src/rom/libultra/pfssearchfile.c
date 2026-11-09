@@ -1,15 +1,8 @@
-/* GENERATED ROM-aligned TU — segment 0xaf50 (rom/lib_af50)
- * layout map fb77086abb1e4022382ef2683a23c39351fef65afbeda67a71503b22a0a331fd.
- * Slots are GLOBAL_ASM passthroughs until promoted; do not hand-edit
- * passthrough lines. */
+/* libultra's osPfsFindFile (pfssearchfile.c): a Controller Pak file by its company, game, name and extension. */
 #include "../rom_tu.h"
 
-/* PROMOTED 2026-10-01 — osPfsFindFile (formerly labelled osPfsAllocate)
- * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
- * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
+/* The number of the file with that company, game, name and extension, into *file_no. Returns 0, or PFS_ERR_INVALID
+ * when there is none. */
 s32 osPfsFindFile(OSPfs* pfs, u16 company_code, u32 game_code, u8* game_name, u8* ext_name, s32* file_no) {
     s32 j;
     int i;

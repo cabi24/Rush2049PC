@@ -1,10 +1,9 @@
+/* Loading a wave (MAT3 waves.c LoadWave): a free wave instance, its heap block, and the read, now or on the
+ * background loader thread (waves/group.c has the waves). */
 #include "game/game.h"
 #define OSMesgQueue OSMesgQueueView   /* this file's own OSMesgQueue: include/game's OSMesgQueue is another type */
 
 typedef struct OSMesgQueue { s32 pad[6]; } OSMesgQueue;
-
-VIEW(anon_loaded_ready_14[64], gWaveInstance);
-#define gWaveInstance gWaveInstance_view
 
 VIEW(OSMesgQueue, bg_load_idle_queue);
 #define bg_load_idle_queue bg_load_idle_queue_view
@@ -16,7 +15,10 @@ s32 osSendMesg(OSMesgQueue *, OSMesg, s32);
 
 #define N64A(x) PC_N64A(x)
 
-int NewWaveInstance(int waveNum, int handle, void *heap)  /* _NewWaveInstance (deleted stub 0x800972BC) */
+/* Takes the first free wave instance for wave waveNum and allocates its block from heap (0: the main heap), as a
+ * handle when handle is set (the heap may then move it). Returns the instance's index (MAT3 _NewWaveInstance).
+ * Original game: with all 64 instances taken it returns nothing (MAT3 the same). */
+int NewWaveInstance(int waveNum, int handle, void *heap)
 {
     anon_loaded_ready_14 *winst;
     int idx;
@@ -34,7 +36,8 @@ int NewWaveInstance(int waveNum, int handle, void *heap)  /* _NewWaveInstance (d
     }
 }
 
-void _BGLoadWave(int idx)  /* N64 background-load hand-off (no retail stub symbol) */
+/* Hands wave instance idx to the background loader thread: waits until it is idle, then posts the request. */
+void _BGLoadWave(int idx)
 {
     OSMesg msg;
     osRecvMesg(&bg_load_idle_queue, &msg, 1);
@@ -42,6 +45,9 @@ void _BGLoadWave(int idx)  /* N64 background-load hand-off (no retail stub symbo
     osSendMesg(&bg_load_request_queue, 0, 1);
 }
 
+/* Loads wave waveNum and returns its wave instance. Unless loadAgain is set, an instance that already holds the
+ * wave (with the same handle kind) is returned, mirrored to the current track direction if it is a model.
+ * Otherwise a new instance is read now, or by the background loader when loadBackground is set. */
 int LoadWave(int waveNum, int loadAgain, int loadBackground, int handle, void *heap)
 {
     int idx;

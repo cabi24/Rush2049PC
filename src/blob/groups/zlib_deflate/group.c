@@ -1,11 +1,10 @@
 /*
- * zlib deflate as built into San Francisco Rush 2049 (N64): zlib 1.0.4
- * trees.c / deflate.c with a trimmed state. Generated
- * tools/zlib-1.0.4 by the edits listed in GENERATION.md; each zlib function
- * keeps its zlib name and is mapped to the game's label below.
+ * zlib's deflate as the game has it (N64 only; MAT3 zip.c): zlib 1.0.4's trees.c and deflate.c with a trimmed
+ * state, compressing only in one pass (deflate_slow) and without zlib's checks. The game compresses its ghosts with
+ * it (CompressGhost, through zip in heap_release/zip.c). Each zlib function keeps its zlib name; the four global
+ * ones are mapped to the game's names below. The comments are zlib's.
  *
- * zlib (C) 1995-1996 Jean-loup Gailly and Mark Adler; see
- * tools/zlib-1.0.4/README for the licence.
+ * zlib (C) 1995-1996 Jean-loup Gailly and Mark Adler, under the zlib licence.
  */
 
 #include "game/game.h"
@@ -57,13 +56,13 @@ typedef unsigned int  ulg;
 
 /* the game's z_stream: 1.0.4 minus msg and everything after state */
 typedef struct z_stream_s {
-    Bytef    *next_in;   /* 0x00 */
-    uInt     avail_in;   /* 0x04 */
-    uLong    total_in;   /* 0x08 */
-    Bytef    *next_out;  /* 0x0C */
-    uInt     avail_out;  /* 0x10 */
-    uLong    total_out;  /* 0x14 */
-    struct internal_state FAR *state; /* 0x18 */
+    Bytef    *next_in;
+    uInt     avail_in;
+    uLong    total_in;
+    Bytef    *next_out;
+    uInt     avail_out;
+    uLong    total_out;
+    struct internal_state FAR *state;
 } z_stream;
 typedef z_stream FAR *z_streamp;
 
@@ -101,38 +100,38 @@ typedef ush IPos;      /* 1.0.4: unsigned. The game masks IPos values to 16 bits
 /* the game's deflate_state: 1.0.4 without status, two of noheader /
  * data_type+method / last_flush, strategy, and DEBUG's bits_sent */
 typedef struct internal_state {
-    z_streamp strm;       /* 0x00 */
-    Bytef *pending_buf;   /* 0x04 */
-    Bytef *pending_out;   /* 0x08 */
-    int   pending;        /* 0x0C */
-    int   unk10;          /* 0x10: not read by these functions */
-    uInt  w_size;         /* 0x14 */
+    z_streamp strm;
+    Bytef *pending_buf;
+    Bytef *pending_out;
+    int   pending;
+    int   unk10;          /* not read by these functions */
+    uInt  w_size;
     uInt  w_bits;
     uInt  w_mask;
-    Bytef *window;        /* 0x20 */
+    Bytef *window;
     ulg window_size;
     Posf *prev;
-    Posf *head;           /* 0x2C */
+    Posf *head;
     uInt  ins_h;
-    uInt  hash_size;      /* 0x34 */
+    uInt  hash_size;
     uInt  hash_bits;
     uInt  hash_mask;
     uInt  hash_shift;
-    int block_start;      /* 0x44 */
+    int block_start;
     uInt match_length;
     IPos prev_match;
     int match_available;
-    uInt strstart;        /* 0x54 */
+    uInt strstart;
     uInt match_start;
-    uInt lookahead;       /* 0x5C */
+    uInt lookahead;
     uInt prev_length;
     uInt max_chain_length;
     uInt max_lazy_match;
-    int level;            /* 0x6C */
-    uInt good_match;      /* 0x70 */
-    int nice_match;       /* 0x74 */
-    struct ct_data_s dyn_ltree[HEAP_SIZE];   /* 0x78 */
-    struct ct_data_s dyn_dtree[2*D_CODES+1]; /* 0x96C */
+    int level;
+    uInt good_match;
+    int nice_match;
+    struct ct_data_s dyn_ltree[HEAP_SIZE];
+    struct ct_data_s dyn_dtree[2*D_CODES+1];
     struct ct_data_s bl_tree[2*BL_CODES+1];
     struct tree_desc_s l_desc;
     struct tree_desc_s d_desc;
@@ -142,17 +141,17 @@ typedef struct internal_state {
     int heap_len;
     int heap_max;
     uch depth[2*L_CODES+1];
-    uchf *l_buf;          /* 0x167C */
+    uchf *l_buf;
     uInt  lit_bufsize;
-    uInt last_lit;        /* 0x1684 */
+    uInt last_lit;
     ushf *d_buf;
     ulg opt_len;
     ulg static_len;
-    ulg compressed_len;   /* 0x1694 */
+    ulg compressed_len;
     uInt matches;
     int last_eob_len;
-    ush bi_buf;           /* 0x16A0 */
-    int bi_valid;         /* 0x16A4 */
+    ush bi_buf;
+    int bi_valid;
 } FAR deflate_state;
 
 #define put_byte(s, c) {s->pending_buf[s->pending++] = (c);}
@@ -1514,10 +1513,10 @@ VIEW(char[], heap_lock_queue);
 
 #define ZALLOC(size) AllocateMemoryHeap(Z_NULL, (size))
 
-/* free under the heap lock */
+/* Frees ptr's heap chunk under the heap lock (zlib's TRY_FREE). */
 __inline void zfree_locked(voidpf ptr)
 {
-    voidpf heap; /* never set: the game passes whatever is in $a0 */
+    voidpf heap; /* never set; unused (the free takes ptr's address) */
 
     osRecvMesg(heap_lock_queue, Z_NULL, 1);
     DeallocateMemoryInternal(heap, ptr, 0);
@@ -1525,7 +1524,8 @@ __inline void zfree_locked(voidpf ptr)
 }
 #define TRY_FREE(ptr) { if (ptr) zfree_locked(ptr); }
 
-/* deflateInit2_ without the checks, version, method and strategy */
+/* zlib's deflateInit2_ without the checks, version, method and strategy: the state and its buffers from the main
+ * heap, the window and hash sizes from windowBits and memLevel, the match settings of level. */
 __inline void deflate_init(z_streamp strm, int level, int windowBits, int memLevel)
 {
     deflate_state *s;

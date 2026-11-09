@@ -1,31 +1,6 @@
+/* Ghosts made from a race (MAT3 save.c _NewGhost and CompressGhost): a recording of the race, compressed (zip) into
+ * a ghost record behind a heap handle, ready to save to a Controller Pak. */
 #include "game/game.h"
-#define OSThread OSThreadView   /* this file's own OSThread: include/game's OSThread is another type */
-#define OSThread_s OSThread_sView   /* this file's own OSThread_s: include/game's OSThread_s is another type */
-#define __OSThreadContext __OSThreadContextView   /* this file's own __OSThreadContext: include/game's __OSThreadContext is another type */
-
-typedef struct __OSThreadContext {
-    u64 at, v0, v1, a0, a1, a2, a3;
-    u64 t0, t1, t2, t3, t4, t5, t6, t7;
-    u64 s0, s1, s2, s3, s4, s5, s6, s7;
-    u64 t8, t9, gp, sp, s8, ra;
-    u64 lo, hi;
-    u32 sr, pc, cause, badvaddr, rcp;
-    u32 fpcsr;
-    f32 fp0, fp2, fp4, fp6, fp8, fp10, fp12, fp14;
-    f32 fp16, fp18, fp20, fp22, fp24, fp26, fp28, fp30;
-} __OSThreadContext;
-typedef struct OSThread_s {
-    struct OSThread_s *next;
-    s32 priority;
-    struct OSThread_s **queue;
-    struct OSThread_s *tlnext;
-    u16 state;
-    u16 flags;
-    s32 id;
-    s32 fp;
-    struct __OSThreadprofile_s *thprof;
-    __OSThreadContext context;
-} OSThread;
 
 s32 osRecvMesg(OSMesgQueue *mq, OSMesg *msg, s32 flags);
 s32 osSendMesg(OSMesgQueue *mq, OSMesg msg, s32 flags);
@@ -61,19 +36,8 @@ void **NewGhost(void) {
 }
 
 
-/* SaveServer: defined in group.c */
-
-
-/* ===== func_800CC50C = GC save.c CompressGhost(header, blocks), N64 form (draft, closed) =====
- * GC transcription: memmove = game_memmove, _CalcChecksum = CalcChecksumInternal, AllocateMemoryHeapHigh =
- * AllocateMemoryHeapHigh, zip, _NewGhost = NewGhost, AllocateHandleHeap =
- * audio_task_complete, GetPtrSize, ghostRaceTimes, gRetraceRate,
- * gTrackNum; PS_GetBlocks inlined as ghost_blocks_from_size; GC `DeallocateMemory(header->start)` as
- * the inlined helper ghost_free_start (defined AFTER this function, see there).
- * Shaping: `gh` (= ghost->header) is a named local assigned twice -- once for track/backward/name, again
- * the data memcpy for playerId/finish/GetPtrSize (retail: first web in a3, second in a0; a single assignment gives
- * the first web v1). No unused locals; no compiled-out reads. */
-typedef struct GhostHeader {      /* GC __anon_49776; N64 layout 0x58 (from the retail words) */
+/* A ghost file's header (MAT3 tSaveHeader), the N64's layout (0x58 bytes, as in the file). */
+typedef struct GhostHeader {
     u32 headerChecksum;           /* 0x00 */
     u8 revision;                  /* 0x04 */
     s8 flag;                      /* 0x05 */
@@ -81,7 +45,9 @@ typedef struct GhostHeader {      /* GC __anon_49776; N64 layout 0x58 (from the 
     u8 backward;                  /* 0x07 */
     u8 pad08[0x16 - 0x08];
     u8 name[13];                  /* 0x16 */
-    u8 pad23[0x28 - 0x23];
+    u8 pad23;
+    u16 tournamentKey;            /* 0x24 */
+    u8 pad26[2];
     u32 playerId[2];              /* 0x28 */
     u8 pad30[0x38 - 0x30];
     f32 finish;                   /* 0x38 */
@@ -94,7 +60,8 @@ typedef struct GhostHeader {      /* GC __anon_49776; N64 layout 0x58 (from the 
     u32 size;                     /* 0x54 */
 } GhostHeader;
 
-typedef struct Ghost {            /* GC __anon_49a9c; N64 layout 0x2C */
+/* A ghost record (MAT3's): the N64's offsets below; 64 bytes on the PC, its pointers host-sized (GHOST_OFS). */
+typedef struct Ghost {
     void *ll;                     /* 0x00 */
     void **fileh;                 /* 0x04 */
     s8 track;                     /* 0x08 */
@@ -114,10 +81,17 @@ void *memcpy(void *, const void *, u32);
 #define START(x) ((u8 *)PC_N64P(x))
 #define N64A(x) PC_N64A(x)
 
-s32 ghost_blocks_from_size(s32 size) {   /* GC PS_GetBlocks */
+/* The Controller Pak blocks (256 bytes) size bytes take (MAT3 PS_GetBlocks). */
+s32 ghost_blocks_from_size(s32 size) {
     return (size + 255) >> 8;
 }
 
+/* Makes a ghost from the race recording header describes: its three channels moved together (each header->size
+ * long; the recording keeps room for the track's longest time), checksummed, compressed (zip, level 9) into a block
+ * at the heap's top, the recording freed; then a ghost record (NewGhost) with a handle holding the header (revision
+ * 17, its sizes and checksums) and the compressed data, the temporary block freed, and the record's track,
+ * direction, name, player id and time from the header. *blocks gets the pak blocks it needs. Returns the ghost's
+ * handle. */
 void **CompressGhost(GhostHeader *header, s8 *blocks) {
     Ghost *ghost;
     void **ghosth;
@@ -135,7 +109,7 @@ void **CompressGhost(GhostHeader *header, s8 *blocks) {
     game_memmove(START(header->start) + header->size * 2, START(header->start) + maxsize * 2, header->size);
     num = header->size * 3;
     unzippedChecksum = CalcChecksumInternal(sorted, num);
-    *(s16 *)((u8 *)header + 36) = 0;
+    header->tournamentKey = 0;
     gdata = AllocateMemoryHeapHigh(NULL, num);
     dataSize = zip(sorted, num, gdata, num, 9, 10, 4);
     ghost_free_start(header);
@@ -171,9 +145,5 @@ void **CompressGhost(GhostHeader *header, s8 *blocks) {
     return ghosth;
 }
 
-/* GC DeallocateMemory(header->start) for CompressGhost's first free, written as an inlined helper that reads the
- * pointer itself, on ONE line, defined AFTER func_800CC50C (as1 evidence): as1 breaks scheduling ties
- * source line; retail schedules `lw s2,76(s3)` between the lock's `la a0` and `move a1` with `li a2,1` in the delay
- * slot, which needs the pointer load on the lock's line and that line after the caller's `dataSize = ...` line.
- * Identity hypothesis (disclosed): the GC code calls DeallocateMemory(header->start) directly. Non-static, internal. */
+/* Frees the race recording's block (header->start), under the heap lock (MAT3: DeallocateMemory(header->start)). */
 void ghost_free_start(GhostHeader *header) { u8 *p = START(header->start); osRecvMesg((OSMesgQueue *)&heap_lock_queue, NULL, 1); DeallocateMemoryInternal(N64A(p), 0); osSendMesg((OSMesgQueue *)&heap_lock_queue, NULL, 0); }

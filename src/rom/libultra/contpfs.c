@@ -1,23 +1,11 @@
-/* GENERATED ROM-aligned TU — segment 0xf700 (rom/lib_f700)
- * layout map 4f66863fb5ebae8c13b1a88ee16b3303b8bf374da66df1a42ffd8d8012d9048c.
- * Slots are GLOBAL_ASM passthroughs until promoted; do not hand-edit
- * passthrough lines. */
+/* libultra's Controller Pak file system internals (contpfs.c): the ID block's checksums, checks and repair, and
+ * the inode table's reads and writes. */
 #include "../rom_tu.h"
 
-/* PROMOTED 2026-10-01 — __osSumcalc
- * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
- * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
+/* The sum of the length bytes at ptr, as 16 bits. */
 u16 __osSumcalc(u8 *ptr, int length) { int i; u32 sum = 0; u8 *tmp = ptr; for(i=0;i<length;i++) { sum += *tmp++; } return sum & 0xFFFF; }
 
-/* PROMOTED 2026-07-11 — __osIdCheckSum
- * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
- * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
+/* The pak ID block's checksum (*csum, the sum of its first 14 halfwords) and inverted checksum (*icsum). */
 s32 __osIdCheckSum(u16 *ptr, u16 *csum, u16 *icsum) {
     u16 data = 0;
     u32 j;
@@ -33,12 +21,8 @@ s32 __osIdCheckSum(u16 *ptr, u16 *csum, u16 *icsum) {
     return 0;
 }
 
-/* PROMOTED 2026-10-01 — __osRepairPackId (ultralib name; formerly labelled __osRepairId)
- * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
- * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
+/* Makes the pak a new ID block from badid (a fresh serial number from the RAM's contents and the clock, the
+ * banks found by probing) and writes it and its three backups. Returns 0 or PFS_ERR_*. */
 s32 __osRepairPackId(OSPfs* pfs, __OSPackId* badid, __OSPackId* newid) {
     s32 ret = 0;
     u8 temp[BLOCKSIZE];
@@ -118,12 +102,8 @@ s32 __osRepairPackId(OSPfs* pfs, __OSPackId* badid, __OSPackId* newid) {
     return 0;
 }
 
-/* PROMOTED 2026-10-01 — __osCheckPackId (ultralib name; formerly labelled __osCheckId)
- * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
- * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
+/* Looks for a good copy of the ID block among the backups (blocks 3, 4, 6) when block 1's is bad, and writes it
+ * over the bad ones. Returns 0, or PFS_ERR_ID_FATAL when none is good. */
 s32 __osCheckPackId(OSPfs* pfs, __OSPackId* temp) {
     u16 index[4];
     s32 ret = 0;
@@ -158,12 +138,8 @@ s32 __osCheckPackId(OSPfs* pfs, __OSPackId* temp) {
     return 0;
 }
 
-/* PROMOTED 2026-10-01 — __osGetId
- * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
- * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
+/* Reads the pak's ID block (block 1), repairing it from a backup or anew, and fills pfs from it (the label, the
+ * banks, the tables' places). Returns 0 or PFS_ERR_*. */
 s32 __osGetId(OSPfs* pfs) {
     u16 sum;
     u16 isum;
@@ -209,12 +185,8 @@ s32 __osGetId(OSPfs* pfs) {
     return 0;
 }
 
-/* PROMOTED 2026-10-01 — __osCheckId (ultralib name; formerly labelled osPfsReadWriteFile_pages)
- * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
- * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
+/* Whether the pak is still the one pfs was opened on (its ID block is the same). Returns 0, PFS_ERR_NEW_PACK, or an
+ * error. */
 s32 __osCheckId(OSPfs* pfs) {
     u8 temp[BLOCKSIZE];
     s32 ret;
@@ -247,12 +219,8 @@ s32 __osCheckId(OSPfs* pfs) {
     return 0;
 }
 
-/* PROMOTED 2026-10-11 — __osPfsRWInode
- * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
- * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
+/* Reads (flag PFS_READ) or writes the inode table of bank: on a write, its checksum and the backup copy too; on a
+ * read, the backup when the table's checksum is bad. Returns 0 or PFS_ERR_*. */
 #define FALSE 0
 #define PFS_READ 0
 #define PFS_WRITE 1

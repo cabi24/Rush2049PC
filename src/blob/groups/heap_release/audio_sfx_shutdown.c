@@ -1,3 +1,4 @@
+/* audio_sfx_shutdown (MAT3 audiosfx.c AudioSfxShutdown): stops the sound effect server and frees its tables. */
 #include "game/game.h"
 
 typedef struct List16 { u8 indirect, doubly, pad2[2]; u32 count; void *head, *tail; } List16;
@@ -9,6 +10,8 @@ VIEW(uintptr_t, gSfxInstances);
 VIEW(uintptr_t, audiosfx_gCmds);
 #define audiosfx_gCmds audiosfx_gCmds_view
 
+/* Stops every effect, waits for the sound thread to carry out the stop and to empty its command queue, then frees
+ * the effect instances and the commands. */
 void audio_sfx_shutdown(void)
 {
     AudioStopAllEffects();

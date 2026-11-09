@@ -1,28 +1,34 @@
+/* FreeSequence (MAT3 audiomgr.c _FreeSequence): gives a sound sequence back to the sound manager's free list. */
 #include "game/game.h"
+
+/* A sequence's first fields (audiomgr_thread.c's anon_ll_id_3c, MAT3's) with the PC's host-sized links
+ * (docs/port/SYNTH.md). */
+typedef struct SequenceHead {
+    void *next, *prev;  /* 0x00: its place in gActiveSequences or gFreeSequences */
+    s32 id;             /* 0x10: the effect tag the sequence plays, with its instance bits above gTagMask */
+    s8 free;            /* 0x14: in gFreeSequences */
+    s8 active;          /* 0x15: in gActiveSequences */
+} SequenceHead;
+/* The two lists' headers (MAT3 tDLList). */
+typedef struct SequenceList { u8 handle, dbl, pad[2]; s32 numElements; SequenceHead *head, *tail; } SequenceList;
 
 VIEW(s32, gTagMask);
 #define gTagMask gTagMask_view
 
-VIEW(s32, gFreeSequences);
+VIEW(SequenceList, gFreeSequences);
 #define gFreeSequences gFreeSequences_view
 
-VIEW(s32, gActiveSequences);
+VIEW(SequenceList, gActiveSequences);
 #define gActiveSequences gActiveSequences_view
 
-/* PC: a sequence (audiomgr_thread.c's anon_ll_id_3c) has host-sized links: its id is at +0x10 and its free and
- * active flags at +0x14, +0x15 (docs/port/SYNTH.md). A list header keeps its head at +8. */
-#define SEQ_ID 0x10
-#define SEQ_FREE 0x14
-#define SEQ_ACTIVE 0x15
-
-void FreeSequence(s32 *ipa_s0) {
-    M2C_FIELD(ipa_s0, s32 *, SEQ_ID) = (s32) (M2C_FIELD(ipa_s0, s32 *, SEQ_ID) & gTagMask);
-    if (M2C_FIELD(ipa_s0, s8 *, SEQ_ACTIVE) != 0) {
-        RemoveLLE(&gActiveSequences, ipa_s0);
-        M2C_FIELD(ipa_s0, s8 *, SEQ_ACTIVE) = 0;
+/* Drops sequence's instance bits from its id, takes it out of the active list if it is there, and puts it at the
+ * head of the free list. */
+void FreeSequence(SequenceHead *sequence) {
+    sequence->id = (s32) (sequence->id & gTagMask);
+    if (sequence->active != 0) {
+        RemoveLLE(&gActiveSequences, sequence);
+        sequence->active = 0;
     }
-    InsertLLE(&gFreeSequences, ipa_s0, M2C_FIELD(&gFreeSequences, s32 **, 8));
-    M2C_FIELD(ipa_s0, s8 *, SEQ_FREE) = 1;
+    InsertLLE(&gFreeSequences, sequence, gFreeSequences.head);
+    sequence->free = 1;
 }
-
-/* stand-in caller: keeps FreeSequence out of line under -O3 */

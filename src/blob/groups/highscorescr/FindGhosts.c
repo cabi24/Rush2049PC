@@ -1,3 +1,5 @@
+/* FindGhosts (MAT3 highscorescr.c _FindGhosts): the state of a Controller Pak for saving a ghost, and the player's
+ * ghost already on it, for the high score screen. */
 #include "game/game.h"
 
 /* PC: the pak file record's and the profile's host layouts (pc_prelude.h, docs/port/POINTERS.md 9.10) */
@@ -22,10 +24,14 @@ typedef struct RecordList {u8 indirect,doubly,unknown02[2];s32 count;Ghost **fir
 VIEW(RecordList, gGhostFiles);
 #define gGhostFiles gGhostFiles_view
 
+/* Pak pak's formatted, damaged and full flags. */
 s32 pak_slot_b1(s32 pak) { return gPaks[pak].formatted; }
 s32 pak_slot_b5(s32 pak) { return gPaks[pak].damaged; }
 s32 pak_slot_b6(s32 pak) { return gPaks[pak].full; }
 
+/* Sets gGhostStatus[pak]: -4 no pak, -1 not formatted, -2 damaged, -3 full, else 0; in a ghost race (gRace 2) 1
+ * or 2 when the pak holds the first player's ghost of this track and direction (2 when it is another of the
+ * player's records: its name or ids differ), whose list node goes to gPakGhosts[pak]. */
 void FindGhosts(s32 pak)
 {
     Player *player;
@@ -47,7 +53,6 @@ void FindGhosts(s32 pak)
     } else {
         gGhostStatus[pak] = 0;
         if (gRace == 2) {
-            do {} while (0);
             for (node = gGhostFiles.first; node != 0; node = ghost->next) {
                 ghost = *node;
                 if (ghost->q != 0 && (*ghost->q)->id == pak && ghost->track == gTrackNum &&

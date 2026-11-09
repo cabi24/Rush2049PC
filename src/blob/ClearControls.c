@@ -1,3 +1,5 @@
+/* ClearControls (MAT3 controlsys.c): forgets every controller's input for this frame (controlsys/group.c has the
+ * controller system). */
 #include "game/game.h"
 #define OSMesgQueue OSMesgQueueView   /* this file's own OSMesgQueue: include/game's OSMesgQueue is another type */
 
@@ -10,8 +12,6 @@ extern int osSendMesg(OSMesgQueue *, void *, int);
 
 VIEW(f32[4][2], gContStick);
 #define gContStick gContStick_view
-VIEW(s32[4], gNewEdges);
-#define gNewEdges gNewEdges_view
 VIEW(s32[4], gAutoEdges);
 #define gAutoEdges gAutoEdges_view
 VIEW(s32[4], gContLevels);
@@ -19,6 +19,8 @@ VIEW(s32[4], gContLevels);
 VIEW(s32[4], gContEdges);
 #define gContEdges gContEdges_view
 
+/* Clears the frame's held, pressed and auto-repeated buttons and sticks, each controller's and the active ones'
+ * union, and the presses ControlIRQ has gathered since the last frame; under the controls' lock. */
 void ClearControls(void)
 {
     s32 i;

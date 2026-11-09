@@ -1,13 +1,15 @@
+/* validOption (MAT3 controlscr.c): which lines of the controls screen are offered. */
 #include "game/game.h"
 
+/* Whether line item of player's controls screen is offered: all but 8. */
 s32 controls_validOption(s8 player, s32 item) {
-    s32 var_v1;
+    s32 valid;
 
-    var_v1 = 1;
+    valid = 1;
     switch (item) {
     case 8:
-        var_v1 = 0;
+        valid = 0;
         break;
     }
-    return var_v1;
+    return valid;
 }

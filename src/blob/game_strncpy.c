@@ -1,15 +1,19 @@
+/* game_strncpy: the C library's strncpy, as the game links its own copy (the build renames the C library's names the
+ * game defines: docs/code/README.md "The headers"). */
 #include "game/game.h"
 
-s8 *game_strncpy(s8 *arg0, u8 *arg1, u32 arg2)
+/* Copies at most count bytes of the string src to dest, and pads dest with zero bytes up to count when src is
+ * shorter. As strncpy, dest is not terminated when src has count bytes or more. Returns dest. */
+s8 *game_strncpy(s8 *dest, u8 *src, u32 count)
 {
   s8 *d;
   u8 *s;
   u8 c;
   u32 n;
 
-  d = arg0;
-  s = arg1;
-  n = arg2;
+  d = dest;
+  s = src;
+  n = count;
   if (n != 0)
   {
     do
@@ -29,6 +33,5 @@ s8 *game_strncpy(s8 *arg0, u8 *arg1, u32 arg2)
   {
     *d++ = 0;
   }
-  return arg0;
+  return dest;
 }
-

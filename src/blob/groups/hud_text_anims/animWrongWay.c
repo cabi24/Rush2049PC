@@ -1,9 +1,10 @@
+/* The HUD's "wrong way" warning (MAT3 hud.c animWrongWay): an animation function of a blit. */
 #include "game/game.h"
 
 /* PC: gText's string tables hold host pointers (port/assets/text.c), so N64 byte offsets / 4 are indices */
 typedef struct TblHdr {
     char *pad0[0x68 / 4];
-    char *text;
+    char *text;         /* message 26: "wrong way" */
 } TblHdr;
 
 typedef struct StrTable {
@@ -24,6 +25,7 @@ VIEW(volatile f32, gSeconds);
 VIEW(Pos[][4], wrongWayPos);
 #define wrongWayPos wrongWayPos_view
 
+/* HAL_SetFont: the text font, under the text lock; returns the one before. */
 s32 font_set_8AB0(s32 font)
 {
     s32 old;
@@ -35,16 +37,21 @@ s32 font_set_8AB0(s32 font)
 }
 
 
+/* The flashing text's brightness, 0-1 (gColorCycle). */
 f32 TB_GetFlashTextCycle_8AB0(void)
 {
     return gColorCycle;
 }
 
+/* HAL_SetFont without its result. */
 void HAL_SetFont_8AB0(s32 font)
 {
     font_set_8AB0(font);
 }
 
+/* For each window's car, during the race (not obstacle or practice, gRace 5 and 1): once it has faced backwards
+ * along the track (heading beyond a quarter turn) for two seconds, a flashing "wrong way" at the window's place;
+ * the time restarts while it faces the right way or has finished. Returns 1: the blit stays. */
 s32 animWrongWay(void *item)
 {
     s32 x;
@@ -59,7 +66,7 @@ s32 animWrongWay(void *item)
     TB_SetJust(1, 1);
     for (slot = 0; slot < gNumWindows; slot++) {
         if ((-1.5707964f <= PC_CAR_HEADING(slot) && PC_CAR_HEADING(slot) <= 1.5707964f) ||
-            !(gGameState & 0x400000) || PC_CAR_FINISHED(slot) == 1 || !gShowWrongWay || gRace == 1) {
+            !(gGameState & GAME_STATE_PLAY) || PC_CAR_FINISHED(slot) == 1 || !gShowWrongWay || gRace == 1) {
             wrongWayTime[slot] = gSeconds;
             wasStrayed[slot] = 0;
             continue;

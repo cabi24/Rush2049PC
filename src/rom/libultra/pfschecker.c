@@ -1,15 +1,8 @@
-/* GENERATED ROM-aligned TU — segment 0xbfe0 (rom/lib_bfe0)
- * layout map 9074d20edd30236ef863847f66076c326909df6fbb7df5255e71b3dcfa69059b.
- * Slots are GLOBAL_ASM passthroughs until promoted; do not hand-edit
- * passthrough lines. */
+/* libultra's osPfsChecker (pfschecker.c): checking and repairing a Controller Pak's file system. */
 #include "../rom_tu.h"
 
-/* PROMOTED 2026-10-01 — osPfsChecker
- * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
- * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
+/* Checks the pak's file system and repairs what it can: files whose pages are lost or shared, pages no file owns.
+ * Returns 0 or PFS_ERR_*. */
 s32 osPfsChecker(OSPfs* pfs) {
     int j;
     s32 ret;
@@ -127,12 +120,7 @@ s32 osPfsChecker(OSPfs* pfs) {
     return 0;
 }
 
-/* PROMOTED 2026-10-01 — __osPfsCheckPages
- * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
- * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
+/* Collects the pages of each file into cache, for osPfsChecker. */
 s32 __osPfsCheckPages(OSPfs* pfs, __OSInodeCache* cache) {
     int i;
     int n;
@@ -169,12 +157,7 @@ s32 __osPfsCheckPages(OSPfs* pfs, __OSInodeCache* cache) {
     return 0;
 }
 
-/* PROMOTED 2026-10-01 — __osPfsPageCheck
- * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
- * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
+/* Whether a page is a valid one for osPfsChecker. */
 s32 __osPfsPageCheck(OSPfs* pfs, __OSInodeUnit fpage, __OSInodeCache* cache) {
     int j;
     int n;

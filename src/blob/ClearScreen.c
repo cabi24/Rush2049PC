@@ -1,3 +1,4 @@
+/* ClearScreen (MAT3 gfx.c, the N64 form): fills the frame being built with one colour. */
 #include "game/game.h"
 #define Gfx GfxView   /* this file's own Gfx: include/game's Gfx is another type */
 
@@ -42,6 +43,8 @@ typedef union {
     _g->words.w1 = (_SHIFTL((ulx), 14, 10) | _SHIFTL((uly), 2, 10)); \
 }
 
+/* frame_color_buffers is a label 0xC8 bytes into frame_records, so its element i starts with
+ * frame_records[i].colorBuffer (a FrameRecord read from its last field on). */
 typedef struct { void *buf; PcScTaskShape task; u8 *commands; s16 n; u8 pad[30]; } FrameBuf;
 
 VIEW(Gfx *, frame_dl);
@@ -51,6 +54,8 @@ VIEW(FrameBuf[], frame_color_buffers);
 #define frame_color_buffers frame_color_buffers_view
 u32 osVirtualToPhysical(void *);
 
+/* Adds to the frame's display list a fill of the whole screen (screen_width x screen_height) of the frame's colour
+ * buffer with color, a 16-bit RGBA5551 colour, between pipe syncs. */
 void ClearScreen(u16 color)
 {
     gDPPipeSync(frame_dl++);

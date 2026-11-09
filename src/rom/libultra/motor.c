@@ -1,15 +1,7 @@
-/* GENERATED ROM-aligned TU — segment 0xab20 (rom/lib_ab20)
- * layout map 89270b21cd87ba7878fc8bf7d36850499567d9ed2989229b5e196a9dcdf1e0e0.
- * Slots are GLOBAL_ASM passthroughs until promoted; do not hand-edit
- * passthrough lines. */
+/* libultra's Rumble Pak (motor.c): osMotorInit and the motor on/off command. */
 #include "../rom_tu.h"
 
-/* PROMOTED 2026-10-01 — __osMotorAccess (formerly labelled osMotorInit)
- * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
- * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
+/* Turns the Rumble Pak's motor on (flag MOTOR_START) or off by writing its block. Returns 0 or PFS_ERR_*. */
 s32 __osMotorAccess(OSPfs* pfs, s32 flag) {
     int i;
     s32 ret;
@@ -51,12 +43,7 @@ s32 __osMotorAccess(OSPfs* pfs, s32 flag) {
     return ret;
 }
 
-/* PROMOTED 2026-10-01 — __osMakeMotorData (formerly labelled __osMotorAccess)
- * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
- * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
+/* Fills mdata with the write commands that turn the motor of controller channel on or off. */
 void __osMakeMotorData(int channel, OSPifRam* mdata) {
     u8* ptr = (u8*)mdata->ramarray;
     __OSContRamReadFormat ramreadformat;
@@ -80,12 +67,8 @@ void __osMakeMotorData(int channel, OSPifRam* mdata) {
     ptr[0] = CONT_CMD_END;
 }
 
-/* PROMOTED 2026-10-01 — osMotorInit (formerly labelled osMotorStart)
- * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
- * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
+/* Starts the Rumble Pak on controller channel: checks it is one (its bank 0x80), makes the motor's commands,
+ * and fills pfs. Returns 0 or PFS_ERR_*. */
 s32 osMotorInit(OSMesgQueue* mq, OSPfs* pfs, int channel) {
     s32 ret;
     u8 temp[32];
@@ -145,12 +128,7 @@ s32 osMotorInit(OSMesgQueue* mq, OSPfs* pfs, int channel) {
     return 0;
 }
 
-/* PROMOTED 2026-10-11 — osPfsRepairId (formerly labelled osMotorStop)
- * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
- * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
+/* Repairs the pak's ID block (__osRepairPackId). Returns 0 or PFS_ERR_*. */
 #define PFS_INITIALIZED 0x1
 #define PFS_ID_BROKEN 0x4
 #define PFS_ERR_INVALID 5

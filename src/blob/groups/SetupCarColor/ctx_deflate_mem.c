@@ -1,29 +1,7 @@
 #include "game/game.h"
 
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * zip (historical label): the game's one-shot zlib compressor,
- *   deflate_mem(next_in, avail_in, next_out, avail_out, level, windowBits, memLevel) -> total_out.
- * Builds a 28-byte z_stream on the stack, runs zlib 1.0.4 deflateInit2_ (without checks; allocator
- * audio_dma_sync(0, size)), applies configuration_table[level], deflateReset (_tr_init = tr_init),
- * lm_init, one deflate_slow pass (deflate_slow), then deflateEnd: five TRY_FREEs through the
- * heap lock (osRecvMesg(&heap_lock_queue) / DeallocateMemoryInternal(address, 0) / osJamMesg).
- * zlib types as in src/blob/groups/zlib_deflate (zlib (C) 1995-1996 Jean-loup Gailly and Mark Adler).
- *
- * Frontier. Real group: compiled with the locked heap-release sources, so that
- * DeallocateMemoryInternal is internal (address in a1, tag in a2, s0/s1 used unsaved: that is why this
- * function saves s0/s1 without using them).
- * Shaping quirks (compile-affecting):
- *   - the free is THREE nested one-parameter `__inline` functions (zcfree -> mem_free ->
- *     heap_free_locked). Each inline level adds 8 bytes of frame per call site; three levels give
- *     retail's 24-byte spacing of the parked pointers (sp+160/136/112/88) and the 200-byte frame. One
- *     level gives 8, two 16, four 32. The names are mine: the real chain is not identified (the
- *     caller-less stub DeallocateMemory_stub next to DeallocateMemory is probably one level). umerge does not
- *     inline a three-call helper at five sites by itself, hence `__inline`;
- *   - deflateInit2_/deflateReset/lm_init are written out in the body; total_in and total_out are cleared
- *     as two statements, total_in first; `s = strm.state` is re-read for deflateReset;
- *   - the stream state is passed to deflate_slow as strm.state (reloaded), not s.
- */
+/* The free zip (heap_release/zip.c) gives zlib: three nested one-line functions down to DeallocateMemoryInternal
+ * under the heap lock (the N64's code has three levels of inlining there; zcfree is zlib's name). */
 typedef unsigned int size_t;
 extern void *memcpy(void *, const void *, size_t);
 extern void *memset(void *, int, size_t);
@@ -87,18 +65,21 @@ extern int osSendMesg(void *mq, void *msg, int flag);
 VIEW(char[], heap_lock_queue);
 #define heap_lock_queue heap_lock_queue_view
 
+/* Frees the chunk at window address address under the heap lock. */
 __inline void heap_free_locked(unsigned int address)
 {
     osRecvMesg(heap_lock_queue, 0, 1);
     DeallocateMemoryInternal(address, 0);
     osSendMesg(heap_lock_queue, 0, 0);
 }
+/* heap_free_locked. */
 __inline void mem_free(unsigned int address)
 {
     heap_free_locked(address);
 }
 /* The heap's API takes N64 addresses: N64A(p) is a window pointer's (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
 #define N64A(x) PC_N64A(x)
+/* zlib's free: ptr's chunk. */
 __inline void zcfree(voidpf ptr)
 {
     mem_free(N64A(ptr));

@@ -1,29 +1,35 @@
+/* Skid marks (MAT3 skids.c, the arcade's): while a tyre skids it lays a quad behind it on the road, from where the
+ * skid started to where the tyre is; a skid that turns or shortens ends and a new one starts. The quads come from a
+ * pool (gSkidList); when it is empty the skid farthest from the camera is taken. */
 #include "game/game.h"
 
 float sqrtf(float);
 #pragma intrinsic (sqrtf)
 
+/* A skid's quad (gSkidList's element), the PC's layout. */
 typedef struct EffectObj {
-    /* 0x00 */ struct EffectObj *next;   /* pool list link */
-    void *prev;                         /* the list's back link (GetStatLLE), pointer-sized here */
-    /* 0x08 */ f32 f8;
-    /* 0x0C */ void *dl;                 /* display handle */
-    /* 0x10 */ f32 pos[3];
-    /* 0x1C */ u8 color[4];
-    /* 0x20 */ s32 f20;
+    struct EffectObj *next;     /* the pool's links (GetStatLLE) */
+    void *prev;
+    f32 f8;                     /* when it was last extended (gSeconds) */
+    void *dl;                   /* its polygon (ZOID_NewPoly) */
+    f32 pos[3];
+    u8 color[4];
+    s32 f20;
 } EffectObj;
 
+/* A tyre's skid (pc_skids[car][tyre]). */
 typedef struct WheelSlot {
-    /* 0x00 */ EffectObj *obj;
-    /* 0x04 */ f32 start[3];
-    /* 0x10 */ f32 pos[3];
-    /* 0x1C */ f32 lenSq;
-    /* 0x20 */ f32 dir[3];
-    /* 0x2C */ f32 quad[6];             /* 0x2C..0x40: previous edge */
-    /* 0x44 */ f32 left[3];
-    /* 0x50 */ f32 right[3];
-} WheelSlot;                            /* 0x5C */
+    EffectObj *obj;             /* the skid's quad, or 0 when the tyre isn't skidding */
+    f32 start[3];               /* where the skid started */
+    f32 pos[3];                 /* where the tyre is */
+    f32 lenSq;                  /* the skid's length squared, once it has a direction */
+    f32 dir[3];                 /* its direction */
+    f32 quad[6];                /* the quad's start edge (right, left), then its moving edge: */
+    f32 left[3];
+    f32 right[3];
+} WheelSlot;
 
+/* The car record's fields the skids read (MAT3 tModelData). */
 typedef struct CarState {
     /* 0x000 */ u8 pad0[0x5A0];
     /* 0x5A0 */ u16 surface[4];
@@ -63,7 +69,7 @@ VIEW(f32[], gSeconds);
 #define gSeconds gSeconds_view
 VIEW(char[], gSkidList);
 #define gSkidList gSkidList_view
-#define POOL_HEAD 3   /* the active list, read as the pool header's pointer word: host +0x18 */
+#define POOL_HEAD 3   /* the list in use: the pool header's (tStatList) fourth pointer-sized word, +0x18 */
 typedef struct {
     /* 0x00 */ f32 uvs[3][3];
     /* 0x24 */ f32 pos[3];
@@ -75,13 +81,9 @@ extern void ZOID_RemovePoly(void *dl);
 extern void *ZOID_NewPoly(s32, f32 *, u16, u8 *, s32, s32);
 extern void ZOID_UpdatePoly(void *dl, s32 n, f32 *quad, s32, u8 *color, s32, s32);
 
-/* UpdateSkid (0x800AF8C0, 113 words) = arcade UpdateSkid: place the skid's leading edge across the
- * axle (tires tire|1 and tire&2), 0.75 either side of the tire, lifted 0.8; stamp time and colour; update
- * the polygon.  IPA parameters: ns $s0, slot $t1, tire $s4, color $s5.
- * Quirk for strictness: the 0.8f lift is this function's own .rodata (0x80123C08).  It is read through the
- * extern into a local `up` declared above the vectors (same code as the natural `+= 0.8f`, which scores
- * "2 relocations unverified"); `car` must stay unnamed and `m` named for the frame and registers.
- */
+/* Moves skid slot's leading edge to tyre wheel of player's car: across the axle (the direction from tyre wheel & 2
+ * to tyre wheel | 1, with their heights), 0.75 to either side of the tyre and lifted by skid_lift; stamps the time
+ * and the colour, and updates the quad. */
 void UpdateSkid(WheelSlot *slot, s16 player, u32 wheel, u8 *color)
 {
     CarState *m = PC_MODEL(player);
@@ -119,8 +121,8 @@ void UpdateSkid(WheelSlot *slot, s16 player, u32 wheel, u8 *color)
  * written here get their own names (docs/port/PROTOTYPES.md). */
 #define GetSkid pc_GetSkid
 #define ContinueSkid pc_ContinueSkid
-/* GetSkid = arcade GetSkid: take a skid from the pool, or steal the one farthest from the camera.
- * Not `static`, not in `keep`: umerge inlines it into its only caller and leaves the retail `jr ra` stub. */
+/* A quad for a new skid of colour color: from the pool, or the skid farthest from the camera taken back; its
+ * polygon made (in the front end's car screen with another draw mode). 0 when no polygon could be made. */
 EffectObj *GetSkid(u8 *color)
 {
     s32 i;
@@ -155,7 +157,7 @@ EffectObj *GetSkid(u8 *color)
     s->color[2] = color[2];
     s->color[3] = 0xC0;
     s->dl = ZOID_NewPoly(4, gDummyVtx, gTexList[8], color,
-                          ((gGameState & 0x100) ? 1 : 15) | 0x1200, 1);
+                          ((gGameState & GAME_STATE_CAR) ? 1 : 15) | 0x1200, 1);
     if (s->dl == 0) {
         FreeStatLLE(gSkidList, s);
         return 0;
@@ -163,8 +165,8 @@ EffectObj *GetSkid(u8 *color)
     return s;
 }
 
-/* StartSkid (0x800AFB38, 135 words) = arcade StartSkid.  IPA parameters: ns $s6, slot $s3, tire $s4,
- * color $s5.  The three veccopy() macros are written out element by element as in vecmath.h. */
+/* Starts a skid for tyre tire of car slot (ns its skid): a new quad, both edges at the tyre. Nothing when no quad
+ * is free. */
 void StartSkid(WheelSlot *ns, s16 slot, u32 tire, u8 *color)
 {
     EffectObj *s;
@@ -184,11 +186,9 @@ void StartSkid(WheelSlot *ns, s16 slot, u32 tire, u8 *color)
 
 #define magsq(v) (((v)[0] * (v)[0]) + ((v)[1] * (v)[1]) + ((v)[2] * (v)[2]))
 
-/* ContinueSkid = arcade ContinueSkid: extend the current skid, or end it and start a new one when the
- * tire has left the skid's line by more than 1.0 (squared) or the skid got shorter.  Inlined into UpdateSkids.
- * No named `car` here and magsq as a macro: with either as a named local / inline function the frame is one
- * word too big.  0.1f is UpdateSkids's own .rodata (0x80123C0C, hoisted into $f26): natural literal,
- * reported unverified by the scorer (an extern is not hoisted out of the loop). */
+/* Extends tyre tire's skid to the tyre; once it is longer than 0.1 (squared) it has a direction, and from then
+ * on the skid ends and a new one starts when the tyre leaves its line by more than 1 (squared) or the skid gets
+ * shorter. */
 void ContinueSkid(WheelSlot *ns, s16 slot, u32 tire, u8 *color)
 {
     f32 vec[3];
@@ -227,10 +227,10 @@ void ContinueSkid(WheelSlot *ns, s16 slot, u32 tire, u8 *color)
     }
 }
 
-/* UpdateSkids (0x800AFD5C, 265 words): for each tire, start / continue / stop its skid (arcade DoSkid).
- * `slot` is int here (no entry sll/sra; the s16 callee parameters are read back with `lh` from its home).
- * Quirks: colour chosen with ?: (the if-form drops the `b` and swaps $t0/$t2); `flags & mask[i]` operand
- * order; `ns` walks with the loop. */
+/* Each frame, each tyre of car slot (one or two players only): it skids when the car's skid flag for it is set,
+ * the car is on the ground, the tyre isn't on terrain 8 and its surface allows marks (flags 0x30 clear); a skid
+ * starts, goes on or stops accordingly, dark on road (terrain 0, gShadowColor), dirt-coloured elsewhere (arcade
+ * DoSkid). */
 void UpdateSkids(s32 slot)
 {
     s32 i;

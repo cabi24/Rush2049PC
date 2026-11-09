@@ -1,39 +1,25 @@
+/* ClearRushControls (MAT3 controls.c): forgets every controller's input and every player's copy of it. */
 #include "game/game.h"
 
-typedef struct InputRecord {
-    u8 pad00[1];
-    u8 active;
-    u8 pad02[2];
-    s32 unk04;
-    s32 unk08;
-    s32 unk0C;
-    f32 unk10;
-    f32 unk14;
-    u8 _pad18[0x48 - 0x18]; void *ref; u8 _pad18_4C[0x4D - 0x4C];
-    u8 unk4D;
-} InputRecord;
-extern InputRecord gPlayers;
+extern tPadState gPlayers[];
 
-/* PC: an input record (gPlayers) is 80 bytes, its pointer at +0x48 is 8 (docs/port/POINTERS.md 10). */
-#define INPUT_SIZE 80
-
+/* ClearControls, then each player's pressed, held and auto-repeated buttons and stick. */
 void ClearRushControls(void) {
-    s8 *var_v0;
-    s32 var_v1;
+    tPadState *player;
+    s32 i;
 
     ClearControls();
-    var_v0 = (s8 *) &gPlayers;
-    var_v1 = 0;
+    player = gPlayers;
+    i = 0;
     if (gNumPlayers > 0) {
         do {
-            *(s32 *) (var_v0 + 8) = 0;
-            *(s32 *) (var_v0 + 4) = 0;
-            *(s32 *) (var_v0 + 0xC) = 0;
-            *(f32 *) (var_v0 + 0x10) = 0.0f;
-            *(f32 *) (var_v0 + 0x14) = 0.0f;
-            var_v1 += 1;
-            var_v0 += INPUT_SIZE;
-        } while (var_v1 < gNumPlayers);
+            player->levels = 0;
+            player->edges = 0;
+            player->autoEdges = 0;
+            player->analog[0] = 0.0f;
+            player->analog[1] = 0.0f;
+            i += 1;
+            player++;
+        } while (i < gNumPlayers);
     }
 }
-

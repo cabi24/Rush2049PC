@@ -1,15 +1,8 @@
-/* GENERATED ROM-aligned TU — segment 0xb300 (rom/lib_b300)
- * layout map ba708ac440131f8683f396b6acec82f7ebfe01d83e6cd7f7aa731471ae7c46e9.
- * Slots are GLOBAL_ASM passthroughs until promoted; do not hand-edit
- * passthrough lines. */
+/* libultra's osPfsDeleteFile (pfsdeletefile.c): deleting a Controller Pak file. */
 #include "../rom_tu.h"
 
-/* PROMOTED 2026-10-01 — osPfsDeleteFile (formerly labelled osPfsRename)
- * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
- * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
+/* Deletes the file with that company, game, name and extension: its pages are freed in every bank and its
+ * directory entry cleared. Returns 0 or PFS_ERR_*. */
 s32 osPfsDeleteFile(OSPfs* pfs, u16 company_code, u32 game_code, u8* game_name, u8* ext_name) {
     s32 file_no;
     s32 ret;
@@ -57,12 +50,7 @@ s32 osPfsDeleteFile(OSPfs* pfs, u16 company_code, u32 game_code, u8* game_name, 
  * u16 and the links are read through the byte fields, so the u16 is the one whose bytes are {bank, page}. */
 #define PFS_IPAGE(bank, page) (u16)((page) << 8 | (bank))
 
-/* PROMOTED 2026-10-01 — __osPfsReleasePages (formerly labelled osPfsFindFile)
- * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
- * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
+/* Frees a file's pages from start_page in bank (the inode table's entries made free). */
 s32 __osPfsReleasePages(OSPfs* pfs, __OSInode* inode, u8 start_page, u8 bank, __OSInodeUnit* last_page) {
     __OSInodeUnit next_page;
     __OSInodeUnit old_page;

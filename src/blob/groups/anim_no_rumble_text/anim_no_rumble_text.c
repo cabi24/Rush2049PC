@@ -1,3 +1,5 @@
+/* The race's "no Rumble Pak" text: an animation function of a blit, drawn during the countdown in each window
+ * whose player has no Rumble Pak. */
 #include "game/game.h"
 #define Control ControlView   /* this file's own Control: include/game's Control is another type */
 
@@ -16,15 +18,16 @@ typedef struct Blit {
     intptr_t state;     /* AnimFunc */
 } Blit;
 
-typedef struct Player {
+typedef struct Player {   /* gPlayers' record (tPadState) */
     u8 b0;
     u8 control;
     u8 pad2[0x48 - 0x2]; void *ref;
 } Player;
 
+/* A Controller Pak's record (gPaks[4]); the PC's layout. */
 typedef struct Control {
     u8 pad0[6];
-    s8 b6;
+    s8 rumble;          /* a Rumble Pak is in */
     u8 pad7[5];
     PcPfs pfs;
     u8 pad74[0x304 - 0x74];
@@ -47,6 +50,7 @@ VIEW(Control[], gPaks);
 VIEW(Pos[][4], no_rumble_text_pos);
 #define no_rumble_text_pos no_rumble_text_pos_view
 
+/* The text's horizontal and vertical justification (gJust), as TB_SetJust sets it. */
 void TB_SetJust_6B3C(u32 first, u32 second)
 {
     Pair *p = &gJust;
@@ -56,11 +60,15 @@ void TB_SetJust_6B3C(u32 first, u32 second)
 
 
 
+/* Whether controller ctl has a Rumble Pak in. */
 s32 getB6_6B3C(s32 ctl)
 {
-    return gPaks[ctl].b6;
+    return gPaks[ctl].rumble;
 }
 
+/* Until the race starts (hidden from GAME_STATE_PLAY on, when the blit's animation is dropped): during the
+ * countdown and not paused, message 226 ("no Rumble Pak") centred at each window's place for a player without
+ * one, in the player's colour; the smaller font when the message is wider than a window. */
 s32 anim_no_rumble_text(Blit *blt)
 {
     u32 width;
@@ -70,7 +78,7 @@ s32 anim_no_rumble_text(Blit *blt)
     s32 y;
     s32 ctl;
 
-    if (Hidden(blt, gGameState & 0x400000)) {
+    if (Hidden(blt, gGameState & GAME_STATE_PLAY)) {
         blt->state = 0;
         return 0;
     }
@@ -84,7 +92,7 @@ s32 anim_no_rumble_text(Blit *blt)
         text_unlock();
     }
     for (i = 0; i < gNumWindows; i++) {
-        if ((gGameState & 0x200000) && !gPauseState) {
+        if ((gGameState & GAME_STATE_COUNTDOWN) && !gPauseState) {
             ctl = gPlayers[i].control;
             if (!getB6_6B3C(ctl)) {
                 x = no_rumble_text_pos[gNumWindows - 1][i].x;

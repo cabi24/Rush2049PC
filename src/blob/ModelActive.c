@@ -1,24 +1,10 @@
+/* ModelActive (MAT3 waves.c): whether a wave instance holds a model ready to draw (waves/group.c has the waves). */
 #include "game/game.h"
 
-typedef struct ModelRecord 
+/* The model flag of wave instance index when it holds a block that has been set up; else 0. */
+s8 ModelActive(s32 index)
 {
-  u8 pad000[0x7C6];
-  u16 unk7C6;
-  u8 pad7C8[0x7E8 - 0x7C8];
-  u8 unk7E8;
-} ModelRecord;
-extern ModelRecord model;
-
-VIEW(volatile unsigned char, gWaveInstance);
-#define gWaveInstance gWaveInstance_view
-
-/* PC: gWaveInstance has its host layout, 0x20 bytes a slot with ptr at +0x10 (every other view declares the
- * pointers); the N64 code addresses it by its N64 offsets (0x14 a slot, ptr at +0xC). Returns the model flag of
- * a slot that holds a ready wave. */
-typedef struct { s8 loaded, ready, locked, model; u8 mirrored; s8 handle; u8 wave; u32 size; u8 *ptr; u8 *lastPtr; } WaveSlot;
-s8 ModelActive(s32 arg0)
-{
-  WaveSlot *slot = (WaveSlot *) &gWaveInstance + arg0;
+  anon_loaded_ready_14 *slot = &gWaveInstance[index];
   if (slot->ptr == 0)
   {
     return 0;

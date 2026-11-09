@@ -1,15 +1,7 @@
-/* GENERATED ROM-aligned TU — segment 0x9ab0 (rom/lib_9ab0)
- * layout map 74e9a46a95093a4d531d2536f3f2429d20724fbd0dab51520f62aba35978f9d3.
- * Slots are GLOBAL_ASM passthroughs until promoted; do not hand-edit
- * passthrough lines. */
+/* libultra's guLookAt (lookat.c): the view matrix of an eye looking at a point. */
 #include "../rom_tu.h"
 
-/* PROMOTED 2026-10-01 — guLookAtF
- * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
- * Flags:    -g0 -O2 -mips2 -G 0 -non_shared -Wab,-r4300_mul
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
+/* The float view matrix mf of an eye at (xEye, yEye, zEye) looking at (xAt, yAt, zAt) with up (xUp, yUp, zUp). */
 void guLookAtF(float mf[4][4], float xEye, float yEye, float zEye,
 	       float xAt,  float yAt,  float zAt,
 	       float xUp,  float yUp,  float zUp)
@@ -69,12 +61,7 @@ void guLookAtF(float mf[4][4], float xEye, float yEye, float zEye,
 	mf[3][3] = 1;
 }
 
-/* PROMOTED 2026-10-01 — guLookAt
- * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
- * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
+/* guLookAtF, as the RSP's fixed-point Mtx m. */
 void guLookAt (Mtx *m, float xEye, float yEye, float zEye,
 	       float xAt,  float yAt,  float zAt,
 	       float xUp,  float yUp,  float zUp)

@@ -1,31 +1,7 @@
+/* A chunk's size and its lock count, by its data's address (MAT3 memsys.c GetPtrSize; LockMemory and UnlockMemory
+ * are the N64's). include/game/heap.h has the headers. */
 #include "game/game.h"
-#define OSThread OSThreadView   /* this file's own OSThread: include/game's OSThread is another type */
-#define OSThread_s OSThread_sView   /* this file's own OSThread_s: include/game's OSThread_s is another type */
-#define __OSThreadContext __OSThreadContextView   /* this file's own __OSThreadContext: include/game's __OSThreadContext is another type */
-
-typedef struct __OSThreadContext {
-    u64 at, v0, v1, a0, a1, a2, a3;
-    u64 t0, t1, t2, t3, t4, t5, t6, t7;
-    u64 s0, s1, s2, s3, s4, s5, s6, s7;
-    u64 t8, t9, gp, sp, s8, ra;
-    u64 lo, hi;
-    u32 sr, pc, cause, badvaddr, rcp;
-    u32 fpcsr;
-    f32 fp0, fp2, fp4, fp6, fp8, fp10, fp12, fp14;
-    f32 fp16, fp18, fp20, fp22, fp24, fp26, fp28, fp30;
-} __OSThreadContext;
-typedef struct OSThread_s {
-    struct OSThread_s *next;
-    s32 priority;
-    struct OSThread_s **queue;
-    struct OSThread_s *tlnext;
-    u16 state;
-    u16 flags;
-    s32 id;
-    s32 fp;
-    struct __OSThreadprofile_s *thprof;
-    __OSThreadContext context;
-} OSThread;
+#include "game/heap.h"
 
 s32 osRecvMesg(OSMesgQueue *mq, OSMesg *msg, s32 flags);
 s32 osSendMesg(OSMesgQueue *mq, OSMesg msg, s32 flags);
@@ -33,32 +9,46 @@ s32 osSendMesg(OSMesgQueue *mq, OSMesg msg, s32 flags);
 VIEW(s32, heap_lock_queue);
 #define heap_lock_queue heap_lock_queue_view
 
-void *FindChunk(void *,u32,s32);
-
+/* The size in bytes of the chunk whose data is at address (a multiple of 32). Takes the heap lock.
+ * PC: the result is read as a pointer at the size field, so its upper half is the chunk's master link; the callers
+ * keep its low 32 bits, the size. */
 void *GetPtrSize(u32 address) {
- void *owner,*block,*result;
- osRecvMesg((OSMesgQueue *)&heap_lock_queue,NULL,1);
- owner=FindHeap(address);
- block=FindChunk(owner,address,0);
- result=M2C_FIELD(block,void **,12);
- osSendMesg((OSMesgQueue *)&heap_lock_queue,NULL,0);
- return result;
+    void *heap;
+    tMemoryChunk *chunk;
+    void *size;
+
+    osRecvMesg((OSMesgQueue *)&heap_lock_queue, NULL, 1);
+    heap = FindHeap(address);
+    chunk = FindChunk(heap, address, 0);
+    size = *(void **)&chunk->size;
+    osSendMesg((OSMesgQueue *)&heap_lock_queue, NULL, 0);
+    return size;
 }
+
+/* One unlock of the chunk whose data is at address: its lock count goes down, not below 0. Takes the heap lock. */
 void unlock_memory(u32 address) {
- void *owner,*block; s32 count;
- osRecvMesg((OSMesgQueue *)&heap_lock_queue,NULL,1);
- owner=FindHeap(address);
- block=FindChunk(owner,address,0);
- count=M2C_FIELD(block,u8 *,22);
- if(count>0)M2C_FIELD(block,u8 *,22)=count-1;
- osSendMesg((OSMesgQueue *)&heap_lock_queue,NULL,0);
+    void *heap;
+    tMemoryChunk *chunk;
+    s32 count;
+
+    osRecvMesg((OSMesgQueue *)&heap_lock_queue, NULL, 1);
+    heap = FindHeap(address);
+    chunk = FindChunk(heap, address, 0);
+    count = chunk->locked;
+    if (count > 0) chunk->locked = count - 1;
+    osSendMesg((OSMesgQueue *)&heap_lock_queue, NULL, 0);
 }
+
+/* One lock of the chunk whose data is at address: its lock count goes up, not above 255. Takes the heap lock. */
 void lock_memory(u32 address) {
- void *owner,*block; s32 count;
- osRecvMesg((OSMesgQueue *)&heap_lock_queue,NULL,1);
- owner=FindHeap(address);
- block=FindChunk(owner,address,0);
- count=M2C_FIELD(block,u8 *,22);
- if(count<255)M2C_FIELD(block,u8 *,22)=count+1;
- osSendMesg((OSMesgQueue *)&heap_lock_queue,NULL,0);
+    void *heap;
+    tMemoryChunk *chunk;
+    s32 count;
+
+    osRecvMesg((OSMesgQueue *)&heap_lock_queue, NULL, 1);
+    heap = FindHeap(address);
+    chunk = FindChunk(heap, address, 0);
+    count = chunk->locked;
+    if (count < 255) chunk->locked = count + 1;
+    osSendMesg((OSMesgQueue *)&heap_lock_queue, NULL, 0);
 }

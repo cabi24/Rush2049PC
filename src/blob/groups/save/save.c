@@ -1,3 +1,5 @@
+/* SaveInit (MAT3 save.c): the profiles and ghosts the game keeps in memory, made at start-up; and the linked lists'
+ * InitLL and ClearLL (MAT3 ll.c; InsertLLE.c has the lists). */
 #include "game/game.h"
 
 /* The heap's API takes N64 addresses: N64A(p) is a window pointer's (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
@@ -14,12 +16,12 @@ typedef struct SaveSlot {
     SaveData **data;
 } SaveSlot; /* 0x30 */
 
-typedef struct ListHead {   /* tDLList: the head and tail are pointers (RemovePlayerFile's List16) */
-    s8 unk0;
-    s8 unk1;
-    s32 unk4;
-    intptr_t unk8;
-    intptr_t unkC;
+typedef struct ListHead {   /* a list's header (MAT3 tDLList), the PC's layout */
+    s8 handle;      /* the list links handles, not records */
+    s8 dbl;         /* doubly linked */
+    s32 numElements;
+    intptr_t head;
+    intptr_t tail;
 } ListHead;
 
 typedef struct Record {     /* a ghost (SaveInit' Ghost), 64 bytes on the PC (docs/port/POINTERS.md 9.10) */
@@ -54,18 +56,23 @@ s32 sprintf(char *, const char *, ...);
 
 void *memset(void *, s32, u32);
 
+/* Empties list (the records are the caller's). */
 void ClearLL(ListHead *list) {
-    list->unk8 = 0;
-    list->unkC = 0;
-    list->unk4 = 0;
+    list->head = 0;
+    list->tail = 0;
+    list->numElements = 0;
 }
 
-void InitLL(ListHead *list, s8 a, s8 b) {
-    list->unk0 = a;
-    list->unk1 = b;
+/* Makes list empty: of handles (handle) or records, doubly linked (dbl) or not. */
+void InitLL(ListHead *list, s8 handle, s8 dbl) {
+    list->handle = handle;
+    list->dbl = dbl;
     ClearLL(list);
 }
 
+/* The four controllers' own profiles (gJustPlayers: "Player n", for a player without a pak), the lists of the
+ * profiles and ghosts on the paks, and the ghosts kept in memory ("limbo": one race's three, or twelve races' with
+ * an Expansion Pak), locked in the heap. */
 void SaveInit(void) {
     s32 i;
     s32 n;

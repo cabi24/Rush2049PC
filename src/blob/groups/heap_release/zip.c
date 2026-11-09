@@ -1,29 +1,9 @@
 #include "game/game.h"
 
-/* flags: -g0 -O3 -mips2 -G 0 -non_shared */
-/*
- * zip (historical label): the game's one-shot zlib compressor,
- *   deflate_mem(next_in, avail_in, next_out, avail_out, level, windowBits, memLevel) -> total_out.
- * Builds a 28-byte z_stream on the stack, runs zlib 1.0.4 deflateInit2_ (without checks; allocator
- * audio_dma_sync(0, size)), applies configuration_table[level], deflateReset (_tr_init = tr_init),
- * lm_init, one deflate_slow pass (deflate_slow), then deflateEnd: five TRY_FREEs through the
- * heap lock (osRecvMesg(&heap_lock_queue) / DeallocateMemoryInternal(address, 0) / osJamMesg).
- * zlib types as in src/blob/groups/zlib_deflate (zlib (C) 1995-1996 Jean-loup Gailly and Mark Adler).
- *
- * Frontier. Real group: compiled with the locked heap-release sources, so that
- * DeallocateMemoryInternal is internal (address in a1, tag in a2, s0/s1 used unsaved: that is why this
- * function saves s0/s1 without using them).
- * Shaping quirks (compile-affecting):
- *   - the free is THREE nested one-parameter `__inline` functions (zcfree -> mem_free ->
- *     heap_free_locked). Each inline level adds 8 bytes of frame per call site; three levels give
- *     retail's 24-byte spacing of the parked pointers (sp+160/136/112/88) and the 200-byte frame. One
- *     level gives 8, two 16, four 32. The names are mine: the real chain is not identified (the
- *     caller-less stub DeallocateMemory_stub next to DeallocateMemory is probably one level). umerge does not
- *     inline a three-call helper at five sites by itself, hence `__inline`;
- *   - deflateInit2_/deflateReset/lm_init are written out in the body; total_in and total_out are cleared
- *     as two statements, total_in first; `s = strm.state` is re-read for deflateReset;
- *   - the stream state is passed to deflate_slow as strm.state (reloaded), not s.
- */
+/* zip (MAT3 zip.c): the game's one-shot compressor, zlib's deflate in one call: a z_stream on the stack, zlib
+ * 1.0.4's deflateInit2_ (without its checks), deflateReset and lm_init written out, one deflate_slow pass over all
+ * the input, then deflateEnd's frees. CompressGhost compresses the ghosts with it. zlib_deflate/group.c has the rest
+ * of zlib (zlib (C) 1995-1996 Jean-loup Gailly and Mark Adler, under the zlib licence). */
 typedef unsigned int size_t;
 extern void *memcpy(void *, const void *, size_t);
 extern void *memset(void *, int, size_t);
@@ -63,13 +43,13 @@ typedef unsigned int  ulg;
 
 /* the game's z_stream: 1.0.4 minus msg and everything after state */
 typedef struct z_stream_s {
-    Bytef    *next_in;   /* 0x00 */
-    uInt     avail_in;   /* 0x04 */
-    uLong    total_in;   /* 0x08 */
-    Bytef    *next_out;  /* 0x0C */
-    uInt     avail_out;  /* 0x10 */
-    uLong    total_out;  /* 0x14 */
-    struct internal_state FAR *state; /* 0x18 */
+    Bytef    *next_in;
+    uInt     avail_in;
+    uLong    total_in;
+    Bytef    *next_out;
+    uInt     avail_out;
+    uLong    total_out;
+    struct internal_state FAR *state;
 } z_stream;
 typedef z_stream FAR *z_streamp;
 
@@ -107,38 +87,38 @@ typedef ush IPos;      /* 1.0.4: unsigned. The game masks IPos values to 16 bits
 /* the game's deflate_state: 1.0.4 without status, two of noheader /
  * data_type+method / last_flush, strategy, and DEBUG's bits_sent */
 typedef struct internal_state {
-    z_streamp strm;       /* 0x00 */
-    Bytef *pending_buf;   /* 0x04 */
-    Bytef *pending_out;   /* 0x08 */
-    int   pending;        /* 0x0C */
-    int   unk10;          /* 0x10: not read by these functions */
-    uInt  w_size;         /* 0x14 */
+    z_streamp strm;
+    Bytef *pending_buf;
+    Bytef *pending_out;
+    int   pending;
+    int   unk10;          /* not read by these functions */
+    uInt  w_size;
     uInt  w_bits;
     uInt  w_mask;
-    Bytef *window;        /* 0x20 */
+    Bytef *window;
     ulg window_size;
     Posf *prev;
-    Posf *head;           /* 0x2C */
+    Posf *head;
     uInt  ins_h;
-    uInt  hash_size;      /* 0x34 */
+    uInt  hash_size;
     uInt  hash_bits;
     uInt  hash_mask;
     uInt  hash_shift;
-    int block_start;      /* 0x44 */
+    int block_start;
     uInt match_length;
     IPos prev_match;
     int match_available;
-    uInt strstart;        /* 0x54 */
+    uInt strstart;
     uInt match_start;
-    uInt lookahead;       /* 0x5C */
+    uInt lookahead;
     uInt prev_length;
     uInt max_chain_length;
     uInt max_lazy_match;
-    int level;            /* 0x6C */
-    uInt good_match;      /* 0x70 */
-    int nice_match;       /* 0x74 */
-    struct ct_data_s dyn_ltree[HEAP_SIZE];   /* 0x78 */
-    struct ct_data_s dyn_dtree[2*D_CODES+1]; /* 0x96C */
+    int level;
+    uInt good_match;
+    int nice_match;
+    struct ct_data_s dyn_ltree[HEAP_SIZE];
+    struct ct_data_s dyn_dtree[2*D_CODES+1];
     struct ct_data_s bl_tree[2*BL_CODES+1];
     struct tree_desc_s l_desc;
     struct tree_desc_s d_desc;
@@ -148,17 +128,17 @@ typedef struct internal_state {
     int heap_len;
     int heap_max;
     uch depth[2*L_CODES+1];
-    uchf *l_buf;          /* 0x167C */
+    uchf *l_buf;
     uInt  lit_bufsize;
-    uInt last_lit;        /* 0x1684 */
+    uInt last_lit;
     ushf *d_buf;
     ulg opt_len;
     ulg static_len;
-    ulg compressed_len;   /* 0x1694 */
+    ulg compressed_len;
     uInt matches;
     int last_eob_len;
-    ush bi_buf;           /* 0x16A0 */
-    int bi_valid;         /* 0x16A4 */
+    ush bi_buf;
+    int bi_valid;
 } FAR deflate_state;
 
 #define put_byte(s, c) {s->pending_buf[s->pending++] = (c);}
@@ -182,6 +162,9 @@ VIEW(config[10], configuration_table);
 #define ZALLOC(size) AllocateMemoryHeap(Z_NULL, (size))
 #define TRY_FREE(ptr) { if (ptr) FREECALL(ptr); }
 
+/* Compresses avail_in bytes at next_in into next_out (avail_out bytes of room) at zlib level level, with a window
+ * of 2^windowBits bytes and memLevel's hash; the work buffers come from the main heap and are freed after. Returns
+ * the compressed size. */
 uLong zip(Bytef *next_in, uInt avail_in, Bytef *next_out, uInt avail_out,
                                  int level, int windowBits, int memLevel)
 {

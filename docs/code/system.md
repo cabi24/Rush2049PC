@@ -1,0 +1,196 @@
+# The system: start-up, threads, the frame loop, game states, memory, loading, input
+
+This page is for a programmer new to the game's lower layers: how the game starts, which threads run what, how a
+frame is started, built and shown, how the game moves between its screens and the race, how memory is allocated,
+how assets ("waves") are loaded, and how the controllers become a car's steering. It uses the tree's names as of
+2026-11-08 (PC-only wave 2b). [boot.md](boot.md) maps the boot segment file by file; [README.md](README.md) has the
+whole game's map. Where a function is MAT3's (the user's GameCube decomp of the same game), the MAT3 file is
+named; the rest is the N64's own.
+
+The headers: [include/game/system.h](../../include/game/system.h) (the threads' ids and priorities, the main
+thread's messages, the game states), [memory.h](../../include/game/memory.h), [input.h](../../include/game/input.h),
+[heap.h](../../include/game/heap.h) (the heap's own headers, for the heap's files only), and these sections of
+[types.h](../../include/game/types.h): system (`PcSched`, `FrameRecord`, `PcScTaskShape` ...), memory
+(`anon_loaded_ready_14`, the wave instance; `WadHandle`, `WadEntry`, `WadFileHeader`), input (`ControllerState`,
+`tPadState`, the `CONTROL_*` indices).
+
+## 1. Start-up and the threads
+
+| Thread | id, priority | Body | What it does |
+|---|---|---|---|
+| idle | 1, 2 then 0 | `idle_thread_entry` (src/rom/boot.c) | starts the PI manager (150) and the main thread, then idles |
+| main | 6, 4 | `main_thread_entry` (boot.c) | start-up, then serves the scheduler (`process_scheduler_message`, mainloop.c) |
+| scheduler | 4 (its own id), 12 | `__scMain` (src/rom/scheduler.c) | retraces, RSP and RDP interrupts, task scheduling |
+| background loader | 8, 3 | `BGLoadWaveMain` (waves/group.c) | reads a wave when `_BGLoadWave` asks |
+| model | 5, 7 | `ModelThread` (modelthread/modelthread.c) | each retrace: the controllers (`ControllerUpdate`), then the car simulation step |
+| game | 7, 5 | `game_thread_entry` (boot.c) | `GameLoop` forever, one frame a call |
+| audio manager | 10, 10 | `audio_manager_thread_entry` (audiomgr/audiomgr_thread.c) | the sound commands and the periodic sound pass |
+| rumble, sample DMA, audio retrace | 2, 3, 9 | the audio and rumble files (other areas) | |
+
+`main` (the N64's entry) starts libultra and the idle thread. `main_thread_entry` sets the FPU mode
+(`FPCSR_GAME`), makes the queues (`rom_dma_queue`, `unzip_dma_queue`, `main_thread_queue`, `game_thread_queue`),
+the scheduler (`osCreateScheduler`: the video mode from `video_mode_base_index`), inflates the game image from the
+cartridge (`unzipdata_from_rom`; on the PC port/ultra fills the RDRAM window), subscribes to the scheduler, starts
+the background loader and the model thread, runs **`InitSystem`** (heap_release/initsystem.c), shows the boot
+screen (`BlitInit`), starts the game thread, waits for its first end of frame and then serves the scheduler
+forever.
+
+`InitSystem`: the heap (`InitMemory(50, 10)`: 50 master slots, 10 more each time they run out), the saves
+(`SaveInit`), the graphics (`_InitGfx_Init`: the video mode, the z-buffer at the heap's bottom and the two frame
+buffers at its top, each frame record's command buffer; the scene objects, the blits, the cameras), the sound
+(`AudioInit(32, 16, 16, 5, 64, ...)`, and without an Expansion Pak the 3D tables freed again), the controls
+(`InitRushControls`), the options, the frame timer, the text.
+
+On the PC every thread is a host thread; port/ultra implements libultra underneath (message queues, the VI, the
+PI, the SI with emulated controllers and paks, the RSP tasks as the renderer and the audio interpreter:
+docs/port/ULTRA.md). The game's priorities are kept as an order.
+
+## 2. The frame
+
+Three threads take part:
+
+1. **The scheduler** (`__scMain`) gets the VI's retrace (`VIDEO_MSG`), counts it (`gScheduler.retraceCount`, which
+   the game reads as `scheduler_retrace_count`: the game's clock), swaps in a finished frame's buffer when enough
+   retraces have passed (`PC_SWAP_RETRACES`), and sends every client a retrace message (`OS_SC_RETRACE_MSG`). It runs
+   the tasks the game sends on `scheduler_task_queue`: audio first (`doAudio`, `audioListHead`), then graphics
+   (`gfxListHead`), asking a graphics task to yield for audio.
+2. **The main thread** (`process_scheduler_message`, groups/mainloop/mainloop.c): on a retrace, if the screen shows
+   the last frame, nothing is being built or ended, and fewer than two frames are in flight, it starts a frame
+   (`StartGraphics`) and wakes the game thread (`frame_start_msg`, `GAME_MSG_START_FRAME`). When the game thread
+   asks to end a frame (`GAME_MSG_END_FRAME`, from `UpdateFrame`) it ends it (`MainEndFrame` -> `EndGraphics`, which
+   sends the RSP task) and switches frame record (`frame_record_index`). A finished task (`OS_SC_DONE_MSG`) frees a
+   slot (`gfx_tasks_pending`). Pre-NMI (`OS_SC_PRE_NMI_MSG`, the reset button): `MainPreNMI` silences and blacks
+   everything.
+3. **The game thread** (`GameLoop`, src/blob/groups/front_end/GameLoop.c, the race area's) begins each call with
+   `UpdateFrame`: it asks the main thread to end the frame it built, waits for the next frame's start, then
+   measures the frame (`UpdateFrameTimer`, src/rom/timer.c: `gLastFrameCount` retraces, at most 5, `gFrameSeconds`;
+   the game time `gSeconds`, stopped while paused; the countdown), reads the controls (`UpdateRushControls`) and
+   runs the once-a-frame functions (`HAL_CallOncePerFrameFuncs`). Then it updates the game state (section 3), the
+   screen or the race, and builds the frame's display list into the frame record's command buffer
+   (`frame_records[i].commands`, `pc_frame_dl`: dynamic data, matrices from +1728, the display list from
+   `PC_GLIST_OFFSET`).
+
+The model thread runs beside them at each retrace: `ControllerUpdate` (section 6), then the car simulation step.
+
+## 3. The game states
+
+`gGameState` is one bit of system.h's `GAME_STATE_*`; `setGameState` asks for another (`gNewGameState`), and
+`updateGameState` (groups/state/state.c), at the start of each `GameLoop`, leaves the old one (`uninitGameState`:
+its waves go) and enters the new one (`initGameState`). Entering a state chooses which runtime image is in
+(`LoadFrontEndOverlay`: image A, the front end; `load_extra_overlay`: image B, the battle, stunt and obstacle
+extras; both share one heap block), which waves are loaded (`InitWaves` frees the unlocked ones, `LoadWave` loads),
+the sound set (`AudioInit` with fewer voices for a race without an Expansion Pak), and which controllers count
+(`SetControllerActive`, `SetControllerStickEdges`).
+
+- The boot and the front end (`GAME_STATES_FRONT_END`): `BOOT` -> `LICENSE` -> `WARNING` -> `TITLE`, the attract
+  `DEMO`, then the menus: `START`, `PLAYERS`, `MODE`, `TRACK`, `CAR`, `CIRCUIT`, `OPTIONS`, `CONTROLS`, `AUDIO`,
+  `VIDEO`, `RECORDS`, `PAK`, `CHEATS`. Each is a screen of image A (`updateFrontEnd`).
+- The race (`GAME_STATES_RACE`): `RACE_LOAD` (the track, the cars, image B) -> `PREPLAY` (until loaded) ->
+  `COUNTDOWN` -> `GO` (the race clock and the music) -> `PLAY` -> `RACE_END` (`EndGame`) -> `HIGH_SCORE` or
+  `GAME_OVER`, back to the front end.
+- Two bits have no name yet: 0x10000000 (the start menu's item 7 and the pak manager's exit lead there; nothing
+  updates it) and 0x20000000 (loads wave 55).
+
+## 4. Memory: the heap
+
+The heap (MAT3 memsys.c; include/game/heap.h) carves the RDRAM window above the game's BSS (`game_bss_end`) up to
+the end of memory into **chunks**, each a 32-byte `tMemoryChunk` header (magic, next, prev, size, master, used,
+internal, locked) then its data, linked both ways in address order; a `tHeap` header starts each heap. `gMainHeap`
+is the main heap (`locate_main_heap`); `create_heap` makes a heap inside a chunk of another (FindHeap finds the
+innermost heap of an address), `destroy_heap` gives it back.
+
+- `AllocateMemoryHeap(heap, size)` takes the lowest free chunk that fits (size rounded to 32), splitting off the
+  rest when it is at least 64 bytes; `AllocateMemoryHeapHigh` takes from the top (the frame buffers);
+  `AllocateHandleHeap` allocates behind a **master slot** and returns the slot's address (a handle), so that the
+  data may move: `ClearMemoryHeap` (heap_release/ClearMemoryHeap.c, another area's file) frees the purgeable
+  chunks and compacts, updating the slots. `DeallocateMemory(address)` frees and merges with free neighbours;
+  `ReallocateMemory` resizes in place.
+- A chunk's lock count (`lock_memory`, `unlock_memory`, `PurgeableMemory`) keeps compaction from moving it.
+  `GetPtrSize` is a chunk's size; `LargestAvailableMemoryHeapChunk` the largest free one.
+- Every entry point takes the heap lock (`heap_lock_queue`, a one-message queue); `AllocateMemory` and
+  `DeallocateMemoryInternal` are the unlocked cores.
+
+Static lists (statll.c: `InitStatLL`, `GetStatLLE`, `FreeStatLLE`, `ClearStatLL`) are pools of fixed-size records
+from an array; linked lists (ll.c: `InitLL`, `InsertLLE`, `RemoveLLE`) link records the caller owns, singly or
+doubly, directly or through handles; ordered lists (bstree.c: `InitBST`, `InsertBSTE`, `WalkBST`) are the sound
+manager's priority tree.
+
+## 5. Loading: waves and WADs
+
+A **wave** is one of the game's asset files (a model WAD, a font, a sound bank, a track ...), stored on the
+cartridge raw, LZSS-compressed or deflated (`wave_storage_kinds`, `wave_rom_offsets`, `gWaveSizes`). It is loaded
+into one of 64 **wave instances** (`gWaveInstance`, `anon_loaded_ready_14`: loaded, ready, locked, model, mirrored,
+handle, wave, size, ptr, lastPtr):
+
+- `LoadWave(wave, loadAgain, loadBackground, handle, heap)` (waves/loadwave.c) returns the instance that already
+  holds the wave, or a new one (`NewWaveInstance`: a heap block, or a handle) read now (`ReadWave`) or by the
+  background loader (`_BGLoadWave` -> `BGLoadWaveMain`, which waits on `bg_load_request_queue` and signals
+  `bg_load_idle_queue`).
+- `ReadWave` (waves/waves.c) DMAs or decompresses the file (`wave_rom_read`, `lzss_decompress`,
+  `inflate_decompress`, one at a time under the decompression lock), then `SetupWaveModel`: for a model WAD
+  (`MBSetupWad`, `MBGetFromWad`: tags OBHD, TXHD, PLHD, PTHD, TXLD, IMAG) the model, texture and palette tables
+  (`gRomObjDefPtrs`, `gTexDefPtrs`, `gPalDefPtrs`), rebased to the block, and each model's display lists relocated
+  (`relocate_model_dl`, keeping the sections for the player count and the track's direction) and mirrored for a
+  mirrored track (`MirrorWaveInstance`).
+- `InitWaves` frees every unlocked wave between states; `LockWaveInstance` keeps one (the fonts); `UnloadWaveAll`
+  frees every instance of a wave; `ReplaceWave` reads another wave into an instance's block.
+
+## 6. Input
+
+1. **`ControllerUpdate`** (ControllerUpdate.c), on the model thread each retrace, reads the four pads over the serial
+   bus (libultra's `osContStartReadData`; a status query every 30 calls notes paks plugged in or out:
+   `pak_poll_inserted`), maps the N64 buttons to the game's button bits (`n64_button_map`) into `gControllerData`
+   (`ControllerState`), and calls `ControlIRQ`.
+2. **`ControlIRQ`** (controlsys/group.c, MAT3 controlsys.c) keeps the held buttons (`gNewLevels`), the presses since
+   the game last looked (`gNewEdges`), the raw sticks with a calibration that grows with what the stick reaches
+   (`gContStickRange`), and this retrace's own state for the car (`gRealLevels`, `gRealEdges`, `gRealStick`). Where
+   the stick drives the menus (`gStickEdges`) a pushed stick adds a d-pad bit.
+3. **`UpdateControls`**, on the game thread each frame, makes the frame's input: held, pressed, auto-repeated
+   (every 0.2 s) buttons and the scaled sticks per controller (`gContLevels`, `gContEdges`, `gAutoEdges`,
+   `gContStick`) and over the active controllers (`gActiveLevels` ...). `UpdateRushControls` copies each player's
+   controller's into their record (`gPlayers`, `tPadState`).
+4. **`UpdateModelControls`** (model_controls_input/group.c, MAT3 controls.c) turns each player's record and this
+   retrace's state into their car's inputs (`tModelData.mainin`): `ReadGasAndBrake`, `ReadSteeringWheel`,
+   `pc_ReadShifter`, the wings and the abort, by the player's control layout (`tPadState.controls`, made by
+   `SetControls` from `gNewControls` and `gControlTable`).
+
+The pak error dialogs (pakerr/group.c) and the pause, audio, video and controls screens' text in this area use the
+same input.
+
+## 7. Files
+
+| Part | Files |
+|---|---|
+| Boot, threads, timer, video, scheduler | src/rom/boot.c, timer.c, video_mode.c, scheduler.c, decompress.c |
+| libultra, libc | src/rom/libultra/*.c (controllers, the Controller Pak file system, the Rumble Pak, matrices, 64-bit helpers), src/rom/libc/*.c |
+| Frame loop, states, start-up | groups/mainloop/mainloop.c, groups/state/state.c, groups/heap_release/initsystem.c, groups/SetupCarColor/ctx_initsystem.c, groups/initgraphics/*.c (not called on the PC), UpdateGraphics.c (not called), ClearScreen.c, ZOID_SplitScreen.c, groups/hal_time/group.c, HAL_CallOncePerFrameFuncs.c |
+| Heap | groups/memsys/group.c, AllocateMemoryHeapHigh.c, FindHeap.c, groups/heap_release/group.c, groups/destroy_heap, groups/largest_heap_chunk, groups/purgeable_memory, groups/pointer_counters (and FindChunk.c, ClearMemoryHeap.c, alloc_at.c, heap_move_block_low.c, memsys_free_total: other areas' files) |
+| Lists and trees | InitStatLL.c, GetStatLLE.c, FreeStatLLE.c, ClearStatLL.c, InsertLLE.c, RemoveLLE.c, groups/save/save.c (InitLL, ClearLL), InitBST.c, ClearBST.c, InsertBSTE.c, InsertBSTEInternal.c, WalkBST.c, WalkBSTInternal.c |
+| Waves and WADs | InitWaves.c, FindWaveInstance.c, ModelActive.c, groups/waves/*.c, groups/UnloadWaveAll, groups/slot_sound/*.c, groups/state_waves/audio.c, groups/heap_release/UnloadWaveInstance.c, MB*Wad.c, relocate_model_dl.c, display_list_traverse.c, mirror_vertex_texcoords.c |
+| Compression | groups/heap_release/zip.c, groups/zlib_deflate/group.c, groups/SetupCarColor/ctx_deflate_mem.c (zlib 1.0.4's deflate, for the ghosts) |
+| Input | ControllerUpdate.c, groups/controlsys/group.c, InitControlSys.c, ClearControls.c, Get/SetController*, InitRushControls.c, SetDefaultControls.c, SetControls.c, UpdateRushControls.c, ClearRushControls.c, FindPlayerNum.c, groups/model_controls_input/group.c, pak_poll_inserted.c, groups/pakerr/group.c |
+
+## 8. What is still N64-shaped (for wave 3)
+
+- **The heap's headers** keep the N64 layout in the RDRAM window: their links are 32-bit window addresses
+  (heap.h's enums, `N64P`, `N64W`), the heap's interface takes window addresses (`DeallocateMemory(u32)`,
+  `PurgeableMemory`, `FindHeap`), master slots are 8 bytes holding a zero-extended address. `GetPtrSize` returns
+  the size read as a pointer (its upper half is the master link). Every heap file still declares its own
+  `osRecvMesg`/`osSendMesg` and views `heap_lock_queue` its own way. Other areas' heap files
+  (FindChunk.c, ClearMemoryHeap.c ...) still have their own views of the headers; they could include heap.h.
+- **The WADs and model data** stay in the N64's form: big-endian display lists with 32-bit addresses
+  (`relocate_model_dl`, `display_list_traverse`, `mirror_vertex_texcoords` read them through `pc_be32_get` ...),
+  tables with 32-bit addresses (`WadEntry.address`, `MBGetFromWad` returns a u32).
+- **The frame**: `frame_records`' tasks are `PcScTaskShape`, the N64 OSScTask in host form; the frame buffers and
+  the z-buffer are window addresses (`framebuffer_a`, `zbuffer`); `frame_color_buffers` is a label 0xC8 bytes into
+  `frame_records`.
+- **The scheduler's** queues and thread keep N64-sized storage at their N64 offsets in `PcSched`, because the game
+  takes their addresses (`scheduler_task_queue` ...) and reads the retrace count at 0x27C.
+- **Data declared with the wrong width** in input.h (`gNewLevels` as one s32, `gNewStick` as s32[2],
+  `gAutoEdgeTimes` as s32[128]): controlsys/group.c views them with MAT3's types. Changing the declarations changes
+  the data loader's layout; a wave-3 task.
+- **gPlayers** has no shared declaration: each file declares it with its own type (InitOptions.c defines it).
+  `tPadState` (types.h) is the record; the 67 files that read it could use it once the header declares it.
+- Dead code the PC links but never calls: `InitGraphics`, `InitGfx`, `UpdateGraphics`, `unload_start_overlay`,
+  `relocate_wave_model`, `pak_set_error_func`, `pak_shutdown`, `audio_user`, the ordered list's `InitBST`,
+  `ClearBST`, `WalkBST` (audiomgr_thread.c has its own clear and walk because a test links it without them).

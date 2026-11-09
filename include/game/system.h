@@ -1,8 +1,69 @@
-/* include/game/system.h: start-up, threads, the scheduler, timers, the frame pipeline, video, decompression, the overlays */
+/* include/game/system.h: start-up, threads, the scheduler, timers, the frame pipeline, video, decompression, the
+ * overlays, and the game state machine's states (docs/code/system.md). */
 #ifndef GAME_SYSTEM_H
 #define GAME_SYSTEM_H
 
 #include "game/types.h"
+
+/* The game's threads (src/rom/boot.c): libultra thread ids, and priorities (the higher runs first). On the PC each is
+ * a host thread and port/ultra keeps their priority order (docs/port/ULTRA.md). */
+#define THREAD_ID_IDLE 1        /* main's first thread: starts the PI manager and the main thread, then idles */
+#define THREAD_ID_MODEL 5       /* the car simulation (ModelThread) */
+#define THREAD_ID_MAIN 6        /* start-up, then the scheduler's client that starts and ends frames */
+#define THREAD_ID_GAME 7        /* GameLoop forever */
+#define THREAD_ID_BG_LOAD 8     /* the background wave loader (BGLoadWaveMain) */
+#define THREAD_PRI_IDLE_START 2 /* the idle thread until it has started the main thread; then 0 */
+#define THREAD_PRI_BG_LOAD 3
+#define THREAD_PRI_MAIN 4
+#define THREAD_PRI_GAME 5
+#define THREAD_PRI_MODEL 7
+#define THREAD_PRI_SCHEDULER 12
+#define THREAD_PRI_PI_MANAGER 150
+
+/* The messages on the main thread's queue (main_thread_queue): the scheduler's (libultra's sched.h names), and the
+ * game thread's request to end a frame (UpdateFrame); the main thread sends frame_start_msg to the game thread. */
+#define OS_SC_RETRACE_MSG 1
+#define OS_SC_DONE_MSG 2
+#define OS_SC_PRE_NMI_MSG 4
+#define GAME_MSG_END_FRAME 0xABE    /* 2750 */
+#define GAME_MSG_START_FRAME 0xABF
+
+/* The game state machine's states (gGameState, gNewGameState: setGameState, updateGameState in state.c). One bit
+ * each; MAT3 has the same bits, unnamed. The front end's states are the screens of runtime image A. */
+#define GAME_STATE_BOOT 0x1             /* start-up: options, records, then the licence screen */
+#define GAME_STATE_LICENSE 0x2
+#define GAME_STATE_TITLE 0x4
+#define GAME_STATE_DEMO 0x8             /* the attract mode's demo race */
+#define GAME_STATE_START 0x10           /* the start menu */
+#define GAME_STATE_PLAYERS 0x20
+#define GAME_STATE_MODE 0x40
+#define GAME_STATE_TRACK 0x80
+#define GAME_STATE_CAR 0x100
+#define GAME_STATE_OPTIONS 0x200
+#define GAME_STATE_CONTROLS 0x400
+#define GAME_STATE_AUDIO 0x800
+#define GAME_STATE_VIDEO 0x1000
+#define GAME_STATE_RECORDS 0x2000
+#define GAME_STATE_CIRCUIT 0x4000
+#define GAME_STATE_RACE_LOAD 0x40000    /* a race chosen: load the track, the cars, the race image */
+#define GAME_STATE_PREPLAY 0x80000      /* PrePlay until the track and cars are in */
+#define GAME_STATE_GO 0x100000          /* the countdown has run out: start the race clock and the music */
+#define GAME_STATE_COUNTDOWN 0x200000
+#define GAME_STATE_PLAY 0x400000        /* the race */
+#define GAME_STATE_GAME_OVER 0x800000
+#define GAME_STATE_RACE_END 0x1000000   /* EndGame: results, then high scores or game over */
+#define GAME_STATE_HIGH_SCORE 0x2000000
+#define GAME_STATE_PAK 0x4000000        /* the Controller Pak manager */
+#define GAME_STATE_CHEATS 0x8000000
+/* 0x10000000 (the start menu's item 7 and the pak manager's exit lead there; no screen updates it) and 0x20000000
+ * (initGameState loads wave 55 for it) have no name: what they were for isn't known. */
+#define GAME_STATE_WARNING 0x40000000   /* the Controller Pak warning after the licence */
+/* The front end's states (the screens of image A, and the boot); the race's (race set-up to high scores); the race
+ * from its loading to its play; the race on the track. */
+#define GAME_STATES_FRONT_END 0x7C03FFFE
+#define GAME_STATES_RACE 0x03FC0000
+#define GAME_STATES_RACE_START 0x007C0000
+#define GAME_STATES_ON_TRACK 0x00600000
 
 /* Data */
 extern void *scheduler_audio_task;
@@ -158,7 +219,7 @@ extern PlayerTail gPlayers_save[EXTENT(3)];
 extern s32 retraces_since_frame;
 extern OSMesg si_lock_msg;
 /* gOPPFuncs: declared by its files (src/blob/groups/hal_time/group.c: defines it) */
-extern Segs frame_records;
+extern FrameRecord frame_records[EXTENT(2)];
 extern FrameBuffer frame_color_buffers[EXTENT(1)];
 extern s32 framebuffer_a;
 extern s32 framebuffer_b;
@@ -287,8 +348,8 @@ u8 HAL_GetFontAscent_Speed(void);
 u8 HAL_GetFontDescent_Speed(void);
 void HAL_InitText_Init(void);
 void HAL_InitTime(void);
-void HAL_InstallOncePerFrameFunc(intptr_t arg0);
-s32 HAL_IntLog2(s32 arg0);
+void HAL_InstallOncePerFrameFunc(intptr_t func);
+s32 HAL_IntLog2(s32 value);
 void HAL_SetFont_8AB0(s32 font);
 void heap_free_locked(u32 address);
 s32 Hidden_9F54(struct Blit *blt, s32 hide);
@@ -315,7 +376,7 @@ void osContGetQuery(OSContStatus *data);
 void osContGetReadData(struct OSContPad *data);
 s32 osContInit(OSMesgQueue *mq, u8 *bitpattern, OSContStatus *data);
 s32 osContStartQuery(OSMesgQueue *mq);
-s32 osContStartReadData(OSMesgQueue *arg0);
+s32 osContStartReadData(OSMesgQueue *mq);
 void osCreateScheduler(PcSched *scheduler, void *stack, OSPri priority, u8 mode, u8 numFields);
 s32 osMotorInit(OSMesgQueue *mq, struct OSPfs *pfs, s32 channel);
 s32 osPfsAllocateFile(struct OSPfs *pfs, u16 company_code, u32 game_code, u8 *game_name, u8 *ext_name, s32 file_size_in_bytes, s32 *file_no);
@@ -329,7 +390,7 @@ s32 osPfsIsPlug(OSMesgQueue *mq, u8 *pattern);
 s32 osPfsReadWriteFile(struct OSPfs *pfs, s32 file_no, u8 flag, s32 offset, s32 size_in_bytes, u8 *data_buffer);
 s32 osPfsRepairId(struct OSPfs *pfs);
 void osScAddClient(PcSched *scheduler, struct OSScClient_s *client, OSMesgQueue *queue);
-void osSyncPrintf(s32 arg0, s32 arg1, s32 arg2, s32 arg3);
+void osSyncPrintf(s32 fmt, s32 value1, s32 value2, s32 value3);
 void other_user(s32 x);
 s32 pak_slot_b1(s32 pak);
 s32 pak_slot_b5(s32 pak);
@@ -343,7 +404,7 @@ void pc_CheckMulti(s32 idx);
 void pc_ContinueSkid(struct WheelSlot *ns, s16 slot, u32 tire, u8 *color);
 f32 *pc_grid_start(struct tModelData *m, s32 what);
 f32 *pc_pole_row(s32 place);
-void pc_ReadShifter(struct CarState *st, struct InputRecord *in);
+void pc_ReadShifter(struct CarState *car, struct InputRecord *player);
 s32 pc_scenery_unplaced(s32 idx, void *node_obj, s32 absolute);
 void pc_ValidateEmitter(struct CamSlot *c);
 void pdf_dealloc(u32 address);
@@ -370,7 +431,7 @@ void SetCountdownTimer(f32 seconds);
 void SetModelPalette(s32 id, struct Resource24 *descriptor);
 void SetPausePlayer(s32 player);
 void slot_forget(struct Obj **node);
-void sound_list_init(struct List *list, s8 indirect, s8 doubly);
+void sound_list_init(struct List *list, s8 handle, s8 dbl);
 f32 TB_GetFlashTextCycle_8AB0(void);
 s16 TB_GetFontHeight_Speed(void);
 void TB_SetJust_6B3C(u32 first, u32 second);
@@ -380,7 +441,7 @@ void tire_sound_on(struct Model2056 *model);
 void update_drone_models(void);
 void update_model(struct ModelRecord *car);
 void UpdateFrameTimer(void);
-void UpdateGraphics(s32 arg0, s32 arg1);
+void UpdateGraphics(s32 drawBlits, s32 updateEnvirons);
 void us_uninitButtons(void);
 void vi_SetFont(s32 font);
 void video_apply_pending_mode(void);

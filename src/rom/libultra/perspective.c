@@ -1,15 +1,8 @@
-/* GENERATED ROM-aligned TU — segment 0x9820 (rom/lib_9820)
- * layout map 0806dc8229adaa12b44b3553635fee1406bb8528ea5161fe0c509c842dfa164a.
- * Slots are GLOBAL_ASM passthroughs until promoted; do not hand-edit
- * passthrough lines. */
+/* libultra's guPerspective (perspective.c): the perspective projection matrix. */
 #include "../rom_tu.h"
 
-/* PROMOTED 2026-10-01 — guPerspectiveF
- * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
- * Flags:    -g0 -O2 -mips2 -G 0 -non_shared -Wab,-r4300_mul
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
+/* The float perspective matrix mf: vertical field of view fovy degrees, aspect, near and far planes, everything
+ * scaled by scale; *perspNorm gets the RSP's normalising factor. */
 void guPerspectiveF(float mf[4][4], u16 *perspNorm, float fovy, float aspect, float near, float far, float scale)
 {
 	float	cot;
@@ -42,12 +35,7 @@ void guPerspectiveF(float mf[4][4], u16 *perspNorm, float fovy, float aspect, fl
 	}
 }
 
-/* PROMOTED 2026-10-01 — guPerspective
- * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
- * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
+/* guPerspectiveF, as the RSP's fixed-point Mtx m. */
 void guPerspective(Mtx *m, u16 *perspNorm, float fovy, float aspect, float near, float far, float scale)
 {
 	Matrix	mf;

@@ -1,27 +1,14 @@
-/* GENERATED ROM-aligned TU — segment 0xf160 (rom/lib_f160)
- * layout map d685f3d6dab9373376d3ef3c9803ad25e7e8685c23458b05fb9c1a12d42f1036.
- * Slots are GLOBAL_ASM passthroughs until promoted; do not hand-edit
- * passthrough lines. */
+/* libultra's serial bus access lock (siacs.c) and a controller's pak status (pfsgetstatus.c). */
 #include "../rom_tu.h"
 
-/* PROMOTED 2026-10-01 — __osSiCreateAccessQueue (ultralib name; formerly labelled osSiInit)
- * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
- * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
+/* Makes the serial bus's lock, a one-message queue (once). */
 void __osSiCreateAccessQueue(void) {
     __osSiInitialized = 1;
     osCreateMesgQueue(&__osSiMesg, &__osSiMesgQueue, 1);
     osSendMesg(&__osSiMesg, NULL, 0);
 }
 
-/* PROMOTED 2026-10-01 — __osSiGetAccess
- * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
- * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
+/* Takes the serial bus's lock (making it first if need be). */
 void __osSiGetAccess(void) {
     OSMesg dummyMesg;
     if (!__osSiInitialized) {
@@ -30,22 +17,12 @@ void __osSiGetAccess(void) {
     osRecvMesg(&__osSiMesg, &dummyMesg, OS_MESG_BLOCK);
 }
 
-/* PROMOTED 2026-10-01 — __osSiRelAccess
- * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
- * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
+/* Gives the serial bus's lock back. */
 void __osSiRelAccess(void) {
     osSendMesg(&__osSiMesg, NULL, OS_MESG_NOBLOCK);
 }
 
-/* PROMOTED 2026-10-01 — __osPfsGetStatus (formerly labelled osContStartReadData)
- * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
- * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
+/* The pak status of controller channel. Returns 0, PFS_ERR_NOPACK, PFS_ERR_NEW_PACK or PFS_ERR_CONTRFAIL. */
 s32 __osPfsGetStatus(OSMesgQueue* queue, int channel) {
     s32 ret = 0;
     OSMesg dummy;
@@ -74,12 +51,7 @@ s32 __osPfsGetStatus(OSMesgQueue* queue, int channel) {
     return ret;
 }
 
-/* PROMOTED 2026-10-01 — __osPfsRequestOneChannel (ultralib name; formerly labelled __osContBuildRequest)
- * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
- * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
+/* Fills the PIF buffer with command cmd for controller channel only. */
 void __osPfsRequestOneChannel(int channel, u8 cmd) {
     u8* ptr;
     __OSContRequesFormatShort requestformat;
@@ -106,12 +78,7 @@ void __osPfsRequestOneChannel(int channel, u8 cmd) {
     *ptr = CONT_CMD_END;
 }
 
-/* PROMOTED 2026-10-01 — __osPfsGetOneChannelData (ultralib name; formerly labelled __osContParseResponse)
- * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
- * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
+/* Reads the status of controller channel from the PIF buffer into data. */
 void __osPfsGetOneChannelData(int channel, OSContStatus* data) {
     u8* ptr = (u8*)&(*(OSPifRam *)__osPfsPifRam);
     __OSContRequesFormatShort requestformat;

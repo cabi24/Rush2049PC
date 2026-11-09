@@ -1,3 +1,5 @@
+/* The HUD's race results (MAT3 hud.c animResults): an animation function, run each frame at the end of a race,
+ * that draws each finished player's result in their window and, with two or more windows, the winner. */
 #include "game/game.h"
 #define OSMesgQueue OSMesgQueueView   /* this file's own OSMesgQueue: include/game's OSMesgQueue is another type */
 
@@ -32,12 +34,19 @@ extern s32 osRecvMesg(OSMesgQueue *, void **, s32), osSendMesg(OSMesgQueue *, vo
 /* PC: pointer-sized, as the definition (Windows x64 passes it on the stack; docs/port/PROTOTYPES.md) */
 extern s32 *InitPane(s32, s32, s32, s32, s32, intptr_t, s32, s32);
 
+/* HAL_SetFont without its result. */
 void ar_SetFont(s32 font)
 {
     ar_font_set(font);
 }
 
-s32 animResults(s32 arg0)
+/* Draws, for each window whose player has finished (in death mode, done every lap), a pane in the player's colour
+ * with their name and result: stunt points (gRace 4), obstacle time or "failed" (5), battle points (6), else
+ * their place and time or laps. With two or more windows all finished, a middle pane names the winner (or the
+ * drone, or a tie of n players).
+ * PC: resultPane[4], the middle pane, is past resultPane's four entries (the N64's resultPane4 follows it); a
+ * known port issue (docs/port/PCONLY.md 4, "Interior labels"). */
+s32 animResults(s32 unused)
 {
     s32 playerIdx;
     s32 x;
@@ -133,6 +142,7 @@ s32 animResults(s32 arg0)
     return 1;
 }
 
+/* HAL_SetFont: the text font, under the text lock; returns the one before. */
 s32 ar_font_set(s32 font)
 {
     s32 old;

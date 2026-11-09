@@ -1,15 +1,9 @@
-/* GENERATED ROM-aligned TU — segment 0xb570 (rom/lib_b570)
- * layout map 554627b1e11be1c141f933c26dfabeb3225f5a4972b5b61c4a6610c3dd66c5ae.
- * Slots are GLOBAL_ASM passthroughs until promoted; do not hand-edit
- * passthrough lines. */
+/* libultra's osPfsAllocateFile (pfsallocatefile.c): making a Controller Pak file. */
 #include "../rom_tu.h"
 
-/* PROMOTED 2026-10-01 — osPfsAllocateFile (formerly labelled osPfsReadWriteFile)
- * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
- * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
+/* Makes a file of file_size_in_bytes (whole pages) with that company, game, name and extension: free pages
+ * taken bank by bank and chained, a directory entry written; *file_no gets its number. Returns 0, or PFS_ERR_*
+ * (PFS_DATA_FULL, PFS_DIR_FULL, PFS_ERR_EXIST). */
 s32 osPfsAllocateFile(OSPfs* pfs, u16 company_code, u32 game_code, u8* game_name, u8* ext_name, int file_size_in_bytes,
                       s32* file_no) {
     int start_page;
@@ -104,12 +98,7 @@ s32 osPfsAllocateFile(OSPfs* pfs, u16 company_code, u32 game_code, u8* game_name
     return ret;
 }
 
-/* PROMOTED 2026-10-01 — __osPfsDeclearPage
- * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
- * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
+/* Takes free pages of bank for a file, chaining them, for osPfsAllocateFile. */
 s32 __osPfsDeclearPage(OSPfs* pfs, __OSInode* inode, int file_size_in_pages, int* first_page, u8 bank, int* decleared,
                        int* last_page) {
     int j;

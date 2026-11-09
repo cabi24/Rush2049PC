@@ -1,30 +1,30 @@
+/* normalize_vector_or_x (MAT3 fmath.c's vector normalize, the N64 form): a vector made unit length. */
 #include "game/game.h"
 
-
-#undef M2C_FIELD
-#define M2C_FIELD(e,t,o) (*(t)((u8 *)(e)+(o)))
 extern f32 sqrtf(f32);
 #pragma intrinsic(sqrtf)
-f32 normalize_vector_or_x(f32 *arg0) {
-    f32 temp_f0;
-    f32 temp_f12;
-    f32 temp_f14;
-    f32 temp_f18;
-    f32 temp_f2;
 
-    temp_f2 = arg0[2];
-    temp_f12 = arg0[0];
-    temp_f14 = arg0[1];
-    temp_f0 = sqrtf((temp_f2 * temp_f2) + ((temp_f12 * temp_f12) + (temp_f14 * temp_f14)));
-    if (temp_f0 != 0.0f) {
-        temp_f18 = 1.0f / temp_f0;
-        arg0[0] = (f32) (temp_f12 * temp_f18);
-        arg0[1] = (f32) (temp_f14 * temp_f18);
-        arg0[2] = (f32) (temp_f2 * temp_f18);
+/* Scales the 3-vector v to length 1 and returns its old length; a zero vector becomes (1, 0, 0). */
+f32 normalize_vector_or_x(f32 *v) {
+    f32 length;
+    f32 x;
+    f32 y;
+    f32 scale;
+    f32 z;
+
+    z = v[2];
+    x = v[0];
+    y = v[1];
+    length = sqrtf((z * z) + ((x * x) + (y * y)));
+    if (length != 0.0f) {
+        scale = 1.0f / length;
+        v[0] = (f32) (x * scale);
+        v[1] = (f32) (y * scale);
+        v[2] = (f32) (z * scale);
     } else {
-    arg0[1] = 0.0f;
-    arg0[2] = 0.0f;
-    arg0[0] = 1.0f;
+    v[1] = 0.0f;
+    v[2] = 0.0f;
+    v[0] = 1.0f;
     }
-    return temp_f0;
+    return length;
 }

@@ -1,3 +1,6 @@
+/* ControllerUpdate (MAT3 controlsys.c; the N64's reads the pads over the serial bus): reads the four controllers
+ * into gControllerData once a retrace (the model thread calls it) and hands them to ControlIRQ. controlsys/group.c
+ * turns them into the game's held, pressed and stick state. */
 #include "game/game.h"
 #define OSMesgQueue OSMesgQueueView   /* this file's own OSMesgQueue: include/game's OSMesgQueue is another type */
 #define OSThread OSThreadView   /* this file's own OSThread: include/game's OSThread is another type */
@@ -9,14 +12,13 @@ typedef struct OSContPad {u16 button;s8 stick_x,stick_y;u8 errno;} OSContPad;
 extern void osCreateMesgQueue(OSMesgQueue *,OSMesg *,s32);
 extern s32 osSendMesg(OSMesgQueue *,OSMesg,s32),osRecvMesg(OSMesgQueue *,OSMesg *,s32);
 
-typedef struct {
-    s8 connected;       /* 0x0 */
-    u8 pad1[3];
-    u32 buttons;        /* 0x4 */
-    s8 stick[2];        /* 0x8 */
-    s8 unkA[4];         /* 0xA */
-    u8 padE[2];
-} ContRec16;
+/* libultra's controller error bit (cont_status[].errno, OSContPad.errno): no controller answered. */
+#define CONT_NO_RESPONSE_ERROR 0x8
+/* The type of the serial bus's event message: init_controllers.c has si_event_queue get si_message when a serial
+ * command finishes (osSetEventMesg(OS_EVENT_SI, ...), OS_EVENT_SI being 5 too). */
+#define SI_EVENT_MSG 5
+/* Retraces between status queries (which find a Controller Pak being plugged in or out). */
+#define CONT_QUERY_INTERVAL 30
 
 VIEW(OSMesgQueue, si_lock_queue);
 #define si_lock_queue si_lock_queue_view
@@ -24,11 +26,10 @@ VIEW(OSMesgQueue, si_lock_queue);
 VIEW(OSMesgQueue, si_event_queue);
 #define si_event_queue si_event_queue_view
 
-VIEW(volatile ContRec16[4], gControllerData);
-#define gControllerData gControllerData_view
 VIEW(u32[19], n64_button_map);
 #define n64_button_map n64_button_map_view
 
+/* Makes the serial bus's lock the first time (MAT3 controlsys.c's _InitSemaphore, the N64 form). */
 static void pak_queue_init(void)
 {
     if (!si_lock_inited) {
@@ -37,6 +38,7 @@ static void pak_queue_init(void)
     }
 }
 
+/* Takes the serial bus's lock (shared with the Controller Pak and Rumble Pak code); si_unlock gives it back. */
 static void pak_lock(void)
 {
     OSMesg message;
@@ -45,9 +47,14 @@ static void pak_lock(void)
     osRecvMesg(&si_lock_queue,&message,1);
 }
 
+/* Every CONT_QUERY_INTERVAL calls, queries the controllers' status (cont_status) and notes paks plugged in or out
+ * (pak_poll_inserted); then reads the four pads. A controller that doesn't answer is detached and reads as nothing.
+ * Each pad's buttons are turned into the game's button bits (bit j for n64_button_map[j]) and its stick copied; the
+ * second stick and the analog triggers read 0. Then ControlIRQ updates the game's input state. Returns 0 when the
+ * read could not be started (the bus is busy), else 1. */
 s32 ControllerUpdate(void)
 {
-    static u8 queryTimer = 29;
+    static u8 queryTimer = CONT_QUERY_INTERVAL - 1;
     OSMesg msg = 0;
     s32 i;
     s32 j;
@@ -55,13 +62,12 @@ s32 ControllerUpdate(void)
 
     pak_lock();
     osRecvMesg(&si_event_queue, &msg, 0);
-    do {} while (0);
-    if (++queryTimer == 30) {
+    if (++queryTimer == CONT_QUERY_INTERVAL) {
         queryTimer = 0;
         osContStartQuery(&si_event_queue);
         do {
             osRecvMesg(&si_event_queue, &msg, 1);
-        } while (*(s16 *)msg != 5);
+        } while (*(s16 *)msg != SI_EVENT_MSG);
         osContGetQuery(cont_status);
         pak_poll_inserted();
     }
@@ -73,16 +79,16 @@ s32 ControllerUpdate(void)
     osContGetReadData(pads);
     si_unlock();
     for (i = 0; i < 4; i++) {
-        if ((cont_status[i].errno & 8) || (pads[i].errno & 8)) {
-            if (gControllerData[i].connected) {
-                gControllerData[i].connected = 0;
+        if ((cont_status[i].errno & CONT_NO_RESPONSE_ERROR) || (pads[i].errno & CONT_NO_RESPONSE_ERROR)) {
+            if (gControllerData[i].attached) {
+                gControllerData[i].attached = 0;
             }
         } else {
-            if (!gControllerData[i].connected) {
-                gControllerData[i].connected = 1;
+            if (!gControllerData[i].attached) {
+                gControllerData[i].attached = 1;
             }
         }
-        if (!gControllerData[i].connected) {
+        if (!gControllerData[i].attached) {
             pads[i].stick_x = pads[i].stick_y = 0;
             pads[i].button = 0;
         }
@@ -94,10 +100,10 @@ s32 ControllerUpdate(void)
         }
         gControllerData[i].stick[0] = pads[i].stick_x;
         gControllerData[i].stick[1] = pads[i].stick_y;
-        gControllerData[i].unkA[0] = 0;
-        gControllerData[i].unkA[1] = 0;
-        gControllerData[i].unkA[2] = 0;
-        gControllerData[i].unkA[3] = 0;
+        gControllerData[i].stick2[0] = 0;
+        gControllerData[i].stick2[1] = 0;
+        gControllerData[i].analog[0] = 0;
+        gControllerData[i].analog[1] = 0;
     }
     ControlIRQ();
     return 1;

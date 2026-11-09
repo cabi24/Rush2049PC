@@ -1,23 +1,25 @@
+/* MBGetFromWad (MAT3 mb_wad.c): the data a WAD holds under a tag (MBSetupWad.c has the WADs). */
 #include "game/game.h"
 
-/* PC: the entry's address is a 32-bit RDRAM-window address. Unsigned, so callers widen it to a pointer by zero
- * extension (docs/port/ASSETS.md section 4 #3). */
-#define WAD_ADDR u32
-WAD_ADDR MBGetFromWad(void *arg0, s32 arg1, s32 *arg2) {
-    void *var_v1;
+/* The window address of wad's data tagged tag, and its length in *length (when length isn't 0); 0 and a length of 0
+ * when wad is 0 or has no such tag.
+ * PC: the address is returned as a u32, so callers widen it to a pointer without sign extension (docs/port/ASSETS.md
+ * section 4 #3). */
+u32 MBGetFromWad(WadHandle *wad, s32 tag, s32 *length) {
+    WadEntry *entry;
 
-    var_v1 = NULL;
-    if (arg0 != NULL) {
-        var_v1 = MBFindInWad(arg0, arg1);
+    entry = NULL;
+    if (wad != NULL) {
+        entry = MBFindInWad(wad, tag);
     }
-    if (var_v1 == NULL) {
-        if (arg2 != NULL) {
-            *arg2 = 0;
+    if (entry == NULL) {
+        if (length != NULL) {
+            *length = 0;
         }
         return 0;
     }
-    if (arg2 != NULL) {
-        *arg2 = M2C_FIELD(var_v1, s32 *, 8);
+    if (length != NULL) {
+        *length = entry->length;
     }
-    return M2C_FIELD(var_v1, s32 *, 4);
+    return entry->address;
 }

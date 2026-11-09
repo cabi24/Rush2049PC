@@ -1,6 +1,8 @@
+/* ClearBST (MAT3 bstree.c): empties an ordered list (InitBST.c has the tree). The nodes are the caller's. */
 #include "game/game.h"
 
-void ClearBST(void *arg0) {
-    M2C_FIELD(arg0, s32 *, 8) = 0;
-    M2C_FIELD(arg0, s32 *, 4) = 0;
+/* Forgets every node of tree: no root, no count. */
+void ClearBST(tOrderedList *tree) {
+    tree->root = NULL;
+    tree->numElements = 0;
 }

@@ -1,15 +1,7 @@
-/* GENERATED ROM-aligned TU — segment 0x9660 (rom/lib_9660)
- * layout map 98ded2baa087f2258440a099641ffc555a5a39a13d2e01cdf20194b1e3769ee1.
- * Slots are GLOBAL_ASM passthroughs until promoted; do not hand-edit
- * passthrough lines. */
+/* libultra's guOrtho (ortho.c): the orthographic projection matrix. */
 #include "../rom_tu.h"
 
-/* PROMOTED 2026-10-01 — guOrthoF
- * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
- * Flags:    -g0 -O2 -mips2 -G 0 -non_shared -Wab,-r4300_mul
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
+/* The float orthographic matrix mf for the box l..r, b..t, n..f, everything scaled by scale. */
 void guOrthoF(float mf[4][4], float l, float r, float b, float t, float n, float f, float scale)
 {
 	int	i, j;
@@ -29,12 +21,7 @@ void guOrthoF(float mf[4][4], float l, float r, float b, float t, float n, float
 		mf[i][j] *= scale;
 }
 
-/* PROMOTED 2026-10-01 — guOrtho
- * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
- * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
+/* guOrthoF, as the RSP's fixed-point Mtx m. */
 void guOrtho(Mtx *m, float l, float r, float b, float t, float n, float f, float scale)
 {
 	Matrix	mf;

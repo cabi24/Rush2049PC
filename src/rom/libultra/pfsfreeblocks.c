@@ -1,15 +1,7 @@
-/* GENERATED ROM-aligned TU — segment 0xbe40 (rom/lib_be40)
- * layout map ccd8220c25986fe69d3e9a92b2007a65f55e0d15beb31f6dd2ecb298eb49485e.
- * Slots are GLOBAL_ASM passthroughs until promoted; do not hand-edit
- * passthrough lines. */
+/* libultra's osPfsFreeBlocks (pfsfreeblocks.c): a Controller Pak's free space. */
 #include "../rom_tu.h"
 
-/* PROMOTED 2026-10-01 — osPfsFreeBlocks
- * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
- * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
+/* The free bytes on the pak (its free pages over every bank) into *bytes_not_used. Returns 0 or PFS_ERR_*. */
 s32 osPfsFreeBlocks(OSPfs* pfs, s32* bytes_not_used) {
     int j;
     int pages = 0;

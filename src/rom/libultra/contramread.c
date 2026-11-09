@@ -1,15 +1,9 @@
-/* GENERATED ROM-aligned TU — segment 0xf4d0 (rom/lib_f4d0)
- * layout map dd46c0970e0903e72dea725fec854d3ffd8b9d44768859c6597dc35487453467.
- * Slots are GLOBAL_ASM passthroughs until promoted; do not hand-edit
- * passthrough lines. */
+/* libultra's __osContRamRead: reading a block of a Controller Pak's memory. */
 #include "../rom_tu.h"
 
-/* PROMOTED 2026-10-01 — __osContRamRead
- * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
- * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
+/* Reads the 32-byte block at address (a block number) of the pak on controller channel into buffer, through the
+ * PIF; the data's CRC is checked and the read tried twice more. Returns 0, or PFS_ERR_* (no pak, a new pak,
+ * CONTRP_CRC_ERROR). */
 s32 __osContRamRead(OSMesgQueue* mq, int channel, u16 address, u8* buffer) {
     s32 ret = 0;
     s32 i;

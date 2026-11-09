@@ -1,15 +1,13 @@
-/* GENERATED ROM-aligned TU — segment 0x21f0 (rom/lib_21f0)
- * layout map fe94ca7f42eb4854cf5b13eed87a4b511f52b70215182a56919a592137bfae27.
- * Slots are GLOBAL_ASM passthroughs until promoted; do not hand-edit
- * passthrough lines. */
+/* The video mode (the boot segment's; MAT3's GameCube has its own): the libultra VI mode for the TV type
+ * (NTSC, PAL, MPAL), adjusted for the screen's size and the player's offsets (the video screen's centring), applied
+ * at a retrace (video_apply_pending_mode, from the scheduler). On the PC port/ultra's VI takes the mode; the
+ * picture is the renderer's. */
 #include "static_debug_context.h"
 
-/* PROMOTED 2026-10-02 — video_build_adjusted_mode
- * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
- * Flags:    -g1 -O1 -mips2 -G 0 -non_shared -Wab,-r4300_mul
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
+/* Makes the next VI mode from the base mode for the screen's size (video_width x video_height) and the offsets: the
+ * picture's left, right, top and bottom moved by the offsets and the extra width and height, the scales fitted to
+ * them, interlaced modes doubled; the two adjusted modes alternate, and the new one is applied two retraces on
+ * (video_pending_frames). With interrupts off. */
 void video_build_adjusted_mode(void) {
     u32 saved;
     s32 left, top, right, bottom;
@@ -56,12 +54,9 @@ void video_build_adjusted_mode(void) {
     osSetIntMask(saved);
 }
 
-/* PROMOTED 2026-10-02 — video_set_mode
- * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
- * Flags:    -g1 -O1 -mips2 -G 0 -non_shared -Wab,-r4300_mul
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
+/* Sets the video mode: tv's retrace rate (PAL 50 Hz, NTSC and MPAL 60) and time, the base mode (libultra's mode
+ * table entry mode) and its picture's edges; the first time the TV's default offsets and extra size, later the
+ * scene's windows scaled to the new size; then the adjusted mode for width x height. */
 void video_set_mode(s32 tv, s32 mode, s32 width, s32 height) {
     if (tv == 0) {
         gRetraceRate = 50.0f;
@@ -90,12 +85,8 @@ void video_set_mode(s32 tv, s32 mode, s32 width, s32 height) {
     video_build_adjusted_mode();
 }
 
-/* PROMOTED 2026-10-02 — video_apply_pending_mode
- * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
- * Flags:    -g1 -O1 -mips2 -G 0 -non_shared -Wab,-r4300_mul
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
+/* Each retrace (from the scheduler): when the pending count runs out, applies the adjusted mode (unblacking the
+ * screen if its vertical scale is the base mode's), with gamma, dither filter and divot on. */
 void video_apply_pending_mode(void) {
     if (video_pending_frames == 0) return;
     if (--video_pending_frames == 0) {
@@ -107,50 +98,26 @@ void video_apply_pending_mode(void) {
     }
 }
 
-/* PROMOTED 2026-10-02 — video_mode_base_index
- * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
- * Flags:    -g1 -O1 -mips2 -G 0 -non_shared -Wab,-r4300_mul
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
+/* The first index of osViModeTable for the TV type: NTSC 0, PAL 14, MPAL 28. */
 s32 video_mode_base_index(void) { s32 offset; if(osTvType==1) offset=0; else if(osTvType==0) offset=14; else offset=28; return offset; }
 
-/* PROMOTED 2026-10-02 — video_restore_base_mode
- * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
- * Flags:    -g1 -O1 -mips2 -G 0 -non_shared -Wab,-r4300_mul
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
+/* Back to the unadjusted base mode (at a reset). */
 void video_restore_base_mode(void) { osViSetMode(video_base_mode); }
 
-/* PROMOTED 2026-10-02 — video_get_default_offset
- * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
- * Flags:    -g1 -O1 -mips2 -G 0 -non_shared -Wab,-r4300_mul
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
+/* The TV type's default offsets into *x and *y. */
 void video_get_default_offset(register s32 *x, register s32 *y) {
     *x = ((s16 (*)[4])video_default_x)[video_tv_type][0];
     *y = ((s16 (*)[4])video_default_y)[video_tv_type][0];
 }
 
-/* PROMOTED 2026-10-02 — video_get_offset
- * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
- * Flags:    -g1 -O1 -mips2 -G 0 -non_shared -Wab,-r4300_mul
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
+/* The player's offsets from the default into *x and *y. */
 void video_get_offset(register s32 *x, register s32 *y) {
     *x = video_offset_x - ((s16 (*)[4])video_default_x)[video_tv_type][0];
     *y = video_offset_y - ((s16 (*)[4])video_default_y)[video_tv_type][0];
 }
 
-/* PROMOTED 2026-10-02 — video_set_offset
- * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
- * Flags:    -g1 -O1 -mips2 -G 0 -non_shared -Wab,-r4300_mul
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
+/* Sets the player's offsets from the default (the video screen's centring), each only if the picture's edges stay
+ * within the TV type's bounds (video_offset_bounds), and makes the adjusted mode. */
 void video_set_offset(s32 x, s32 y) {
     s32 left, top, right, bottom;
     if (video_adjusted_mode == NULL) return;

@@ -1,15 +1,7 @@
-/* GENERATED ROM-aligned TU — segment 0xb120 (rom/lib_b120)
- * layout map 6108b36c777a807b89267449fa9681e02450bf89909a71a9a3439493f7d44fa3.
- * Slots are GLOBAL_ASM passthroughs until promoted; do not hand-edit
- * passthrough lines. */
+/* libultra's osPfsFileState (pfsfilestate.c): a Controller Pak file's directory entry. */
 #include "../rom_tu.h"
 
-/* PROMOTED 2026-10-01 — osPfsFileState (formerly labelled osPfsDeleteFile)
- * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
- * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
+/* File file_no's directory entry (size, company, game, name, extension) into state. Returns 0 or PFS_ERR_*. */
 s32 osPfsFileState(OSPfs* pfs, s32 file_no, OSPfsState* state) {
     s32 ret;
     int pages;

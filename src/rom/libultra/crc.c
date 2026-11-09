@@ -1,15 +1,7 @@
-/* GENERATED ROM-aligned TU — segment 0x105f0 (rom/lib_105f0)
- * layout map d973bfdc756aaecf31e12ea7faba871aae38af42089f45217aed2975232c9c96.
- * Slots are GLOBAL_ASM passthroughs until promoted; do not hand-edit
- * passthrough lines. */
+/* libultra's CRCs of the Controller Pak commands (crc.c): of an address and of a data block. */
 #include "../rom_tu.h"
 
-/* PROMOTED 2026-10-11 — __osContAddressCrc
- * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
- * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
+/* The 5-bit CRC of a pak address (its 11 bits), sent with a pak read or write. */
 u8 __osContAddressCrc(u16 addr) {
     u32 temp = 0;
     u32 i = (1 << 10);
@@ -42,12 +34,7 @@ u8 __osContAddressCrc(u16 addr) {
     return temp & ((1 << 5) - 1);
 }
 
-/* PROMOTED 2026-10-11 — __osContDataCrc
- * Source:   reconstructed C, byte-matched against the retail ROM (2026-10)
- * Flags:    -g0 -O2 -mips2 -G 0 -non_shared
- * Evidence: identical bytes in the full-ROM SHA-1 build
- * Gate:     full-ROM SHA-1
- */
+/* The 8-bit CRC of a 32-byte block, which the pak returns with a read or write. */
 u8 __osContDataCrc(u8* data) {
     u32 temp = 0;
     u32 i;

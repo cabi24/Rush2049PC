@@ -1,8 +1,12 @@
+/* The game state machine (MAT3 state.c): GameLoop calls updateGameState each frame; when setGameState has asked for
+ * another state (gNewGameState), the old state is left (uninitGameState: its waves go) and the new one entered
+ * (initGameState): which runtime image, which waves and sounds are loaded, which controllers count. The states are
+ * system.h's GAME_STATE_* bits. */
 #include "game/game.h"
 #define OSMesgQueue OSMesgQueueView   /* this file's own OSMesgQueue: include/game's OSMesgQueue is another type */
 
 typedef struct PSFile { void *next, *prev; void *fileh; } PSFile;     /* the profile's host layout (pc_prelude.h) */
-typedef struct PadState { u8 pad0[72]; PSFile **save; } PadState;    /* gPlayers[], 76 bytes, save at +72 */
+typedef struct PadState { u8 pad0[72]; PSFile **save; } PadState;    /* gPlayers[] (tPadState): the profile at +72 */
 typedef struct PlayerData { struct PlayerData **next; } PlayerData;  /* handle list, next handle at +0 */
 typedef struct { u32 opaque[6]; } OSMesgQueue;
 s32 osRecvMesg(OSMesgQueue *mq, void **msg, s32 flag);
@@ -30,7 +34,10 @@ void *ZOID_SetFog(s16 a0, s16 a1, u8 r, u8 g, u8 b, u8 a, u32 win);
 
 /* The heap's API takes N64 addresses: N64A(p) is a window pointer's (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
 #define N64A(x) PC_N64A(x)
-void LoadFrontEndOverlay(s32 load)           /* LoadFrontEndOverlay */
+
+/* Loads runtime image A, the front end (load set), freeing image B first if it is in; or frees image A (load
+ * clear). Both share one heap block (overlay_base). Does nothing when image A already is, or isn't, loaded. */
+void LoadFrontEndOverlay(s32 load)
 {
     static s32 loaded = 0;
     if (load) {
@@ -55,11 +62,28 @@ void LoadFrontEndOverlay(s32 load)           /* LoadFrontEndOverlay */
     }
 }
 
-void initGameState(void)                /* initGameState@state.c (static in MAT3; deleted after inlining, stub 0x800CA2F8) */
+/* Enters gGameState (MAT3 initGameState):
+ *   boot: nothing shown yet; options and records, three frames, then the licence screen;
+ *   licence, title (and the screens that set fonts again): the front end's waves and image A, the effects volume
+ *     (gOptions[13]), controller 0 active, the sticks driving the menus; the title also locks the players' pak
+ *     files unless a skip to a later screen is set, and starts the title music (song 6, gOptions[12] the music
+ *     volume, gOptions[14] the song: 13 and up none) with an Expansion Pak;
+ *   demo: the players' data and the front end go, image B with an Expansion Pak, a smaller sound set without;
+ *   start, players, mode: which controllers count (the players' in the player screen);
+ *   circuit, car, track: their screens' waves (57, 56, 60);
+ *   race load: unless restarting, the front end's waves and fonts go and the race's fonts are loaded (13, 10 ...),
+ *     the sound set for the race kind, the pak flushed; image B for battle, stunt and obstacle (gRace 6, 4, 5) or
+ *     with an Expansion Pak; the sticks no longer drive the menus;
+ *   race end: the sticks drive the menus again; game over: the records saved to the paks;
+ *   0x20000000: the front end's waves go, wave 55 comes.
+ * Without an Expansion Pak the sound system is made again at each front-end state (32 voices ...) and the 3D sound
+ * tables freed, as there is no room for both. Every front-end state sets both windows' fog to the colour of fog
+ * entry 19, far away. */
+void initGameState(void)
 {
     s32 i;
 
-    if (gGameState & 0x1) {
+    if (gGameState & GAME_STATE_BOOT) {
         gGameStarted = 0;
         gSofdecShown = 0;
         gLicenseShown = 0;
@@ -80,8 +104,8 @@ void initGameState(void)                /* initGameState@state.c (static in MAT3
         UpdateFrame();
         UpdateFrame();
         InitRecords();
-        setGameState(0x2);
-    } else if (gGameState & 0x2) {
+        setGameState(GAME_STATE_LICENSE);
+    } else if (gGameState & GAME_STATE_LICENSE) {
         HAL_PurgeFonts();
         InitWaves();
         if (!expansion_pak_present) {
@@ -94,8 +118,8 @@ void initGameState(void)                /* initGameState@state.c (static in MAT3
         SetControllerActive(-1, 0);
         SetControllerActive(0, 1);
         SetControllerStickEdges(-1, 1);
-    } else if (gGameState & 0x40000000) {
-    } else if (gGameState & 0x4) {
+    } else if (gGameState & GAME_STATE_WARNING) {
+    } else if (gGameState & GAME_STATE_TITLE) {
         HAL_PurgeFonts();
         InitWaves();
         if (!expansion_pak_present) {
@@ -105,7 +129,7 @@ void initGameState(void)                /* initGameState@state.c (static in MAT3
         AudSetFxVol(gOptions[13] / 10.0f, 0.1f);
         LoadFrontEndOverlay(1);
         LoadFrontEndWaves();
-        if (!(gSkipToGameState & 0x7cdfc0)) {
+        if (!(gSkipToGameState & 0x7cdfc0)) {   /* not skipping to a race's start or to a screen from mode on */
             for (i = 0; i < gNumPlayers; i++) {
                 if (gPlayers[i].save) {
                     PS_LockFile((*gPlayers[i].save)->fileh, 0);
@@ -115,12 +139,12 @@ void initGameState(void)                /* initGameState@state.c (static in MAT3
         SetControllerActive(-1, 0);
         SetControllerActive(0, 1);
         SetControllerStickEdges(-1, 1);
-        if (expansion_pak_present && !(gSkipToGameState & 0x7c0000) && gOptions[14] < 13) {
+        if (expansion_pak_present && !(gSkipToGameState & GAME_STATES_RACE_START) && gOptions[14] < 13) {
             AudSetMusicVol(gOptions[12] / 10.0f, 0.05f);
             AudPlaySong(6, 1);
         }
         gUpsideDownTrack = 0;
-    } else if (gGameState & 0x8) {
+    } else if (gGameState & GAME_STATE_DEMO) {
         PlayerData **h;
         for (h = gPlayerFiles.head; h; h = (*h)->next) {
             PurgePlayerData(h);
@@ -135,11 +159,11 @@ void initGameState(void)                /* initGameState@state.c (static in MAT3
         if (expansion_pak_present) {
             load_extra_overlay();
         }
-    } else if (gGameState & 0x10) {
+    } else if (gGameState & GAME_STATE_START) {
         SetControllerActive(-1, 0);
         SetControllerActive(0, 1);
         SetControllerStickEdges(-1, 1);
-    } else if (gGameState & 0x20) {
+    } else if (gGameState & GAME_STATE_PLAYERS) {
         s32 p;
 
         for (p = 0; p < gNumPlayers; p++) {
@@ -148,23 +172,21 @@ void initGameState(void)                /* initGameState@state.c (static in MAT3
         }
         for (; p < 4; p++) {
             SetControllerActive(p, 0);
-            if (p > 1) {
-            }
         }
-    } else if (gGameState & 0x40) {
+    } else if (gGameState & GAME_STATE_MODE) {
         SetControllerActive(-1, 0);
         SetControllerActive(0, 1);
-    } else if (gGameState & 0x200) {
-    } else if (gGameState & 0x400) {
-    } else if (gGameState & 0x800) {
-    } else if (gGameState & 0x1000) {
-    } else if (gGameState & 0x2000) {
-    } else if (gGameState & 0x8000000) {
-    } else if (gGameState & 0x4000) {
+    } else if (gGameState & GAME_STATE_OPTIONS) {
+    } else if (gGameState & GAME_STATE_CONTROLS) {
+    } else if (gGameState & GAME_STATE_AUDIO) {
+    } else if (gGameState & GAME_STATE_VIDEO) {
+    } else if (gGameState & GAME_STATE_RECORDS) {
+    } else if (gGameState & GAME_STATE_CHEATS) {
+    } else if (gGameState & GAME_STATE_CIRCUIT) {
         loading_effect_none();
         LoadWave(57, 0, 0, 0, 0);
         loading_effect_none();
-    } else if (gGameState & 0x100) {
+    } else if (gGameState & GAME_STATE_CAR) {
         s32 p;
 
         LoadWave(56, 0, 0, 0, 0);
@@ -174,16 +196,14 @@ void initGameState(void)                /* initGameState@state.c (static in MAT3
         }
         for (; p < 4; p++) {
             SetControllerActive(p, 0);
-            if (p > 1) {
-            }
         }
-    } else if (gGameState & 0x80) {
+    } else if (gGameState & GAME_STATE_TRACK) {
         loading_effect_none();
         LoadWave(60, 0, 0, 0, 0);
         SetControllerActive(-1, 0);
         SetControllerActive(0, 1);
         loading_effect_none();
-    } else if (gGameState & 0x40000) {
+    } else if (gGameState & GAME_STATE_RACE_LOAD) {
         if (!gRestartGame) {
             UnloadFrontEndWaves();
             HAL_PurgeFonts();
@@ -218,9 +238,9 @@ void initGameState(void)                /* initGameState@state.c (static in MAT3
             HAL_SetFont(7);
         }
         SetControllerStickEdges(-1, 0);
-    } else if (gGameState & 0x1000000) {
+    } else if (gGameState & GAME_STATE_RACE_END) {
         SetControllerStickEdges(-1, 1);
-    } else if (gGameState & 0x800000) {
+    } else if (gGameState & GAME_STATE_GAME_OVER) {
         SaveServer(1, 0);
         SaveFlush(1);
     } else if (gGameState & 0x20000000) {
@@ -228,13 +248,14 @@ void initGameState(void)                /* initGameState@state.c (static in MAT3
         InitWaves();
         LoadWave(55, 0, 0, 0, 0);
     }
-    if (gGameState & 0x7c03fffe) {
+    if (gGameState & GAME_STATES_FRONT_END) {
         ZOID_SetFog(1000, 999, gFogColors[19][0], gFogColors[19][1], gFogColors[19][2], 0xff, 0);
         ZOID_SetFog(1000, 999, gFogColors[19][0], gFogColors[19][1], gFogColors[19][2], 0xff, 1);
     }
 }
 
-void updateGameState(void)        /* updateGameState */
+/* Changes state if setGameState asked for one: leaves the old (uninitGameState), enters the new (initGameState). */
+void updateGameState(void)
 {
     if (gNewGameState != gGameState) {
         uninitGameState();
@@ -243,6 +264,7 @@ void updateGameState(void)        /* updateGameState */
     }
 }
 
+/* Where MAT3 starts and ends its loading effect (leStartLoadingEffect): nothing on the N64. */
 void loading_effect_none(void)
 {
 }

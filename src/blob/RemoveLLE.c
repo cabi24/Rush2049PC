@@ -1,32 +1,39 @@
+/* RemoveLLE (MAT3 ll.c): takes a record out of a linked list (InsertLLE.c has the lists). */
 #include "game/game.h"
 
+/* A record's links (MAT3 tDLLE); in a list of handles, the first word of the handle is the record. */
 typedef struct Link {struct Link *next, *prev;} Link;
-typedef struct List {u8 indirect, doubly, pad[2];u32 count;Link *head, *tail;} List;
+/* A list's header (MAT3 tDLList). */
+typedef struct List {u8 handle, dbl, pad[2];u32 numElements;Link *head, *tail;} List;
+
+/* Unlinks object (a record, or a handle in a list of handles) from list: in place in a doubly-linked list, else by a
+ * walk from the head. Nothing for a null object.
+ * Original game: the count goes down even when a singly-linked list doesn't hold object. */
 void RemoveLLE(List *list, Link *object) {
-    Link *node, *current, *header, *next;
+    Link *links, *current, *header, *next;
     if (object == 0) return;
-    if (list->indirect) node = object->next;
-    else node = object;
-    if (list->doubly) {
-        if (node->next) {
-            if (list->indirect) node->next->next->prev = node->prev;
-            else node->next->prev = node->prev;
-        } else list->tail = node->prev;
-        if (node->prev) {
-            if (list->indirect) node->prev->next->next = node->next;
-            else node->prev->next = node->next;
-        } else list->head = node->next;
+    if (list->handle) links = object->next;
+    else links = object;
+    if (list->dbl) {
+        if (links->next) {
+            if (list->handle) links->next->next->prev = links->prev;
+            else links->next->prev = links->prev;
+        } else list->tail = links->prev;
+        if (links->prev) {
+            if (list->handle) links->prev->next->next = links->next;
+            else links->prev->next = links->next;
+        } else list->head = links->next;
     } else if (object == list->head) {
-        list->head = node->next;
+        list->head = links->next;
         if (list->head == 0) list->tail = 0;
-    } else if (list->indirect) {
+    } else if (list->handle) {
         current = list->head;
         while (current) {
             header = current->next;
             next = header->next;
             if (object == next) {
-                header->next = node->next;
-                if (node->next == 0) list->tail = current;
+                header->next = links->next;
+                if (links->next == 0) list->tail = current;
                 break;
             }
             current = next;
@@ -36,12 +43,12 @@ void RemoveLLE(List *list, Link *object) {
         while (current) {
             header = current->next;
             if (object == header) {
-                current->next = node->next;
-                if (node->next == 0) list->tail = current;
+                current->next = links->next;
+                if (links->next == 0) list->tail = current;
                 break;
             }
             current = header;
         }
     }
-    list->count--;
+    list->numElements--;
 }

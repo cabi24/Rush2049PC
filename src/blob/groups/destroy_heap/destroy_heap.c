@@ -1,4 +1,7 @@
+/* destroy_heap (MAT3 memsys.c DestroyHeap): gives back a heap made by create_heap. include/game/heap.h has the
+ * headers. */
 #include "game/game.h"
+#include "game/heap.h"
 #define OSMesgQueue OSMesgQueueView   /* this file's own OSMesgQueue: include/game's OSMesgQueue is another type */
 
 typedef struct OSMesgQueue OSMesgQueue;
@@ -8,34 +11,21 @@ s32 osSendMesg(OSMesgQueue *, void *, s32);
 VIEW(OSMesgQueue, heap_lock_queue);
 #define heap_lock_queue heap_lock_queue_view
 
-enum n64p_Heap { n64p_Heap_ };
-typedef struct Heap {
-    u32 pad0;
-    enum n64p_Heap next;  /* 4 */
-} Heap;
-/* N64-address fields (tools/port/ptr64_u32fields.py) */
-#define N64P(x) _Generic((x), enum n64p_Heap: (struct Heap *)PC_N64P(x), default: (x))
-#define N64W(x) PC_N64W(x)
-
-Heap *ConvertHeap(Heap *heap);
-
-/* The heap's API takes N64 addresses: N64A(p) is a window pointer's (pc_prelude.h, docs/port/NOFIXED.md 2.3). */
-#define N64A(x) PC_N64A(x)
-void destroy_heap(Heap *heap)
+/* Unlinks heap from the chain of heaps that starts at gMainHeap and frees the chunk of its parent that holds it,
+ * with everything still allocated in it. Takes the heap lock. */
+void destroy_heap(tHeap *heap)
 {
-    Heap *p;
-    Heap *h;
+    tHeap *other;
+    tHeap *target;
 
-    if (heap == NULL) {
-    }
     osRecvMesg(&heap_lock_queue, NULL, 1);
-    h = ConvertHeap(heap);
-    for (p = gMainHeap; p != NULL; p = N64P(p->next)) {
-        if (N64P(p->next) == h) {
-            p->next = h->next;
+    target = ConvertHeap(heap);
+    for (other = gMainHeap; other != NULL; other = N64P(other->next)) {
+        if (N64P(other->next) == target) {
+            other->next = target->next;
             break;
         }
     }
-    DeallocateMemoryInternal(N64A(h), 1);
+    DeallocateMemoryInternal(N64A(target), 1);
     osSendMesg(&heap_lock_queue, NULL, 0);
 }
