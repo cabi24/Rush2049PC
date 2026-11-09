@@ -103,7 +103,7 @@ static inline uint32_t ld32(const uint8_t *p, int be)
 
 /* An N64 address read from a record. The counting build counts each one (but 0) by its reader: an N64-form record's,
  * or resolve for a native one's field (docs/port/NATIVE.md 9). */
-static PC_CROSS_INLINE void *n64ptr(uint32_t addr)
+static inline void *n64ptr(uint32_t addr)
 {
     PC_CROSS_CALLER(PC_CROSS_AUDIO_N64PTR, addr);
     return addr ? pc_n64_ptr(addr) : NULL;
@@ -112,7 +112,7 @@ static PC_CROSS_INLINE void *n64ptr(uint32_t addr)
 /* A native-form pointer field: a host pointer, or below 4 GB an N64 address (the RDRAM window at host
  * PC_RDRAM_BASE, K0, K1 or physical). Host data is never below 4 GB on a 64-bit host: the executable is PIE. The
  * counting build counts the N64 ones by the record's reader. */
-static PC_CROSS_INLINE void *resolve(const void *p)
+static inline void *resolve(const void *p)
 {
 #if UINTPTR_MAX > 0xFFFFFFFFu
     uintptr_t v = (uintptr_t)p;

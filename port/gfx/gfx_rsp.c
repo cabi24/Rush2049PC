@@ -72,7 +72,7 @@ static int is_host(uintptr_t a) {
 #endif
 }
 
-PC_CROSS_NOINLINE uintptr_t pcgfx_segment_value(uintptr_t v) {
+uintptr_t pcgfx_segment_value(uintptr_t v) {
     uint32_t a;
     if (v == 0 || is_host(v))
         return v;
@@ -81,7 +81,7 @@ PC_CROSS_NOINLINE uintptr_t pcgfx_segment_value(uintptr_t v) {
     return (uintptr_t)(a >= N64_KSEG0 ? pc_n64_ptr(a) : rdram(a));
 }
 
-PC_CROSS_NOINLINE const uint8_t *pcgfx_resolve(uintptr_t a) {
+const uint8_t *pcgfx_resolve(uintptr_t a) {
     uint32_t a32, seg;
     const uint8_t *p;
     if (a == 0)

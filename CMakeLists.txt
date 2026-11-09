@@ -138,10 +138,10 @@ endif()
 # layer turns a 32-bit N64 address into a host pointer or back, counted by its site and written at exit
 # (RUSH2049_CROSSINGS=FILE; tools/port/crossings.py runs the synthetic paths and reports), and RUSH2049_WINDOW_GUARD=
 # arenas, the game's data arenas in the window without access. port/ultra/crossings.c is built only here, and the
-# hooks elsewhere (port/include/pc_crossings.h) are nothing without the option: the default build doesn't change. Make
-# it a Debug build (crossings.py does): the PC layer's sites are counted by their caller, which inlining would hide.
-# Linux only (mprotect, a SIGSEGV handler), and the default layout only: the moved and cast-checking builds translate
-# or check every crossing themselves.
+# hooks elsewhere (port/include/pc_crossings.h) are nothing without the option: the default build doesn't change. A
+# Debug build (crossings.py makes one), with no inlining in any case: the PC layer's sites are counted by their caller,
+# which inlining would hide. Linux only (mprotect, a SIGSEGV handler), and the default layout only: the moved and
+# cast-checking builds translate or check every crossing themselves.
 option(RUSH_COUNT_CROSSINGS "Count the crossings between N64 addresses and host pointers; the arena guard" OFF)
 if(RUSH_COUNT_CROSSINGS)
     if(WIN32 OR APPLE)
@@ -152,8 +152,8 @@ if(RUSH_COUNT_CROSSINGS)
                 "RUSH_CHECK_CASTS (docs/port/NATIVE.md 9)")
     endif()
     add_compile_definitions(RUSH_COUNT_CROSSINGS)   # the game C (pc_prelude.h), the PC layer and the tests
-    # the game C's sites as paths in the tree (src/blob/forces1.c:71), wherever the checkout is
-    add_compile_options(-fmacro-prefix-map=${CMAKE_SOURCE_DIR}/=)
+    # the game C's sites as paths in the tree (src/blob/forces1.c:71), wherever the checkout is; no inlining (above)
+    add_compile_options(-fmacro-prefix-map=${CMAKE_SOURCE_DIR}/= -fno-inline)
 endif()
 # IDO semantics: gnu89, so `__inline` functions also get an out-of-line definition (C99 rules would drop it,
 # and CMake's C_STANDARD adds no flag when the compiler's default is newer). Plain char is unsigned and signed

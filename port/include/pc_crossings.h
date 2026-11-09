@@ -52,13 +52,10 @@ void pc_cross_guard_resume(int *token) __attribute__((weak));
 void pc_crossings_start(void) __attribute__((weak));
 void pc_crossings_finish(void) __attribute__((weak));
 
-/* In a function of the PC layer that reads N64 addresses: count one by this function's caller. The function must not
- * be inlined into its callers (PC_CROSS_NOINLINE; PC_CROSS_INLINE for one declared inline), or the caller counted is
- * theirs. */
+/* In a function of the PC layer that reads N64 addresses: count one by this function's caller. The counting build is
+ * compiled with -fno-inline (CMakeLists.txt), so the caller is the code that called this function, not its caller's. */
 #define PC_CROSS_CALLER(kind, value) \
     (pc_cross_by ? pc_cross_by((kind), (unsigned long long)(value), __builtin_return_address(0)) : (void)0)
-#define PC_CROSS_NOINLINE __attribute__((noinline))
-#define PC_CROSS_INLINE __attribute__((noinline))
 /* The renderer, at the start of each graphics task. */
 #define PC_CROSS_FRAME() (pc_cross_frame ? pc_cross_frame() : (void)0)
 /* The data loader: the guard paused until the end of the enclosing block, however the block is left (the variable's
@@ -75,8 +72,6 @@ static __inline__ void pc_cross_guard_resume_at_exit(int *token)
 #define PC_CROSSINGS_FINISH() (pc_crossings_finish ? pc_crossings_finish() : (void)0)
 #else
 #define PC_CROSS_CALLER(kind, value) ((void)0)
-#define PC_CROSS_NOINLINE
-#define PC_CROSS_INLINE inline
 #define PC_CROSS_FRAME() ((void)0)
 #define PC_CROSS_GUARD_PAUSED() ((void)0)
 #define PC_CROSSINGS_START() ((void)0)

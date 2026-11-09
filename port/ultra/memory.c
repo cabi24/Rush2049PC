@@ -383,7 +383,7 @@ static void guard_cut(uint32_t addr)
     abort();
 }
 
-PC_CROSS_NOINLINE void *pc_n64_ptr(uint32_t addr)
+void *pc_n64_ptr(uint32_t addr)
 {
     uint32_t phys;
     PC_CROSS_CALLER(PC_CROSS_N64_PTR, addr);   /* the counting build: counted by the caller */
@@ -398,7 +398,7 @@ PC_CROSS_NOINLINE void *pc_n64_ptr(uint32_t addr)
     return phys < g_size && g_rdram ? g_rdram + phys : NULL;
 }
 
-PC_CROSS_NOINLINE uint32_t pc_n64_addr(const void *host)
+uint32_t pc_n64_addr(const void *host)
 {
     const uint8_t *p = host;
     PC_CROSS_CALLER(PC_CROSS_N64_ADDR, (uintptr_t)host);
@@ -416,7 +416,7 @@ PC_CROSS_NOINLINE uint32_t pc_n64_addr(const void *host)
 /* RDRAM addresses become physical, as on the N64, below 16 MiB; past it, K0 (above). A host address (the game's own
  * code, data or stacks, all above 4 GiB) doesn't fit the u32 the game stores it in: it is truncated, with one
  * warning. The game's framebuffers and loaded files live in the heap, inside the window. */
-PC_CROSS_NOINLINE uint32_t osVirtualToPhysical(void *vaddr)
+uint32_t osVirtualToPhysical(void *vaddr)
 {
     PC_CROSS_CALLER(PC_CROSS_VIRT_TO_PHYS, (uintptr_t)vaddr);
     uint32_t n64 = pc_n64_addr(vaddr);
