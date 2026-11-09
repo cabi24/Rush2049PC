@@ -1,99 +1,87 @@
+/* updateFrontEnd: the front end's frame (MAT3 front.c updateFrontEnd). GameLoop calls it in every front-end state
+ * (GS_FRONTEND_MASK). */
 #include "game/game.h"
 
 VIEW(s32, gGameState);
 #define gGameState gGameState_view
 
+#define WAVE_START_MENU 0x36        /* the start menu's models */
+
+/* Run the screen of the current state (one state bit is set), then the background's frame and the profile saver
+ * (SaveServer). On the start menu mirror mode goes off first and the menu's models are turned back the right way
+ * round (MirrorWaveInstance flips a wave's triangles to match gMirrorWaves), in case a mirrored race left them so. */
 void updateFrontEnd(void)
 {
-  if (gGameState & 2)
+  if (gGameState & GS_LICENSE)
   {
     updateLicenseScreen();
   }
-  else
-    if (gGameState & 0x40000000)
+  else if (gGameState & GS_WARNING)
   {
     updateWarningScreen();
   }
-  else
-    if (gGameState & 4)
+  else if (gGameState & GS_TITLE)
   {
     updateTitleScreen();
   }
-  else
-    if (gGameState & 8)
+  else if (gGameState & GS_DEMO)
   {
     updateDemoGame();
   }
-  else
-    if (gGameState & 0x10)
+  else if (gGameState & GS_START)
   {
     gMirrorWaves = 0;
-    MirrorWaveInstance(FindWaveInstanceInternal(0x36, -1));
+    MirrorWaveInstance(FindWaveInstanceInternal(WAVE_START_MENU, -1));
     updateStartScreen();
   }
-  else
-    if (gGameState & 0x2000)
+  else if (gGameState & GS_RECORDS)
   {
     updateRecordScreen();
   }
-  else
+  else if (gGameState & GS_PLAYER)
   {
-    if (gGameState & 0x20)
-    {
-      updatePlayerScreen();
-    }
-    else
-      if (gGameState & 0x40)
-    {
-      updateModeScreen();
-    }
-    else
-      if (gGameState & 0x4000)
-    {
-      updateCircuitScreen();
-    }
-    else
-      if (gGameState & 0x80)
-    {
-      updateTrackScreen();
-    }
-    else
-      if (gGameState & 0x100)
-    {
-      updateCarScreen();
-    }
-    else
-      if (gGameState & 0x200)
-    {
-      updateOptionScreen();
-    }
-    else
-      if (gGameState & 0x400)
-    {
-      updateControlScreen();
-    }
-    else
-      if (gGameState & 0x800)
-    {
-      updateAudioScreen();
-    }
-    else
-      if (gGameState & 0x1000)
-    {
-      updateVideoScreen();
-    }
-    else
-      if (gGameState & 0x04000000)
-    {
-      updatePakScreen();
-    }
-    else
-      if (gGameState & 0x08000000)
-    {
-      updateCheatScreen();
-    }
+    updatePlayerScreen();
+  }
+  else if (gGameState & GS_MODE)
+  {
+    updateModeScreen();
+  }
+  else if (gGameState & GS_CIRCUIT)
+  {
+    updateCircuitScreen();
+  }
+  else if (gGameState & GS_TRACK)
+  {
+    updateTrackScreen();
+  }
+  else if (gGameState & GS_CAR)
+  {
+    updateCarScreen();
+  }
+  else if (gGameState & GS_OPTIONS)
+  {
+    updateOptionScreen();
+  }
+  else if (gGameState & GS_CONTROLS)
+  {
+    updateControlScreen();
+  }
+  else if (gGameState & GS_AUDIO)
+  {
+    updateAudioScreen();
+  }
+  else if (gGameState & GS_VIDEO)
+  {
+    updateVideoScreen();
+  }
+  else if (gGameState & GS_PAK)
+  {
+    updatePakScreen();
+  }
+  else if (gGameState & GS_CHEAT)
+  {
+    updateCheatScreen();
   }
   updateBG();
   SaveServer(0, 0);
 }
-

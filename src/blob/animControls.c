@@ -1,3 +1,5 @@
+/* animControls: the controller-setup screen's button icons (MAT3 controlscr.c animControls): the blit callback of
+ * each row of the controls list, which shows the button or stick a control is mapped to. */
 #include "game/game.h"
 
 /* PC: the Blit's host layout (NewMultiBlit.c), as every view has it (docs/port/POINTERS.md 9). */
@@ -16,45 +18,41 @@ typedef struct Blit {
     u32 data;
 } Blit;
 
-typedef struct ButtonName {
-    u8 pad0[48];
-    f32 pos[3];
-    u8 alpha;
-    u8 pad3D[3];
-} ButtonName;
-
+/* A player's pad record (MAT3 tPadState, gPlayers). */
 typedef struct Player {
-    u8 b0;
-    u8 control;
+    u8 slot;
+    u8 controller;          /* 0x01 its controller, CONTROLLER_NONE without one */
     u8 pad2[0x48 - 0x2]; void *ref;
 } Player;
 
-typedef struct TextPos {
-    s32 pad0, y, pad8, padC, x, pad14;
-} TextPos;
+extern Player gPlayers[];
 
-extern Player gPlayers[];       /* gPlayers */
-
-VIEW(ButtonName[][17], controls_buttonInfo);
-#define controls_buttonInfo controls_buttonInfo_view
 VIEW(u8[][152], gCamera);
 #define gCamera gCamera_view
 
-VIEW(TextPos[][4], controls_gPlayerRects);
-#define controls_gPlayerRects controls_gPlayerRects_view
+#define CONTROLLER_NONE 5           /* gPlayers[].controller of a player without one */
+#define CONTROLS_COUNT 10           /* the controls a profile keeps */
+#define CONTROL_ANALOG_STICK 25     /* a control's last value, an analog source: gas and brake (rows 0, 1) show icon 26 for it */
 
+/* The controls list's rows as this file counts them: every one but row 8. */
 static s32 validOption(u8 player, s32 item)
 {
     s32 valid;
 
     valid = 1;
-    if (player) {}
     if (item == 8) {
         valid = 0;
     }
     return valid;
 }
 
+/* The icon of one row of a player's controls list, each frame. The blit's data packs its row (bits 0-3, counted
+ * from the first row shown), a conflict marker flag (4-7: this blit marks a conflict instead of showing an icon),
+ * an "uninited" flag (8-11), the player (12-15) and the value shown plus one (16-23). Hidden when the player has no
+ * controller or hasn't the screen open, past the controls or the rows shown, or (a conflict marker) when its row
+ * has no conflict. The first frame places it (small icons with more than one window) beside its 3D button or text
+ * row; each frame it follows its button and its alpha. The icon changes when the control's value does
+ * (controls_idMap, the conflict marker controls_idMap_conflict). Always 1. */
 s32 animControls(Blit *blt)
 {
     s32 id;
@@ -74,7 +72,6 @@ s32 animControls(Blit *blt)
     id = blt->data & 15;
     val = ((blt->data >> 16) & 255) - 1;
     action = gControlFirst[p] + id - 1;
-    if ((u8)p) {}
     gTextPosScale = controls_gButtonScale;
     if (gNumWindows > 1) {
         gTextPosScale *= 0.5f;
@@ -86,8 +83,7 @@ s32 animControls(Blit *blt)
             i++;
         }
     }
-    if ((u8)p) {}
-    if (Hidden(blt, gPlayers[p].control == 5 || (conflict && !gConflict[p][action]) || action >= 10 ||
+    if (Hidden(blt, gPlayers[p].controller == CONTROLLER_NONE || (conflict && !gConflict[p][action]) || action >= CONTROLS_COUNT ||
                         !controlScrActive[p] || gControlMenuSize < id)) {
         return 1;
     }
@@ -96,12 +92,12 @@ s32 animControls(Blit *blt)
             RenameBlit(blt, "CONTROLS_SM", 0);
         }
         if (controls_buttonsInited[p]) {
-            ZOID_ProjectWindow(p, controls_buttonInfo[p][action].pos, gCamera[p], 0, screenPos);
+            ZOID_ProjectWindow(p, controls_buttonInfo[p][action].position, gCamera[p], 0, screenPos);
             blt->x = screenPos[0] + 55.0f * gTextPosScale * 300.0f / controls_buttonZ;
             blt->y = screenPos[1] - blt->h / 2;
             blt->alpha = controls_buttonInfo[p][action].alpha;
         } else {
-            blt->x = controls_gPlayerRects[gNumWindows - 1][p].x + 20;
+            blt->x = controls_gPlayerRects[gNumWindows - 1][p].cx + 20;
             blt->y = controls_gPlayerRects[gNumWindows - 1][p].y + id * 16 + 8;
         }
         if (conflict) {
@@ -115,7 +111,7 @@ s32 animControls(Blit *blt)
         }
     }
     if (controls_buttonsInited[p]) {
-        ZOID_ProjectWindow(p, controls_buttonInfo[p][action].pos, gCamera[p], 0, screenPos);
+        ZOID_ProjectWindow(p, controls_buttonInfo[p][action].position, gCamera[p], 0, screenPos);
         blt->x = screenPos[0] + 75.0f * gTextPosScale * 300.0f / controls_buttonZ;
         blt->y = screenPos[1] - blt->h / 2;
         blt->half18 = 0x7F00;
@@ -138,10 +134,10 @@ s32 animControls(Blit *blt)
     if (conflict) {
         return 1;
     }
-    if (val != gNewControls[gPlayers[p].control][action]) {
-        val = gNewControls[gPlayers[p].control][action];
+    if (val != gNewControls[gPlayers[p].controller][action]) {
+        val = gNewControls[gPlayers[p].controller][action];
         blt->data = (blt->data & 0xFFFF) | (((val + 1) << 16) & 0xFF0000);
-        if (val == 25 && (action == 0 || action == 1)) {
+        if (val == CONTROL_ANALOG_STICK && (action == 0 || action == 1)) {
             val++;
         }
         SelectBlit(blt, controls_idMap[val], blt->h, blt->h);

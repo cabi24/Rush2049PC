@@ -1,7 +1,9 @@
+/* updateHighScoreScreen: the high-score screen after a race (MAT3 highscorescr.c updateHighScoreScreen), GS_HIGH_SCORE.
+ * Its pages, in order: what the race unlocked, the circuit's code, name entry, the ghost save menu, the tables. */
 #include "game/game.h"
 
-/* 76-byte records at gPlayers */
-typedef struct Rec76 { s32 w0; u32 w4; s32 rest[16]; void *ref; } Rec76;
+/* A player's pad record (MAT3 tPadState, gPlayers): 76 bytes, 80 on the PC. */
+typedef struct Rec76 { s32 w0; u32 edges; s32 rest[16]; void *profile; } Rec76;
 
 VIEW(s8, highscore_inited);
 #define highscore_inited highscore_inited_view
@@ -16,8 +18,6 @@ VIEW(intptr_t, gGhostToSave);
 int pc_ghost_prompt(int developer);
 #define PC_GHOST_PROMPT(v) pc_ghost_prompt(v)
 
-VIEW(void *, gPlayers_save);
-#define gPlayers_save gPlayers_save_view
 VIEW(u32, gActiveEdges);
 #define gActiveEdges gActiveEdges_view
 
@@ -25,12 +25,22 @@ extern s32 CountdownTimeOut(void);
 
 extern void *CompressGhost(intptr_t, char *);
 
+#define WAVE_TRACK_MUSIC_BASE 139   /* the track's wave, gTrackNum + this (freed for the ghost's compression) */
+
+/* The screen's frame. The first frame sets it up and saves the profiles (SaveServer, SaveFlush). A soft reset ends
+ * it. Then by page:
+ * - unlocked: ControlUnlocked;
+ * - circuit code: any player's Start or A (or the time limit) goes on to name entry;
+ * - names: each player who made a table enters a name (ControlName); when all are done, after a ghost race the
+ *   recorded ghost is compressed (its track wave freed for room) and either offered to be saved (the ghost menu,
+ *   for the developer's profile, or everyone's with game.ghost_prompt) or saved at once; then the tables;
+ * - ghost: ControlGhost, with the profile saves held (SaveServer(0, 0));
+ * - tables: left or right flips between the race's two tables (not after a ghost race); Start, A or the time limit
+ *   ends the screen, but the time limit first shows the second table. */
 void updateHighScoreScreen(void)
 {
     s8 **h;
-    s32 u1, u2, u3, u4, u5, u6;
-    s32 flag;
-    s32 u7, u8;
+    s32 allNamed;
     s32 j;
     s32 i;
 
@@ -40,27 +50,27 @@ void updateHighScoreScreen(void)
         SaveFlush(0);
     }
     if (gSoftReset != 0) {
-        SetHighScoreState(0);
+        SetHighScoreState(kHighScoreNone);
         return;
     }
     switch (gHighScoreState) {
-    case 1:
+    case kHighScoreUnlocked:
         ControlUnlocked();
         break;
-    case 2:
+    case kHighScoreCircuitCode:
         for (j = 0; j < gNumPlayers; j++) {
-            if ((gPlayers[j].w4 & 3) != 0 || CountdownTimeOut() != 0) {
-                PlayStartABSound(gPlayers[j].w4);
-                SetHighScoreState(3);
+            if ((gPlayers[j].edges & BUTTON_ACCEPT) != 0 || CountdownTimeOut() != 0) {
+                PlayStartABSound(gPlayers[j].edges);
+                SetHighScoreState(kHighScoreNames);
             }
         }
         break;
-    case 3:
-        flag = 1;
+    case kHighScoreNames:
+        allNamed = 1;
         for (i = 0; i < gNumPlayers; i++) {
             if (gDrawName[i] == 1) {
                 ControlName(i);
-                flag = 0;
+                allNamed = 0;
             } else {
                 h = &namePanes[i];
                 if (*h != 0) {
@@ -69,41 +79,42 @@ void updateHighScoreScreen(void)
                 }
             }
         }
-        if (flag == 1) {
-            if (gRace == 2 && gGhostToSave != 0) {
-                UnloadWaveAll(gTrackNum + 139);
+        if (allNamed == 1) {
+            if (gRace == kGhost && gGhostToSave != 0) {
+                UnloadWaveAll(gTrackNum + WAVE_TRACK_MUSIC_BASE);
                 gSavedGhost = CompressGhost(gGhostToSave, gBlocksNeeded);
                 gGhostToSave = 0;
                 if (PC_GHOST_PROMPT(gSaveGhostFiles) != 0) {
-                    SetHighScoreState(4);
+                    SetHighScoreState(kHighScoreGhost);
                 } else {
-                    SaveGhost(gGhostPak, gPlayers_save, gSavedGhost, 1);
+                    /* the first player's profile (gPlayers_save is the label of this field) */
+                    SaveGhost(gGhostPak, gPlayers[0].profile, gSavedGhost, 1);
                     gSavedGhost = 0;
-                    SetHighScoreState(5);
+                    SetHighScoreState(kHighScoreScores);
                 }
             } else {
-                SetHighScoreState(5);
+                SetHighScoreState(kHighScoreScores);
             }
         }
         break;
-    case 4:
+    case kHighScoreGhost:
         SaveServer(0, 0);
         ControlGhost();
         break;
-    case 5:
-        if (gRace != 2 && (gActiveEdges & 0x3000) != 0) {
+    case kHighScoreScores:
+        if (gRace != kGhost && (gActiveEdges & (BUTTON_LEFT | BUTTON_RIGHT)) != 0) {
             PlayLRSound(gActiveEdges);
             if (gTable == 0) gTable = 1; else gTable = 0;
             PrintScores();
             SetCountdownTimer(15.0f);
-        } else if ((gActiveEdges & 3) != 0 || CountdownTimeOut() != 0) {
-            if (gRace != 2 && CountdownTimeOut() != 0 && gTable == 0) {
+        } else if ((gActiveEdges & BUTTON_ACCEPT) != 0 || CountdownTimeOut() != 0) {
+            if (gRace != kGhost && CountdownTimeOut() != 0 && gTable == 0) {
                 gTable = 1;
                 PrintScores();
                 SetCountdownTimer(15.0f);
             } else {
                 PlayStartABSound(gActiveEdges);
-                SetHighScoreState(0);
+                SetHighScoreState(kHighScoreNone);
             }
         }
         break;

@@ -1,3 +1,5 @@
+/* anim_car_color_marker: the car select screen's colour swatches (N64 only; MAT3 has paint jobs instead): a small
+ * square beside each of the three colour options' value buttons, in the colour chosen. */
 #include "game/game.h"
 #define Color ColorView   /* this file's own Color: include/game's Color is another type */
 
@@ -8,29 +10,23 @@ typedef struct Blit {
     s16 Top, Bot, Left, Right, Color; u16 reserved26;
     s32 (*AnimFunc)(struct Blit *); u32 AnimID;
 } Blit;
-/* PC: the record as cleanup_colortrace's Slot has it (kind, handle, angle, matrix, position, then the alpha byte),
- * which the PC loader then fills element by element. Seen as matrix[16] it would swap the alpha byte with the
- * three after it as one f32 (docs/port/ENDIAN.md). */
-typedef union MenuSlot {
-    float matrix[16];
-    struct { s32 x,y; float depth; float rest[12]; u8 alpha; u8 tail[3]; } state;
-} MenuSlot;
 typedef struct Color { u8 r,g,b,a; } Color;
-typedef struct ProjectContext {
-    float rotation[3][3], position[3]; u8 opaque[104];
-} ProjectContext;
-
-VIEW(MenuSlot[][44], carscr_buttonInfo);
-#define carscr_buttonInfo carscr_buttonInfo_view
-
-VIEW(ProjectContext[], gCamera);
-#define gCamera gCamera_view
 
 VIEW(Color[][3], carscr_marker_colors);
 #define carscr_marker_colors carscr_marker_colors_view
 VIEW(Color[], paint_colors_rgb);
 #define paint_colors_rgb paint_colors_rgb_view
 
+#define CAR_OPT_COLOR_A 7               /* carscr.c's options: the paint's three colours */
+#define CAR_OPT_COLOR_B 8
+#define CAR_OPT_COLOR_C 9
+#define CAR_OPTS 19                     /* an option's value button is carscr_buttonInfo[p][option + 19] */
+
+/* One swatch blit, each frame. The AnimID packs its player (bits 0-3), its option (16-23) and, written here, the
+ * palette entry shown (28-31). Hidden for a player not playing (for good), while the car is locked, or while the
+ * option's button faces away or is invisible. It sits on the option's value button with the button's alpha, and is
+ * a flat square (a blit whose Image is a colour) of the chosen colour (paint_colors_rgb), kept in
+ * carscr_marker_colors[player][channel]. Always 1. */
 s32 anim_car_color_marker(Blit *blt)
 {
     s8 (*color_a)[13] = (s8 (*)[13]) car_color_choice_a;
@@ -38,7 +34,7 @@ s32 anim_car_color_marker(Blit *blt)
     s8 (*color_c)[13] = (s8 (*)[13]) car_color_choice_c;
     s32 player=blt->AnimID&15;
     s32 marker=(blt->AnimID>>16)&255;
-    MenuSlot *slot;
+    MenuButton *slot;
     s32 palette;
     s16 position[2];
     s32 channel;
@@ -54,19 +50,21 @@ s32 anim_car_color_marker(Blit *blt)
     }
     slot=&carscr_buttonInfo[player][marker];
     if (Hidden(blt,
-        (carscr_marker_hide_angle_min<slot->state.depth && slot->state.depth<carscr_marker_hide_angle_max) || !slot->state.alpha))
+        (carscr_marker_hide_angle_min<slot->angle && slot->angle<carscr_marker_hide_angle_max) || !slot->alpha))
         return 1;
-    ZOID_ProjectWindow(player,&slot[19].matrix[12],&gCamera[player],0,position);
+    ZOID_ProjectWindow(player,slot[CAR_OPTS].position,&gCamera[player],0,position);
     blt->X=position[0]-blt->Width/2;
     blt->Y=position[1]-blt->Height/2;
-    blt->Alpha=slot->state.alpha;
-    if (marker==7) {
+    blt->Alpha=slot->alpha;
+    /* Original game: palette and channel are left unset for an option other than the three colours, so such a
+     * blit would read and write through uninitialised indices (docs/code/overlays.md). */
+    if (marker==CAR_OPT_COLOR_A) {
         palette=color_a[player + 1][gThisCar[player]];
         channel=0;
-    } else if (marker==8) {
+    } else if (marker==CAR_OPT_COLOR_B) {
         palette=color_b[player + 1][gThisCar[player]];
         channel=1;
-    } else if (marker==9) {
+    } else if (marker==CAR_OPT_COLOR_C) {
         palette=color_c[player + 1][gThisCar[player]];
         channel=2;
     }

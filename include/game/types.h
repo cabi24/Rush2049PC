@@ -1800,12 +1800,13 @@ typedef struct Egg { /* 0xA4 bytes */
     u32 edges[20];  /* 0x54 */
 } Egg;
 
-typedef struct HighScoreRect { /* 0xC bytes */
+typedef struct HighScoreRect { /* 0xC bytes: a player's box on the high-score screen */
     s16 x;          /* 0x0 */
     s16 y;          /* 0x2 */
     s16 w;          /* 0x4 */
     s16 h;          /* 0x6 */
-    s16 unknown[2]; /* 0x8 */
+    s16 cx;         /* 0x8 its centre, where the text goes */
+    s16 cy;         /* 0xA */
 } HighScoreRect;
 
 typedef struct MapLod { /* 0x10 bytes */
@@ -1852,25 +1853,23 @@ typedef struct PlayerRect { /* 0x18 bytes */
     s32 cy; /* 0x14 */
 } PlayerRect;
 
-typedef struct SelectCarState { /* 0x18 bytes */
-    u8 b0;    /* 0x0 */
-    u8 b1;    /* 0x1 */
-    u8 b2;    /* 0x2 */
-    u8 b3;    /* 0x3 */
-    s32 w4;   /* 0x4 */
-    s8 b8;    /* 0x8 */
-    s8 b9;    /* 0x9 */
-    s8 b10;   /* 0xA */
-    u8 pad11; /* 0xB */
-    s32 w12;  /* 0xC */
-    f32 f16;  /* 0x10 */
-    f32 f20;  /* 0x14 */
+typedef struct SelectCarState { /* 0x18 bytes: a car on a car select screen (MAT3 anon_created_hidden_18, gSelectCar) */
+    s8 created;          /* 0x0 its scene objects exist */
+    s8 hidden;           /* 0x1 */
+    s8 ready;            /* 0x2 its parts are set up */
+    s8 loading;          /* 0x3 its model's load has started (LoadSelectCar) */
+    s32 waveInst;        /* 0x4 its model's wave instance, -1 none */
+    s8 color[3];         /* 0x8 the colours it was last drawn in (N64; MAT3 PaintJob, unused, pjModelNum) */
+    u8 pad11;            /* 0xB */
+    s32 rims;            /* 0xC its rim texture, -1 none */
+    f32 frontTireScale;  /* 0x10 the tyre scales it was last drawn with, -1 none */
+    f32 rearTireScale;   /* 0x14 */
 } SelectCarState;
 
-typedef struct SelectCarWaveSlot { /* 0xC bytes */
-    s32 a;     /* 0x0 */
-    s8 b;      /* 0x4 */
-    s8 c;      /* 0x5 */
+typedef struct SelectCarWaveSlot { /* 0xC bytes: a car model load (MAT3 anon_wave_loading_c, gSelectCarWavePtrs) */
+    s32 wave;  /* 0x0 its wave instance, -1 none */
+    s8 loading; /* 0x4 a load was started */
+    s8 slot;   /* 0x5 the car slot it is for, -1 free */
     u8 pad[6]; /* 0x6 */
 } SelectCarWaveSlot;
 

@@ -1,3 +1,7 @@
+/* The cheat menu (MAT3 cheatscr.c), GS_CHEAT, opened from the start menu once its code has been entered: 21 cheats
+ * (MAT3 23). A cheat is switched with left and right once the player has entered its own code on this screen
+ * (gCheatActive; CheckForEgg follows the code of the selected row); each row writes its game flag and mirrors it in
+ * gCheatState, which the screen draws. */
 #include "game/game.h"
 
 typedef struct Blit Blit;
@@ -27,30 +31,47 @@ extern void RemoveBlit(Blit *);
 int pc_cheat_active(int active);
 #define PC_CHEAT_ACTIVE(a) pc_cheat_active(a)
 
+#define CHEAT_COUNT 21
+#define CHEAT_FRAME_SCALE 18        /* the one row shown as a number */
+#define CHEAT_FOG_COLOR 20          /* the fog colour row: gFogColor 0, or 19-26 */
+#define FOG_COLOR_BASE 18           /* gFogColor of colour n is n + 18 */
+#define FOG_COLORS 8
+#define ROWS_SHOWN 13               /* the list shows the selected row and six each side, wrapping round */
+/* The menu sounds (PlayStartABSound's and PlayUDSound's effects). */
+#define SND_MENU_START 46
+#define SND_MENU_BACK 38
+#define SND_MENU_DOWN 39
+#define SND_MENU_UP 40
+
+/* The screen's frame. Start or B leaves (to the start menu; a soft reset to the title). Up and down
+ * (auto-repeating) move round the cheats and start watching for the new row's code. Left or right changes the
+ * selected cheat if it is unlocked: most flip a flag, the mass, suicide mode and frame scale step through their
+ * values, the fog colour through none and eight colours. A cheat not yet unlocked is unlocked when its code is
+ * entered. */
 void updateCheatScreen(void)
 {
     if (!cheatscr_inited) {
         cheatscr_initScreen();
     }
-    if (gActiveEdges & 5) {
-        AudPlayEffect((gActiveEdges & 1) ? 46 : 38, 0, 1, 0);
+    if (gActiveEdges & (BUTTON_START | BUTTON_B)) {
+        AudPlayEffect((gActiveEdges & BUTTON_START) ? SND_MENU_START : SND_MENU_BACK, 0, 1, 0);
         gCheatMenuExit = 2;
-    } else if (gActiveAutoEdges & 0xc00) {
-        if (gActiveAutoEdges & 0x400) {
-            AudPlayEffect(40, 0, 1, 0);
+    } else if (gActiveAutoEdges & (BUTTON_UP | BUTTON_DOWN)) {
+        if (gActiveAutoEdges & BUTTON_UP) {
+            AudPlayEffect(SND_MENU_UP, 0, 1, 0);
             if (--cheatscr_gSelectedOption < 0) {
-                cheatscr_gSelectedOption = 20;
+                cheatscr_gSelectedOption = CHEAT_COUNT - 1;
             }
         } else {
-            AudPlayEffect(39, 0, 1, 0);
-            if (++cheatscr_gSelectedOption >= 21) {
+            AudPlayEffect(SND_MENU_DOWN, 0, 1, 0);
+            if (++cheatscr_gSelectedOption >= CHEAT_COUNT) {
                 cheatscr_gSelectedOption = 0;
             }
         }
         InitEgg(cheatscr_gSelectedOption);
     }
-    if ((gActiveEdges & 0x3000) && PC_CHEAT_ACTIVE(gCheatActive[cheatscr_gSelectedOption])) {
-        s32 dir = (gActiveEdges & 0x1000) ? -1 : 1;
+    if ((gActiveEdges & (BUTTON_LEFT | BUTTON_RIGHT)) && PC_CHEAT_ACTIVE(gCheatActive[cheatscr_gSelectedOption])) {
+        s32 dir = (gActiveEdges & BUTTON_LEFT) ? -1 : 1;
 
         PlayLRSound(gActiveEdges);
         switch (cheatscr_gSelectedOption) {
@@ -144,21 +165,21 @@ void updateCheatScreen(void)
             gEnableTireScaling ^= 1;
             gCheatState[19] = gEnableTireScaling;
             break;
-        case 20:
-            if (gFogColor < 19) {
+        case CHEAT_FOG_COLOR:
+            if (gFogColor < FOG_COLOR_BASE + 1) {
                 gFogColor = 0;
             } else {
-                gFogColor -= 18;
+                gFogColor -= FOG_COLOR_BASE;
             }
             gFogColor += dir;
-            if (gFogColor > 8) {
+            if (gFogColor > FOG_COLORS) {
                 gFogColor = 0;
             } else if (gFogColor < 0) {
-                gFogColor = 8;
+                gFogColor = FOG_COLORS;
             }
-            gCheatState[20] = gFogColor;
+            gCheatState[CHEAT_FOG_COLOR] = gFogColor;
             if (gFogColor) {
-                gFogColor += 18;
+                gFogColor += FOG_COLOR_BASE;
             }
             break;
         }
@@ -168,13 +189,16 @@ void updateCheatScreen(void)
     }
     if (gSoftReset) {
         cheatscr_uninitScreen();
-        setGameState(4);
+        setGameState(GS_TITLE);
     } else if (gCheatMenuExit) {
         cheatscr_uninitScreen();
-        setGameState(16);
+        setGameState(GS_START);
     }
 }
 
+/* Set the screen up: gCheatState from the game's flags (the fog colour's raw value, clamped to 0-8, so a colour
+ * set shows as none until changed), the text blit, the first row selected and its code watched. Rows 3, 13-16 keep
+ * their gCheatState as it was. */
 void cheatscr_initScreen(void)
 {
     gCheatState[0] = gNoCarCollisions;
@@ -192,11 +216,11 @@ void cheatscr_initScreen(void)
     gCheatState[17] = gResurrectInPlace;
     gCheatState[18] = gFrameScale;
     gCheatState[19] = gEnableTireScaling;
-    gCheatState[20] = gFogColor;
-    if (gCheatState[20] > 8) {
-        gCheatState[20] = 0;
-    } else if (gCheatState[20] < 0) {
-        gCheatState[20] = 8;
+    gCheatState[CHEAT_FOG_COLOR] = gFogColor;
+    if (gCheatState[CHEAT_FOG_COLOR] > FOG_COLORS) {
+        gCheatState[CHEAT_FOG_COLOR] = 0;
+    } else if (gCheatState[CHEAT_FOG_COLOR] < 0) {
+        gCheatState[CHEAT_FOG_COLOR] = FOG_COLORS;
     }
     particle_lifetime_set();
     cheatscr_blit = NewMultiBlit(0, 0, cheatscr_multiblit, 1);
@@ -206,6 +230,7 @@ void cheatscr_initScreen(void)
     cheatscr_inited = 1;
 }
 
+/* Take the screen down: its text blit and the background. */
 void cheatscr_uninitScreen(void)
 {
     if (cheatscr_blit) {
@@ -216,19 +241,11 @@ void cheatscr_uninitScreen(void)
     cheatscr_inited = 0;
 }
 
-/* cheatscr_animText = animText@cheatscr.c (GC 0x80067E68), the multiblit callback; printOption@cheatscr.c
- * (GC 0x80067D20) is inlined into it and its deleted body is the stub cheatscr_printOption (non-static, off keep).
- * MAT3 port with the Dreamcast unit's `int x = 154` (dreamcast src/cheatscr.c animText) and a `name` local for
- * the label: with both named locals the retail frame (136, str1 at +112) comes out with no unused homes.
- * gText gText (tab2 +0x1C, tab2a +0x20, tab2b +0x24, single +4); HAL_SetTextDepth HAL_SetTextDepth,
- * HAL_SetFont HAL_SetFont, TB_SetTextColor TB_SetTextColor, TB_CenterText TB_CenterText,
- * TB_RightText TB_RightText, HAL_GetFontAscent HAL_GetFontAscent, TB_DrawText TB_DrawText,
- * TB_Sprintf TB_Sprintf ("%d" = cheatscr_number_format), TB_GetFontLineHeight TB_GetFontLineHeight.
- * N64: 21 options; only cheat 18 (gFrameScale gFrameScale) prints a number (GC also 15, gRandomWeapons).
- * Shaping, measured: the value index is written `(u32)tab2a[...] + gCheatState[cheat] + 1` (the unsigned label
- * offset first, as found): MAT3's `state + 1 + tab2a[.]`
- * emits 190 instructions (the label*4 is not shared between the two branches). */
+#define TEXT_CHEAT_TITLE 54         /* gText.single[]: the screen's title */
 
+/* The screen's text blit callback (MAT3 animText): the title, then 13 rows centred on the selected cheat, each its
+ * name and its value (the frame scale as a number, else the cheat's own value names: gText's second table, the
+ * cheat's name followed by its values). Always 1. */
 s32 cheatscr_animText(Blit *blit)
 {
     s32 x;
@@ -242,18 +259,18 @@ s32 cheatscr_animText(Blit *blit)
     HAL_SetTextDepth(0.0f);
     HAL_SetFont(10);
     TB_SetTextColor(12);
-    TB_DrawText(TB_CenterText(gText.single[54], 151), (18 - HAL_GetFontAscent()) / 2 + 6, gText.single[54]);
+    TB_DrawText(TB_CenterText(gText.single[TEXT_CHEAT_TITLE], 151), (18 - HAL_GetFontAscent()) / 2 + 6, gText.single[TEXT_CHEAT_TITLE]);
     HAL_SetFont(12);
     x = 154;
     y = 47;
-    for (i = 0; i < 13; i++) {
+    for (i = 0; i < ROWS_SHOWN; i++) {
         cheat = i + cheatscr_gSelectedOption - 6;
         if (cheat < 0) {
-            cheat += 21;
-        } else if (cheat >= 21) {
-            cheat -= 21;
+            cheat += CHEAT_COUNT;
+        } else if (cheat >= CHEAT_COUNT) {
+            cheat -= CHEAT_COUNT;
         }
-        if (cheat == 18) {
+        if (cheat == CHEAT_FRAME_SCALE) {
             TB_Sprintf(str1, cheatscr_number_format, gFrameScale);
             str = str1;
         } else {
@@ -267,10 +284,12 @@ s32 cheatscr_animText(Blit *blit)
     return 1;
 }
 
+/* One row (MAT3 printOption): the name right-aligned before x and the value after it, the selected row flashing
+ * in the larger font, a locked cheat's value grey. */
 void cheatscr_printOption(s32 x, s32 y, s32 item, u8 *name, u8 *value)
 {
     HAL_SetFont(cheatscr_gSelectedOption == item ? 11 : 12);
-    TB_SetTextColor(cheatscr_gSelectedOption == item ? 22 : 1);
+    TB_SetTextColor(cheatscr_gSelectedOption == item ? kTB_FlashText : kTB_WhiteText);
     TB_DrawText(TB_RightText(name, x - 4), y - (cheatscr_gSelectedOption == item ? 1 : 0), name);
     HAL_SetFont((PC_CHEAT_ACTIVE(gCheatActive[item]) && cheatscr_gSelectedOption == item) ? 11 : 12);
     TB_SetTextColor(PC_CHEAT_ACTIVE(gCheatActive[item]) ? (cheatscr_gSelectedOption == item ? 11 : 1) : 4);

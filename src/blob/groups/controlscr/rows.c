@@ -1,22 +1,17 @@
+/* The controller-setup screen's tear-down (MAT3 controlscr.c uninitButtons and cleanupControlScreen). */
 #include "game/game.h"
 
-typedef struct Item { int type, handle; float angle, matrix[3][3], position[3]; u8 alpha, pad[3]; } Item;
-VIEW(Item[4][17], controls_buttonInfo);
-#define controls_buttonInfo controls_buttonInfo_view
-VIEW(int[4], controls_buttonsInited);
-#define controls_buttonsInited controls_buttonsInited_view
-
-VIEW(s8[4], controlScrActive);
-#define controlScrActive controlScrActive_view
 VIEW(s8[4], prevControlScrActive);
 #define prevControlScrActive prevControlScrActive_view
 
 void RemoveBlit(intptr_t);
+
+/* Remove player row's 17 buttons (3D models) from the scene and mark them gone (handle -1). */
 void controls_uninitButtons(s8 row) {
     int i;
-    Item *record=controls_buttonInfo[row];
-    /* Native loop counter measures the actual row span in bytes. */
-    for(i=0;i<sizeof(controls_buttonInfo[0]);i+=sizeof(Item),record++){
+    MenuButton *record=controls_buttonInfo[row];
+    /* The loop counts the bytes of the row, a button at a time. */
+    for(i=0;i<sizeof(controls_buttonInfo[0]);i+=sizeof(MenuButton),record++){
         if(record->handle!=-1){
             RemoveObjectTree((s16)record->handle,0,0);
             record->handle=-1;
@@ -24,6 +19,9 @@ void controls_uninitButtons(s8 row) {
     }
     controls_buttonsInited[row]=0;
 }
+
+/* Close the controls screen for every player: no player has it open, every player's buttons go, and so does its
+ * text blit. */
 void cleanupControlScreen(void) {
     int i;
     for(i=0;i<4;i++){
@@ -37,5 +35,3 @@ void cleanupControlScreen(void) {
     }
     controls_inited=0;
 }
-/* note: controls_uninitButtons = uninitButtons@controlscr.c (GC 0x8006D1D8; p in s4, private ABI),
- * cleanupControlScreen = cleanupControlScreen (GC 0x8006BB9C). Bodies, unchanged. */

@@ -40,6 +40,8 @@
 #define GS_PAK           0x4000000  /* updatePakScreen: the controller-pak manager */
 #define GS_CHEAT         0x8000000  /* updateCheatScreen */
 #define GS_WARNING       0x40000000 /* updateWarningScreen */
+#define GS_FRONTEND_MASK 0x7C03FFFE /* every state updateFrontEnd handles (the menus, title, demo, pak and warning) */
+#define GS_RACE_MASK     0x7C0000   /* the race's set-up through the race: GS_GAME_INIT ... GS_RACING */
 
 /* gSkipToGameState: the screen the front end goes straight on to after a race (the game-over menu's new mode,
  * track, car ...: each screen on the way passes the player through until it reaches it), or SKIP_NONE. */
@@ -77,6 +79,74 @@
 #define kPauseRumbleScreen 6
 #define kPauseRestart 7
 #define kPauseQuit 8
+
+/* The text engine's justification (TB_SetJust(horizontal, vertical); MAT3 enum_kTB_JustBottom) and colours
+ * (TB_SetTextColor; MAT3 enum_kTB_FlashText: kTB_FlashText alternates between the two colours TB_FlashTextColors
+ * set, the selected row's look). The text engine's: they belong in text.h once the areas are merged. */
+#define kTB_JustLeft 0
+#define kTB_JustCenter 1
+#define kTB_JustRight 2
+#define kTB_JustTop 3
+#define kTB_JustBottom 4
+#define kTB_BlackText 0
+#define kTB_WhiteText 1
+#define kTB_GrayText 2
+#define kTB_MedGryText 3
+#define kTB_DrkGryText 4
+#define kTB_RedText 5
+#define kTB_MagentaText 6
+#define kTB_BlueText 7
+#define kTB_MedBlueText 8
+#define kTB_DrkBlueText 9
+#define kTB_CyanText 10
+#define kTB_GreenText 11
+#define kTB_MedGrnText 12
+#define kTB_DrkGrnText 13
+#define kTB_YellowText 14
+#define kTB_DrkYelText 15
+#define kTB_YelBlkText 16
+#define kTB_YelRedText 17
+#define kTB_RedYelText 18
+#define kTB_RedRedText 19
+#define kTB_CynCynText 20
+#define kTB_CynGrnText 21
+#define kTB_FlashText 22
+
+/* The controller-pak manager's state (gState, MAT3 enum_kNumStates). */
+#define kStatePickPak 0
+#define kStateFileDel 1
+#define kStateFileDelVerify 2
+#define kStateRumblePak 3           /* the chosen pak is a Rumble Pak: a notice */
+#define kStateDamaged 4             /* the chosen pak is damaged: a notice */
+
+/* The player (profile select) screen: each window's state (gPlayerState[], MAT3 enum_kPlayerStateCount). */
+#define kPlayerStateSelect 0
+#define kPlayerStateWait 1          /* chosen: waiting for the others */
+#define kPlayerStateControls 2
+#define kPlayerStateCreatePlayer 3
+#define kPlayerStateDeletePlayer 4
+#define kPlayerStatePakFull 5
+#define kPlayerStatePakDamaged 6
+#define kPlayerStatePaks 7
+
+/* The high-score screen's state (gHighScoreState, MAT3 enum_kNumHighScoreStates): the pages after a race, in the
+ * order they come. */
+#define kHighScoreNone 0            /* off: the screen is torn down and the game goes on to the game-over menu */
+#define kHighScoreUnlocked 1        /* what the race unlocked, per player */
+#define kHighScoreCircuitCode 2     /* the circuit's code */
+#define kHighScoreNames 3           /* name entry for the players who made the tables */
+#define kHighScoreGhost 4           /* the ghost save menu */
+#define kHighScoreScores 5          /* the tables */
+/* Its ghost menu's rows (gGhostMenuSelect) and a pak's ghost for this track (gGhostStatus[pak]). */
+#define kGhostMenuPak 0             /* left and right pick the pak */
+#define kGhostMenuStatus 1          /* the pak's status: never selectable */
+#define kGhostMenuSave 2
+#define kGhostMenuNoSave 3
+#define kGhostMenuCount 4
+#define kGhostNone 0                /* no ghost of this track there: save */
+#define kGhostMine 1                /* this profile's: ask before overwriting it */
+#define kGhostOther 2               /* another profile's: can't save */
+#define kGhostNotSame 3
 
 /* The game-over screen (gameover.c): its state (gGameOverState) and its menu's rows (gMainSelect). */
 #define kGameOverStateNone 0
@@ -787,7 +857,7 @@ void calcProgressSize(void);
 void calcSelectMenuMaxSize(void);
 void calcStats(s32 player);
 void calcValidOptions(s32 player);
-s32 CancelFunc(s32 arg0);
+s32 CancelFunc(s32 pak);
 s32 carscr_animNewSlider(struct Blit *blt);
 s32 carscr_animText(struct Blit *blt);
 void carscr_initButtons(s8 p);
@@ -829,7 +899,7 @@ void controlPakFull(s32 p);
 void ControlPickPak(void);
 void ControlRumblePak(void);
 void controls_animButtonText(s8 p);
-s32 controls_animText(s32 arg0);
+s32 controls_animText(s32 blit);
 void controls_initButtons(s8 player);
 void controls_uninitButtons(s8 row);
 void controlShowTrophy(void);
@@ -872,7 +942,7 @@ void drawUnlockedParts(void);
 void drawUnlockedTracks(void);
 void drawWait(s32 player);
 void FindGhosts(s32 pak);
-s32 gameover_animText(s32 arg0);
+s32 gameover_animText(s32 blit);
 void gameover_uninitScreen(void);
 s32 gameover_validOption(s32 option);
 void getFinishedStr(u8 *destination);
@@ -889,7 +959,7 @@ void InitEgg(s32 egg);
 void initRecordScreen(void);
 void InitSelectCarLoad(void);
 void InitVisualsCarScr(void);
-s32 licensescr_animText(s32 arg0);
+s32 licensescr_animText(s32 blit);
 void loadPathData(void);
 s32 LoadSelectCar(s16 slot, s16 index, s32 *waveInst);
 void loadTrackScreen(void);
@@ -979,7 +1049,7 @@ s32 TargetCollCylinder(s16 *slotp, f32 *pos, f32 *radiusp, f32 *dist);
 s32 TargetCollMineCylinder(s16 *slotp, f32 *pos, f32 *radiusp, f32 *dist);
 s32 TargetCollRadius(s16 *player_index, f32 *point, f32 *radius_in, f32 *radial_error);
 s32 TargetCollTrigger(struct Target *t, s16 *player, s32 unused3, s32 unused4);
-s32 titlescr_animText(s32 arg0);
+s32 titlescr_animText(s32 blit);
 void trackscr_animButtonText(void);
 s32 trackscr_animNewSlider(struct Blit *blt);
 s32 trackscr_animText(void *callback_context);
@@ -1024,6 +1094,6 @@ void updateWarningScreen(void);
 void video_animButtonText(void);
 s32 video_animPanes(void *item);
 s32 video_animText(s32 arg0);
-s32 warningscr_animText(s32 arg0);
+s32 warningscr_animText(s32 blit);
 
 #endif /* GAME_FRONTEND_H */

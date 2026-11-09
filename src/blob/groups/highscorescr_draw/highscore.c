@@ -1,14 +1,7 @@
+/* The high-score screen's drawing (MAT3 highscorescr.c DrawUnlocked, DrawName, DrawCircuitCode, DrawScores,
+ * DrawGhost and animText): highscore_animText is the screen's text blit callback and draws the page
+ * gHighScoreState is on. */
 #include "game/game.h"
-
-typedef struct Rect { s16 x, y, w, h; s16 cx, cy; } Rect;
-typedef struct UIdx { u16 h[48]; } UIdx;
-typedef struct TextState { void *word0; char **fixed; void *word8; UIdx *indices; char **strings; } TextState;
-
-VIEW(TextState, gText);
-#define gText gText_view
-
-VIEW(Rect[][4], highscore_gPlayerRects);
-#define highscore_gPlayerRects highscore_gPlayerRects_view
 
 VIEW(s8[][19], gUnlockedTracks);
 #define gUnlockedTracks gUnlockedTracks_view
@@ -33,6 +26,9 @@ VIEW(s8[][6], gPrevUnlockedFrames);
 
 extern void ChangePaneSize(void *, s32, s32, s32, s32);
 
+/* The "unlocked" page: in each window of a player who unlocked something, centred and its box sized to fit, a
+ * two-line heading, then (flashing) each track, car, circuit, transmission, engine, tyre and frame the race
+ * unlocked (unlocked now, not before the race). */
 void DrawUnlocked(void)
 {
     s32 x;
@@ -44,7 +40,6 @@ void DrawUnlocked(void)
 
     HAL_SetFont(11);
     for (p = 0; p < gNumPlayers; p++) {
-        if (p) {}   /* : disclosed compiled-out holder (p over &str priority) */
         if (gStuffUnlocked[p] == 0) continue;
         stuffCount = 3;
         for (i = 0; i < 19; i++) if (gUnlockedTracks[p][i] && !gPrevUnlockedTracks[p][i]) stuffCount++;
@@ -61,12 +56,12 @@ void DrawUnlocked(void)
                 highscore_gPlayerRects[gNumWindows - 1][p].x + highscore_gPlayerRects[gNumWindows - 1][p].w,
                 y + stuffCount * TB_GetFontLineHeight() + 4);
         }
-        TB_SetTextColor(1);
-        TB_DrawText(TB_CenterText(gText.fixed[55], x), y, gText.fixed[55]);
+        TB_SetTextColor(kTB_WhiteText);
+        TB_DrawText(TB_CenterText(gText.single[55], x), y, gText.single[55]);
         y += TB_GetFontLineHeight();
-        TB_DrawText(TB_CenterText(gText.fixed[56], x), y, gText.fixed[56]);
+        TB_DrawText(TB_CenterText(gText.single[56], x), y, gText.single[56]);
         y += TB_GetFontLineHeight() * 2;
-        TB_SetTextColor(22);
+        TB_SetTextColor(kTB_FlashText);
         for (i = 0; i < 19; i++) {
             if (gUnlockedTracks[p][i] && !gPrevUnlockedTracks[p][i]) {
                 TB_DrawText(TB_CenterText(gTrackTitles[i], x), y, gTrackTitles[i]);
@@ -81,35 +76,35 @@ void DrawUnlocked(void)
         }
         for (i = 0; i < 4; i++) {
             if (gUnlockedCircuits[p][i] && !gPrevUnlockedCircuits[p][i]) {
-                TB_Sprintf(str, unlocked_circuit_format, gText.strings[gText.indices->h[44] + i], gText.fixed[42]);
+                TB_Sprintf(str, unlocked_circuit_format, gText.taba[gText.tab[44] + i], gText.single[42]);
                 TB_DrawText(TB_CenterText(str, x), y, str);
                 y += TB_GetFontLineHeight();
             }
         }
         for (i = 0; i < 8; i++) {
             if (gUnlockedTrans[p][i] && !gPrevUnlockedTrans[p][i]) {
-                TB_Sprintf(str, unlocked_trans_format, gText.strings[gText.indices->h[4] + i], gText.strings[gText.indices->h[2] + 1]);
+                TB_Sprintf(str, unlocked_trans_format, gText.taba[gText.tab[4] + i], gText.taba[gText.tab[2] + 1]);
                 TB_DrawText(TB_CenterText(str, x), y, str);
                 y += TB_GetFontLineHeight();
             }
         }
         for (i = 0; i < 9; i++) {
             if (gUnlockedEngines[p][i] && !gPrevUnlockedEngines[p][i]) {
-                TB_Sprintf(str, unlocked_engine_format, gText.strings[gText.indices->h[6] + i], gText.strings[gText.indices->h[2] + 3]);
+                TB_Sprintf(str, unlocked_engine_format, gText.taba[gText.tab[6] + i], gText.taba[gText.tab[2] + 3]);
                 TB_DrawText(TB_CenterText(str, x), y, str);
                 y += TB_GetFontLineHeight();
             }
         }
         for (i = 0; i < 5; i++) {
             if (gUnlockedTires[p][i] && !gPrevUnlockedTires[p][i]) {
-                TB_Sprintf(str, unlocked_tires_format, gText.strings[gText.indices->h[7] + i], gText.strings[gText.indices->h[2] + 4]);
+                TB_Sprintf(str, unlocked_tires_format, gText.taba[gText.tab[7] + i], gText.taba[gText.tab[2] + 4]);
                 TB_DrawText(TB_CenterText(str, x), y, str);
                 y += TB_GetFontLineHeight();
             }
         }
         for (i = 0; i < 6; i++) {
             if (gUnlockedFrames[p][i] && !gPrevUnlockedFrames[p][i]) {
-                TB_Sprintf(str, unlocked_frame_format, gText.strings[gText.indices->h[8] + i], gText.strings[gText.indices->h[2] + 5]);
+                TB_Sprintf(str, unlocked_frame_format, gText.taba[gText.tab[8] + i], gText.taba[gText.tab[2] + 5]);
                 TB_DrawText(TB_CenterText(str, x), y, str);
                 y += TB_GetFontLineHeight();
             }
@@ -118,8 +113,8 @@ void DrawUnlocked(void)
 }
 
 
-/* ---- highscore_animText = GC animText@highscorescr.c (draft) ---- */
-typedef struct HsIdx { u8 pad54[54]; u16 tableNames; u8 pad56[54]; u16 scoreNames; } HsIdx;
+#define TEXT_SCORE_TITLES 27        /* gText.tab[]: the tables' titles */
+#define TEXT_SCORE_PLACES 55        /* gText.tab[]: the places' suffixes ("st", "nd" ...) */
 
 VIEW(char[], highscore_gCircuitCode);
 #define highscore_gCircuitCode highscore_gCircuitCode_view
@@ -137,12 +132,18 @@ typedef struct Ghost { void *ll; void **fileh; u8 track, backward; char name[22]
 VIEW(Ghost **, gSavedGhost);
 #define gSavedGhost gSavedGhost_view
 
+#define NAME_SEL_END (-1)           /* highscore_gNameSelect[]: the buttons under the letter grid */
+#define NAME_SEL_DELETE (-2)
+#define NAME_SEL_SPACE (-3)
+
+/* HAL_SetFont, called through a file static of its own (MAT3's DrawName and DrawGhost each inline one). */
 void hs_SetFont(s32 font)
 {
     HAL_SetFont(font);
 }
 
-/* DrawName = GC DrawName(p)@highscorescr.c: name-entry grid for player p (internal; p arrives in s5). */
+/* Player p's name entry: the heading, the name so far (flashing), the 6 x 9 grid of letters (the selected one
+ * flashing) and the space, delete and end buttons under it. */
 void DrawName(s32 p)
 {
     char ltr[2];
@@ -154,17 +155,17 @@ void DrawName(s32 p)
     ltr[1] = 0;
     y = highscore_gPlayerRects[gNumWindows - 1][p].y + 4;
     x = highscore_gPlayerRects[gNumWindows - 1][p].cx;
-    TB_SetTextColor(1);
-    TB_DrawText(TB_CenterText(gText.fixed[150], x), y, gText.fixed[150]);
+    TB_SetTextColor(kTB_WhiteText);
+    TB_DrawText(TB_CenterText(gText.single[150], x), y, gText.single[150]);
     y = highscore_gPlayerRects[gNumWindows - 1][p].y + 15;
     x = highscore_gPlayerRects[gNumWindows - 1][p].cx;
-    TB_SetTextColor(22);
+    TB_SetTextColor(kTB_FlashText);
     TB_DrawText(TB_CenterText(gScoreName[p], x), y, gScoreName[p]);
     y = highscore_gPlayerRects[gNumWindows - 1][p].y + 30;
     x = highscore_gPlayerRects[gNumWindows - 1][p].cx - 48;
     for (i = 0; i < 54; i++) {
         ltr[0] = gPlayerNameChars[i];
-        TB_SetTextColor(i == highscore_gNameSelect[p] ? 22 : 1);
+        TB_SetTextColor(i == highscore_gNameSelect[p] ? kTB_FlashText : kTB_WhiteText);
         TB_DrawText(TB_CenterText(ltr, x), y, ltr);
         if ((i + 1) % 9 == 0) {
             y += 10;
@@ -174,16 +175,17 @@ void DrawName(s32 p)
         }
     }
     x = highscore_gPlayerRects[gNumWindows - 1][p].cx - 36;
-    TB_SetTextColor(highscore_gNameSelect[p] == -3 ? 22 : 16);
+    TB_SetTextColor(highscore_gNameSelect[p] == NAME_SEL_SPACE ? 22 : 16);
     TB_DrawText(TB_CenterText(name_entry_space_label, x), y, name_entry_space_label);
     x += 36;
-    TB_SetTextColor(highscore_gNameSelect[p] == -2 ? 22 : 16);
+    TB_SetTextColor(highscore_gNameSelect[p] == NAME_SEL_DELETE ? 22 : 16);
     TB_DrawText(TB_CenterText(name_entry_del_label, x), y, name_entry_del_label);
     x += 36;
-    TB_SetTextColor(highscore_gNameSelect[p] == -1 ? 22 : 16);
+    TB_SetTextColor(highscore_gNameSelect[p] == NAME_SEL_END ? 22 : 16);
     TB_DrawText(TB_CenterText(name_entry_end_label, x), y, name_entry_end_label);
 }
 
+/* The circuit code page: two lines of text with the code between them, in two rows of up to 11 characters. */
 void DrawCircuitCode(void)
 {
     s32 x;
@@ -193,9 +195,9 @@ void DrawCircuitCode(void)
     char str[64];
 
     HAL_SetFont(11);
-    TB_SetTextColor(1);
-    TB_DrawText(TB_CenterText(gText.fixed[64], 160), 80, gText.fixed[64]);
-    TB_DrawText(TB_CenterText(gText.fixed[65], 160), 120, gText.fixed[65]);
+    TB_SetTextColor(kTB_WhiteText);
+    TB_DrawText(TB_CenterText(gText.single[64], 160), 80, gText.single[64]);
+    TB_DrawText(TB_CenterText(gText.single[65], 160), 120, gText.single[65]);
     if (TB_Strlen(highscore_gCircuitCode) > 22) length = 22;
     else length = TB_Strlen(highscore_gCircuitCode);
     str[1] = 0;
@@ -213,6 +215,8 @@ void DrawCircuitCode(void)
     }
 }
 
+/* The tables page: the table's title, then its five rows (place, name, time), each in the colour of the player
+ * whose new score it is, white for an old one. */
 void DrawScores(void)
 {
     s32 i;
@@ -221,8 +225,8 @@ void DrawScores(void)
     char label[256];
 
     HAL_SetFont(13);
-    TB_SetTextColor(1);
-    TB_DrawText(TB_CenterText(gText.strings[((HsIdx *)gText.indices)->tableNames + gTable], 160), 10, gText.strings[((HsIdx *)gText.indices)->tableNames + gTable]);
+    TB_SetTextColor(kTB_WhiteText);
+    TB_DrawText(TB_CenterText(gText.taba[gText.tab[TEXT_SCORE_TITLES] + gTable], 160), 10, gText.taba[gText.tab[TEXT_SCORE_TITLES] + gTable]);
     for (i = 0; i < 5; i++) {
         sprintf(str, "%d", i + 1);
         HAL_SetFont(5);
@@ -230,7 +234,7 @@ void DrawScores(void)
         numWid = HAL_GetTextWidth(str, -1);
         TB_DrawText(16, 76 + i * 24, str);
         HAL_SetFont(11);
-        TB_DrawText(numWid + 16, 78 + i * 24, gText.strings[((HsIdx *)gText.indices)->scoreNames + i]);
+        TB_DrawText(numWid + 16, 78 + i * 24, gText.taba[gText.tab[TEXT_SCORE_PLACES] + i]);
     }
     for (i = 0; i < 5; i++) {
         HAL_SetFont(10);
@@ -245,14 +249,16 @@ void DrawScores(void)
     }
 }
 
-/* DrawGhost = GC DrawGhost@highscorescr.c (internal; only caller highscore_animText state 4). */
-
-
+/* HAL_SetFont, called through a file static of its own (see hs_SetFont). */
 void gh_SetFont(s32 font)
 {
     HAL_SetFont(font);
 }
 
+/* The ghost save page: the title, the ghost's name and time, then either a notice (another profile's ghost is on
+ * the pak, the ghost was saved) or the overwrite question (yes / no), or the menu: the pak, its status (an error,
+ * no ghost, or the ghost there with its time; red when it is another profile's), save (grey when not offered) and
+ * don't save. */
 void DrawGhost(void)
 {
     s32 i;
@@ -263,11 +269,11 @@ void DrawGhost(void)
     char time[16];
 
     gh_SetFont(13);
-    TB_SetTextColor(1);
-    str = gText.fixed[219];
+    TB_SetTextColor(kTB_WhiteText);
+    str = gText.single[219];
     TB_DrawText(TB_CenterText(str, 160), 10, str);
     gh_SetFont(11);
-    str = gText.fixed[220];
+    str = gText.single[220];
     TB_DrawText(TB_CenterText(str, 160), 55, str);
     gh_SetFont(10);
     y = TB_GetFontLineHeight() + 55;
@@ -280,69 +286,68 @@ void DrawGhost(void)
     TB_DrawText(TB_CenterText(time, 160), y, time);
     if (gGhostMenuConflict == 1) {
         gh_SetFont(10);
-        TB_Sprintf(str1, gText.fixed[223], (*gPakGhosts[gGhostPak])->name);
-        TB_SetJust(1, 3);
+        TB_Sprintf(str1, gText.single[223], (*gPakGhosts[gGhostPak])->name);
+        TB_SetJust(kTB_JustCenter, kTB_JustTop);
         TB_DrawTextScrollBox(160, 110, 130, TB_GetFontLineHeight() * 6, -1, 0, str1);
-        TB_SetJust(0, 3);
+        TB_SetJust(kTB_JustLeft, kTB_JustTop);
     } else if (gGhostMenuConfirm == 1) {
         gh_SetFont(10);
         y = TB_GetFontLineHeight();
-        TB_SetJust(1, 3);
-        TB_DrawTextScrollBox(160, 110, 130, y * 4, -1, 0, gText.fixed[221]);
-        TB_SetJust(0, 3);
+        TB_SetJust(kTB_JustCenter, kTB_JustTop);
+        TB_DrawTextScrollBox(160, 110, 130, y * 4, -1, 0, gText.single[221]);
+        TB_SetJust(kTB_JustLeft, kTB_JustTop);
         y = TB_GetFontLineHeight() * 2 + 110;
-        TB_SetTextColor(highscore_gYes ? 22 : 1);
-        str = gText.strings[gText.indices->h[24]];
+        TB_SetTextColor(highscore_gYes ? kTB_FlashText : kTB_WhiteText);
+        str = gText.taba[gText.tab[24]];
         TB_DrawText(TB_CenterText(str, 145), y, str);
-        TB_SetTextColor(highscore_gYes ? 1 : 22);
-        str = gText.strings[gText.indices->h[24] + 1];
+        TB_SetTextColor(highscore_gYes ? kTB_WhiteText : kTB_FlashText);
+        str = gText.taba[gText.tab[24] + 1];
         TB_DrawText(TB_CenterText(str, 175), y, str);
     } else if (gGhostMenuNotify == 1) {
         gh_SetFont(10);
-        TB_Sprintf(str1, gText.fixed[222], gPS_PakName[gGhostPak]);
-        TB_SetJust(1, 3);
+        TB_Sprintf(str1, gText.single[222], gPS_PakName[gGhostPak]);
+        TB_SetJust(kTB_JustCenter, kTB_JustTop);
         TB_DrawTextScrollBox(160, 110, 130, TB_GetFontLineHeight() * 6, -1, 0, str1);
-        TB_SetJust(0, 3);
+        TB_SetJust(kTB_JustLeft, kTB_JustTop);
     } else {
         gh_SetFont(10);
         y = 110;
         for (i = 0; i < 4; i++) {
-            TB_SetTextColor(i == gGhostMenuSelect ? 22 : 1);
+            TB_SetTextColor(i == gGhostMenuSelect ? kTB_FlashText : kTB_WhiteText);
             time[0] = 0;
-            if (i == 1) {
+            if (i == kGhostMenuStatus) {
                 switch (gGhostStatus[gGhostPak]) {
                 case -4:
-                    str = gText.fixed[165];
+                    str = gText.single[165];
                     break;
                 case -3:
-                    str = gText.fixed[169];
+                    str = gText.single[169];
                     break;
                 case -2:
-                    str = gText.fixed[166];
+                    str = gText.single[166];
                     break;
                 case -1:
-                    str = gText.fixed[168];
+                    str = gText.single[168];
                     break;
                 case -5:
-                    str = gText.fixed[160];
+                    str = gText.single[160];
                     break;
-                case 0:
-                    str = gText.strings[gText.indices->h[46] + i];
+                case kGhostNone:
+                    str = gText.taba[gText.tab[46] + i];
                     break;
-                case 1:
-                case 2:
+                case kGhostMine:
+                case kGhostOther:
                     str = (*gPakGhosts[gGhostPak])->name;
                     TB_Sprintf(time, "%01d:%02d.%03d", (s32)((*gPakGhosts[gGhostPak])->time / 60.0f),
                                  (s32)(*gPakGhosts[gGhostPak])->time % 60,
                                  (s32)((*gPakGhosts[gGhostPak])->time * 1000.0f) % 1000);
-                    do {} while (0);
                     break;
                 }
-                if (gGhostStatus[gGhostPak] == 2) TB_SetTextColor(5);
+                if (gGhostStatus[gGhostPak] == kGhostOther) TB_SetTextColor(5);
             } else {
-                str = gText.strings[gText.indices->h[46] + i];
+                str = gText.taba[gText.tab[46] + i];
             }
-            if (i == 2 && gGhostStatus[gGhostPak] != 0 && gGhostStatus[gGhostPak] != 1) TB_SetTextColor(4);
+            if (i == kGhostMenuSave && gGhostStatus[gGhostPak] != kGhostNone && gGhostStatus[gGhostPak] != kGhostMine) TB_SetTextColor(4);
             if (i == 1) {
                 TB_DrawText(TB_CenterText(str, 160), y, str);
                 y += TB_GetFontLineHeight();
@@ -355,33 +360,34 @@ void DrawGhost(void)
                 TB_DrawText(95, y, str);
                 if (i == 0) TB_DrawText(TB_RightText(gPS_PakName[gGhostPak], 225), y, gPS_PakName[gGhostPak]);
             }
-            TB_SetTextColor(1);
+            TB_SetTextColor(kTB_WhiteText);
             y += TB_GetFontLineHeight();
         }
     }
 }
 
-s32 highscore_animText(s32 arg0)
+/* The screen's text blit callback: draw the page it is on, in front of everything. Always 1. */
+s32 highscore_animText(s32 blit)
 {
     s32 p;
 
     HAL_SetTextDepth(0.0f);
     switch (gHighScoreState) {
-    case 1:
+    case kHighScoreUnlocked:
         DrawUnlocked();
         break;
-    case 2:
+    case kHighScoreCircuitCode:
         DrawCircuitCode();
         break;
-    case 3:
+    case kHighScoreNames:
         for (p = 0; p < gNumPlayers; p++) {
             if (gDrawName[p] == 1) DrawName(p);
         }
         break;
-    case 4:
+    case kHighScoreGhost:
         DrawGhost();
         break;
-    case 5:
+    case kHighScoreScores:
         DrawScores();
         break;
     }

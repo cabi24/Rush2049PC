@@ -1,14 +1,20 @@
+/* The mode menu (MAT3 modescr.c): race, practice, time trial (ghost), circuit, stunt, obstacle course and battle,
+ * a column of 3D buttons with a spinning cursor. updateModeScreen runs each frame in GS_MODE; modescr_init.c sets the
+ * screen up and modescr_animText.c draws its text. */
 #include "game/game.h"
 
+/* A 3D menu button (MAT3 tMenuButton without its alpha: ModeScreenButton in include/game). */
 typedef struct Slot64 {
     s32 unknown0,id;
     f32 angle,matrix[3][3],position[3];
     s32 unknown3C;
 } Slot64;
-/* PC: the pak file record's host layout (pc_prelude.h, docs/port/POINTERS.md 9.10) */
-typedef struct Resource { void *next, *prev; void (*RemoveFile)(void *), (*MoveFile)(void *, void *); u8 player; } Resource;
-typedef struct Owner { void *unknown0,*unknown4; Resource **resource; } Owner;   /* the profile, pc_prelude.h */
-typedef struct Player76 { u8 unknown0[72]; Owner **owner; } Player76;
+/* PC: the pak file record's host layout (pc_prelude.h, docs/port/POINTERS.md 9.10): pak is the pak it is on. */
+typedef struct Resource { void *next, *prev; void (*RemoveFile)(void *), (*MoveFile)(void *, void *); u8 pak; } Resource;
+/* A profile (MAT3 tPlayerProfile) in its PC layout: only its pak file handle (NULL for a guest). */
+typedef struct Owner { void *unknown0,*unknown4; Resource **fileh; } Owner;
+/* A player's pad record (MAT3 tPadState, gPlayers): only its profile. */
+typedef struct Player76 { u8 unknown0[72]; Owner **profile; } Player76;
 typedef struct Blit Blit;
 
 VIEW(u32, gActiveEdges);
@@ -32,33 +38,35 @@ extern void *MBOX_FindTexture_WORK(char *,s16 *,s32,s8,s32);
 
 extern void RemoveBlit ( Blit * );
 extern f32 fabsf(f32);
-#pragma intrinsic (fabsf)
 
+/* The menu's rows (gModeMenuSelect, MAT3 enum_kModeMenuCount): row n sets gRace n. */
+#define kModeMenuRace 0
+#define kModeMenuPractice 1
+#define kModeMenuTimeTrial 2
+#define kModeMenuCircuit 3
+#define kModeMenuStunt 4
+#define kModeMenuObstacle 5
+#define kModeMenuBattle 6
+#define kModeMenuCount 7
+#define MODE_CURSOR 7               /* modescr_buttonInfo[]: the cursor, after the seven rows' buttons */
+#define MODE_BUTTONS 13
+#define TRACK_OBSTACLE_UNLOCK 18    /* the track whose unlocking offers the obstacle course */
+
+/* Is the menu's row `index` offered? By the player count (modescr_validOption[players - 1][row]); the obstacle
+ * course also needs track 18 unlocked. */
 s32 modescr_optionValid(s32 index)
 {
     s32 value=modescr_validOption[gNumPlayers-1][index];
-    if(index==5 && !IsTrackUnlocked(18))value=0;
+    if(index==kModeMenuObstacle && !IsTrackUnlocked(TRACK_OBSTACLE_UNLOCK))value=0;
     return value;
 }
 
-/* : modescr_updateButtons = MAT3 modescr.c updateButtons (GC 0x800745F0, 0x414 B). Direct typed port; locals
- * and order from the GC DWARF (buttonIdx, prevPos[3], buttonY, selectY, tex, texIdx).  N64 differences (retail
- * displacements/constants): unselected buttons settle to 0.0f (GC 0.17453292f); the cursor block stores
- * position[0], position[1], position[2] in that order (GC: [2], [0], [1]); fabsf on the right of the speed compare
- * (`cursorSpeed < fabsf(d) * 60.0f / 10.0f`, single precision); gFrameSeconds and gNumModels
- * (gNumModels) are volatile (lui/addiu/l* 0(reg) at every use).  Names: buttonInfo = modescr_buttonInfo[13] (0x40),
- * gButtonScale/gButtonSpace/buttonX/maxY/buttonZ/cursorZ = modescr_gButtonScale..modescr_cursorZ, cursorSpeed = modescr_cursorSpeed,
- * buttonsInited/buttonsJustInited = modescr_buttonsInited/modescr_buttonsJustInited, gModeMenuSelect, optionValid = modescr_optionValid,
- * CopyUV, MBOX_HideObject/ShowObject = MBOX_HideObject/MBOX_ShowObject, ZOID_SetTexture =
- * ZOID_SetTexture, MBOX_FindTexture_WORK, WPitchUV/WRollUV/ScaleUV = WPitchUV/WRollUV/ScaleUV.
- * SHAPING (disclosed frame residual): unused0..unused2 are unused f32 locals declared first.  Retail frame 96; without
- * them 88 with every home 4 bytes high (prevPos 72, selectY 64, texIdx 58); one gives the right homes but frame 88;
- * three give retail exactly (prevPos 68, selectY 60, texIdx 54, frame 96) -- the same three-slot residual found
- * the startscr updateButtons sibling.  No pad arrays.
- */
+/* Lay the 3D buttons out for this frame (MAT3 modescr.c updateButtons). The selected row's button turns to show its
+ * selected face (a half turn at 4 pi a second; unselected ones turn back to 0, MAT3 to 10 degrees); the offered rows
+ * stack down from maxY, each moving at most 180 a second towards its place, the others hidden. The cursor spins
+ * beside the selected row and eases towards it at 180 to 540 a second (scaled by gButtonScale). */
 void modescr_updateButtons(void)
 {
-    f32 unused0, unused1, unused2;
     s32 buttonIdx;
     f32 prevPos[3];
     f32 buttonY;
@@ -67,7 +75,7 @@ void modescr_updateButtons(void)
     u16 texIdx;
     if (!modescr_buttonsInited) return;
     buttonY = modescr_maxY;
-    for (buttonIdx = 0; buttonIdx < 7; buttonIdx++) {
+    for (buttonIdx = 0; buttonIdx < kModeMenuCount; buttonIdx++) {
         if (buttonIdx == gModeMenuSelect) {
             selectY = buttonY;
             if (modescr_buttonInfo[buttonIdx].angle < 3.1415927f) modescr_buttonInfo[buttonIdx].angle += 12.566371f * gFrameSeconds;
@@ -95,81 +103,86 @@ void modescr_updateButtons(void)
             buttonY -= modescr_gButtonSpace * modescr_gButtonScale;
         }
     }
-    memcpy(prevPos, modescr_buttonInfo[7].position, 12);
-    modescr_buttonInfo[7].angle += 6.2831855f * gFrameSeconds;
-    if (modescr_buttonInfo[7].angle > 6.2831855f) modescr_buttonInfo[7].angle -= 6.2831855f;
-    CopyUV(unitmatrix, modescr_buttonInfo[7].matrix);
-    modescr_buttonInfo[7].position[0] = modescr_buttonX - 80.0f;
-    modescr_buttonInfo[7].position[1] = selectY * modescr_cursorZ / modescr_buttonZ;
-    modescr_buttonInfo[7].position[2] = modescr_cursorZ;
+    memcpy(prevPos, modescr_buttonInfo[MODE_CURSOR].position, 12);
+    modescr_buttonInfo[MODE_CURSOR].angle += 6.2831855f * gFrameSeconds;
+    if (modescr_buttonInfo[MODE_CURSOR].angle > 6.2831855f) modescr_buttonInfo[MODE_CURSOR].angle -= 6.2831855f;
+    CopyUV(unitmatrix, modescr_buttonInfo[MODE_CURSOR].matrix);
+    modescr_buttonInfo[MODE_CURSOR].position[0] = modescr_buttonX - 80.0f;
+    modescr_buttonInfo[MODE_CURSOR].position[1] = selectY * modescr_cursorZ / modescr_buttonZ;
+    modescr_buttonInfo[MODE_CURSOR].position[2] = modescr_cursorZ;
     if (!modescr_buttonsJustInited) {
-        if (modescr_cursorSpeed < fabsf(modescr_buttonInfo[7].position[1] - prevPos[1]) * 60.0f / 10.0f) {
-            modescr_cursorSpeed = fabsf(modescr_buttonInfo[7].position[1] - prevPos[1]) * 60.0f / 10.0f;
+        if (modescr_cursorSpeed < fabsf(modescr_buttonInfo[MODE_CURSOR].position[1] - prevPos[1]) * 60.0f / 10.0f) {
+            modescr_cursorSpeed = fabsf(modescr_buttonInfo[MODE_CURSOR].position[1] - prevPos[1]) * 60.0f / 10.0f;
             modescr_cursorSpeed = modescr_cursorSpeed < 540.0f * modescr_gButtonScale ? modescr_cursorSpeed : 540.0f * modescr_gButtonScale;
             modescr_cursorSpeed = modescr_cursorSpeed > 180.0f * modescr_gButtonScale ? modescr_cursorSpeed : 180.0f * modescr_gButtonScale;
         }
-        if (modescr_buttonInfo[7].position[1] > prevPos[1] + modescr_cursorSpeed * gFrameSeconds) modescr_buttonInfo[7].position[1] = prevPos[1] + modescr_cursorSpeed * gFrameSeconds;
-        else if (modescr_buttonInfo[7].position[1] < prevPos[1] - modescr_cursorSpeed * gFrameSeconds) modescr_buttonInfo[7].position[1] = prevPos[1] - modescr_cursorSpeed * gFrameSeconds;
+        if (modescr_buttonInfo[MODE_CURSOR].position[1] > prevPos[1] + modescr_cursorSpeed * gFrameSeconds) modescr_buttonInfo[MODE_CURSOR].position[1] = prevPos[1] + modescr_cursorSpeed * gFrameSeconds;
+        else if (modescr_buttonInfo[MODE_CURSOR].position[1] < prevPos[1] - modescr_cursorSpeed * gFrameSeconds) modescr_buttonInfo[MODE_CURSOR].position[1] = prevPos[1] - modescr_cursorSpeed * gFrameSeconds;
         else modescr_cursorSpeed = 180.0f * modescr_gButtonScale;
     }
-    WRollUV(modescr_buttonInfo[7].angle, modescr_buttonInfo[7].matrix);
-    WPitchUV(1.5707964f, modescr_buttonInfo[7].matrix);
-    ScaleUV(modescr_buttonInfo[7].matrix, modescr_buttonInfo[7].matrix, 0.4f);
+    WRollUV(modescr_buttonInfo[MODE_CURSOR].angle, modescr_buttonInfo[MODE_CURSOR].matrix);
+    WPitchUV(1.5707964f, modescr_buttonInfo[MODE_CURSOR].matrix);
+    ScaleUV(modescr_buttonInfo[MODE_CURSOR].matrix, modescr_buttonInfo[MODE_CURSOR].matrix, 0.4f);
     modescr_buttonsJustInited = 0;
 }
 
+/* The screen's frame. After a race it passes the player straight on to the circuit menu or the track select
+ * (gSkipToGameState). Start or A takes the row (the race type, then the track select, or the circuit menu for a
+ * circuit), B goes back to the player screen; up and down move between the offered rows. A pak pulled from under a
+ * player's profile goes back to the player screen, a soft reset to the title. */
 void updateModeScreen(void)
 {
     s32 i;
-    if (gSkipToGameState != 1) {
+    if (gSkipToGameState != SKIP_NONE) {
         if (gSkipToGameState != gGameState) {
-            if (gSkipToGameState == 0x4000) setGameState(0x4000);
-            else setGameState(0x80);
+            if (gSkipToGameState == GS_CIRCUIT) setGameState(GS_CIRCUIT);
+            else setGameState(GS_TRACK);
             return;
         }
-        gSkipToGameState = 1;
+        gSkipToGameState = SKIP_NONE;
     }
     if (!modescr_inited) modescr_initScreen();
     while (!modescr_optionValid(gModeMenuSelect)) {
-        if (++gModeMenuSelect >= 7) gModeMenuSelect = 0;
+        if (++gModeMenuSelect >= kModeMenuCount) gModeMenuSelect = 0;
     }
     modescr_updateButtons();
-    if (gActiveEdges & 3) { PlayStartABSound(gActiveEdges); exitModeScreen = 1; }
-    else if (gActiveEdges & 4) { PlayStartABSound(gActiveEdges); exitModeScreen = 2; }
-    else if (gActiveEdges & 0x400) {
+    if (gActiveEdges & BUTTON_ACCEPT) { PlayStartABSound(gActiveEdges); exitModeScreen = 1; }
+    else if (gActiveEdges & BUTTON_B) { PlayStartABSound(gActiveEdges); exitModeScreen = 2; }
+    else if (gActiveEdges & BUTTON_UP) {
         PlayUDSound(gActiveEdges);
-        do { if (--gModeMenuSelect < 0) gModeMenuSelect = 6; } while (!modescr_optionValid(gModeMenuSelect));
-    } else if (gActiveEdges & 0x800) {
+        do { if (--gModeMenuSelect < 0) gModeMenuSelect = kModeMenuCount - 1; } while (!modescr_optionValid(gModeMenuSelect));
+    } else if (gActiveEdges & BUTTON_DOWN) {
         PlayUDSound(gActiveEdges);
-        do { if (++gModeMenuSelect >= 7) gModeMenuSelect = 0; } while (!modescr_optionValid(gModeMenuSelect));
+        do { if (++gModeMenuSelect >= kModeMenuCount) gModeMenuSelect = 0; } while (!modescr_optionValid(gModeMenuSelect));
     }
     for (i = 0; i < gNumPlayers; i++) {
-        Resource **fileh = (*gPlayers[i].owner)->resource;
-        if (fileh && PS_PakChanged((*fileh)->player)) {
-            modescr_uninitScreen(); setGameState(0x20); return;
+        Resource **fileh = (*gPlayers[i].profile)->fileh;
+        if (fileh && PS_PakChanged((*fileh)->pak)) {
+            modescr_uninitScreen(); setGameState(GS_PLAYER); return;
         }
     }
-    if (gSoftReset) { modescr_uninitScreen(); setGameState(4); return; }
+    if (gSoftReset) { modescr_uninitScreen(); setGameState(GS_TITLE); return; }
     if (exitModeScreen) {
         modescr_uninitScreen();
         switch (exitModeScreen) {
         case 1:
             switch (gModeMenuSelect) {
-            case 0: gRace = 0; setGameState(0x80); break;
-            case 1: gRace = 1; setGameState(0x80); break;
-            case 2: gRace = 2; setGameState(0x80); break;
-            case 3: gRace = 3; setGameState(0x4000); break;
-            case 4: gRace = 4; setGameState(0x80); break;
-            case 5: gRace = 5; setGameState(0x80); break;
-            case 6: gRace = 6; setGameState(0x80); break;
+            case kModeMenuRace: gRace = kOneRace; setGameState(GS_TRACK); break;
+            case kModeMenuPractice: gRace = kPractice; setGameState(GS_TRACK); break;
+            case kModeMenuTimeTrial: gRace = kGhost; setGameState(GS_TRACK); break;
+            case kModeMenuCircuit: gRace = kCircuit; setGameState(GS_CIRCUIT); break;
+            case kModeMenuStunt: gRace = kStunt; setGameState(GS_TRACK); break;
+            case kModeMenuObstacle: gRace = kObstacle; setGameState(GS_TRACK); break;
+            case kModeMenuBattle: gRace = kBattle; setGameState(GS_TRACK); break;
             }
             break;
-        case 2: setGameState(0x20); break;
+        case 2: setGameState(GS_PLAYER); break;
         }
         exitModeScreen = 0;
     }
 }
 
+/* Take the screen down: its buttons, its text blit and the background. */
 void modescr_uninitScreen(void)
 {
     modescr_uninitButtons();
@@ -178,10 +191,11 @@ void modescr_uninitScreen(void)
     modescr_inited = 0;
 }
 
+/* Remove the screen's 3D buttons from the scene. */
 void modescr_uninitButtons(void)
 {
     s32 buttonIdx;
-    for (buttonIdx = 0; buttonIdx < 13; buttonIdx++) {
+    for (buttonIdx = 0; buttonIdx < MODE_BUTTONS; buttonIdx++) {
         if (modescr_buttonInfo[buttonIdx].id != -1) {
             ZOID_RemoveObject(modescr_buttonInfo[buttonIdx].id);
             modescr_buttonInfo[buttonIdx].id = -1;

@@ -145,7 +145,6 @@ void controlMain(void)
 
     if (gActiveEdges & BUTTON_ACCEPT) {
         PlayStartABSound(gActiveEdges);
-        if (gActiveEdges) {}
         switch (gMainSelect) {
         case kGameOverMainMenuScore:
             setGameOverState(kGameOverStateScore);

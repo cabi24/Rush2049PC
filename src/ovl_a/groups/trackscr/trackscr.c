@@ -1,3 +1,9 @@
+/* The track select screen (MAT3 trackscr.c), GS_TRACK: a carousel of the tracks of the race type (their pictures
+ * over a fog layer), a rotating 3D map of the highlighted track (for the race tracks drawn from their paths, for the
+ * others a model), and a scrolling list of 3D buttons with the race options (laps, ghosts, direction, mirror, fog,
+ * wind, drones, difficulty, catch-up, death mode and the stunt and battle settings). The options are gOptions[21..40]
+ * and are kept in the first player's profile. A or Start goes on to the car select screen, B back to the mode (or
+ * circuit) screen. */
 #include "game/game.h"
 #define Gfx GfxView   /* this file's own Gfx: include/game's Gfx is another type */
 
@@ -6,15 +12,77 @@ typedef struct MultiBlit {
     char *name;s16 x,y,width,height,top,bottom,left,right;
     u32 z,alpha;s32 (*callback)(Blit *);u32 descriptor;
 } MultiBlit;
-typedef struct tMenuButton {s32 other,handle;f32 angle,matrix[3][3],position[3];u8 alpha,pad[3];} tMenuButton;
+typedef struct tMenuButton {s32 type,handle;f32 angle,matrix[3][3],position[3];u8 alpha,pad[3];} tMenuButton;
 typedef union Color {u32 word;u8 channel[4];} Color;
 typedef struct Texture Texture;
-/* PC: the pak file record's host layout (pc_prelude.h, docs/port/POINTERS.md 9.10) */
-typedef struct FileInfo {void *next, *prev; void (*RemoveFile)(void *), (*MoveFile)(void *, void *); u8 controller;} FileInfo;
+/* A pak file record (MAT3 tPS_File) in its PC layout (pc_prelude.h PSF_OFS, docs/port/POINTERS.md 9.10). */
+typedef struct FileInfo {void *next, *prev; void (*RemoveFile)(void *), (*MoveFile)(void *, void *); u8 pak;} FileInfo;
+/* A profile (MAT3 tPlayerProfile) in its PC layout (pc_prelude.h PROFILE_OFS): fileh NULL for a guest, stats its
+ * save data. */
 typedef struct Profile Profile;
-struct Profile {Profile **next,**previous;FileInfo **file;u32 id0,id1;u8 name[24];u8 **stats;};
-typedef struct Player {u32 held,pressed,levels,repeated;u8 unknown10[56];Profile **save;} Player;
+struct Profile {Profile **next,**previous;FileInfo **fileh;u32 id0,id1;u8 name[24];u8 **stats;};
+/* A player's pad record (MAT3 tPadState, gPlayers): its buttons and its profile. */
+typedef struct Player {u8 slot,controller,pad02[2];u32 pressed,levels,repeated;u8 unknown10[56];Profile **save;} Player;
+/* A circuit's race (gCircuitTracks): the track and its set direction, mirror, fog and wind. */
 typedef struct CircuitTrack {u8 trackNum,unknown1,mirror,fog,wind;} CircuitTrack;
+
+/* trackscr_gOpts[]: the race options, in their order down the list (OptionValid keeps the offered ones). The
+ * gOptions entry each changes is in updateTrackScreen; 3-11 are gOptions[32..40]. */
+#define TRACK_OPT_TRACK 0
+#define TRACK_OPT_GHOSTS 1              /* gOptions[25]: which ghosts (gGhostSelect) */
+#define TRACK_OPT_LAPS 2                /* gOptions[21], 1-8 */
+#define TRACK_OPT_STUNT_MODE 3          /* gOptions[32]: 0 time, 1 points, 2 death (MAT3 kTimeStuntMode ...) */
+#define TRACK_OPT_STUNT_POINTS 5        /* offered in stunt mode 1 */
+#define TRACK_OPT_STUNT_TIME 6          /* offered in stunt mode 0 */
+#define TRACK_OPT_STUNT_DEATH 7         /* offered in stunt mode 2 */
+#define TRACK_OPT_BATTLE_MODE 8         /* gOptions[37]: 0 points, 1 time (MAT3 kPointBattleMode, kTimeBattleMode) */
+#define TRACK_OPT_BATTLE_POINTS 9       /* offered in battle mode 0 */
+#define TRACK_OPT_BATTLE_TIME 10        /* offered in battle mode 1 */
+#define TRACK_OPT_BATTLE_11 11          /* offered in battle mode 0 */
+#define TRACK_OPT_BACKWARDS 12          /* gOptions[27]: the race tracks only */
+#define TRACK_OPT_MIRROR 13             /* gOptions[28] */
+#define TRACK_OPT_FOG 14                /* gOptions[29], 0-3 */
+#define TRACK_OPT_WIND 15               /* gOptions[30], 0-4 */
+#define TRACK_OPT_DRONES 17             /* gOptions[22] */
+#define TRACK_OPT_DIFFICULTY 18         /* gOptions[24], 0-5 */
+#define TRACK_OPT_CATCHUP 19            /* gOptions[26], 0-2 */
+#define TRACK_OPT_DEATH_MODE 20         /* gOptions[31] */
+#define TRACK_OPTS 21
+
+#define RACE_OPTIONS_FIRST 21           /* gOptions[21..40]: the race options, kept per profile */
+#define RACE_OPTIONS_END 41
+#define MIRROR_SECRET 2                 /* gOptions[28]: the mirror option's hidden third value */
+#define SECRET_BUTTONS 0x3C000          /* held with the change, they give MIRROR_SECRET (game button bits 14-17) */
+
+/* The tracks (gTrackNum): the race tracks, the battle arenas, the stunt arenas and the obstacle course. */
+#define TRACKS 19
+#define TRACK_RACE_FIRST 0
+#define TRACK_RACE_LAST 5
+#define TRACK_BATTLE_FIRST 6
+#define TRACK_BATTLE_LAST 13
+#define TRACK_STUNT_FIRST 14
+#define TRACK_STUNT_LAST 17
+#define TRACK_OBSTACLE 18
+#define TRACK_NEEDS_EXPANSION 5         /* this race track can't be raced without an Expansion Pak */
+#define TRACK_MAP_SELECTED 19           /* trackMap[]: the highlighted race track's map */
+#define MAP_LOD_SELECTED 6              /* mapObj[], saved_map_lods[] ...: the selected map's copy */
+
+/* trackscr_buttonInfo[]: a label button per option, its value button TRACK_VALUE_BUTTON on, then these. */
+#define TRACK_VALUE_BUTTON(opt) ((opt) + TRACK_OPTS)
+#define TRACK_BUTTON_TITLE 42
+#define TRACK_BUTTON_CURSOR 43
+#define TRACK_BUTTON_A_ICON 44
+#define TRACK_BUTTON_A_ARROW 45
+#define TRACK_BUTTON_B_ICON 46
+#define TRACK_BUTTON_B_ARROW 47
+#define TRACK_BUTTONS 48
+
+#define SND_BACK 38                     /* the menu sounds */
+#define SND_MENU_DOWN 39
+#define SND_MENU_UP 40
+#define BUTTON_DEFAULT_OPTION 0x80      /* with trackscr_gActiveZ, would put an option back to its default */
+#define WAVE_PATHS 158                  /* a race track's path data: this + the track */
+#define CIRCUIT_DEATH_MODE_BYTE 1785    /* the profile's save data: the circuit's death mode */
 
 extern Player gPlayers[];        /* gPlayers */
 
@@ -122,7 +190,6 @@ typedef struct { s16 ob[3]; u16 flag; s16 tc[2]; u8 cn[4]; } Vtx;
 VIEW(s8[19], trackReady);
 #define trackReady trackReady_view
 
-/* SetFogIntensity: research body */
 /* PC: the Blit's host layout (NewMultiBlit.c), as every view has it (docs/port/POINTERS.md 9). */
 struct Blit {const char *Name;void *Image;void *Info;u16 TexIndex;s16 X,Y;u16 Z;s16 Width,Height;u8 Alpha,Flip;s8 Hide,Init;
     s16 Top,Bot,Left,Right,color;u16 reserved;void *AnimFunc;u32 AnimID;intptr_t AnimDTA;u16 resource;};
@@ -137,7 +204,7 @@ VIEW(u8[8], trackscr_fogColor);
 typedef struct FogPalette { u8 head[0x14]; u32 palBase; } FogPalette;
 #define FOG_TABLE(p) PC_N64W(p)
 
-/* BlowFog (inlined into _InitScreen); MAT3 static fogTileSize (anon_uls_ult_8) */
+/* The fog layer's texture tile (MAT3 BlowFog's static fogTileSize, anon_uls_ult_8). */
 typedef struct TileSize {u16 uls,ult,lrs,lrt;} TileSize;
 VIEW(volatile s16, gRenderInProgress);
 #define gRenderInProgress gRenderInProgress_view
@@ -213,207 +280,217 @@ extern f32 sqrtf(f32);
 #pragma intrinsic (sqrtf)
 #define GFX(p,a,b) do { Gfx *_g = (p)++; _g->words.w0 = (a); _g->words.w1 = (b); } while (0)
 
-/* updateTrackScreen (MAT3 trackscr.c, GC 0x80087abc). N64 differences read from the retail words: the
- * _InitScreen/showTrackSelect calls come before the player loop, which tests a removed controller pak
- * instead of walking gPlayerFiles; A/B start needs expansion_pak_present or a track other than 5 (the same gate guards
- * the up/down option moves); effect ids 38/40/39; case 0 sets buttonsJustInited when !expansion_pak_present;
- * options are saved for player 0 after SetOptions; ZeroCamera/UpdateCameras = inlined setCamera. */
+/* The screen's frame. After a race with a screen to skip to it passes straight on to the car screen. The first frame
+ * sets it up; the carousel moves (showTrackSelect). A profile's pak pulled sends everyone back to the player screen,
+ * a soft reset to the title.
+ * - Start or A (not on TRACK_NEEDS_EXPANSION without an Expansion Pak) goes on to the car screen, saving the race
+ *   options in every player's profile; B goes back to the circuit or the mode screen.
+ * - Left or right (auto-repeating; reversed with the mirrored-controls cheat) changes the option: the track (to the
+ *   next valid one, loading the profile's options for it), the ghosts, laps, the stunt and battle settings,
+ *   direction and mirror (which rebuild the map), fog, wind, drones, difficulty, catch-up and death mode. Not in a
+ *   circuit (but its first race's death mode), nor the laps of a ghost race. The options apply (SetOptions) and are
+ *   saved in the first player's profile.
+ * - Up and down move through the offered options, the list keeping the option within its first rows.
+ * A track change saves the track in each profile, by race type. Then the maps, the fog and the camera. */
 void updateTrackScreen(void)
 {
     s32 i;
     s32 j;
     s32 add;
-    if (gSkipToGameState != 1) {
-        if (gSkipToGameState != gGameState) { setGameState(0x100); return; }
-        gSkipToGameState = 1;
+    if (gSkipToGameState != SKIP_NONE) {
+        if (gSkipToGameState != gGameState) { setGameState(GS_CAR); return; }
+        gSkipToGameState = SKIP_NONE;
     }
     if (!trackscr_inited) trackscr_InitScreen();
     showTrackSelect();
     for (i = 0; i < gNumPlayers; i++) {
-        if ((*gPlayers[i].save)->file && PS_PakChanged((*(*gPlayers[i].save)->file)->controller)) {
-            trackscr_UninitScreen(); setGameState(0x20); return;
+        if ((*gPlayers[i].save)->fileh && PS_PakChanged((*(*gPlayers[i].save)->fileh)->pak)) {
+            trackscr_UninitScreen(); setGameState(GS_PLAYER); return;
         }
     }
-    if (gSoftReset) { trackscr_UninitScreen(); setGameState(4); return; }
-    if ((gActiveEdges & 3) && (expansion_pak_present || gTrackNum != 5)) {
-        PlayStartABSound(gActiveEdges); setGameState(0x100); trackscr_UninitScreen();
+    if (gSoftReset) { trackscr_UninitScreen(); setGameState(GS_TITLE); return; }
+    if ((gActiveEdges & BUTTON_ACCEPT) && (expansion_pak_present || gTrackNum != TRACK_NEEDS_EXPANSION)) {
+        PlayStartABSound(gActiveEdges); setGameState(GS_CAR); trackscr_UninitScreen();
         for (j = 0; j < gNumPlayers; j++)
-            for (i = 21; i < 41; i++) audio_bus_mix(gPlayers[j].save, i, gOptions[i]);
+            for (i = RACE_OPTIONS_FIRST; i < RACE_OPTIONS_END; i++) audio_bus_mix(gPlayers[j].save, i, gOptions[i]);
         return;
     }
-    if (gActiveEdges & 4) {
-        AudPlayEffect(38, 0, 1, 0); trackscr_UninitScreen();
-        if (gRace == 3) setGameState(0x4000);
-        else setGameState(0x40);
+    if (gActiveEdges & BUTTON_B) {
+        AudPlayEffect(SND_BACK, 0, 1, 0); trackscr_UninitScreen();
+        if (gRace == kCircuit) setGameState(GS_CIRCUIT);
+        else setGameState(GS_MODE);
         return;
     }
-    if (gActiveLevels & 0x3080) {
-        add = (gActiveAutoEdges & 0x1000) ? -1 : (gActiveAutoEdges & 0x2000) ? 1 : 0;
-        if ((gRace == 3 && (gCircuitTrack > 0 || trackscr_gOpts[trackscr_gActiveOption] != 20)) || (add == 0 && !trackscr_gActiveZ) || (gRace == 2 && trackscr_gOpts[trackscr_gActiveOption] == 2)) goto controls_done;
+    if (gActiveLevels & (BUTTON_LEFT | BUTTON_RIGHT | BUTTON_DEFAULT_OPTION)) {
+        /* add: -1 left, 1 right, 0 the option's default */
+        add = (gActiveAutoEdges & BUTTON_LEFT) ? -1 : (gActiveAutoEdges & BUTTON_RIGHT) ? 1 : 0;
+        /* Original game: nothing sets trackscr_gActiveZ but _InitScreen's 0 (MAT3 neither), so a frame without a
+         * left or right edge changes nothing, and the defaults (`else gOptions[n] = ...`) are unreachable. */
+        if ((gRace == kCircuit && (gCircuitTrack > 0 || trackscr_gOpts[trackscr_gActiveOption] != TRACK_OPT_DEATH_MODE)) || (add == 0 && !trackscr_gActiveZ) || (gRace == kGhost && trackscr_gOpts[trackscr_gActiveOption] == TRACK_OPT_LAPS)) goto controls_done;
         PlayLRSound(gActiveAutoEdges);
         if (gMirrorControls > 1) add = -add;
         switch (trackscr_gOpts[trackscr_gActiveOption]) {
-        case 0:
+        case TRACK_OPT_TRACK:
             if (add) {
                 gTrack += add;
                 if (gTrack < 0) gTrack = gNumTracks - 1;
                 else if (gTrack >= gNumTracks) gTrack = 0;
                 do {
                     gTrackNum += add;
-                    if (gTrackNum < 0) gTrackNum = 18;
-                    else if (gTrackNum >= 19) gTrackNum = 0;
+                    if (gTrackNum < 0) gTrackNum = TRACKS - 1;
+                    else if (gTrackNum >= TRACKS) gTrackNum = 0;
                 } while (!TrackValid(gTrackNum));
-                for (i = 21; i < 41; i++)
+                for (i = RACE_OPTIONS_FIRST; i < RACE_OPTIONS_END; i++)
                     gOptions[i] = GetPlayerOption(gPlayers[0].save, i);
                 if (!expansion_pak_present) trackscr_buttonsJustInited = 1;
             }
             break;
-        case 1:
+        case TRACK_OPT_GHOSTS:
             if (add) {
                 gOptions[25] += add;
                 if (gOptions[25] < 0) gOptions[25] = 1;
                 else if (gOptions[25] > 1) gOptions[25] = 0;
             } else gOptions[25] = 0;
             break;
-        case 2:
+        case TRACK_OPT_LAPS:
             if (add) {
                 gOptions[21] += add;
                 if (gOptions[21] < 1) gOptions[21] = 8;
                 else if (gOptions[21] > 8) gOptions[21] = 1;
             } else gOptions[21] = 3;
             break;
-        case 3:
+        case TRACK_OPT_STUNT_MODE:
             if (add) {
                 gOptions[32] += add;
                 if (gOptions[32] < 0) gOptions[32] = 2;
                 else if (gOptions[32] > 2) gOptions[32] = 0;
             } else gOptions[32] = 0;
             break;
-        case 4:
+        case 4:     /* gOptions[33], on or off */
             if (add) {
                 if (!gOptions[33]) gOptions[33] = 1;
                 else gOptions[33] = 0;
             } else gOptions[33] = 0;
             break;
-        case 5:
+        case TRACK_OPT_STUNT_POINTS:
             if (add) {
                 gOptions[34] += add;
                 if (gOptions[34] <= 0) gOptions[34] = 100;
                 else if (gOptions[34] > 100) gOptions[34] = 1;
             } else gOptions[34] = 69;
             break;
-        case 6:
+        case TRACK_OPT_STUNT_TIME:
             if (add) {
                 gOptions[35] += add;
                 if (gOptions[35] <= 0) gOptions[35] = 20;
                 else if (gOptions[35] > 20) gOptions[35] = 1;
             } else gOptions[35] = 5;
             break;
-        case 7:
+        case TRACK_OPT_STUNT_DEATH:
             if (add) {
                 gOptions[36] += add;
                 if (gOptions[36] <= 0) gOptions[36] = 50;
                 else if (gOptions[36] > 50) gOptions[36] = 1;
             } else gOptions[36] = 30;
             break;
-        case 8:
+        case TRACK_OPT_BATTLE_MODE:
             if (add) {
                 if (!gOptions[37]) gOptions[37] = 1;
                 else gOptions[37] = 0;
             } else gOptions[37] = 0;
             break;
-        case 9:
+        case TRACK_OPT_BATTLE_POINTS:
             if (add) {
                 gOptions[38] += 5*add;
                 if (gOptions[38] < 5) gOptions[38] = 50;
                 else if (gOptions[38] > 50) gOptions[38] = 5;
             } else gOptions[38] = 10;
             break;
-        case 10:
+        case TRACK_OPT_BATTLE_TIME:
             if (add) {
                 gOptions[39] += add;
                 if (gOptions[39] <= 0) gOptions[39] = 20;
                 else if (gOptions[39] > 20) gOptions[39] = 1;
             } else gOptions[39] = 8;
             break;
-        case 11:
+        case TRACK_OPT_BATTLE_11:
             if (add) {
                 gOptions[40] ^= 1;
             } else gOptions[40] = 0;
             break;
-        case 12:
+        case TRACK_OPT_BACKWARDS:
             if (add) {
                 gOptions[27] ^= 1;
             } else gOptions[27] = 0;
             clearTrackMap(); buildTrackMap(); pathPos = 1.0f - pathPos;
             break;
-        case 13:
+        case TRACK_OPT_MIRROR:
             if (add) {
-                if ((gPlayers[0].levels & 0x3c000) == 0x3c000) gOptions[28] = 2;
+                if ((gPlayers[0].levels & SECRET_BUTTONS) == SECRET_BUTTONS) gOptions[28] = MIRROR_SECRET;
                 else if (!gOptions[28]) gOptions[28] = 1;
                 else gOptions[28] = 0;
             } else gOptions[28] = 0;
             clearTrackMap(); buildTrackMap();
             break;
-        case 14:
+        case TRACK_OPT_FOG:
             if (add) {
                 gOptions[29] += add;
                 if (gOptions[29] < 0) gOptions[29] = 3;
                 else if (gOptions[29] > 3) gOptions[29] = 0;
             } else gOptions[29] = 0;
             break;
-        case 15:
+        case TRACK_OPT_WIND:
             if (add) {
                 gOptions[30] += add;
                 if (gOptions[30] < 0) gOptions[30] = 4;
                 else if (gOptions[30] > 4) gOptions[30] = 0;
             } else gOptions[30] = 0;
             break;
-        case 16:
+        case 16:    /* gOptions[23], 0-3 */
             if (add) {
                 gOptions[23] += add;
                 if (gOptions[23] < 0) gOptions[23] = 3;
                 else if (gOptions[23] > 3) gOptions[23] = 0;
             } else gOptions[23] = 1;
             break;
-        case 17:
+        case TRACK_OPT_DRONES:
             if (add) {
                 gOptions[22] += add;
                 if (gOptions[22] > PC_DRONES_MAX) gOptions[22] = 0;
                 else if (gOptions[22] < 0) gOptions[22] = PC_DRONES_MAX;
             } else gOptions[22] = 5;
             break;
-        case 18:
+        case TRACK_OPT_DIFFICULTY:
             if (add) {
                 gOptions[24] += add;
                 if (gOptions[24] < 0) gOptions[24] = 5;
                 else if (gOptions[24] > 5) gOptions[24] = 0;
             } else gOptions[24] = 2;
             break;
-        case 19:
+        case TRACK_OPT_CATCHUP:
             if (add) {
                 gOptions[26] += add;
                 if (gOptions[26] < 0) gOptions[26] = 2;
                 else if (gOptions[26] > 2) gOptions[26] = 0;
             } else gOptions[26] = 2;
             break;
-        case 20:
+        case TRACK_OPT_DEATH_MODE:
             if (add) {
                 gOptions[31] ^= 1;
             } else gOptions[31] = 0;
-            if (gRace == 3) (*(*gPlayers[gCircuitPlayer].save)->stats)[1785] = gOptions[31];
+            if (gRace == kCircuit) (*(*gPlayers[gCircuitPlayer].save)->stats)[CIRCUIT_DEATH_MODE_BYTE] = gOptions[31];
             break;
         }
         SetOptions();
-        for (i = 21; i < 41; i++) audio_bus_mix(gPlayers[0].save, i, gOptions[i]);
-    } else if (gActiveAutoEdges & 0x400) {
-        if (expansion_pak_present || gTrackNum != 5) {
-            AudPlayEffect(40, 0, 1, 0);
+        for (i = RACE_OPTIONS_FIRST; i < RACE_OPTIONS_END; i++) audio_bus_mix(gPlayers[0].save, i, gOptions[i]);
+    } else if (gActiveAutoEdges & BUTTON_UP) {
+        if (expansion_pak_present || gTrackNum != TRACK_NEEDS_EXPANSION) {
+            AudPlayEffect(SND_MENU_UP, 0, 1, 0);
             if (--trackscr_gActiveOption < 0) trackscr_gActiveOption = trackscr_gNumOptions - 1;
         }
-    } else if (gActiveAutoEdges & 0x800) {
-        if (expansion_pak_present || gTrackNum != 5) {
-            AudPlayEffect(39, 0, 1, 0);
+    } else if (gActiveAutoEdges & BUTTON_DOWN) {
+        if (expansion_pak_present || gTrackNum != TRACK_NEEDS_EXPANSION) {
+            AudPlayEffect(SND_MENU_DOWN, 0, 1, 0);
             trackscr_gActiveOption++;
             if (trackscr_gActiveOption > trackscr_gNumOptions - 1) trackscr_gActiveOption = 0;
         }
@@ -423,20 +500,20 @@ void updateTrackScreen(void)
     if (trackscr_gFirstOption > trackscr_gNumOptions - 4) trackscr_gFirstOption = trackscr_gNumOptions - 4;
     if (trackscr_gFirstOption < 0) trackscr_gFirstOption = 0;
 controls_done:
-    trackscr_gActiveOptionEnabled = gRace != 3 || (gCircuitTrack == 0 && trackscr_gOpts[trackscr_gActiveOption] == 20);
+    trackscr_gActiveOptionEnabled = gRace != kCircuit || (gCircuitTrack == 0 && trackscr_gOpts[trackscr_gActiveOption] == TRACK_OPT_DEATH_MODE);
     if (gTrackNum != oldTrack) {
         desiredTrackMap = gTrackNum;
         oldTrack = gTrackNum;
         for (i = 0; i < gNumPlayers; i++) {
             switch (gRace) {
-            case 0: case 1: case 2:
-                if (gTrackNum >= 0 && gTrackNum <= 5) SavePlayerTrack(gPlayers[i].save, gRace, gTrackNum + 0);
+            case kOneRace: case kPractice: case kGhost:
+                if (gTrackNum >= TRACK_RACE_FIRST && gTrackNum <= TRACK_RACE_LAST) SavePlayerTrack(gPlayers[i].save, gRace, gTrackNum + 0);
                 break;
-            case 4:
-                if (gTrackNum >= 14 && gTrackNum <= 17) SavePlayerTrack(gPlayers[i].save, gRace, gTrackNum - 14);
+            case kStunt:
+                if (gTrackNum >= TRACK_STUNT_FIRST && gTrackNum <= TRACK_STUNT_LAST) SavePlayerTrack(gPlayers[i].save, gRace, gTrackNum - TRACK_STUNT_FIRST);
                 break;
-            case 6:
-                if (gTrackNum >= 6 && gTrackNum <= 13) SavePlayerTrack(gPlayers[i].save, gRace, gTrackNum - 6);
+            case kBattle:
+                if (gTrackNum >= TRACK_BATTLE_FIRST && gTrackNum <= TRACK_BATTLE_LAST) SavePlayerTrack(gPlayers[i].save, gRace, gTrackNum - TRACK_BATTLE_FIRST);
                 break;
             }
         }
@@ -447,7 +524,10 @@ controls_done:
     setCamera();
 }
 
-/* _InitScreen (MAT3 trackscr.c, GC 0x800887ac). N64: 17-entry multiblit; BlowFog and setCamera inlined. */
+/* Set the screen up: the first option, the offered options, the track maps; the track: a circuit's race, else the
+ * first player's last track of this race type (or the type's first if it isn't valid), saved in every profile; the
+ * race options from the first player's profile; the buttons and the text blit; the carousel with the track
+ * highlighted, the tracks 100 apart around it; the fog and the camera. */
 void trackscr_InitScreen(void)
 {
     s32 i;
@@ -457,27 +537,27 @@ void trackscr_InitScreen(void)
     trackscr_gFirstOption = 0;
     trackscr_gActiveZ = 0;
     currentTrackMap = -1;
-    trackscr_gNumOptions = 0; for (i = 0; i < 21; i++) if (OptionValid(i)) trackscr_gOpts[trackscr_gNumOptions++] = i;
+    trackscr_gNumOptions = 0; for (i = 0; i < TRACK_OPTS; i++) if (OptionValid(i)) trackscr_gOpts[trackscr_gNumOptions++] = i;
     buildTrackMaps();
-    if (gRace == 3) oldTrack = gTrackNum = gCircuitTracks[gCircuitTrack].trackNum;
+    if (gRace == kCircuit) oldTrack = gTrackNum = gCircuitTracks[gCircuitTrack].trackNum;
     else {
-        if (gRace == 4) oldTrack = gTrackNum = GetPlayerTrack(gPlayers[0].save, gRace) + 14;
-        else if (gRace == 5) oldTrack = gTrackNum = GetPlayerTrack(gPlayers[0].save, gRace) + 18;
-        else if (gRace == 6) oldTrack = gTrackNum = GetPlayerTrack(gPlayers[0].save, gRace) + 6;
+        if (gRace == kStunt) oldTrack = gTrackNum = GetPlayerTrack(gPlayers[0].save, gRace) + TRACK_STUNT_FIRST;
+        else if (gRace == kObstacle) oldTrack = gTrackNum = GetPlayerTrack(gPlayers[0].save, gRace) + TRACK_OBSTACLE;
+        else if (gRace == kBattle) oldTrack = gTrackNum = GetPlayerTrack(gPlayers[0].save, gRace) + TRACK_BATTLE_FIRST;
         else oldTrack = gTrackNum = GetPlayerTrack(gPlayers[0].save, gRace) + 0;
         if (!TrackValid(gTrackNum)) {
-            if (gRace == 4) oldTrack = gTrackNum = 14;
-            else if (gRace == 5) oldTrack = gTrackNum = 18;
-            else if (gRace == 6) oldTrack = gTrackNum = 6;
-            else oldTrack = gTrackNum = 0;
+            if (gRace == kStunt) oldTrack = gTrackNum = TRACK_STUNT_FIRST;
+            else if (gRace == kObstacle) oldTrack = gTrackNum = TRACK_OBSTACLE;
+            else if (gRace == kBattle) oldTrack = gTrackNum = TRACK_BATTLE_FIRST;
+            else oldTrack = gTrackNum = TRACK_RACE_FIRST;
         }
         for (i = 0; i < gNumPlayers; i++) {
-            if (gRace == 4) SavePlayerTrack(gPlayers[i].save, gRace, gTrackNum - 14);
-            else if (gRace == 5) SavePlayerTrack(gPlayers[i].save, gRace, gTrackNum - 18);
-            else if (gRace == 6) SavePlayerTrack(gPlayers[i].save, gRace, gTrackNum - 6);
+            if (gRace == kStunt) SavePlayerTrack(gPlayers[i].save, gRace, gTrackNum - TRACK_STUNT_FIRST);
+            else if (gRace == kObstacle) SavePlayerTrack(gPlayers[i].save, gRace, gTrackNum - TRACK_OBSTACLE);
+            else if (gRace == kBattle) SavePlayerTrack(gPlayers[i].save, gRace, gTrackNum - TRACK_BATTLE_FIRST);
             else SavePlayerTrack(gPlayers[i].save, gRace, gTrackNum);
         }
-        for (i = 21; i < 41; i++)
+        for (i = RACE_OPTIONS_FIRST; i < RACE_OPTIONS_END; i++)
             gOptions[i] = GetPlayerOption(gPlayers[0].save, i);
     }
     SetOptions();
@@ -485,16 +565,16 @@ void trackscr_InitScreen(void)
     trackscr_initButtons();
     trackscr_blit = NewMultiBlit(0, 0, trackscr_mblit, 17);
     i = 0;
-    for (j = 0; j < 19; j++) {
+    for (j = 0; j < TRACKS; j++) {
         if (TrackValid(j)) {
             if (j == gTrackNum) { gTrack = i; break; }
             i++;
         }
     }
-    gNumTracks = 19;
+    gNumTracks = TRACKS;
     i = 0;
     pos = 0.0f;
-    for (j = 0; j < 19; j++) {
+    for (j = 0; j < TRACKS; j++) {
         if (TrackValid(j)) {
             gTracks[i].gTrackNum = j;
             gTracks[i].slot = i - gTrack;
@@ -523,10 +603,7 @@ void trackscr_InitScreen(void)
     mapTransition = 0;
 }
 
-/* body, merged 2026-10-21.
- * : MAT3 _UninitScreen calls uninitButtons and clearTrackMaps; both are inlined statics whose deleted
- * procedures are the retail stubs trackscr_uninitButtons (uninitButtons) and clearTrackMaps, emitted in the
- * post-order of the call graph (clearTrackMaps is visited first: last call first). Bodies moved verbatim from here. */
+/* Take the screen down: the buttons, the text blit, the background, the track maps and their models. */
 void trackscr_UninitScreen(void)
 {
     trackscr_uninitButtons();
@@ -538,8 +615,11 @@ void trackscr_UninitScreen(void)
     trackscr_inited = 0;
 }
 
-/* Reconstructed with the GameCube/Dreamcast ports' source as reference; byte-matched against the retail ROM, 2026-10. */
 typedef struct UVMatrix { f32 uvs[3][3]; f32 pos[3]; } UVMatrix;   /* tUVMatrix */
+/* The carousel's frame (and the buttons'): the offered options listed again; a spin angle that turns a degree a 30 Hz
+ * frame (the other way for a backwards or mirrored race); each track sliding a tenth of the way to its place a
+ * frame, the places moving by 100 as the highlight moves, wrapping at the ends; and the fog's height easing to the
+ * highlighted track's (yFog). MAT3 draws a spinning model with the angle; the N64 computes it and draws nothing. */
 void showTrackSelect(void)
 {
     static f32 angle = 0.0f;
@@ -552,7 +632,7 @@ void showTrackSelect(void)
     s32 slot;
     f32 fogY, fogDelta;
     trackscr_updateButtons();
-    for (trackscr_gNumOptions = 0, i = 0; i < 21; i++) if (OptionValid(i)) trackscr_gOpts[trackscr_gNumOptions++] = i;
+    for (trackscr_gNumOptions = 0, i = 0; i < TRACK_OPTS; i++) if (OptionValid(i)) trackscr_gOpts[trackscr_gNumOptions++] = i;
     frames = gFrameSeconds * 30.0f;
     if ((gBackwards && !gMirrorWaves) || (!gBackwards && gMirrorWaves)) {
         angle -= 0.01745329238474369f * frames;
@@ -587,40 +667,48 @@ void showTrackSelect(void)
     ScaleUVXYZ(uv, uv, 2.0f, 1.0f, 2.5f);
 }
 
-/* TrackValid: MAT3 trackscr.c TrackValid (GC 0x8008a248) direct port; IDO rewrites the range tests as pointer compares on &trackReady[track]. */
+/* Can track be raced in this race type? Its data must be ready (trackReady) and it unlocked; then the stunt arenas
+ * for a stunt race, the obstacle course for an obstacle race, the battle arenas for a battle, else the race tracks.
+ * 1 yes, 0 no. */
 s32 TrackValid(s32 track)
 {
     if (!trackReady[track]) return 0;
     if (!IsTrackUnlocked(track)) return 0;
-    if (gRace == 4) return track >= 14 && track <= 17;
-    if (gRace == 5) return track >= 18 && track <= 18;
-    if (gRace == 6) return track >= 6 && track <= 13;
-    return track >= 0 && track <= 5;
+    if (gRace == kStunt) return track >= TRACK_STUNT_FIRST && track <= TRACK_STUNT_LAST;
+    if (gRace == kObstacle) return track >= TRACK_OBSTACLE && track <= TRACK_OBSTACLE;
+    if (gRace == kBattle) return track >= TRACK_BATTLE_FIRST && track <= TRACK_BATTLE_LAST;
+    return track >= TRACK_RACE_FIRST && track <= TRACK_RACE_LAST;
 }
 
-/* OptionValid: MAT3 trackscr.c OptionValid (GC 0x8008a324) direct port; N64 adds the track-5 and ghosts_enabled tests. */
+/* Is race option opt (TRACK_OPT_*) offered? By race type (trackscr_validOption), and: drones in a single race only
+ * for one or two players; the stunt settings by the stunt mode, the battle ones by the battle mode; catch-up not for
+ * one player; direction only on the race tracks; nothing but the track on TRACK_NEEDS_EXPANSION without an
+ * Expansion Pak; the ghosts only with ghosts on. 1 yes, 0 no. */
 s32 OptionValid(s32 opt)
 {
     s32 valid;
     valid = trackscr_validOption[gRace][opt];
-    if (gRace == 0 && opt == 17) valid = gNumPlayers < 3;
-    if (gRace == 4) {
-        if (opt == 5) valid = gOptions[32] == 1;
-        if (opt == 6) valid = gOptions[32] == 0;
-        if (opt == 7) valid = gOptions[32] == 2;
+    if (gRace == kOneRace && opt == TRACK_OPT_DRONES) valid = gNumPlayers < 3;
+    if (gRace == kStunt) {
+        if (opt == TRACK_OPT_STUNT_POINTS) valid = gOptions[32] == 1;
+        if (opt == TRACK_OPT_STUNT_TIME) valid = gOptions[32] == 0;
+        if (opt == TRACK_OPT_STUNT_DEATH) valid = gOptions[32] == 2;
     }
-    if (gRace == 6) {
-        if (opt == 9) valid = gOptions[37] == 0;
-        if (opt == 11) valid = gOptions[37] == 0;
-        if (opt == 10) valid = gOptions[37] == 1;
+    if (gRace == kBattle) {
+        if (opt == TRACK_OPT_BATTLE_POINTS) valid = gOptions[37] == 0;
+        if (opt == TRACK_OPT_BATTLE_11) valid = gOptions[37] == 0;
+        if (opt == TRACK_OPT_BATTLE_TIME) valid = gOptions[37] == 1;
     }
-    if (opt == 19 && gNumPlayers == 1) valid = 0;
-    if (opt == 12) valid = gTrackNum >= 0 && gTrackNum <= 5;
-    if (!expansion_pak_present && gTrackNum == 5 && opt != 0) valid = 0;
-    if (!ghosts_enabled && opt == 1) valid = 0;
+    if (opt == TRACK_OPT_CATCHUP && gNumPlayers == 1) valid = 0;
+    if (opt == TRACK_OPT_BACKWARDS) valid = gTrackNum >= TRACK_RACE_FIRST && gTrackNum <= TRACK_RACE_LAST;
+    if (!expansion_pak_present && gTrackNum == TRACK_NEEDS_EXPANSION && opt != TRACK_OPT_TRACK) valid = 0;
+    if (!ghosts_enabled && opt == TRACK_OPT_GHOSTS) valid = 0;
     return valid;
 }
 
+/* The fog layer over the carousel: its colour moves a tenth of the way to the highlighted track's fog colour a 30 Hz
+ * frame (at once when initialize), its alpha follows the fog setting, and the fog blit (if there is one) is drawn
+ * with that colour through the fog palette n64FogPal. */
 void SetFogIntensity(s32 initialize)
 {
     u8 color[3];
@@ -652,6 +740,8 @@ void SetFogIntensity(s32 initialize)
     }
 }
 
+/* Scroll the fog layer's texture sideways by the wind (5 a step of wind, 1 without), wrapping at 2048. The tile
+ * isn't given to anything here (MAT3 sets the fog's tile size with it). */
 void BlowFog(void)
 {
     static TileSize fogTileSize;
@@ -666,40 +756,36 @@ void BlowFog(void)
     tile->ult = 0;
 }
 
-/* setCamera (inlined into _InitScreen and updateTrackScreen) */
+/* The screen's camera: camera 1 reset, the cameras updated. */
 void setCamera(void)
 {
     ZeroCamera(1);
     UpdateCameras();
 }
 
-/* body, merged 2026-10-21 */
-/* loadTrackScreen (MAT3 trackscr.c, GC 0x8008a634): inlined into buildTrackMap (deleted stub 0x8038AEA8).
- * The GC poly locals stay declared (shared GameSource declarations); the N64 body makes blits. */
-/* Reconstructed with the GameCube/Dreamcast ports' source as reference; byte-matched against the retail ROM, 2026-10. */
+/* The highlighted track's picture (a blit; MAT3 a polygon), and the fog layer over it where fog is offered. */
 void loadTrackScreen(void)
 {
     f32 polyVerts[4][3];
     u16 texIdx;
     Color backColor = loadTrackScreen_backColor;
     unloadTrackScreen();
-    if (!((gTrackNum >= 0 && gTrackNum <= 5) ||
-        (gTrackNum >= 6 && gTrackNum <= 13) ||
-        (gTrackNum >= 14 && gTrackNum <= 17) ||
-        (gTrackNum >= 18 && gTrackNum <= 18))) return;
+    if (!((gTrackNum >= TRACK_RACE_FIRST && gTrackNum <= TRACK_RACE_LAST) ||
+        (gTrackNum >= TRACK_BATTLE_FIRST && gTrackNum <= TRACK_BATTLE_LAST) ||
+        (gTrackNum >= TRACK_STUNT_FIRST && gTrackNum <= TRACK_STUNT_LAST) ||
+        (gTrackNum >= TRACK_OBSTACLE && gTrackNum <= TRACK_OBSTACLE))) return;
     trackScreenPoly = NewBlit(trackScreenNames[gTrackNum],176,32,0);
     trackScreenPoly->Z = 0x7F00;
     UpdateBlit(trackScreenPoly);
     gBlitInstanceList[trackScreenPoly->resource].flags |= 1;
-    if (OptionValid(14) == 1) {
+    if (OptionValid(TRACK_OPT_FOG) == 1) {
         trackFogPoly = NewBlit(track_fog_texture_name,176,32,0);
         trackFogPoly->Z = 0x7E00;
         UpdateBlit(trackFogPoly);
     }
 }
 
-/* body, merged 2026-10-21 */
-/* unloadTrackScreen: option_parent research body */
+/* Remove the track picture and the fog layer. */
 void unloadTrackScreen(void)
 {
     Blit *b;
@@ -707,8 +793,9 @@ void unloadTrackScreen(void)
     if ((b = trackFogPoly)) { RemoveBlit(b); trackFogPoly = 0; }
 }
 
-/* body, merged 2026-10-21 */
-/* Reconstructed with the GameCube/Dreamcast ports' source as reference; byte-matched against the retail ROM, 2026-10. */
+/* The 3D map of the highlighted track (desiredTrackMap): the picture, and for a race track its map copied into the
+ * selected map's buffers (mirrored maps get the triangles again the other way round, so both faces show), for an
+ * arena its model. */
 void buildTrackMap(void)
 {
     Gfx *gfx;
@@ -717,26 +804,25 @@ void buildTrackMap(void)
     u32 vtxSize, dlSize;
     s32 trackMBIdx;
     loadTrackScreen();
-    if (desiredTrackMap >= 0 && desiredTrackMap <= 5) {
-        if (trackMap[19].handle != -1) {
+    if (desiredTrackMap >= TRACK_RACE_FIRST && desiredTrackMap <= TRACK_RACE_LAST) {
+        if (trackMap[TRACK_MAP_SELECTED].handle != -1) {
             vtxSize = (kNumMapSects + 1) * 4 * sizeof(Vtx);
-            memcpy(map_vertex_blocks[6], map_vertex_blocks[desiredTrackMap], vtxSize);
+            memcpy(map_vertex_blocks[MAP_LOD_SELECTED], map_vertex_blocks[desiredTrackMap], vtxSize);
             dlSize = (kNumMapSects * 5 + 7) * sizeof(Gfx);
-            memcpy(map_display_list_blocks[6], map_display_list_blocks[desiredTrackMap], dlSize);
-            gfx = mapObj[6].displayList;   /* the selected map's display list */
-            if ((gRace == 3 && gCircuitTracks[gCircuitTrack].mirror == 1)
-                || (gRace != 3 && gOptions[28])) {
+            memcpy(map_display_list_blocks[MAP_LOD_SELECTED], map_display_list_blocks[desiredTrackMap], dlSize);
+            gfx = mapObj[MAP_LOD_SELECTED].displayList;   /* the selected map's display list */
+            if ((gRace == kCircuit && gCircuitTracks[gCircuitTrack].mirror == 1)
+                || (gRace != kCircuit && gOptions[28])) {
                 gSPTexture(gfx++, 0xFFFF, 0xFFFF, 0, 0, 0);
                 gDPPipeSync(gfx++);
                 gDPSetRenderMode(gfx++, 0xC8112230, 0);
                 gDPSetCombine(gfx++, 0xFFFFFF, 0xFFFE7C38);
                 for (i = 0, vertex = 0; i < kNumMapSects; i++, vertex += 4) {
                     if (i + 1 == kNumMapSects) {
-                        if (vertex) {}
-                        gSPVertex(gfx++, &((Vtx *)map_vertex_blocks[6])[vertex], 4, 0);
-                        gSPVertex(gfx++, &((Vtx *)map_vertex_blocks[6])[0], 4, 4);
+                        gSPVertex(gfx++, &((Vtx *)map_vertex_blocks[MAP_LOD_SELECTED])[vertex], 4, 0);
+                        gSPVertex(gfx++, &((Vtx *)map_vertex_blocks[MAP_LOD_SELECTED])[0], 4, 4);
                     } else {
-                        gSPVertex(gfx++, &((Vtx *)map_vertex_blocks[6])[vertex], 8, 0);
+                        gSPVertex(gfx++, &((Vtx *)map_vertex_blocks[MAP_LOD_SELECTED])[vertex], 8, 0);
                     }
                     gSP2Triangles(gfx++, 1, 5, 0, 0, 4, 0, 5, 0);
                     gSP2Triangles(gfx++, 0, 4, 3, 0, 7, 3, 4, 0);
@@ -746,13 +832,13 @@ void buildTrackMap(void)
                 gSPTexture(gfx++, 0xFFFF, 0xFFFF, 0, 0, 1);
                 gSPEndDisplayList(gfx++);
             }
-            ScaleUV((f32 (*)[3])unitmatrix, trackMap[19].matrix, 2.0f);
-            WPitchUV(-0.785398185f, trackMap[19].matrix);
-            trackMap[19].position[0] = buildTrackMap_mapPos[0];
-            trackMap[19].position[1] = buildTrackMap_mapPos[1];
-            trackMap[19].position[2] = buildTrackMap_mapPos[2];
+            ScaleUV((f32 (*)[3])unitmatrix, trackMap[TRACK_MAP_SELECTED].matrix, 2.0f);
+            WPitchUV(-0.785398185f, trackMap[TRACK_MAP_SELECTED].matrix);
+            trackMap[TRACK_MAP_SELECTED].position[0] = buildTrackMap_mapPos[0];
+            trackMap[TRACK_MAP_SELECTED].position[1] = buildTrackMap_mapPos[1];
+            trackMap[TRACK_MAP_SELECTED].position[2] = buildTrackMap_mapPos[2];
         }
-    } else if ((desiredTrackMap >= 6 && desiredTrackMap <= 13) || (desiredTrackMap >= 14 && desiredTrackMap <= 17)) {
+    } else if ((desiredTrackMap >= TRACK_BATTLE_FIRST && desiredTrackMap <= TRACK_BATTLE_LAST) || (desiredTrackMap >= TRACK_STUNT_FIRST && desiredTrackMap <= TRACK_STUNT_LAST)) {
         if (trackMapObj == -1) {
             trackMapObj = MBOX_NewObject(MBOX_FindObject_WORK(trackMapObjNames[desiredTrackMap], 0, gNumModels - 1, 1), (uintptr_t)trackMapMat, -1, 0);
             ScaleUV((f32 (*)[3])unitmatrix, (f32 (*)[3])trackMapMat, 2.0f);
@@ -765,8 +851,7 @@ void buildTrackMap(void)
     currentTrackMap = desiredTrackMap;
 }
 
-/* body, merged 2026-10-21 */
-/* clearTrackMap: option_parent research body */
+/* Remove the highlighted track's picture and arena model, and wait for the frame being drawn to finish with them. */
 void clearTrackMap(void)
 {
     unloadTrackScreen();
@@ -774,7 +859,9 @@ void clearTrackMap(void)
     while (gRenderInProgress) { pc_os_spin_yield("clearTrackMap"); }
 }
 
-/* Reconstructed with the GameCube/Dreamcast ports' source as reference; byte-matched against the retail ROM, 2026-10. */
+/* The highlighted track's map, each frame: when the highlight moves the map shrinks away (4 a second) and the new
+ * one is built and grows back; it spins once in 10 seconds, moving from the carousel's place to its own as it grows,
+ * mirrored for a mirrored race. */
 void trackscr_animTrackMap(void)
 {
     static f32 cityPos[3] = { -100.0f, 30.0f, 200.0f };
@@ -793,47 +880,51 @@ void trackscr_animTrackMap(void)
         mapTransition += gFrameSeconds * 4.0f;
         if (mapTransition > 1.0f) mapTransition = 1.0f;
     }
-    trackMap[19].position[0] = cityPos[0];
-    trackMap[19].position[1] = cityPos[1];
-    trackMap[19].position[2] = cityPos[2];
-    trackMap[19].position[0] += trackMap[currentTrackMap].offset_x;
-    trackMap[19].position[1] += trackMap[currentTrackMap].offset_y;
-    trackMap[19].position[0] *= 1.0f - mapTransition;
-    trackMap[19].position[1] *= 1.0f - mapTransition;
-    trackMap[19].position[2] *= 1.0f - mapTransition;
-    trackMap[19].position[0] += mapPos[0] * mapTransition;
-    trackMap[19].position[1] += mapPos[1] * mapTransition;
-    trackMap[19].position[2] += mapPos[2] * mapTransition;
-    trackMapMat[9] = trackMap[19].position[0];
-    trackMapMat[10] = trackMap[19].position[1];
-    trackMapMat[11] = trackMap[19].position[2];
+    trackMap[TRACK_MAP_SELECTED].position[0] = cityPos[0];
+    trackMap[TRACK_MAP_SELECTED].position[1] = cityPos[1];
+    trackMap[TRACK_MAP_SELECTED].position[2] = cityPos[2];
+    trackMap[TRACK_MAP_SELECTED].position[0] += trackMap[currentTrackMap].offset_x;
+    trackMap[TRACK_MAP_SELECTED].position[1] += trackMap[currentTrackMap].offset_y;
+    trackMap[TRACK_MAP_SELECTED].position[0] *= 1.0f - mapTransition;
+    trackMap[TRACK_MAP_SELECTED].position[1] *= 1.0f - mapTransition;
+    trackMap[TRACK_MAP_SELECTED].position[2] *= 1.0f - mapTransition;
+    trackMap[TRACK_MAP_SELECTED].position[0] += mapPos[0] * mapTransition;
+    trackMap[TRACK_MAP_SELECTED].position[1] += mapPos[1] * mapTransition;
+    trackMap[TRACK_MAP_SELECTED].position[2] += mapPos[2] * mapTransition;
+    trackMapMat[9] = trackMap[TRACK_MAP_SELECTED].position[0];
+    trackMapMat[10] = trackMap[TRACK_MAP_SELECTED].position[1];
+    trackMapMat[11] = trackMap[TRACK_MAP_SELECTED].position[2];
     ScaleUV((f32 (*)[3])unitmatrix, (f32 (*)[3])trackMapMat,
         mapTransition * trackMap[currentTrackMap].scale_to + trackMap[currentTrackMap].scale_from * (1.0f - mapTransition));
-    ScaleUV((f32 (*)[3])unitmatrix, trackMap[19].matrix,
+    ScaleUV((f32 (*)[3])unitmatrix, trackMap[TRACK_MAP_SELECTED].matrix,
         mapTransition * trackMap[currentTrackMap].scale_to + trackMap[currentTrackMap].scale_from * (1.0f - mapTransition));
-    if ((gRace == 3 && gCircuitTracks[gCircuitTrack].mirror == 1)
-        || (gRace != 3 && gRace != 4 && gRace != 6 && gRace != 5 && gOptions[28])) {
+    if ((gRace == kCircuit && gCircuitTracks[gCircuitTrack].mirror == 1)
+        || (gRace != kCircuit && gRace != kStunt && gRace != kBattle && gRace != kObstacle && gOptions[28])) {
         ScaleUVXYZ((f32 (*)[3])trackMapMat, (f32 (*)[3])trackMapMat, -1.0f, 1.0f, 1.0f);
-        ScaleUVXYZ(trackMap[19].matrix, trackMap[19].matrix, -1.0f, 1.0f, 1.0f);
+        ScaleUVXYZ(trackMap[TRACK_MAP_SELECTED].matrix, trackMap[TRACK_MAP_SELECTED].matrix, -1.0f, 1.0f, 1.0f);
     }
     WYawUV(rotAngle * mapTransition + trackMap[currentTrackMap].angle * (1.0f - mapTransition), (f32 (*)[3])trackMapMat);
     WPitchUV(-0.5235987901687622f * mapTransition + (1.0f - mapTransition) * -1.5707963705062866f, (f32 (*)[3])trackMapMat);
-    WYawUV(rotAngle * mapTransition + trackMap[currentTrackMap].angle * (1.0f - mapTransition), trackMap[19].matrix);
-    WPitchUV(-0.5235987901687622f * mapTransition + (1.0f - mapTransition) * -1.5707963705062866f, trackMap[19].matrix);
+    WYawUV(rotAngle * mapTransition + trackMap[currentTrackMap].angle * (1.0f - mapTransition), trackMap[TRACK_MAP_SELECTED].matrix);
+    WPitchUV(-0.5235987901687622f * mapTransition + (1.0f - mapTransition) * -1.5707963705062866f, trackMap[TRACK_MAP_SELECTED].matrix);
 }
 
+/* Build the maps of the race type's tracks. */
 void buildTrackMaps(void)
 {
-    if (gRace == 4) buildStuntTrackMaps();
-    else if (gRace == 6) buildBattleTrackMaps();
-    else if (gRace == 5) buildObstacleTrackMaps();
+    if (gRace == kStunt) buildStuntTrackMaps();
+    else if (gRace == kBattle) buildBattleTrackMaps();
+    else if (gRace == kObstacle) buildObstacleTrackMaps();
     else buildRaceTrackMaps();
     trackMapsBuilt = 1;
     pathPos = 0.0f;
 }
 
-/* buildRaceTrackMaps (inlined). N64: the GC PS2 packet code is an N64 display list per map: kNumMapSects
- * sections of 4 vertices (8 for the last, which wraps to the first) and four G_TRI2 commands each. */
+/* The race tracks' maps, drawn from their paths: for each unlocked race track, load its path, and make a ribbon of
+ * kNumMapSects sections along the path (each section's corners 100 to either side of the path at its ends, the top
+ * edge the path's height and the bottom the track's lowest point), scaled to fit, as an N64 display list of four
+ * vertices a section and two triangles each side (MAT3 builds PS2 packets); it replaces the map model's first LOD
+ * (the old one kept in saved_map_lods). Then the buffers of the selected map's copy (MAP_LOD_SELECTED). */
 void buildRaceTrackMaps(void)
 {
     s32 saveTrackNum;
@@ -845,19 +936,16 @@ void buildRaceTrackMaps(void)
     s32 nextPt;
     f32 x0, y0, x1, y1, x2, y2, x3, y3;
     f32 dx0, dy0, len0, dx1, dy1, len1, dx2, dy2, len2;
-    f32 u0;
     f32 xoffset, yoffset, zoffset;
-    s32 u1, u2;
     s32 trackMBIdx;
     RomObjDef *trackRomObjDef;
     Gfx *dl;
     Vtx_t *vtx;
     s32 vtxSize, dlSize;
     s32 i;
-    s32 u3, u4, u5, u6, u7;
     f32 sectVerts[8][3];
     saveTrackNum = gTrackNum;
-    for (gTrackNum = 0; gTrackNum <= 5; gTrackNum++) {
+    for (gTrackNum = TRACK_RACE_FIRST; gTrackNum <= TRACK_RACE_LAST; gTrackNum++) {
         if (!IsTrackUnlocked(gTrackNum)) continue;
         {
             loadPathData();
@@ -988,33 +1076,33 @@ void buildRaceTrackMaps(void)
         }
     }
     gTrackNum = saveTrackNum;
-    trackMBIdx = MBOX_FindObject_WORK(trackMapObjNames[19], 0, gNumModels - 1, 1);
+    trackMBIdx = MBOX_FindObject_WORK(trackMapObjNames[TRACK_MAP_SELECTED], 0, gNumModels - 1, 1);
     trackRomObjDef = &gRomObjDefPtrs[trackMBIdx >> 10].romObjDefs[trackMBIdx & 1023];
-    saved_map_lods[6] = trackRomObjDef->lod[0];
-    map_vertex_blocks[6] = audio_dma_sync(0, kNumMapSects * 64 + 64 + 7);
-    mapObj[6].verts = (void *)(((uintptr_t)map_vertex_blocks[6] + 7) & ~7);
-    map_display_list_blocks[6] = audio_dma_sync(0, kNumMapSects * MAP_DL_SECTION_BYTES + MAP_DL_FIXED_BYTES + 7);
-    mapObj[6].displayList = (u32 *)(((uintptr_t)map_display_list_blocks[6] + 7) & ~7);
-    mapObj[6].flags = 0;
-    mapObj[6].texidx = 0;
-    mapObj[6].lodRad = 0.0f;
-    trackRomObjDef->lod[0] = mapObj[6];
-    if (trackMap[19].handle == -1) {
-        trackMap[19].handle = MBOX_NewObject(trackMBIdx, (uintptr_t)trackMap[19].matrix, -1, 0);
-        ScaleUV((f32 (*)[3])unitmatrix, trackMap[19].matrix, 1.0f);
-        WPitchUV(-1.5707963705062866f, trackMap[19].matrix);
-        trackMap[19].position[0] = buildRaceTrackMaps_selMapPos[0];
-        trackMap[19].position[1] = buildRaceTrackMaps_selMapPos[1];
-        trackMap[19].position[2] = buildRaceTrackMaps_selMapPos[2];
+    saved_map_lods[MAP_LOD_SELECTED] = trackRomObjDef->lod[0];
+    map_vertex_blocks[MAP_LOD_SELECTED] = audio_dma_sync(0, kNumMapSects * 64 + 64 + 7);
+    mapObj[MAP_LOD_SELECTED].verts = (void *)(((uintptr_t)map_vertex_blocks[MAP_LOD_SELECTED] + 7) & ~7);
+    map_display_list_blocks[MAP_LOD_SELECTED] = audio_dma_sync(0, kNumMapSects * MAP_DL_SECTION_BYTES + MAP_DL_FIXED_BYTES + 7);
+    mapObj[MAP_LOD_SELECTED].displayList = (u32 *)(((uintptr_t)map_display_list_blocks[MAP_LOD_SELECTED] + 7) & ~7);
+    mapObj[MAP_LOD_SELECTED].flags = 0;
+    mapObj[MAP_LOD_SELECTED].texidx = 0;
+    mapObj[MAP_LOD_SELECTED].lodRad = 0.0f;
+    trackRomObjDef->lod[0] = mapObj[MAP_LOD_SELECTED];
+    if (trackMap[TRACK_MAP_SELECTED].handle == -1) {
+        trackMap[TRACK_MAP_SELECTED].handle = MBOX_NewObject(trackMBIdx, (uintptr_t)trackMap[TRACK_MAP_SELECTED].matrix, -1, 0);
+        ScaleUV((f32 (*)[3])unitmatrix, trackMap[TRACK_MAP_SELECTED].matrix, 1.0f);
+        WPitchUV(-1.5707963705062866f, trackMap[TRACK_MAP_SELECTED].matrix);
+        trackMap[TRACK_MAP_SELECTED].position[0] = buildRaceTrackMaps_selMapPos[0];
+        trackMap[TRACK_MAP_SELECTED].position[1] = buildRaceTrackMaps_selMapPos[1];
+        trackMap[TRACK_MAP_SELECTED].position[2] = buildRaceTrackMaps_selMapPos[2];
     }
 }
 
-/* buildStuntTrackMaps (inlined) */
+/* The stunt arenas' maps: their models. */
 void buildStuntTrackMaps(void)
 {
     s32 saveTrackNum;
     saveTrackNum = gTrackNum;
-    for (gTrackNum = 14; gTrackNum <= 17; gTrackNum++) {
+    for (gTrackNum = TRACK_STUNT_FIRST; gTrackNum <= TRACK_STUNT_LAST; gTrackNum++) {
         if (!IsTrackUnlocked(gTrackNum)) continue;
         if (trackMap[gTrackNum].handle == -1) {
             trackMap[gTrackNum].handle = MBOX_NewObject(MBOX_FindObject_WORK(trackMapObjNames[gTrackNum], 0, gNumModels - 1, 1), (uintptr_t)trackMap[gTrackNum].matrix, -1, 0);
@@ -1028,12 +1116,12 @@ void buildStuntTrackMaps(void)
     gTrackNum = saveTrackNum;
 }
 
-/* buildBattleTrackMaps (inlined) */
+/* The battle arenas' maps: their models. */
 void buildBattleTrackMaps(void)
 {
     s32 saveTrackNum;
     saveTrackNum = gTrackNum;
-    for (gTrackNum = 6; gTrackNum <= 13; gTrackNum++) {
+    for (gTrackNum = TRACK_BATTLE_FIRST; gTrackNum <= TRACK_BATTLE_LAST; gTrackNum++) {
         if (!IsTrackUnlocked(gTrackNum)) continue;
         if (trackMap[gTrackNum].handle == -1) {
             trackMap[gTrackNum].handle = MBOX_NewObject(MBOX_FindObject_WORK(trackMapObjNames[gTrackNum], 0, gNumModels - 1, 1), (uintptr_t)trackMap[gTrackNum].matrix, -1, 0);
@@ -1047,13 +1135,13 @@ void buildBattleTrackMaps(void)
     gTrackNum = saveTrackNum;
 }
 
-/* buildObstacleTrackMaps (inlined, empty) */
+/* The obstacle course has no map. */
 void buildObstacleTrackMaps(void)
 {
 }
 
-/* clearTrackMaps (MAT3 trackscr.c, GC 0x8008bfac): inlined into _UninitScreen; deleted stub 0x8038B930.
- * Body moved verbatim from _UninitScreen. */
+/* Remove every track map's model, wait for the frame being drawn, give the map models their first LODs back and
+ * free the race maps' display lists and vertices. */
 void clearTrackMaps(void)
 {
     s32 i,model;
@@ -1067,7 +1155,7 @@ void clearTrackMaps(void)
         }
         while (gRenderInProgress) { pc_os_spin_yield("clearTrackMaps"); }
         for (i = 0; i < 7; i++) {
-            model = MBOX_FindObject_WORK(trackMapObjNames[i < 6 ? i : 19],0,gNumModels - 1,1);
+            model = MBOX_FindObject_WORK(trackMapObjNames[i < MAP_LOD_SELECTED ? i : TRACK_MAP_SELECTED],0,gNumModels - 1,1);
             def = &gRomObjDefPtrs[model >> 10].romObjDefs[model & 0x3FF];
             def->lod[0] = saved_map_lods[i];
             if (map_display_list_blocks[i]) DeallocateMemory(N64A0(map_display_list_blocks[i]));
@@ -1081,10 +1169,11 @@ void clearTrackMaps(void)
     }
 }
 
-/* animTrackMaps stand-in: the GC transform loop and pathPos advance (the N64 vertex-colour fade is omitted). */
-/* Reconstructed with the GameCube/Dreamcast ports' source as reference; byte-matched against the retail ROM, 2026-10. */
 typedef union MapColor { u8 c[4]; u32 w; } MapColor;
 typedef struct MapVtx { s16 ob[3]; u16 flag; s16 tc[2]; u8 cn[4]; } MapVtx;
+/* The track maps, each frame: each placed by its offset and scale (the highlighted one a little smaller), and the
+ * race maps' sections coloured: the other tracks in their own dim colour, the highlighted one bright with a darker
+ * band that runs along the track once in 5 seconds (the other way for a backwards race). */
 void animTrackMaps(void)
 {
     static f32 mapPos[3] = { -100.0f, 30.0f, 200.0f };
@@ -1096,9 +1185,9 @@ void animTrackMaps(void)
     s32 i;
     s32 mapIdx;
     if (trackMapsBuilt) {
-        for (trackIdx = 0; trackIdx <= 19; trackIdx++) {
+        for (trackIdx = 0; trackIdx <= TRACK_MAP_SELECTED; trackIdx++) {
             if (trackMap[trackIdx].handle != -1) {
-                if (trackIdx < 19) {
+                if (trackIdx < TRACK_MAP_SELECTED) {
                     ScaleUV((f32 (*)[3])unitmatrix, trackMap[trackIdx].matrix, trackMap[trackIdx].scale_from);
                     WPitchUV(-1.5707963705062866f, trackMap[trackIdx].matrix);
                     WRollUV(-trackMap[trackIdx].angle, trackMap[trackIdx].matrix);
@@ -1114,8 +1203,8 @@ void animTrackMaps(void)
                         trackMap[trackIdx].position[2] = trackMap[trackIdx].position[2] * 0.8f;
                     }
                 }
-                mapIdx = trackIdx == 19 ? 6 : trackIdx;
-                if (trackIdx < 6 || trackIdx == 19) {
+                mapIdx = trackIdx == TRACK_MAP_SELECTED ? MAP_LOD_SELECTED : trackIdx;
+                if (trackIdx < MAP_LOD_SELECTED || trackIdx == TRACK_MAP_SELECTED) {
                     if (mapObj[mapIdx].displayList) {
                         for (pointIdx = 0; pointIdx < kNumMapSects; pointIdx++) {
                             pStrip = (MapVtx *)MAPLOD_PTR(mapObj[mapIdx].verts);
@@ -1159,109 +1248,105 @@ void animTrackMaps(void)
     }
 }
 
-/* loadPathData (inlined) */
+/* Load a race track's path (its checkpoints and its path data, WAVE_PATHS + the track); pathWaveIdx -1 for the
+ * others. */
 void loadPathData(void)
 {
-    if (gTrackNum >= 0 && gTrackNum <= 5) {
-        pathWaveIdx = LoadWave(gTrackNum + 158, 0, 0, 0, 0);
+    if (gTrackNum >= TRACK_RACE_FIRST && gTrackNum <= TRACK_RACE_LAST) {
+        pathWaveIdx = LoadWave(gTrackNum + WAVE_PATHS, 0, 0, 0, 0);
         gPathWave = GetWaveInstanceAddr(pathWaveIdx);
         ReadCheckpointData();
         ReadPathData();
     } else pathWaveIdx = -1;
 }
 
-/* unloadPathData (inlined) */
+/* Unload the path loadPathData loaded. */
 void unloadPathData(void)
 {
     if (pathWaveIdx != -1) UnloadWaveInstance(pathWaveIdx);
     pathWaveIdx = -1;
 }
 
+/* Make the buttons that don't exist yet (types 0-2 see-through), then the title, the cursor, and the A and B icons
+ * with their arrows. */
 void trackscr_initButtons(void)
 {
     Color color = trackscr_init_button_color;
     s32 i;
     s16 texture_index;
     f32 yaw;
-    for (i = 0; i < 48; i++) {
+    for (i = 0; i < TRACK_BUTTONS; i++) {
         if (trackscr_buttonInfo[i].handle == -1) {
             memcpy(trackscr_buttonInfo[i].matrix, unitmatrix, 36);
             trackscr_buttonInfo[i].handle = MBOX_NewObject(
-                MBOX_FindObject_WORK(trackscr_buttonNames[trackscr_buttonInfo[i].other], 0, gNumModels - 1, 1),
+                MBOX_FindObject_WORK(trackscr_buttonNames[trackscr_buttonInfo[i].type], 0, gNumModels - 1, 1),
                 (uintptr_t)trackscr_buttonInfo[i].matrix, -1,
-                (trackscr_buttonInfo[i].other == 0 || trackscr_buttonInfo[i].other == 1 || trackscr_buttonInfo[i].other == 2) ? 0x42000 : 0);
+                (trackscr_buttonInfo[i].type == 0 || trackscr_buttonInfo[i].type == 1 || trackscr_buttonInfo[i].type == 2) ? 0x42000 : 0);
             ZOID_SetColor((s16)trackscr_buttonInfo[i].handle, (s32 *)&color);
         }
     }
-    ZOID_SetTexture((s16)trackscr_buttonInfo[42].handle,
+    ZOID_SetTexture((s16)trackscr_buttonInfo[TRACK_BUTTON_TITLE].handle,
         (intptr_t)MBOX_FindTexture_WORK(trackscr_title_texture_name, &texture_index, 0, gNumModels - 1, 1), -1);
-    memcpy(trackscr_buttonInfo[42].matrix, unitmatrix, 36);
+    memcpy(trackscr_buttonInfo[TRACK_BUTTON_TITLE].matrix, unitmatrix, 36);
     yaw = -1.5707963705062866f;
-    WPitchUV(yaw, trackscr_buttonInfo[42].matrix);
-    trackscr_buttonInfo[42].position[0] = 0.0f;
-    trackscr_buttonInfo[42].position[1] = 115.0f;
-    trackscr_buttonInfo[42].position[2] = 200.0f;
-    ZOID_SetTexture((s16)trackscr_buttonInfo[43].handle,
+    WPitchUV(yaw, trackscr_buttonInfo[TRACK_BUTTON_TITLE].matrix);
+    trackscr_buttonInfo[TRACK_BUTTON_TITLE].position[0] = 0.0f;
+    trackscr_buttonInfo[TRACK_BUTTON_TITLE].position[1] = 115.0f;
+    trackscr_buttonInfo[TRACK_BUTTON_TITLE].position[2] = 200.0f;
+    ZOID_SetTexture((s16)trackscr_buttonInfo[TRACK_BUTTON_CURSOR].handle,
         (intptr_t)MBOX_FindTexture_WORK(trackscr_cursor_texture_name, &texture_index, 0, gNumModels - 1, 1), -1);
-    ZOID_SetTexture((s16)trackscr_buttonInfo[44].handle,
+    ZOID_SetTexture((s16)trackscr_buttonInfo[TRACK_BUTTON_A_ICON].handle,
         (intptr_t)MBOX_FindTexture_WORK(trackscr_a_button_texture_name, &texture_index, 0, gNumModels - 1, 1), -1);
-    memcpy(trackscr_buttonInfo[44].matrix, unitmatrix, 36);
-    WPitchUV(yaw, trackscr_buttonInfo[44].matrix);
-    trackscr_buttonInfo[44].position[0] = 75.1f;
-    trackscr_buttonInfo[44].position[1] = 55.2f;
-    trackscr_buttonInfo[44].position[2] = 100.0f;
-    ScaleUV(trackscr_buttonInfo[44].matrix, trackscr_buttonInfo[44].matrix, 0.5f);
-    memcpy(trackscr_buttonInfo[45].matrix, unitmatrix, 36);
-    WPitchUV(yaw, trackscr_buttonInfo[45].matrix);
-    WRollUV(3.1415927410125732f, trackscr_buttonInfo[45].matrix);
-    trackscr_buttonInfo[45].position[0] = 87.1f;
-    trackscr_buttonInfo[45].position[1] = 55.2f;
-    trackscr_buttonInfo[45].position[2] = 100.0f;
-    ZOID_SetTexture((s16)trackscr_buttonInfo[46].handle,
+    memcpy(trackscr_buttonInfo[TRACK_BUTTON_A_ICON].matrix, unitmatrix, 36);
+    WPitchUV(yaw, trackscr_buttonInfo[TRACK_BUTTON_A_ICON].matrix);
+    trackscr_buttonInfo[TRACK_BUTTON_A_ICON].position[0] = 75.1f;
+    trackscr_buttonInfo[TRACK_BUTTON_A_ICON].position[1] = 55.2f;
+    trackscr_buttonInfo[TRACK_BUTTON_A_ICON].position[2] = 100.0f;
+    ScaleUV(trackscr_buttonInfo[TRACK_BUTTON_A_ICON].matrix, trackscr_buttonInfo[TRACK_BUTTON_A_ICON].matrix, 0.5f);
+    memcpy(trackscr_buttonInfo[TRACK_BUTTON_A_ARROW].matrix, unitmatrix, 36);
+    WPitchUV(yaw, trackscr_buttonInfo[TRACK_BUTTON_A_ARROW].matrix);
+    WRollUV(3.1415927410125732f, trackscr_buttonInfo[TRACK_BUTTON_A_ARROW].matrix);
+    trackscr_buttonInfo[TRACK_BUTTON_A_ARROW].position[0] = 87.1f;
+    trackscr_buttonInfo[TRACK_BUTTON_A_ARROW].position[1] = 55.2f;
+    trackscr_buttonInfo[TRACK_BUTTON_A_ARROW].position[2] = 100.0f;
+    ZOID_SetTexture((s16)trackscr_buttonInfo[TRACK_BUTTON_B_ICON].handle,
         (intptr_t)MBOX_FindTexture_WORK(trackscr_b_button_texture_name, &texture_index, 0, gNumModels - 1, 1), -1);
-    memcpy(trackscr_buttonInfo[46].matrix, unitmatrix, 36);
-    WPitchUV(yaw, trackscr_buttonInfo[46].matrix);
-    trackscr_buttonInfo[46].position[0] = -75.1f;
-    trackscr_buttonInfo[46].position[1] = 55.20f;
-    trackscr_buttonInfo[46].position[2] = 100.0f;
-    ScaleUV(trackscr_buttonInfo[46].matrix, trackscr_buttonInfo[46].matrix, 0.5f);
-    memcpy(trackscr_buttonInfo[47].matrix, unitmatrix, 36);
-    WPitchUV(yaw, trackscr_buttonInfo[47].matrix);
-    trackscr_buttonInfo[47].position[0] = -87.1f;
-    trackscr_buttonInfo[47].position[1] = 55.20f;
-    trackscr_buttonInfo[47].position[2] = 100.0f;
+    memcpy(trackscr_buttonInfo[TRACK_BUTTON_B_ICON].matrix, unitmatrix, 36);
+    WPitchUV(yaw, trackscr_buttonInfo[TRACK_BUTTON_B_ICON].matrix);
+    trackscr_buttonInfo[TRACK_BUTTON_B_ICON].position[0] = -75.1f;
+    trackscr_buttonInfo[TRACK_BUTTON_B_ICON].position[1] = 55.20f;
+    trackscr_buttonInfo[TRACK_BUTTON_B_ICON].position[2] = 100.0f;
+    ScaleUV(trackscr_buttonInfo[TRACK_BUTTON_B_ICON].matrix, trackscr_buttonInfo[TRACK_BUTTON_B_ICON].matrix, 0.5f);
+    memcpy(trackscr_buttonInfo[TRACK_BUTTON_B_ARROW].matrix, unitmatrix, 36);
+    WPitchUV(yaw, trackscr_buttonInfo[TRACK_BUTTON_B_ARROW].matrix);
+    trackscr_buttonInfo[TRACK_BUTTON_B_ARROW].position[0] = -87.1f;
+    trackscr_buttonInfo[TRACK_BUTTON_B_ARROW].position[1] = 55.20f;
+    trackscr_buttonInfo[TRACK_BUTTON_B_ARROW].position[2] = 100.0f;
     trackscr_buttonsInited = 1;
     trackscr_buttonsJustInited = 1;
     ZeroCameras();
 }
 
-/* uninitButtons@trackscr.c (MAT3 GC 0x8008cac4): inlined into _UninitScreen; deleted stub 0x8038B938.
- * Body moved verbatim from _UninitScreen. */
+/* Forget the buttons; their models are removed only in the front end (in a race the scene was reset already). */
 void trackscr_uninitButtons(void)
 {
     s32 i;
-    for (i = 0; i < 48; i++) {
+    for (i = 0; i < TRACK_BUTTONS; i++) {
         if (trackscr_buttonInfo[i].handle != -1) {
-            if (gGameState & 0x7C03FFFE) ZOID_RemoveObject((s16)trackscr_buttonInfo[i].handle);
+            if (gGameState & GS_FRONTEND_MASK) ZOID_RemoveObject((s16)trackscr_buttonInfo[i].handle);
             trackscr_buttonInfo[i].handle = -1;
         }
     }
     trackscr_buttonsInited = 0;
 }
 
-/* updateButtons (MAT3 trackscr.c, GC 0x8008cb54). N64: single-precision speed clamps (60.0f/10.0f),
- * WPitchUV(angle - pi/2) (GC adds pi), and the out-of-range buttons fade over one button space
- * (alpha 255 - d*255/(space*scale)) instead of GC's fixed 80. The two GC function-local statics stay
- * function-local (own .bss: scrollSpeed 0x803BA87C, cursorSpeed 0x803BA85C); as externs uopt does not keep them
- * in registers across the clamp. Literal spellings: two distinct 12.566371 rodata words (0x803B92F4/F8).
- * Frame residual, disclosed (rule): retail frame 120; without the three unused f32 locals declared
- * first the frame is 112 and every local sits 4 bytes high (prevPos sp+96 vs retail sp+92). Three 4-byte slots
- * reproduce retail exactly; same 3-slot residual as startscr updateButtons. Their original use is unknown. */
+/* Lay the buttons out for this frame (once they exist): as carscr_updateButtons, with the option's value button
+ * turning with its label (but not for an option that can't be changed: a circuit's, or a ghost race's laps), and
+ * the buttons fading over one button's height past the list's ends. */
 void trackscr_updateButtons(void)
 {
     static f32 scrollSpeed;
     static f32 cursorSpeed;
-    f32 unused0, unused1, unused2;
     s32 buttonIdx;
     f32 prevPos[3];
     f32 buttonY;
@@ -1274,29 +1359,29 @@ void trackscr_updateButtons(void)
         if (trackscr_gButtonScale * ((trackscr_gNumOptions - 1) * trackscr_gButtonSpace) > trackscr_maxY - trackscr_minY)
             selectedPos = trackscr_maxY - trackscr_gActiveOption * (trackscr_maxY - trackscr_minY) / (trackscr_gNumOptions - 1);
         else selectedPos = trackscr_maxY - trackscr_gButtonScale * (trackscr_gActiveOption * trackscr_gButtonSpace);
-        memcpy(prevPos, trackscr_buttonInfo[43].position, 12);
-        trackscr_buttonInfo[43].angle += 6.2831854820251465f * gFrameSeconds;
-        if (trackscr_buttonInfo[43].angle > 6.2831854820251465f) trackscr_buttonInfo[43].angle -= 6.2831854820251465f;
-        trackscr_buttonInfo[43].position[0] = trackscr_buttonX * trackscr_cursorZ / trackscr_buttonZ + -180.0f * trackscr_gButtonScale;
-        trackscr_buttonInfo[43].position[1] = selectedPos * trackscr_cursorZ / trackscr_buttonZ;
-        trackscr_buttonInfo[43].position[2] = trackscr_cursorZ;
+        memcpy(prevPos, trackscr_buttonInfo[TRACK_BUTTON_CURSOR].position, 12);
+        trackscr_buttonInfo[TRACK_BUTTON_CURSOR].angle += 6.2831854820251465f * gFrameSeconds;
+        if (trackscr_buttonInfo[TRACK_BUTTON_CURSOR].angle > 6.2831854820251465f) trackscr_buttonInfo[TRACK_BUTTON_CURSOR].angle -= 6.2831854820251465f;
+        trackscr_buttonInfo[TRACK_BUTTON_CURSOR].position[0] = trackscr_buttonX * trackscr_cursorZ / trackscr_buttonZ + -180.0f * trackscr_gButtonScale;
+        trackscr_buttonInfo[TRACK_BUTTON_CURSOR].position[1] = selectedPos * trackscr_cursorZ / trackscr_buttonZ;
+        trackscr_buttonInfo[TRACK_BUTTON_CURSOR].position[2] = trackscr_cursorZ;
         if (!trackscr_buttonsJustInited) {
-            if (60.0f * fabsf(trackscr_buttonInfo[43].position[1] - prevPos[1]) / 10.0f > cursorSpeed) {
-                cursorSpeed = 60.0f * fabsf(trackscr_buttonInfo[43].position[1] - prevPos[1]) / 10.0f;
+            if (60.0f * fabsf(trackscr_buttonInfo[TRACK_BUTTON_CURSOR].position[1] - prevPos[1]) / 10.0f > cursorSpeed) {
+                cursorSpeed = 60.0f * fabsf(trackscr_buttonInfo[TRACK_BUTTON_CURSOR].position[1] - prevPos[1]) / 10.0f;
                 cursorSpeed = cursorSpeed < 540.0f * trackscr_gButtonScale ? cursorSpeed : 540.0f * trackscr_gButtonScale;
                 cursorSpeed = cursorSpeed > 180.0f * trackscr_gButtonScale ? cursorSpeed : 180.0f * trackscr_gButtonScale;
             }
-            if (trackscr_buttonInfo[43].position[1] > prevPos[1] + cursorSpeed * gFrameSeconds)
-                trackscr_buttonInfo[43].position[1] = prevPos[1] + cursorSpeed * gFrameSeconds;
-            else if (trackscr_buttonInfo[43].position[1] < prevPos[1] - cursorSpeed * gFrameSeconds)
-                trackscr_buttonInfo[43].position[1] = prevPos[1] - cursorSpeed * gFrameSeconds;
+            if (trackscr_buttonInfo[TRACK_BUTTON_CURSOR].position[1] > prevPos[1] + cursorSpeed * gFrameSeconds)
+                trackscr_buttonInfo[TRACK_BUTTON_CURSOR].position[1] = prevPos[1] + cursorSpeed * gFrameSeconds;
+            else if (trackscr_buttonInfo[TRACK_BUTTON_CURSOR].position[1] < prevPos[1] - cursorSpeed * gFrameSeconds)
+                trackscr_buttonInfo[TRACK_BUTTON_CURSOR].position[1] = prevPos[1] - cursorSpeed * gFrameSeconds;
             else cursorSpeed = 180.0f * trackscr_gButtonScale;
         }
-        ScaleUV((f32 (*)[3])unitmatrix, trackscr_buttonInfo[43].matrix, trackscr_gButtonScale * 0.4f);
-        WRollUV(trackscr_buttonInfo[43].angle, trackscr_buttonInfo[43].matrix);
-        WPitchUV(1.5707963705062866f, trackscr_buttonInfo[43].matrix);
+        ScaleUV((f32 (*)[3])unitmatrix, trackscr_buttonInfo[TRACK_BUTTON_CURSOR].matrix, trackscr_gButtonScale * 0.4f);
+        WRollUV(trackscr_buttonInfo[TRACK_BUTTON_CURSOR].angle, trackscr_buttonInfo[TRACK_BUTTON_CURSOR].matrix);
+        WPitchUV(1.5707963705062866f, trackscr_buttonInfo[TRACK_BUTTON_CURSOR].matrix);
         buttonY = selectedPos + trackscr_gButtonScale * (trackscr_gActiveOption * trackscr_gButtonSpace);
-        for (buttonIdx = 0; buttonIdx < 21; buttonIdx++) {
+        for (buttonIdx = 0; buttonIdx < TRACK_OPTS; buttonIdx++) {
             if (buttonIdx == trackscr_gOpts[trackscr_gActiveOption]) {
                 if (trackscr_buttonInfo[buttonIdx].angle < 3.1415927410125732f) trackscr_buttonInfo[buttonIdx].angle += 12.566370964050293f * gFrameSeconds;
                 if (trackscr_buttonInfo[buttonIdx].angle > 3.1415927410125732f) trackscr_buttonInfo[buttonIdx].angle = 3.1415927410125732f;
@@ -1306,8 +1391,8 @@ void trackscr_updateButtons(void)
                 if (trackscr_buttonInfo[buttonIdx].angle < 0.0f) trackscr_buttonInfo[buttonIdx].angle = 0.0f;
                 if (trackscr_buttonsJustInited) trackscr_buttonInfo[buttonIdx].angle = 0.0f;
             }
-            if ((gRace != 3 || (gCircuitTrack == 0 && buttonIdx == 20)) && (gRace != 2 || buttonIdx != 2)) trackscr_buttonInfo[buttonIdx+21].angle = trackscr_buttonInfo[buttonIdx].angle;
-            else trackscr_buttonInfo[buttonIdx+21].angle = 0.0f;
+            if ((gRace != kCircuit || (gCircuitTrack == 0 && buttonIdx == TRACK_OPT_DEATH_MODE)) && (gRace != kGhost || buttonIdx != TRACK_OPT_LAPS)) trackscr_buttonInfo[TRACK_VALUE_BUTTON(buttonIdx)].angle = trackscr_buttonInfo[buttonIdx].angle;
+            else trackscr_buttonInfo[TRACK_VALUE_BUTTON(buttonIdx)].angle = 0.0f;
             memcpy(prevPos, trackscr_buttonInfo[buttonIdx].position, 12);
             trackscr_buttonInfo[buttonIdx].position[0] = trackscr_buttonX + -155.0f * trackscr_gButtonScale;
             trackscr_buttonInfo[buttonIdx].position[1] = buttonY;
@@ -1326,38 +1411,38 @@ void trackscr_updateButtons(void)
                     clearScrollSpeed = 0;
                 }
             }
-            trackscr_buttonInfo[buttonIdx+21].position[0] = trackscr_buttonX + 50.0f * trackscr_gButtonScale;
-            trackscr_buttonInfo[buttonIdx+21].position[1] = trackscr_buttonInfo[buttonIdx].position[1];
-            trackscr_buttonInfo[buttonIdx+21].position[2] = trackscr_buttonInfo[buttonIdx].position[2];
+            trackscr_buttonInfo[TRACK_VALUE_BUTTON(buttonIdx)].position[0] = trackscr_buttonX + 50.0f * trackscr_gButtonScale;
+            trackscr_buttonInfo[TRACK_VALUE_BUTTON(buttonIdx)].position[1] = trackscr_buttonInfo[buttonIdx].position[1];
+            trackscr_buttonInfo[TRACK_VALUE_BUTTON(buttonIdx)].position[2] = trackscr_buttonInfo[buttonIdx].position[2];
             ScaleUV((f32 (*)[3])unitmatrix, trackscr_buttonInfo[buttonIdx].matrix, trackscr_gButtonScale);
-            ScaleUV((f32 (*)[3])unitmatrix, trackscr_buttonInfo[buttonIdx+21].matrix, trackscr_gButtonScale);
+            ScaleUV((f32 (*)[3])unitmatrix, trackscr_buttonInfo[TRACK_VALUE_BUTTON(buttonIdx)].matrix, trackscr_gButtonScale);
             WPitchUV(trackscr_buttonInfo[buttonIdx].angle - 1.5707963705062866f, trackscr_buttonInfo[buttonIdx].matrix);
-            WPitchUV(trackscr_buttonInfo[buttonIdx+21].angle - 1.5707963705062866f, trackscr_buttonInfo[buttonIdx+21].matrix);
+            WPitchUV(trackscr_buttonInfo[TRACK_VALUE_BUTTON(buttonIdx)].angle - 1.5707963705062866f, trackscr_buttonInfo[TRACK_VALUE_BUTTON(buttonIdx)].matrix);
             if (trackscr_buttonInfo[buttonIdx].angle > 1.5707963705062866f) tex = MBOX_FindTexture_WORK(trackscr_left_select_texture_name, &texIdx, 0, gNumModels - 1, 1);
             else tex = MBOX_FindTexture_WORK(trackscr_left_button_texture_name, &texIdx, 0, gNumModels - 1, 1);
             ZOID_SetTexture(trackscr_buttonInfo[buttonIdx].handle, (intptr_t)tex, -1);
-            if (trackscr_buttonInfo[buttonIdx+21].angle > 1.5707963705062866f) tex = MBOX_FindTexture_WORK(trackscr_right_select_texture_name, &texIdx, 0, gNumModels - 1, 1);
+            if (trackscr_buttonInfo[TRACK_VALUE_BUTTON(buttonIdx)].angle > 1.5707963705062866f) tex = MBOX_FindTexture_WORK(trackscr_right_select_texture_name, &texIdx, 0, gNumModels - 1, 1);
             else tex = MBOX_FindTexture_WORK(trackscr_right_button_texture_name, &texIdx, 0, gNumModels - 1, 1);
-            ZOID_SetTexture(trackscr_buttonInfo[buttonIdx+21].handle, (intptr_t)tex, -1);
+            ZOID_SetTexture(trackscr_buttonInfo[TRACK_VALUE_BUTTON(buttonIdx)].handle, (intptr_t)tex, -1);
             if (trackscr_buttonInfo[buttonIdx].position[1] > trackscr_maxY + trackscr_gButtonSpace * trackscr_gButtonScale || trackscr_buttonInfo[buttonIdx].position[1] < trackscr_minY - trackscr_gButtonSpace * trackscr_gButtonScale) trackscr_buttonInfo[buttonIdx].alpha = 0;
             else if (trackscr_buttonInfo[buttonIdx].position[1] > trackscr_maxY) trackscr_buttonInfo[buttonIdx].alpha = 255 - (trackscr_buttonInfo[buttonIdx].position[1] - trackscr_maxY) * 255.0f / (trackscr_gButtonSpace * trackscr_gButtonScale);
             else if (trackscr_buttonInfo[buttonIdx].position[1] < trackscr_minY) trackscr_buttonInfo[buttonIdx].alpha = 255 - (trackscr_minY - trackscr_buttonInfo[buttonIdx].position[1]) * 255.0f / (trackscr_gButtonSpace * trackscr_gButtonScale);
             else trackscr_buttonInfo[buttonIdx].alpha = 255;
             if (!OptionValid(buttonIdx)) trackscr_buttonInfo[buttonIdx].alpha = 0;
-            trackscr_buttonInfo[buttonIdx+21].alpha = trackscr_buttonInfo[buttonIdx].alpha;
+            trackscr_buttonInfo[TRACK_VALUE_BUTTON(buttonIdx)].alpha = trackscr_buttonInfo[buttonIdx].alpha;
             buttonColor.channel[3] = trackscr_buttonInfo[buttonIdx].alpha;
             ZOID_SetColor(trackscr_buttonInfo[buttonIdx].handle, (s32 *)&buttonColor);
-            ZOID_SetColor(trackscr_buttonInfo[buttonIdx+21].handle, (s32 *)&buttonColor);
+            ZOID_SetColor(trackscr_buttonInfo[TRACK_VALUE_BUTTON(buttonIdx)].handle, (s32 *)&buttonColor);
             if (!OptionValid(buttonIdx)) {
                 MBOX_HideObject(trackscr_buttonInfo[buttonIdx].handle, 0, 15);
-                MBOX_HideObject(trackscr_buttonInfo[buttonIdx+21].handle, 0, 15);
+                MBOX_HideObject(trackscr_buttonInfo[TRACK_VALUE_BUTTON(buttonIdx)].handle, 0, 15);
             } else if (trackscr_buttonInfo[buttonIdx].alpha == 0) {
                 MBOX_HideObject(trackscr_buttonInfo[buttonIdx].handle, 0, 15);
-                MBOX_HideObject(trackscr_buttonInfo[buttonIdx+21].handle, 0, 15);
+                MBOX_HideObject(trackscr_buttonInfo[TRACK_VALUE_BUTTON(buttonIdx)].handle, 0, 15);
                 buttonY -= trackscr_gButtonSpace * trackscr_gButtonScale;
             } else {
                 MBOX_ShowObject(trackscr_buttonInfo[buttonIdx].handle, 0, 15);
-                MBOX_ShowObject(trackscr_buttonInfo[buttonIdx+21].handle, 0, 15);
+                MBOX_ShowObject(trackscr_buttonInfo[TRACK_VALUE_BUTTON(buttonIdx)].handle, 0, 15);
                 buttonY -= trackscr_gButtonSpace * trackscr_gButtonScale;
             }
         }

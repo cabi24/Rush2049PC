@@ -1,3 +1,7 @@
+/* updateControlScreen: the controller-setup screen (MAT3 controlscr.c updateControlScreen), where each player
+ * maps the car's ten controls (gas, brake, steering, shifts, camera ...) to buttons and sets the rumble. It is the
+ * front end's GS_CONTROLS screen (one window per player) and a page of the pause menu, where each player opens it
+ * with A. */
 #include "game/game.h"
 
 /* PC: the pak file record's and the profile's host layouts (pc_prelude.h, docs/port/POINTERS.md 9.10) */
@@ -27,10 +31,6 @@ void *NewMultiBlit(s16, s16, void *, s16);
 
 extern PadState gPlayers[4];           /* gPlayers */
 
-VIEW(s8[4], controlScrActive);
-#define controlScrActive controlScrActive_view
-VIEW(PlayerRect[4][4], controls_gPlayerRects);
-#define controls_gPlayerRects controls_gPlayerRects_view
 VIEW(s8[4], prevControlScrActive);
 #define prevControlScrActive prevControlScrActive_view
 VIEW(s16[4], gControlSelect);
@@ -56,6 +56,36 @@ VIEW(struct pc_multiblit[21], buttonsPauseSingle);
 VIEW(struct pc_multiblit[41], buttonsPauseMulti);
 #define buttonsPauseMulti buttonsPauseMulti_view
 
+/* The list's rows (gControlSelect): the ten controls, then these two. */
+#define CONTROLS_ROW_RUMBLE 10      /* the rumble setting (0-2), offered when the player's pak is a Rumble Pak */
+#define CONTROLS_ROW_DEFAULTS 11    /* A sets the default controls */
+#define CONTROLS_ROW_LAST 11
+#define CONTROLS_COUNT 10           /* the controls a profile keeps */
+#define CONTROL_CHOICES 26          /* a control's values: 19 game buttons, then the analog sources (SetControls) */
+#define CONTROLLER_NONE 5           /* gPlayers[].controller of a player without one */
+#define PANE_STYLE 176              /* InitPane's style for the screen's boxes */
+/* The menu sounds (the effects PlayUDSound, PlayLRSound and PlayStartABSound play). */
+#define SND_MENU_DOWN 39
+#define SND_MENU_UP 40
+#define SND_MENU_LEFT 41
+#define SND_MENU_ERROR 42
+#define SND_MENU_DEFAULTS 43
+#define SND_MENU_RIGHT 44
+
+/* The screen's frame, for every player at once.
+ * - First frame: in the front end only if a player has the screen open; in the pause menu a box per window. The
+ *   list's height, the text blit (front end, or the pause menu's one-window or split layout) and the buttons'
+ *   layout by window count.
+ * - Each player with a controller: in a race A opens it. When it opens, the player's controls are copied from the
+ *   profile (or the guest's, gJustPlayers) into gNewControls, and in the front end the buttons are made. Up and down
+ *   move between the offered rows (with a conflict, only the conflicting ones and the defaults row), the list
+ *   scrolls to keep the row in view, and left and right change the row's value: the rumble 0-2 or the control,
+ *   skipping values controls_validControl refuses. Then every pair of controls on one value (or on the two
+ *   halves of one analog source: 8 and 21, 9 and 22; 19 and 25 may share) is marked a conflict.
+ * - Start or B leaves, unless there is a conflict: a changed control marks the controller's controls set
+ *   (gControlsSet), SetControls applies them. In the front end the screen also closes when the profile's pak is
+ *   pulled.
+ * - When no player has it open, or on a soft reset, the screen closes; the pause menu goes back to its main page. */
 void updateControlScreen(void) {
     s32 forcedExit;
     s32 p;
@@ -66,7 +96,7 @@ void updateControlScreen(void) {
     s8 *controls;
 
     if (!controls_inited) {
-        if (gGameState & 0x7C03FFFE) {
+        if (gGameState & GS_FRONTEND_MASK) {
             s8 skipInit = 1;
             for (p = 0; p < gNumWindows; p++) {
                 if (controlScrActive[p] == 1) skipInit = 0;
@@ -78,12 +108,12 @@ void updateControlScreen(void) {
                     controls_gPlayerRects[gNumWindows - 1][p].y,
                     controls_gPlayerRects[gNumWindows - 1][p].x + controls_gPlayerRects[gNumWindows - 1][p].w,
                     controls_gPlayerRects[gNumWindows - 1][p].y + controls_gPlayerRects[gNumWindows - 1][p].h,
-                    176, 0, 0, 0);
+                    PANE_STYLE, 0, 0, 0);
             }
             for (p = gNumWindows; p < 4; p++) prevControlScrActive[p] = 0;
         }
         calcControlMenuMaxSize();
-        if (gGameState & 0x7C03FFFE)
+        if (gGameState & GS_FRONTEND_MASK)
             controls_blit = (intptr_t)NewMultiBlit(0, 0, buttonsFrontEnd, 81);
         else if (gNumWindows == 1)
             controls_blit = (intptr_t)NewMultiBlit(0, 0, buttonsPauseSingle, 21);
@@ -121,50 +151,52 @@ void updateControlScreen(void) {
         controls_inited = 1;
     }
     for (p = 0; p < 4; p++) {
-        if (gPlayers[p].controller == 5) continue;
+        if (gPlayers[p].controller == CONTROLLER_NONE) continue;
         if (!controlScrActive[p]) {
-            if ((gGameState & 0x7C0000) && (gPlayers[p].edges & 2)) controlScrActive[p] = 1;
+            if ((gGameState & GS_RACE_MASK) && (gPlayers[p].edges & BUTTON_A)) controlScrActive[p] = 1;
             continue;
         }
         if (!prevControlScrActive[p]) {
             gControlSelect[p] = 0;
             gControlFirst[p] = 0;
-            for (i = 0; i < 10; i++) {
+            for (i = 0; i < CONTROLS_COUNT; i++) {
                 gConflict[p][i] = 0;
                 gConflictExists[p] = 0;
             }
             if (gPlayers[p].save)
-                memcpy(gNewControls[gPlayers[p].controller], (*gPlayers[p].save)->controls, 10);
+                memcpy(gNewControls[gPlayers[p].controller], (*gPlayers[p].save)->controls, CONTROLS_COUNT);
             else
-                memcpy(gNewControls[gPlayers[p].controller], gJustPlayers[gPlayers[p].controller]->controls, 10);
-            if (gGameState & 0x7C03FFFE) controls_initButtons(p);
+                memcpy(gNewControls[gPlayers[p].controller], gJustPlayers[gPlayers[p].controller]->controls, CONTROLS_COUNT);
+            if (gGameState & GS_FRONTEND_MASK) controls_initButtons(p);
         }
         controls_updateButtons(p);
         controls = gNewControls[gPlayers[p].controller];
-        while ((gConflictExists[p] == 1 && !gConflict[p][gControlSelect[p]] && gControlSelect[p] != 11) ||
-            !controls_validOption(p, gControlSelect[p]) || (!PS_PakRumble(gPlayers[p].controller) && gControlSelect[p] == 10)) {
+        while ((gConflictExists[p] == 1 && !gConflict[p][gControlSelect[p]] && gControlSelect[p] != CONTROLS_ROW_DEFAULTS) ||
+            !controls_validOption(p, gControlSelect[p]) || (!PS_PakRumble(gPlayers[p].controller) && gControlSelect[p] == CONTROLS_ROW_RUMBLE)) {
             gControlSelect[p]++;
-            if (gControlSelect[p] > 11) gControlSelect[p] = 0;
+            if (gControlSelect[p] > CONTROLS_ROW_LAST) gControlSelect[p] = 0;
         }
-        if (gPlayers[p].edges & 0x400) {
-            AudPlayEffect(40, 0, 1, 0);
+        if (gPlayers[p].edges & BUTTON_UP) {
+            AudPlayEffect(SND_MENU_UP, 0, 1, 0);
             do {
                 gControlSelect[p]--;
-                if (gControlSelect[p] < 0) gControlSelect[p] = 11;
-            } while ((gConflictExists[p] == 1 && !gConflict[p][gControlSelect[p]] && gControlSelect[p] != 11) ||
-                !controls_validOption(p, gControlSelect[p]) || (!PS_PakRumble(gPlayers[p].controller) && gControlSelect[p] == 10));
+                if (gControlSelect[p] < 0) gControlSelect[p] = CONTROLS_ROW_LAST;
+            } while ((gConflictExists[p] == 1 && !gConflict[p][gControlSelect[p]] && gControlSelect[p] != CONTROLS_ROW_DEFAULTS) ||
+                !controls_validOption(p, gControlSelect[p]) || (!PS_PakRumble(gPlayers[p].controller) && gControlSelect[p] == CONTROLS_ROW_RUMBLE));
         }
-        if (gPlayers[p].edges & 0x800) {
-            AudPlayEffect(39, 0, 1, 0);
+        if (gPlayers[p].edges & BUTTON_DOWN) {
+            AudPlayEffect(SND_MENU_DOWN, 0, 1, 0);
             do {
                 gControlSelect[p]++;
-                if (gControlSelect[p] > 11) gControlSelect[p] = 0;
-            } while ((gConflictExists[p] == 1 && !gConflict[p][gControlSelect[p]] && gControlSelect[p] != 11) ||
-                !controls_validOption(p, gControlSelect[p]) || (!PS_PakRumble(gPlayers[p].controller) && gControlSelect[p] == 10));
+                if (gControlSelect[p] > CONTROLS_ROW_LAST) gControlSelect[p] = 0;
+            } while ((gConflictExists[p] == 1 && !gConflict[p][gControlSelect[p]] && gControlSelect[p] != CONTROLS_ROW_DEFAULTS) ||
+                !controls_validOption(p, gControlSelect[p]) || (!PS_PakRumble(gPlayers[p].controller) && gControlSelect[p] == CONTROLS_ROW_RUMBLE));
         }
+        /* Scroll: the first row shown stays between the row two above the selection's place and the selection, and
+         * no further down than leaves the list's last screenful in view. */
         maxFirstItem = 0;
         menuItem = 0;
-        for (i = 11; i >= 0; i--) {
+        for (i = CONTROLS_ROW_LAST; i >= 0; i--) {
             if (controls_validOption(p, i)) {
                 menuItem++;
                 if (menuItem == gControlMenuSize) {
@@ -181,14 +213,14 @@ void updateControlScreen(void) {
         if (gControlFirst[p] > menuItem - 1) gControlFirst[p] = menuItem - 1;
         if (gControlFirst[p] > maxFirstItem) gControlFirst[p] = maxFirstItem;
         if (gControlFirst[p] < 0) gControlFirst[p] = 0;
-        if (gControlSelect[p] == 11) {
-            if (gPlayers[p].edges & 2) {
-                AudPlayEffect(43, 0, 1, 0);
+        if (gControlSelect[p] == CONTROLS_ROW_DEFAULTS) {
+            if (gPlayers[p].edges & BUTTON_A) {
+                AudPlayEffect(SND_MENU_DEFAULTS, 0, 1, 0);
                 SetDefaultControls(controls);
             }
-        } else if ((j = gPlayers[p].edges) & 0x1000) {
-            AudPlayEffect(41, 0, 1, 0);
-            if (gControlSelect[p] == 10) {
+        } else if ((j = gPlayers[p].edges) & BUTTON_LEFT) {
+            AudPlayEffect(SND_MENU_LEFT, 0, 1, 0);
+            if (gControlSelect[p] == CONTROLS_ROW_RUMBLE) {
                 s8 rumble;
                 rumble = (*gPlayers[p].save)->rumble;
                 rumble--;
@@ -197,12 +229,12 @@ void updateControlScreen(void) {
             } else {
                 do {
                     controls[gControlSelect[p]]--;
-                    if (controls[gControlSelect[p]] < 0) controls[gControlSelect[p]] = 25;
+                    if (controls[gControlSelect[p]] < 0) controls[gControlSelect[p]] = CONTROL_CHOICES - 1;
                 } while (!controls_validControl(p));
             }
-        } else if (j & 0x2000) {
-            AudPlayEffect(44, 0, 1, 0);
-            if (gControlSelect[p] == 10) {
+        } else if (j & BUTTON_RIGHT) {
+            AudPlayEffect(SND_MENU_RIGHT, 0, 1, 0);
+            if (gControlSelect[p] == CONTROLS_ROW_RUMBLE) {
                 s8 rumble;
                 rumble = (*gPlayers[p].save)->rumble;
                 rumble++;
@@ -211,16 +243,16 @@ void updateControlScreen(void) {
             } else {
                 do {
                     controls[gControlSelect[p]]++;
-                    if (controls[gControlSelect[p]] >= 26) controls[gControlSelect[p]] = 0;
+                    if (controls[gControlSelect[p]] >= CONTROL_CHOICES) controls[gControlSelect[p]] = 0;
                 } while (!controls_validControl(p));
             }
         }
-        for (i = 0; i < 10; i++) {
+        for (i = 0; i < CONTROLS_COUNT; i++) {
             gConflict[p][i] = 0;
             gConflictExists[p] = 0;
         }
-        for (i = 0; i < 9; i++) {
-            for (j = i + 1; j < 10; j++) {
+        for (i = 0; i < CONTROLS_COUNT - 1; i++) {
+            for (j = i + 1; j < CONTROLS_COUNT; j++) {
                 if ((controls[i] == controls[j] ||
                     (controls[i] == 21 && controls[j] == 8) ||
                     (controls[i] == 8 && controls[j] == 21) ||
@@ -233,26 +265,26 @@ void updateControlScreen(void) {
             }
         }
         forcedExit = 0;
-        if ((gGameState & 0x7C03FFFE) && gPlayers[p].save && (*gPlayers[p].save)->fileh &&
+        if ((gGameState & GS_FRONTEND_MASK) && gPlayers[p].save && (*gPlayers[p].save)->fileh &&
             !PS_PakInserted((*(*gPlayers[p].save)->fileh)->pak)) forcedExit = 1;
         if (forcedExit) {
             controlScrActive[p] = 0;
             controls_uninitButtons(p);
             exitControlScreen = 2;
-        } else if ((j = gPlayers[p].edges) & 5) {
+        } else if ((j = gPlayers[p].edges) & (BUTTON_START | BUTTON_B)) {
             s8 conflict = 0;
-            for (i = 0; i < 10; i++) {
+            for (i = 0; i < CONTROLS_COUNT; i++) {
                 if (gConflict[p][i] == 1) conflict = 1;
             }
-            if (conflict == 1) AudPlayEffect(42, 0, 1, 0);
+            if (conflict == 1) AudPlayEffect(SND_MENU_ERROR, 0, 1, 0);
             else {
                 s32 playerCont = gPlayers[p].controller;
                 PlayStartABSound(j);
-                if (playerCont != 5) {
+                if (playerCont != CONTROLLER_NONE) {
                     if (gPlayers[p].save) {
-                        if (game_memcmp((u8 *)gNewControls[playerCont], (u8 *)(*gPlayers[p].save)->controls, 10)) gControlsSet[playerCont] = 1;
+                        if (game_memcmp((u8 *)gNewControls[playerCont], (u8 *)(*gPlayers[p].save)->controls, CONTROLS_COUNT)) gControlsSet[playerCont] = 1;
                     } else {
-                        if (game_memcmp((u8 *)gNewControls[playerCont], (u8 *)gJustPlayers[playerCont]->controls, 10)) gControlsSet[playerCont] = 1;
+                        if (game_memcmp((u8 *)gNewControls[playerCont], (u8 *)gJustPlayers[playerCont]->controls, CONTROLS_COUNT)) gControlsSet[playerCont] = 1;
                     }
                 }
                 SetControls(0);
@@ -268,9 +300,9 @@ void updateControlScreen(void) {
     }
     if (gSoftReset || exitControlScreen) {
         cleanupControlScreen();
-        if (!(gGameState & 0x7C03FFFE)) {
+        if (!(gGameState & GS_FRONTEND_MASK)) {
             RemovePanes(0);
-            setPauseState(1);
+            setPauseState(kPauseMainScreen);
         }
     }
 }

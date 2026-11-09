@@ -1,9 +1,9 @@
+/* InitSelectCarLoad: the car select screens' model loader reset (MAT3 selectcarload.c InitSelectCarLoad). */
 #include "game/game.h"
 
-typedef struct { s32 a; s8 b; s8 c; u8 pad[6]; } SelectCarWave;
-VIEW(SelectCarWave[], gSelectCarWavePtrs);
-#define gSelectCarWavePtrs gSelectCarWavePtrs_view
+#define SELECT_CAR_LOADS 16
 
+/* Each of the 13 cars' links points at its own car, and every model load slot is free (no wave, no car). */
 void InitSelectCarLoad(void)
 {
     s32 i;
@@ -11,9 +11,9 @@ void InitSelectCarLoad(void)
     for (i = 0; i < 13; i++) {
         PC_LINK_CAR(i) = i;
     }
-    for (i = 0; i < 16; i++) {
-        gSelectCarWavePtrs[i].a = -1;
-        gSelectCarWavePtrs[i].c = -1;
-        gSelectCarWavePtrs[i].b = 0;
+    for (i = 0; i < SELECT_CAR_LOADS; i++) {
+        gSelectCarWavePtrs[i].wave = -1;
+        gSelectCarWavePtrs[i].slot = -1;
+        gSelectCarWavePtrs[i].loading = 0;
     }
 }
