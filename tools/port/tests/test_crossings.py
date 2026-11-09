@@ -37,9 +37,10 @@ site PC_N64W src/blob/heap.c:12 2 heap=2@0x8017a000
 MENU_GUARD = """\
 exe {exe}
 site PC_N64P src/blob/forces1.c:71 10 game_arena=10@0x801116d0:gTune+0x0
-guard arenas,count faults=12 neighbour=3 closes=5 lost=0
+guard arenas,count faults=14 neighbour=3 closes=5 lost=0
 fault rush2049pc+0x3000 9 game_arena=9@0x8011ed00:start_overlay_loaded+0x0
 fault rush2049pc+0x3100 3 boot_arena=3@0x80030000:gFoo+0x4
+fault libc.so.6+0x1584c3,from=rush2049pc+0x4000 2 game_arena=2@0x80120000:gMemcpied+0x0
 """
 
 failures = 0
@@ -97,8 +98,10 @@ def main():
               "a site's paths and the datum it points at, the offset dropped")
         check("fn_0x1234 port/ultra/x.c:6" in out, "a PC layer site named by addr2line, relative to its tree")
         check("libc.so.6+0x99" in out, "a library's site as it is")
-        check("12 faults at 2 instructions in 1 runs; 3 more" in out, "the guard's totals")
+        check("14 faults at 3 instructions in 1 runs; 3 more" in out, "the guard's totals")
         check("fn_0x3000 port/ultra/x.c:6" in out and "(start_overlay_loaded)" in out, "the guard's instructions")
+        check("libc.so.6+0x1584c3 from fn_0x4000 port/ultra/x.c:6" in out and "(gMemcpied)" in out,
+              "a library's instruction named with the program's call of it")
 
         code, out2 = tool("--report", dumps, "--sort", "count", env=env)
         i = out2.splitlines().index(next(l for l in out2.splitlines() if l.startswith("PC_N64P: 2 sites")))
@@ -126,9 +129,17 @@ def main():
         b = json.loads(base.read_text())["kinds"]
         check(b["PC_N64P"] == {"sites": 2, "crossings": 19, "regions": {"game_arena": 14, "heap": 5}},
               "--write-baseline: each kind's sites, crossings and regions")
-        check(json.loads((tmp / "r.json").read_text())["guard"]["instructions"] == 2, "--json: the guard's numbers")
+        check(json.loads((tmp / "r.json").read_text())["guard"]["instructions"] == 3, "--json: the guard's numbers")
         code, _ = tool("--report", dumps, "--baseline", base, env=env)
         check(code == 0, "--baseline passes against itself")
+        few = dumps / "few.crossings"
+        few.write_text("site PC_N64P src/blob/forces1.c:71 3 game_arena=3@0x801116d0:gTune+0x0\n")
+        code, _ = tool("--report", dumps, "--baseline", base, env=env)
+        check(code == 0, "--baseline passes a few more crossings at the same sites (the frames around the exit)")
+        few.write_text("site PC_N64P src/blob/forces1.c:71 1000 game_arena=1000@0x801116d0:gTune+0x0\n")
+        code, out = tool("--report", dumps, "--baseline", base, env=env)
+        check(code != 0 and "--baseline: PC_N64P" in out, "--baseline fails when a kind's crossings grow")
+        few.unlink()
         (dumps / "more.crossings").write_text("site PC_N64W src/blob/heap.c:13 1 heap=1@0x8017a000\n")
         code, out = tool("--report", dumps, "--baseline", base, env=env)
         check(code != 0 and "--baseline: PC_N64W" in out, "--baseline fails when a kind grows")

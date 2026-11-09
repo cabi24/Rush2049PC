@@ -2,8 +2,8 @@
 """The crossing counter's runs and report: where the game and the PC layer still cross between 32-bit N64 addresses and
 host pointers, by kind and by site, along the synthetic paths (docs/port/NATIVE.md 9).
 
-    python3 tools/port/crossings.py --build build/count [--guard] [-j 6] [NAME ...]
-    python3 tools/port/crossings.py --exe build/count/rush2049pc [--rom ROM] [--guard] [NAME ...]
+    python3 tools/port/crossings.py --build build/count [--guard] [--stop] [-j 6] [NAME ...]
+    python3 tools/port/crossings.py --exe build/count/rush2049pc [--rom ROM] [--guard] [--stop] [NAME ...]
     python3 tools/port/crossings.py --report DUMP_OR_FOLDER ... [--exe EXE]
 
 The first form configures (Debug, -DRUSH_COUNT_CROSSINGS=ON, Ninja) and builds the counting build in that folder
@@ -16,6 +16,8 @@ build/crossings/paths): NAME.log, NAME.crossings, and with --guard NAME.guard.lo
 --guard runs each path a second time in the arena guard's counting mode (RUSH2049_WINDOW_GUARD=arenas,count): the
 boot and game arenas' pages in the RDRAM window without access, every page's first access in a frame counted by its
 instruction. The report then has the guard's sites too (from the second runs; the crossings are the first runs').
+--stop runs each path once more in the guard's stopping mode (RUSH2049_WINDOW_GUARD=arenas), where the first access
+stops the program with a note and the stack (NAME.stop.log): the report says where each run stopped, if it did.
 
 The report: a line per kind (its live sites, its crossings and where they point: the regions of crossings.c), then
 every site of each kind with its count, the number of paths that reach it, where its addresses point and the data
@@ -27,13 +29,15 @@ numbers.
 
 Checks (exit status 1 when one fails, after the report):
 
-    --check                 every run ended as its press script's `# expect:` line says and wrote its dump, and with
-                            --guard each guarded run's trace (synth_compare.py's) is its plain run's
+    --check                 every run ended as its press script's `# expect:` line says and wrote its dump (but a run
+                            the guard stopped), and each guarded run's trace (synth_compare.py's) is its plain run's
     --zero-kind K,...       those kinds cross nowhere              e.g. pc_statll_link,pc_statll_set_link
     --zero-region R,...     no crossing points into those regions  e.g. game_arena,boot_arena
     --zero-site TEXT        no site whose name has TEXT            e.g. src/blob/forces1.c
-    --no-faults             the guard found nothing (after NATIVE.md step 5); --expect-faults: it found something
-    --baseline FILE         no kind has more sites or crossings than FILE says (--write-baseline FILE writes it)
+    --no-faults             the guard found nothing and stopped no run (after NATIVE.md step 5); --expect-faults: it
+                            found something
+    --baseline FILE         no kind has more sites than FILE says, nor more crossings (but the 0.1% the frames
+                            around the exit vary by); --write-baseline FILE writes one
 
 A later step's proof is a run of this with its zero checks: "these sites cross 0 times along every path". Stdlib only,
 Python 3.9+; addr2line (binutils) names the PC layer's sites.
@@ -75,6 +79,10 @@ WHAT = {
     "audio.n64ptr": "the audio interpreter: an N64 address read (resolve: a native field's)",
     "audio.field": "the audio interpreter: a native pointer field holding an N64 address",
 }
+# Two runs of one tree give the same sites, but the frames around the exit add a few crossings to some (a handful in
+# 73 M along the 63 paths: NATIVE.md 9.4): --baseline lets a kind's crossings exceed the baseline's by this factor and
+# 64 more, and its sites not at all.
+BASELINE_SLACK = 1.001
 # Regions whose addresses are data a name describes (the dump gives the datum).
 NAMED = re.compile(r"_arena$|^low_memory$|^image_block$|^window$|^kseg1$")
 _SITE = re.compile(r"^site (\S+) (\S+) (\d+)((?: \S+)*)$")
@@ -121,6 +129,7 @@ class Report:
         self.runs = []
         self.guard_runs = []
         self.guard = collections.Counter()
+        self.stops = []   # the stopping mode's runs: (path, (what, instruction) or None, exit status)
         self.lost = 0
         self.exes = set()
 
@@ -207,12 +216,15 @@ def source_root(exe):
 
 def symbolize(wheres, exe):
     """{where: "function file:line"} for the executable's sites (`name+0xOFFSET`), with addr2line; the rest as they
-    are. Paths are made relative to the tree the executable was built from."""
+    are. Paths are made relative to the tree the executable was built from. A guard's fault in a library's code
+    (`libc.so.6+0x1584c3,from=rush2049pc+0x1234`) is named with its caller: `libc.so.6+0x1584c3 from function
+    file:line`."""
     names = {}
     if not exe or not Path(exe).exists() or not shutil.which("addr2line"):
         return names
     base = Path(exe).name
-    offs = sorted({m.group(2) for w in wheres for m in [_CODE.match(w)] if m and m.group(1) == base})
+    parts = [p for w in wheres for p in w.split(",from=")]
+    offs = sorted({m.group(2).lower() for p in parts for m in [_CODE.match(p)] if m and m.group(1) == base})
     if not offs:
         return names
     root = source_root(exe)
@@ -225,9 +237,15 @@ def symbolize(wheres, exe):
         loc = re.sub(r" \(discriminator \d+\)$", "", loc)
         if loc.startswith(root):
             loc = loc[len(root):]
-        names[f"{base}+0x{off.lower()}"] = f"{fn} {loc}"
-    return {w: names.get(re.sub(r"\+0x([0-9a-fA-F]+)$", lambda m: "+0x" + m.group(1).lower(), w), w)
-            for w in wheres}
+        names[f"{base}+0x{off}"] = f"{fn} {loc}"
+
+    def one(p):
+        return names.get(re.sub(r"\+0x([0-9a-fA-F]+)$", lambda m: "+0x" + m.group(1).lower(), p), p)
+    out = {}
+    for w in wheres:
+        head, _, caller = w.partition(",from=")
+        out[w] = one(head) + (f" from {one(caller)}" if caller else "")
+    return out
 
 
 def regions_text(site):
@@ -277,6 +295,18 @@ def render(rep, exe=None, sort="site", top=0):
         if g["lost"]:
             L.append(f"  lost: {g['lost']} faults found no entry for their instruction")
         L += listing(faults)
+    if rep.stops:
+        stopped = [s for s in rep.stops if s[1]]
+        L += ["", f"window guard, stopping (RUSH2049_WINDOW_GUARD=arenas): {len(stopped)} of {len(rep.stops)} runs "
+                  f"stopped at their first access (each log has the stack)"]
+        width = max(len(n) for n, _, _ in rep.stops)
+        where = symbolize([s[1] for _, s, _ in rep.stops if s], exe or (sorted(rep.exes)[0] if len(rep.exes) == 1
+                                                                        else None))
+        for name, stop, code in sorted(rep.stops):
+            if stop:
+                L.append(f"  {name:{width}}  {stop[0]}, by {where.get(stop[1], stop[1])}")
+            else:
+                L.append(f"  {name:{width}}  {'ran through' if code == 0 else f'exit {code}, no note from the guard'}")
     return "\n".join(L) + "\n"
 
 
@@ -311,15 +341,19 @@ def checks(rep, a, exe=None):
                 bad.append(f"--zero-region: {kind} {name}: {', '.join(f'{r} {s.regions[r]}' for r in hit)}")
             if a.zero_site and (a.zero_site in name or any(a.zero_site in w for w in s.wheres)):
                 bad.append(f"--zero-site {a.zero_site}: {kind} {name}: {s.count}")
+    stopped = [name for name, stop, _ in rep.stops if stop]
     if a.no_faults and rep.guard["faults"]:
         bad.append(f"--no-faults: the guard found {rep.guard['faults']} faults at {len(faults)} instructions")
-    if a.expect_faults and not rep.guard["faults"]:
-        bad.append("--expect-faults: the guard found nothing" + ("" if rep.guard_runs else " (no guarded run)"))
-    if a.baseline:
+    if a.no_faults and stopped:
+        bad.append(f"--no-faults: the guard stopped {len(stopped)} runs: {', '.join(stopped)}")
+    if a.expect_faults and not rep.guard["faults"] and not stopped:
+        bad.append("--expect-faults: the guard found nothing"
+                   + ("" if rep.guard_runs or rep.stops else " (no guarded run)"))
+    if a.baseline:   # sites exactly; crossings within the few the frames around the exit add (section 9.4)
         base = json.loads(Path(a.baseline).read_text())["kinds"]
         for kind, t in tot.items():
             b = base.get(kind, {"sites": 0, "crossings": 0})
-            if t[0] > b["sites"] or t[1] > b["crossings"]:
+            if t[0] > b["sites"] or t[1] > b["crossings"] * BASELINE_SLACK + 64:
                 bad.append(f"--baseline: {kind} has {t[0]} sites and {t[1]} crossings, the baseline {b['sites']} and "
                            f"{b['crossings']}")
     return bad
@@ -327,19 +361,27 @@ def checks(rep, a, exe=None):
 
 # ---------------------------------------------------------------- runs
 
-def run_path(name, exe, rom, logs, guard):
-    """One run of a synthetic path as synth_compare.py makes it, counting (and with guard, in the guard's counting
-    mode): (name, guard, the trace, the exit status, the dump's path, the `# expect:` line)."""
+# A run's mode: counting; the guard counting (--guard); the guard stopping at the first access (--stop). Each with its
+# logs' suffix and its RUSH2049_WINDOW_GUARD.
+MODES = {"count": ("", None), "guard": (".guard", "arenas,count"), "stop": (".stop", "arenas")}
+Run = collections.namedtuple("Run", "name mode trace code dump expect stop")
+# The guard's note when it stops a run (crossings.c): what was reached, and the instruction.
+_NOTE = re.compile(r"rush2049pc: window guard: (.*) reached by its N64 address, by the instruction at (\S+) ")
+
+
+def run_path(name, exe, rom, logs, mode):
+    """One run of a synthetic path as synth_compare.py makes it, in one of MODES. stop is the guard's note when it
+    stopped the run, (what, instruction), else None."""
     spec = synth_paths.read_script(synth_paths.PRESS_DIR / f"{name}.press")
-    tag = f"{name}.guard" if guard else name
-    dump = Path(logs).resolve() / f"{tag}.crossings"
+    suffix, guard = MODES[mode]
+    dump = Path(logs).resolve() / f"{name}{suffix}.crossings"
     if dump.exists():
         dump.unlink()
     env = dict(os.environ, RUSH_STATE_EXACT="1", RUSH2049_CROSSINGS=str(dump), **synth_paths.data_env(logs))
     env.update(spec["env"])
     env.pop("RUSH2049_WINDOW_GUARD", None)
     if guard:
-        env["RUSH2049_WINDOW_GUARD"] = "arenas,count"
+        env["RUSH2049_WINDOW_GUARD"] = guard
     cmd = [str(Path(exe).resolve()), "--rom", str(Path(rom).resolve()), "--no-rom-check", "--headless", "--no-config",
            "--audio", "null", "--no-pak", "--fast", "--press-file", str(synth_paths.PRESS_DIR / f"{name}.press"),
            "--until-state", spec["until"], "--seconds", spec["seconds"], "--status", "1"] + spec["args"]
@@ -349,45 +391,45 @@ def run_path(name, exe, rom, logs, guard):
             text, code = p.stdout.decode(errors="replace"), p.returncode
         except subprocess.TimeoutExpired as e:
             text, code = (e.stdout or b"").decode(errors="replace") + "\ncrossings: timed out\n", -1
-    (Path(logs) / f"{tag}.log").write_text(text, encoding="utf-8")
-    return name, guard, synth_compare.trace(text), code, dump, spec["expect"]
+    (Path(logs) / f"{name}{suffix}.log").write_text(text, encoding="utf-8")
+    m = _NOTE.search(text) if mode == "stop" else None
+    return Run(name, mode, synth_compare.trace(text), code, dump, spec["expect"], m.groups() if m else None)
 
 
-def run_paths(names, exe, rom, logs, guard, jobs):
+def run_paths(names, exe, rom, logs, modes, jobs):
     Path(logs).mkdir(parents=True, exist_ok=True)
-    runs = [(n, g) for n in names for g in ((False, True) if guard else (False,))]
     with concurrent.futures.ThreadPoolExecutor(max(1, jobs)) as pool:
-        futs = [pool.submit(run_path, n, exe, rom, logs, g) for n, g in runs]
+        futs = [pool.submit(run_path, n, exe, rom, logs, m) for n in names for m in modes]
         results = []
         for f in futs:
             r = f.result()
-            name, g, t, code, dump, _ = r
-            print(f"crossings: {name + (' (guard)' if g else ''):22} {'ok' if code == 0 and dump.exists() else 'FAIL'}"
-                  f"{'' if code == 0 else f' exit {code}'}{'' if dump.exists() else ', no dump'}", flush=True)
+            label = r.name + ("" if r.mode == "count" else f" ({r.mode})")
+            state = "stopped" if r.stop else "ok" if r.code == 0 and r.dump.exists() else "FAIL"
+            print(f"crossings: {label:22} {state}{'' if r.code == 0 or r.stop else f' exit {r.code}'}"
+                  f"{'' if r.dump.exists() or r.stop else ', no dump'}", flush=True)
             results.append(r)
     return results
 
 
 def run_checks(results):
-    """--check on the runs: each ended as its script expects and wrote its dump; a guarded run's trace is its plain
-    run's."""
+    """--check on the runs: each ended as its script expects and wrote its dump (a run the guard stopped is judged by
+    --no-faults and --expect-faults instead); a guarded run's trace is its plain run's."""
     bad = []
-    plain = {}
-    for name, guard, t, code, dump, expect in results:
-        tag = f"{name}{' (guard)' if guard else ''}"
-        if code != 0:
-            bad.append(f"{tag}: exit {code}")
-        if not dump.exists():
+    plain = {r.name: r.trace for r in results if r.mode == "count"}
+    for r in results:
+        if r.stop:
+            continue
+        tag = r.name + ("" if r.mode == "count" else f" ({r.mode})")
+        if r.code != 0:
+            bad.append(f"{tag}: exit {r.code}")
+        if not r.dump.exists():
             bad.append(f"{tag}: no dump")
-        if not synth_compare.reaches(t, expect):
-            bad.append(f"{tag}: doesn't end as its script expects ('{expect}')")
-        if not guard:
-            plain[name] = t
-    for name, guard, t, code, dump, expect in results:
-        if guard and name in plain and t != plain[name]:
-            d = synth_compare.first_difference(plain[name], t)
-            bad.append(f"{name}: the guarded run's trace differs from the plain run's at event {d[0]}: "
-                       f"{synth_compare.show(d[1])} / {synth_compare.show(d[2])}")
+        if not synth_compare.reaches(r.trace, r.expect):
+            bad.append(f"{tag}: doesn't end as its script expects ('{r.expect}')")
+        if r.mode != "count" and r.name in plain and r.trace != plain[r.name]:
+            d = synth_compare.first_difference(plain[r.name], r.trace)
+            bad.append(f"{tag}: the trace differs from the plain run's at event {d[0]}: {synth_compare.show(d[1])} / "
+                       f"{synth_compare.show(d[2])}")
     return bad
 
 
@@ -423,6 +465,7 @@ def main():
     ap.add_argument("-j", "--jobs", type=int, default=6, help="runs at once")
     ap.add_argument("--build-jobs", type=int, default=8)
     ap.add_argument("--guard", action="store_true", help="each path again in the arena guard's counting mode")
+    ap.add_argument("--stop", action="store_true", help="each path again in the arena guard's stopping mode")
     ap.add_argument("--report", nargs="+", metavar="DUMP", help="report on these dumps (or folders of *.crossings)")
     ap.add_argument("--sort", choices=("site", "count"), default="site")
     ap.add_argument("--top", type=int, default=0, help="each kind's N largest sites only")
@@ -456,10 +499,13 @@ def main():
         rom = a.rom or synth_rom(a.build or Path(exe).parent)
         names = a.names or sorted(p.stem for p in synth_paths.PRESS_DIR.glob("*.press")
                                   if synth_paths.read_script(p)["virtual"])
-        results = run_paths(names, exe, rom, a.logs, a.guard, a.jobs)
-        for name, guard, t, code, dump, expect in results:
-            if dump.exists():
-                rep.add(dump, name)
+        modes = ["count"] + (["guard"] if a.guard else []) + (["stop"] if a.stop else [])
+        results = run_paths(names, exe, rom, a.logs, modes, a.jobs)
+        for r in results:
+            if r.mode == "stop":
+                rep.stops.append((r.name, r.stop, r.code))
+            elif r.dump.exists():
+                rep.add(r.dump, r.name)
         if a.check:
             bad += run_checks(results)
     text = render(rep, exe, a.sort, a.top)

@@ -53,13 +53,11 @@ if(RUSH_COUNT_CROSSINGS)
         menu race2p stunt)
     set_tests_properties(crossings_paths PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 600 LABELS crossings)
     # The guard's stopping mode (RUSH2049_WINDOW_GUARD=arenas): the first access to an arena by its N64 address stops
-    # the program with a note naming the datum, then the fault handler's report. Today the first access by name does;
-    # step 5 turns this into a run that ends as it should. (CMake's "." takes a newline.)
-    add_test(NAME crossings_guard_stop COMMAND rush2049pc --rom ${SYNTH_ROM} --no-rom-check --headless --no-config
-        --audio null --no-pak --no-log --fast --seconds 30)
-    set_tests_properties(crossings_guard_stop PROPERTIES ENVIRONMENT "RUSH2049_WINDOW_GUARD=arenas"
-        FIXTURES_REQUIRED synth_rom LABELS crossings
-        PASS_REGULAR_EXPRESSION "window guard: the datum at 0x8[0-9A-F]+ [(][^)]*the (boot|game)_arena[)] reached by its N64 address.*Segmentation fault at address 0x8")
+    # the program with a note naming the datum and the instruction, then the fault handler's report. Today the first
+    # access by name does (--expect-faults); step 5 makes this --check --no-faults: every path runs through.
+    add_test(NAME crossings_guard_stop COMMAND ${PC_PYTHON} ${PORT_TOOLS}/crossings.py --exe $<TARGET_FILE:rush2049pc>
+        --rom ${SYNTH_ROM} --logs ${CMAKE_BINARY_DIR}/crossings/test-stop --stop --expect-faults -j 2 menu race2p)
+    set_tests_properties(crossings_guard_stop PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 600 LABELS crossings)
 endif()
 # the gate script parses (it runs on Rocky against the base: tools/port/pconly_gate.sh)
 find_program(PC_BASH bash)

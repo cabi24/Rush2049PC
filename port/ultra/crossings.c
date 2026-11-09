@@ -26,6 +26,7 @@
 #define _GNU_SOURCE
 #include <dlfcn.h>
 #include <errno.h>
+#include <link.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -233,6 +234,7 @@ typedef struct {
 
 typedef struct {
     uintptr_t ip;        /* the faulting instruction */
+    uintptr_t caller;    /* for an instruction in a library (libc's memcpy): the program's code that called it */
     unsigned long long n;
     uint32_t first;      /* the first N64 address it touched */
 } Fault;
@@ -287,17 +289,54 @@ static uintptr_t fault_ip(const void *ctx)
 #endif
 }
 
-static void record_fault(uintptr_t ip, uint32_t n64)
+/* The executable's code, for telling a fault in a library from one in the program. */
+static uintptr_t g_exe_lo, g_exe_hi;
+
+static int exe_range(struct dl_phdr_info *info, size_t size, void *data)
+{
+    (void)size, (void)data;
+    for (int i = 0; i < info->dlpi_phnum; i++) {
+        const ElfW(Phdr) *ph = &info->dlpi_phdr[i];
+        uintptr_t lo = info->dlpi_addr + ph->p_vaddr, hi = lo + ph->p_memsz;
+        if (ph->p_type != PT_LOAD || !(ph->p_flags & PF_X))
+            continue;
+        g_exe_lo = !g_exe_lo || lo < g_exe_lo ? lo : g_exe_lo;
+        g_exe_hi = hi > g_exe_hi ? hi : g_exe_hi;
+    }
+    return 1;   /* the first object is the program itself */
+}
+
+/* A fault in a library's code (libc's memcpy or memset on arena data): the program's code that called it, else 0. A
+ * leaf routine like those leaves its return address where the call put it: on the stack on x86-64, in the link
+ * register on aarch64. */
+static uintptr_t fault_caller(const void *ctx, uintptr_t ip)
+{
+    const ucontext_t *uc = ctx;
+    uintptr_t ra = 0;
+    if (ip >= g_exe_lo && ip < g_exe_hi)
+        return 0;
+#if defined(__x86_64__) && defined(REG_RSP)
+    ra = *(const uintptr_t *)uc->uc_mcontext.gregs[REG_RSP];
+#elif defined(__aarch64__)
+    ra = (uintptr_t)uc->uc_mcontext.regs[30];
+#else
+    (void)uc;
+#endif
+    return ra >= g_exe_lo && ra < g_exe_hi ? ra : 0;
+}
+
+static void record_fault(uintptr_t ip, uintptr_t caller, uint32_t n64)
 {
     lock(&g_fault_lock);
     g_fault_total++;
-    uintptr_t h = (ip * 2654435761u) & (FAULT_SITES - 1);
+    uintptr_t h = ((ip ^ caller * 31u) * 2654435761u) & (FAULT_SITES - 1);
     for (int i = 0; i < FAULT_SITES; i++, h = (h + 1) & (FAULT_SITES - 1)) {
         Fault *f = &g_faults[h];
         if (!f->ip) {
             f->ip = ip;
+            f->caller = caller;
             f->first = n64;
-        } else if (f->ip != ip) {
+        } else if (f->ip != ip || f->caller != caller) {
             continue;
         }
         f->n++;
@@ -355,8 +394,10 @@ static void on_fault(int sig, siginfo_t *si, void *ctx)
         raise(sig);
         return;
     }
-    if (counted || stray)
-        record_fault(fault_ip(ctx), n64);
+    if (counted || stray) {
+        uintptr_t ip = fault_ip(ctx);
+        record_fault(ip, fault_caller(ctx, ip), n64);
+    }
     else if (g_active && !g_paused)
         __atomic_add_fetch(&g_neighbour, 1, __ATOMIC_RELAXED);
     mprotect((void *)(a & ~(g_page - 1)), g_page, PROT_READ | PROT_WRITE);
@@ -390,6 +431,7 @@ static void guard_start(const char *mode)
         return;
     }
     g_page = (uintptr_t)sysconf(_SC_PAGESIZE);
+    dl_iterate_phdr(exe_range, NULL);
     for (unsigned i = 0; i < g_map.n_arenas; i++)
         if (g_map.guarded[i])
             add_spans(g_map.lo[i], g_map.hi[i]);
@@ -474,8 +516,8 @@ static void dump(FILE *f)
     char exe[512] = "";
     ssize_t k = readlink("/proc/self/exe", exe, sizeof exe - 1);
     exe[k > 0 ? k : 0] = 0;
-    fprintf(f, "# rush2049pc crossings: site KIND WHERE COUNT REGION=COUNT@FIRST[:DATUM]... (port/ultra/crossings.c, "
-               "docs/port/NATIVE.md 9)\nexe %s\n", exe);
+    fprintf(f, "# rush2049pc crossings: site KIND WHERE COUNT REGION=COUNT@FIRST[:DATUM]..., then the guard's fault WHERE[,"
+               "from=CALLER] COUNT REGION=... (port/ultra/crossings.c, docs/port/NATIVE.md 9)\nexe %s\n", exe);
     for (int i = 0; i < SITES; i++) {
         const Site *s = &g_sites[i];
         if (!s->kind)
@@ -501,8 +543,14 @@ static void dump(FILE *f)
         const Fault *ft = &g_faults[i];
         if (!ft->ip)
             continue;
-        char at[512];
+        char at[512], from[256] = "";
         where(ft->ip, at, sizeof at);
+        if (ft->caller) {   /* a library's code: the program's call of it, as one word */
+            size_t k = strlen(at);
+            snprintf(at + k, sizeof at - k, ",from=");
+            where(ft->caller - 1, from, sizeof from);
+            snprintf(at + strlen(at), sizeof at - strlen(at), "%s", from);
+        }
         fprintf(f, "fault %s %llu", at, ft->n);
         print_region(f, region_of(ft->first), ft->n, ft->first);
         fputc('\n', f);
