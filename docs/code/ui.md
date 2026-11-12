@@ -126,13 +126,16 @@ the circuit before). A player without a profile plays on a "just play" profile (
   profile, pak file and ghost records to the PC's: `groups/save/group.c` (CheckAndRepairPlayer, CreatePlayer,
   ReadPlayer ...) and `groups/save/ghost_files.c` still read them so; `tProfile`, `PakFileRecord` and `tGhostFile` are
   the structures to use instead. Several files still read a record through a view of their own with N64-sized
-  padding (`groups/save/ghost_files.c`'s `Slot`, `Obj`, `MenuData`; the HUD's input records `gPlayers`, 0x4C bytes on
-  the N64).
-- **Window addresses in data.** A font letter's kerning row (`FontLetter.kerns`), a font texture's and the track
-  map's texels (`TXHD` records keep the N64 layout) and `tGhostHeader.start` are 32-bit N64 addresses read through
-  `PC_N64P`/`PC_N64W`/`PC_N64A`. The heap functions here (`ClearMemoryHeap`, `allocate_memory_at`,
+  padding (`groups/save/ghost_files.c`'s `Slot` and `Obj`; the HUD's input records `gPlayers`, 0x4C bytes on the N64).
+  The ghost header has one type, `tGhostHeader`, in every file since [NATIVE.md](../port/NATIVE.md) step 11.
+- **Window addresses in data: none left here.** The heap functions (`ClearMemoryHeap`, `allocate_memory_at`,
   `heap_move_block_low`) and the overlay loader (`load_overlay`, `runtime_image_block`) work in host pointers since
-  [NATIVE.md](../port/NATIVE.md) step 6, as do the heap's links and its handle slots.
+  [NATIVE.md](../port/NATIVE.md) step 6, as do the heap's links and its handle slots; a font letter's kerning row
+  (`FontLetter.kerns`), the textures' and the track map's records since step 7; the ghost header since step 11: MAT3's
+  `start`, the replay's samples, doesn't fit the file's 4 bytes as a host pointer, so the header says whether it has
+  them (`hasSamples`) and the samples are the ghost's data (`datah`) or, for a race being recorded, its player's block
+  (`ghost_recording`, NewGhost.c). The once-a-frame table (`gOPPFuncs`) holds function pointers, the frame records'
+  colour buffer (`FrameRecord.colorBuffer`) a pointer.
 - **The game's own data in the window**: the pools (`BlitPtrs`, `gBlitInstanceList`, `gPaneBlits`, `gPaks`,
   `pak_file_records`) are own storage at their N64 addresses; the save data's totals are in the arena.
 - **The RDP.** The blitter writes N64 display list commands (`G_TEXRECT`, `G_LOADTLUT` ...) that port/gfx renders;

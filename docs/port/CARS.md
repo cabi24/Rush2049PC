@@ -200,9 +200,8 @@ those translations as the bulk of the game C's crossings into the arenas.
   the raw-offset functions of section 2.3, and the model set-up `carsetup` with `steer_constants` and
   `find_best_gear`. It checks `CAR_OFS` against the layout's `offsetof`s and every field the code writes at its PC
   offset (the model's through `MODEL_OFS`). The car array, the model array and the descriptors are host storage, as
-  in the game; the checkpoint block, `gCarParts`, the tune table and the torque curve are absolute symbols at their
-  N64 addresses in a window the test maps, with their GOT slots put back by `port/ultra/absfix.c` as `rush2049pc`
-  does. Reverting a `CAR_OFS` or a model pointer to a u32 makes it fail. `assets_models` checks `struct pc_model`'s
+  in the game; the checkpoint block, `gCarParts`, the tune table and the torque curve are the test's own storage
+  (absolute symbols at their N64 addresses in a window the test mapped, until [NATIVE.md](NATIVE.md) step 11). Reverting a `CAR_OFS` or a model pointer to a u32 makes it fail. `assets_models` checks `struct pc_model`'s
   offsets (each `MODEL_OFS` of MAT3's) and its size, `assets_model` the m2c readers through the pointers.
 - `n64_neutral.py --base 09da2f0`: every changed game file is code-exact or shifted (0 FAIL).
 

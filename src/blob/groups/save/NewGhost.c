@@ -65,10 +65,10 @@ s32 ghost_blocks_from_size(s32 size) {
 
 /* Makes a ghost from the race recording header describes (ghost_recording): its three channels moved together (each
  * header->size long; the recording keeps room for the track's longest time), checksummed, compressed (zip, level 9)
- * into a block at the heap's top, the recording freed; then a ghost record (NewGhost) with a handle holding the header (revision
- * 17, its sizes and checksums) and the compressed data, the temporary block freed, and the record's track,
- * direction, name, player id and time from the header. *blocks gets the pak blocks it needs. Returns the ghost's
- * handle. */
+ * into a block at the heap's top, the recording freed; then a ghost record (NewGhost) with a handle holding the
+ * header (revision 17, its sizes and checksums) and the compressed data, the temporary block freed, and the record's
+ * track, direction, name, player id and time from the header. *blocks gets the pak blocks it needs. Returns the
+ * ghost's handle. */
 void **CompressGhost(tGhostHeader *header, s8 *blocks) {
     Ghost *ghost;
     void **ghosth;

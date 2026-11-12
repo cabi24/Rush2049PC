@@ -137,7 +137,7 @@ Four things lived in the window when this plan was written (the arenas left it w
 | | What | Who keeps 32-bit addresses of it |
 |---|---|---|
 | the arenas | the game's pointer-free data and BSS, the runtime images' too, at their N64 addresses; since step 5 blocks of host memory | the car record's u32 fields, the level-object nodes and lists (section 2; the sky matrix slots, two palettes and `pc_matrix_spill`'s users were step 4's; all done, so nothing since step 5) |
-| the heap | everything allocated: the loaded files, frame and depth buffers, the audio's memory | the heap's own headers and API (native since step 6); the files' relocated fields and display lists; the road's tree nodes in the car record; the targets' records; MusyX's registries, macro and song pointers and the players' listeners (pointers since step 9); ghosts, palettes; `osVirtualToPhysical` |
+| the heap | everything allocated: the loaded files, frame and depth buffers, the audio's memory | the heap's own headers and API (native since step 6); the files' relocated fields and display lists; the road's tree nodes in the car record; the targets' records; MusyX's registries, macro and song pointers and the players' listeners (pointers since step 9); palettes (step 7), the ghosts' samples (step 11: no address kept); `osVirtualToPhysical` |
 | the image block | the heap block `load_overlay` reserves at 0x8038A400, which holds the runtime images' arenas | nothing since step 6: an offset in the heap (`runtime_image_block`); was the overlay loader's `RUNTIME_IMAGE_*`, `overlay_base` |
 | low memory | libultra's boot parameters at 0x80000300 (`osTvType`, `osMemSize` ...) | `pc_os_initialize`, the aliases |
 
@@ -605,7 +605,12 @@ census's `be.accessors.game`, `lit.reloc.game`, `lit.mask.game` at 0. Depends on
 highest: the renderer's output must stay exact; the texture animation patches lists every frame; mods and the
 high frame rate key on what lists hold.
 
-### Step 11. The rest that holds heap addresses, and the tests' windows (medium)
+### Step 11. The rest that holds heap addresses, and the tests' windows (medium): done
+
+Done 2026-11-11 (wave 3.4): what changed, the crossings before and after, the tests' windows and the proof are section
+16. In short: the ghost header (file data of the file's 88 bytes) no longer keeps its samples' address, it says it
+has them and their owner holds them; the frame records' colour buffer and the once-a-frame table are pointers; the
+asset and audio tests run on host memory, with no window of their own. The plan was:
 
 The holders steps 2-10 don't cover: the ghosts and saves (`GhostUpdate.c`, `GhostStart.c`, `GhostEnd.c`,
 `save/{ctx_newghost,ctx_slot,group,save}.c`, `SaveGhostInLimbo.c`, `PS_ReadPartialFile.c`, `paksysdc`), the car
@@ -1435,6 +1440,132 @@ registries, less `musyx_samples`).
   N64's record sizes from the low 32 bits of the records' addresses (`dcache_create_dirty_lines` is arithmetic on
   the PC: nothing reads memory by them) and the microcode sizes' pointer differences; the speech module's cartridge
   addresses carried in pointers (`dma_queue.c`, `streams.c`; the game never starts speech); the task capture's
-  `pc_n64_addr`, which asks whether a region is in RDRAM to copy its neighbours as the RSP reads them (step 12).
+  `pc_n64_addr`, which asks whether a region is in RDRAM to copy its neighbours as the RSP reads them (step 12;
+  done in step 11: it asks the heap, `pc_heap_holds`).
 - `include/game/types.h`'s `tPadState.listener`, and every view of `gPlayers` at +0x44, hold a listener's number;
   `port/assets/tests/test_input.c` and `test_casts.c` define `gListeners` for it.
+
+## 16. Step 11: the rest that holds heap addresses, and the tests' windows (done 2026-11-11)
+
+Wave 3.4's step 11 (section 15 is step 10's). Three commits: the game's holders, the tests' windows, then the
+documents, the audit's baseline and the scheduler's message `switch` on `intptr_t` (the audit counted the first
+fix's cast through `s32` as a truncation).
+
+| What | Before | After |
+|---|---|---|
+| a ghost header's samples (MAT3 `tSaveHeader.start`; GhostStart, GhostUpdate, GhostEnd, CompressGhost, DecodeGhost, ReadGhostDataInternal, `_ReadGhostHeader`, PurgeGhostData, SaveGhostInLimbo) | the 32-bit window address of the recording's heap block at +0x4C of the header (`PC_N64W` stored in four places, `PC_N64P` read by the replay and CompressGhost: `DATA`, `START`, `MenuData.buffer`, `HeaderStart.f76`) | the header says whether it has them (`hasSamples`, 1 or 0), and their owner holds them: a ghost played back reads its decoded recording, the ghost's data block (`tGhostFile.datah`, which `start` always copied); a race being recorded writes its player's block, `ghost_recordings[4]` in NewGhost.c, found by the header's place in `gRealNewGhostHeaders` (`ghost_recording`): GhostStart allocates it, CompressGhost reads and frees it, GhostEnd forgets an unfinished one (leaking it, as the PC always has) |
+| the ghost header's type | `tGhostHeader` (part of the fields), `GhostSaveHeader` (`gRealNewGhostHeaders`), and views of their own in GhostStart, NewGhost, save/group.c, GhostEnd (`GhostHeader`), GhostUpdate (`ReplayStream`), ghost_files.c (`MenuData`, `HeaderStart`), PlayGame and UpdateGame (a flag's views) | one: `tGhostHeader`, every field the views named (car, transmission, settings, tournament key, best time, frame time), `_Static_assert`ed at 88 bytes |
+| a frame record's colour buffer (`FrameRecord.colorBuffer`) | `uintptr_t` holding the frame buffer's address (a window address); StartGraphics read it through a view of its own | `void *`; StartGraphics reads `FrameRecord` |
+| the once-a-frame functions (`gOPPFuncs`, `HAL_InstallOncePerFrameFunc`) | `intptr_t[10]`, a function passed as an integer (TB_SetTextColor) | MAT3's `void (*[10])(void)` and a function pointer parameter |
+| `HAL_GetTextWidth`'s count of characters | kept in the parameter `str` (a `u8 *`) cast to `intptr_t`, as the N64 reused its register | an `s32` |
+| `RemovePlayerFile` (the pak file records' RemoveFile) | took the handle as a `uintptr_t` (declared in blit.h) | takes the `tPakHandle *`, beside `MovePlayerFile` in save.h |
+| the compiler's other pointer/integer conversions in game C, none an address kept | StartCarSounds' dead store of a field's address and an empty test, `controls_blit` (`void *` given an `intptr_t`), UpdateShots' sound direction passed as an integer, the scheduler's message switched on as `(s32)`, memset's alignment `(unsigned)p & 3`, RemovePlayerScores given a pointer for its integer | gone, typed (`tBlit *`), or cast through `intptr_t`/`uintptr_t` as the value is meant |
+| a profile's id (`pc_n64_identity`, statehash.c) | asked the window first (`pc_n64_addr`, 0 for the handle, which is own storage) | asks the data loader's tables first: the handle's N64 address, as before; a heap pointer still gives its window address (until step 12) |
+| the audio task capture's copy of a region's neighbours (`cap_region`, port/audio/musyx.c) | when the region was in the RDRAM window (`pc_n64_addr`) | when it is in the game's heap (`pc_heap_holds`, port/ultra/heap.c), the RDRAM it meant |
+
+**Why the samples' owner, not an address in the header.** The header is the ghost file's first 88 bytes (its
+checksum covers +4..+0x44), and it lives in heap blocks of the file's size (the pak file's data, a compressed
+ghost's handle, a limbo copy), which can't grow (section 4.3): a pointer can't be put in it. Every reader of the
+address had the ghost too: the replay (GhostUpdate) has the ghost's record, so a ghost played back reads
+`*datah`, the block its `start` was always set from (GhostStart sets it just before the race, after InitWaves'
+compaction, the heap's last; nothing moves a block during a race); a recording is one of the four headers
+`gRealNewGhostHeaders`, so its block is kept by that index. `start` was 0 in every file the game writes
+(CompressGhost clears it before the save, SaveGhostInLimbo in its copy, the readers on every read), so the
+`.r49ghost` and pak files are byte for byte the base's. One case reads differently: a ghost that fails to read in
+GhostStart makes the N64's loop skip the next one (it advances past the ghost moved into the failed one's place),
+which then races with the `start` it had from the car select; if the heap had been compacted in between (PrePlay's
+InitWaves), the N64 read where the block had been and the PC now reads the block. It needs a pak pulled between the
+car select and the race.
+
+**The tests' windows.** port/assets/tests/support.c mapped an RDRAM window at 0x80000000 (`test_rdram`,
+`MAP_FIXED_NOREPLACE`; a test skipped, exit 77, where it couldn't) and the tests placed game data at its N64 address
+in it (`TEST_ABS` with absfix.c's GOT fix-up), because the game code they run kept 32-bit window addresses; none does
+now but the display lists' (step 10's). The tests' memory is one host block (`test_memory`, 64 KiB aligned), the game
+heap's stand-in gives it from `TEST_HEAP_OFFSET` (the heap's offset in the N64's RDRAM, so the heap's size and
+alignment are the N64's), and port/ultra/heap.c's reports number it as the N64 numbers RDRAM (support.c's
+`pc_n64_ptr`/`pc_n64_addr`, by offset, nothing mapped). `TEST_ABS`, `TEST_AT`, `TEST_N64_*`, `TEST_SCRATCH` and
+`pc_fix_absolute_got` are gone, and the asset tests and assetcheck don't link absfix.c. Each test: `assets_battle`,
+`assets_targets`, `assets_weapons` keep the heap's blocks in arrays of their own (pointers, not 32-bit addresses);
+`assets_cars` and `assets_targets` define `gCheckpoints`, `gCarParts`, `gTune`, `stdtorquecurve`, `frontTire` and
+`BBoxCollInfo` as storage of include/game's sizes; `assets_save` and `assets_heap` make `osMemSize` a variable and
+check the heap's blocks at the N64's offsets in the tests' memory (heap.c's reports still in N64 numbers);
+`assets_casts`, `assets_endian`, `assets_input`, `assets_road`, `assets_windows`, `assets_zoid`, `assets_mods` and
+assetcheck use the tests' memory or storage of their own, and their parts that a missing window skipped always run.
+The audio tests' fake RDRAM is a fake heap (`test_heap`, `heap_alloc`; `pc_heap_holds`).
+
+What keeps a window in the tests, by the census (`tests.window` 57 to 30): step 10's WAD tests (`wad_game.c`'s own
+window, 8 lines, and `test_wad.c`'s relocated word, 2), the renderer's tests of its N64 addresses (`gfx_test.c`,
+`interp_test.c`, `tex_test.c`: fake RDRAM for `rdram()` and the 4 GiB rule, 14, which go with steps 10 and 12), the
+prelude's `PC_N64W` check (`test_casts.c`, 1: the macro goes with step 12), the `game.memory` setting's range
+(`test_frontend.c`, `PC_RDRAM_MAX`, 2), and three test patterns the census reads as addresses (`test_save.c`'s
+0x9ABCDEF0 twice, `test_zoid.c`'s colour 0xAABBCCDD).
+
+**The crossings** (`crossings.py --guard`, the 64 synthetic paths; 90979a43 before, the step after):
+
+| Kind | Sites before | Crossings before | Sites after | Crossings after | What went |
+|---|---:|---:|---:|---:|---|
+| `PC_N64P` | 7 | 21,123 | 0 | 0 | the replay's recording writes (`GhostUpdate.c` 79, 85, 86: 7,035 each), CompressGhost's reads and the free (`NewGhost.c` 99, 101, 102, 142: 18) |
+| `PC_N64W` | 1 | 3 | 0 | 0 | the recording's block (`GhostStart.c:120`) |
+| `pc_n64_addr` | 1 | 4 | 0 | 0 | `n64_identity` (statehash.c:444, `host`: the profiles' handles) |
+| `PC_N64A` | 1 | 8,655 | 1 | 8,655 | none: `waves.c:93`, the display lists' relocation (step 10) |
+| `pc_n64_ptr` | 4 | 13,503,358 | 4 | 13,503,358 | none: `mirror_vertex_texcoords` (step 10), the renderer's `rdram` and `pcgfx_resolve` (steps 10, 12), `pc_os_initialize`'s boot parameters in low memory (step 12) |
+| `gfx.rom_list`, `gfx.native_list` | 6 | 13,486,542 | 6 | 13,486,542 | none (step 10, 12) |
+| total | 20 | 27,019,685 | 11 | 26,998,555 | 9 sites, 21,130 crossings |
+
+`PC_N64P`, `PC_N64W` and `pc_n64_addr` have no site left on these paths, and no game file uses `PC_N64P` or
+`PC_N64W` (census `conv.PC_N64P.game`, `conv.PC_N64W.game` 0). `--check --no-faults --zero-site` passes for every
+file the step touched (`GhostUpdate.c`, `src/blob/groups/save/`, `GhostEnd.c`, `save_limbo/`, statehash.c,
+StartGraphics.c, `hal_time/`, `HAL_CallOncePerFrameFuncs.c`, `HAL_GetTextWidth.c`, `RemovePlayerFile.c`,
+port/audio/musyx.c) and for the plan's other files (`PS_ReadPartialFile.c`, `paksysdc/`, `hud_animTrackMap.c`,
+`hal_text/`, `updatePauseScreen.c`, `zlib_deflate/`, `TB_TextOncePerFrame.c`, `hud_icons/`: steps 6 and 7 had
+taken what they held); the control, `waves.c`, fails. The guard: 0 faults at 0 instructions before and after. The
+playback of a ghost makes no crossing on the synthetic paths (they record ghosts and save them; none races one):
+the comparison below covers it.
+
+**The census** (`window_census.py`, Debug, with the compiler pass; 90979a43's tree before): `conv.PC_N64W.game` 4
+to 0 (`conv.PC_N64P.game` was 0 already), `conv.file_macros.defs` and `uses` 4 and 16 to 2 and 1 (`DATA`, `START`
+gone; left: step 10's `FRAME_IMAGE_IN_LIST` and `DL_AT`), `conv.pc_n64_ptr.port` 18 to 17 (the capture),
+`conv.cc.ptr_to_int` 9 to 6 (left: hardware.c's bookkeeping, below), `conv.cc.implicit` 10 to 0,
+`fields.u32_address` 2 to 0, `tests.window` 57 to 30, `text.window.game` 65 to 61; every other line the same
+(`conv.silent.trunc` 4).
+
+**The proof.**
+
+| Check | Result |
+|---|---|
+| `pconly_gate.sh --base ~/rush2049pc/w3d-ref --skip realtime --data-moved` (Rocky, Debug, against 90979a43) | PASS: ctest 575 of 575, synth_compare `--same --shots --audio` 64 of 64 `same` (`membig` varied once, the step's own two runs a last audio subframe apart at the exit, PCONLY.md 2's known variation; alone `same`) |
+| RelWithDebInfo against the base's RelWithDebInfo (`synth_compare.py --same --shots --audio --data-moved -j6`) | 64 of 64 `same` (`mods_colour` varied once in the base's own two runs, the same way; alone `same`) |
+| `ctest --test-dir build/opt -LE realtime` | 575 of 575 (`assets_rom` skipped: no ROM on Rocky) |
+| `pak_realtime` (alone, under `flock ~/rush2049pc/.realtime.lock`) | pass |
+| the ghost played back, which no synthetic path does: saves_check.py's `game` and `race` scenarios (a profile made, read back, deleted; a ghost recorded, saved and raced after a restart; an imported ghost raced), run with the base and the step, each in its own data folder, with `--log-physics 10` | every run's state lines and every car's model state every 10 retraces the same (the ghost's car included), and the notes on disk (`.r49save`, `.r49ghost`, past the PC header that names the writer) byte for byte |
+| the ghost and pak paths (`ghost`, `ghost_off`, `ghost_prompt`, `pak`, `pak4p`, `profile`) | `same` (in the gate, and alone first) |
+| the counting build (`crossings.py --guard`, then `--check --no-faults --zero-site` for the step's files) | above: 0 faults; the zero checks pass, the control fails |
+| `offset_check.py --strict` (Debug) | no open finding (3 reviewed, as before) |
+| `alias_check.py`, `bounds_check.py` (RelWithDebInfo) | none open; none new |
+| `census.py` | 1,067 of 1,067 compile |
+| `nofixed_audit.py --baseline` | no class grew; the baseline lowered for the classes the step moved: `src.n64w` 4 and `src.def.translate` 2 to 0 (gone), `port.translate` 23 to 22, and the tests' `port.lit.tests` 13 to 3, `port.mapping.tests` 12 to 2, `port.rdram_base.tests` 31 to 18, `port.translate.tests` 43 to 42, `port.trunc.tests` 6 to 1, `port.zext.tests` 19 to 11 (measured on the base's tree and the step's, `--no-compile`); the compiler's classes left for CI's GCC 13 |
+| `proto_check.py` | harmful 0; its two reviewed entries for DecodeGhost's window addresses dropped (they matched nothing) |
+| the moved build (`-DRUSH_NOFIXED=ON`, Debug): CI's subset (`ultra_selftest.*`, `pc_data_*`, `synth_.*`) and against the fixed build (`synth_compare.py --runs 1 --same`) | builds; 94 of 94; 64 of 64 `same` |
+| the data loader's tables | `data_layout.json` the base's; `data.c` the base's but the comments' type names and two runs of BSS own storage, `gOPPFuncs` (an integer, now a pointer) and `frame_records`' colour buffer (the same) |
+| the last code change (the scheduler's `switch` on `intptr_t`, after the audit counted the cast to `s32` as a truncation), Debug and RelWithDebInfo against the base again, ctest | Debug 64 of 64 `same`, RelWithDebInfo 64 of 64 `same` (`--same --shots --audio --data-moved`), ctest 575 of 575, the audit with the lowered baseline: no class grew |
+
+**What this changes for later steps.**
+
+- **`PC_N64P` and `PC_N64W` have no user in game C**, and `PC_SLOT_*` went with step 6: step 12 can drop them from the
+  prelude with RUSH_CHECK_CASTS (`port/ultra/castcheck.c`, `test_casts.c`'s check); what is left of the translations
+  is step 10's (`PC_N64A` in waves.c and TextureAnimation.c, `DL_AT`, `mirror_vertex_texcoords`).
+- **Low memory is step 12's**: `pc_os_initialize` writes libultra's boot parameters into the window's low memory
+  (`pc_n64_ptr(N64_BOOT_PARAMS)`, the counter's `low_memory` 128), where `osTvType` and `osMemSize` are absolute names
+  (aliases.ld). Ordinary variables need the retail cartridge's 28 pointers into low memory looked at first (section
+  11's report): the lead's loader report on the Pi.
+- **The tests' memory is not a window**: the WAD tests (step 10's) are the only ones with a mapping at 0x80000000
+  (`wad_game.c`'s own, for SetupWaveModel's `PC_N64A`); when step 10 makes the lists native they can use
+  `test_memory()`. port/ultra/heap.c's reports and support.c's `pc_n64_ptr`/`pc_n64_addr` number the tests' memory as
+  RDRAM until step 12 takes the window and those numbers away.
+- **The state hash meets no new pointer in the heap**: the ghost headers hold a flag where they held a window address,
+  and the recordings table is the PC's own storage, which the hash doesn't walk. `gOPPFuncs` and
+  `FrameRecord.colorBuffer` are pointers to the hash now (a function, a heap pointer), integers before.
+- **Left in the sound** (not an address kept, nothing reads memory by them): hardware.c's D-cache bookkeeping, which
+  counts the N64's record sizes from the low 32 bits of the lists' addresses (`dcache_create_dirty_lines` is a loop
+  that advances a counter on the PC; its cursor follows the end, so a list across a 4 GiB boundary can't make it
+  spin), and the microcode sizes' 32-bit difference in `sound_hw_submit_task`.

@@ -233,7 +233,8 @@ and unread byte pads.
   converted world WAD (TOC big-endian or already native, with or without a WOBJ entry); `InitSTree` and
   `ResetCollisionObject`; `ReadCheckpointData`, `ReadPathData`, `NextResPathPt`, `NextPathPt` and
   `PrevPathPt`. Test files name the game sources they link on ` * game: ` lines (CMakeLists.txt compiles them
-  with `game_flags`); `test_rdram()` maps the RDRAM window so the files hold window addresses as heap blocks do.
+  with `game_flags`); their heap blocks are the tests' memory (`test_memory()`, a host block: until
+  [NATIVE.md](NATIVE.md) step 11 an RDRAM window the tests mapped, so the files held window addresses).
   Since 2026-11-09 (NATIVE.md step 8) `assets_text`, `assets_world` and `assets_path` also check the records each
   converter builds beside its file (`port/assets/records.c`: the text bank's tables kept where they are across a
   language switch, the world's names and target groups, the paths' headers, and each record going with its block),

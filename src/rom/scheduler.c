@@ -169,7 +169,7 @@ void __scMain(void *arg) {
  OSScClient *client;
  while(1) {
   osRecvMesg(&scheduler->cmdQueue,&message,OS_MESG_BLOCK);
-  switch((s32)(intptr_t)message) {   /* the message is a number in a pointer, as libultra's are */
+  switch((intptr_t)message) {   /* the message is a number in a pointer (an event's number above), as libultra's are */
    case VIDEO_MSG:
     __osScFrameTime=osGetTime();
     __scHandleRetrace(scheduler);
