@@ -137,7 +137,7 @@ Four things lived in the window when this plan was written (the arenas left it w
 | | What | Who keeps 32-bit addresses of it |
 |---|---|---|
 | the arenas | the game's pointer-free data and BSS, the runtime images' too, at their N64 addresses; since step 5 blocks of host memory | the car record's u32 fields, the level-object nodes and lists (section 2; the sky matrix slots, two palettes and `pc_matrix_spill`'s users were step 4's; all done, so nothing since step 5) |
-| the heap | everything allocated: the loaded files, frame and depth buffers, the audio's memory | the heap's own headers and API (native since step 6); the files' relocated fields and display lists; the road's tree nodes in the car record; the targets' records; MusyX's registries, macro and song pointers and the players' listeners (pointers since step 9); ghosts, palettes; `osVirtualToPhysical` |
+| the heap | everything allocated: the loaded files, frame and depth buffers, the audio's memory | the heap's own headers and API (native since step 6); the files' relocated fields and display lists (native beside the file since steps 7, 8 and 10); the road's tree nodes in the car record; the targets' records; MusyX's registries, macro and song pointers and the players' listeners (pointers since step 9); ghosts, palettes; `osVirtualToPhysical` |
 | the image block | the heap block `load_overlay` reserves at 0x8038A400, which holds the runtime images' arenas | nothing since step 6: an offset in the heap (`runtime_image_block`); was the overlay loader's `RUNTIME_IMAGE_*`, `overlay_base` |
 | low memory | libultra's boot parameters at 0x80000300 (`osTvType`, `osMemSize` ...) | `pc_os_initialize`, the aliases |
 
@@ -592,7 +592,13 @@ gate with `--audio` byte for byte; the retail cartridge's music (the synthetic c
 audio captures on the Pi, base against step); `assets_musyx`, the audio tests. Depends on: 6 (the audio heap's
 allocations). Can run with 7 and 8. Risk: the largest library with the least synthetic coverage.
 
-### Step 10. Display lists native (large)
+### Step 10. Display lists native (large): done
+
+Done 2026-11-11 (wave 3.4): what changed, the crossings before and after, the proof and what it changes for the later
+steps are section 15. In short: the WAD converter builds a file's display lists beside it when it loads, command for
+command in the PC's form (`Gfx`, w1 a host pointer where it carries an address), and the vertices they load in the
+host's byte order; the game's walkers and the renderer read only those; nothing relocates a list, and the renderer's
+N64-form list path is gone. The plan was:
 
 4.4's display lists: `port/assets/wad.c` (the lists converted, the vertices swapped), the walkers
 (`relocate_model_dl.c`, `relocate_texture_loads.c`, `display_list_traverse.c`, `flip_triangle_winding.c`,
@@ -776,7 +782,7 @@ The retail cartridge (the lead, on the Pi; the counts stay there): build the cou
 | `pc_statll_link`, `pc_statll_set_link` | a StatLL list's link, when the list is in its N64-linked form | the list function's line |
 | `pc_n64_ptr`, `pc_n64_addr` | port/ultra's translations | the caller |
 | `osVirtualToPhysical` | the colour and depth images' addresses | the caller |
-| `gfx.rom_list`, `gfx.native_list` | a value below 4 GiB the renderer takes for an N64 address (`pcgfx_resolve`, `pcgfx_segment_value`), by the form of the list the command came from: a ROM list (N64 form, big-endian) or a native one. Host pointers aren't counted | the caller (`dl_at`, `movemem`, the VTX case, `pcgfx_rdp_command`'s image commands, `pc_gfx_present`'s frame) |
+| `gfx.rom_list`, `gfx.native_list` | a value below 4 GiB the renderer takes for an N64 address (`pcgfx_resolve`, `pcgfx_segment_value`), by the form of the list the command came from: a ROM list (N64 form, big-endian) or a native one; since step 10 every list is native, and `gfx.rom_list` stays at 0. Host pointers aren't counted | the caller (`dl_at`, `movemem`, the VTX case, `pcgfx_rdp_command`'s image commands, `pc_gfx_present`'s frame) |
 | `audio.n64ptr` | every N64 address the audio interpreter reads (`n64ptr`): an N64-form record's decoder, or `resolve` for a native field (null pointers aren't counted) | the caller |
 | `audio.field` | `resolve`'s share of those: a native record's pointer field holding an N64 address | the record's reader |
 
@@ -788,7 +794,7 @@ KSEG1), `phys`, `segmented`, `other`, `null`, `host` (a pointer above 4 GiB). Fo
 names the data (the loader's name for the first address in each region; offsets left out).
 
 Not counted: the loader's and the asset converters' own decoding of the ROM's addresses (they are where N64
-addresses belong); `pc_rcp_reloc` and `pc_rdram_k0_high` (`rcpaddr.c`, the display lists' relocation: step 10's,
+addresses belong); `pc_rcp_reloc` and `pc_rdram_k0_high` (`rcpaddr.c`, the display lists' relocation, gone with step 10,
 `lit.reloc` in the census); the PC layer's own `pc_rdram() + offset` arithmetic (`port.rdram_base`); `pc_n64_identity`
 (the state hash's ids). And whatever builds an address with integer arithmetic and no macro: the guard sees those
 once step 5 has emptied the arenas' range.
@@ -1438,3 +1444,108 @@ registries, less `musyx_samples`).
   `pc_n64_addr`, which asks whether a region is in RDRAM to copy its neighbours as the RSP reads them (step 12).
 - `include/game/types.h`'s `tPadState.listener`, and every view of `gPlayers` at +0x44, hold a listener's number;
   `port/assets/tests/test_input.c` and `test_casts.c` define `gListeners` for it.
+
+
+## 15. Step 10: display lists native (done 2026-11-11)
+
+Wave 3.4's step 10: the files' display lists, which the N64 relocated in place and the renderer read in the N64's form,
+are built again by the WAD converter when the file loads, in the PC's own form with host pointers, and the vertices
+they load beside them in the host's byte order; the game's walkers and the renderer read only those. Three commits:
+the lists and their readers; the walkers' care for a list the converter couldn't build, the synthetic cartridge's
+`--lists` and the tools' stale rules; the documents and the audit's baseline.
+
+| What | Before | After |
+|---|---|---|
+| a WAD's display lists (`port/assets/wad.c`) | in the file, N64 form (8-byte big-endian commands), each address an offset the game made a 32-bit address in place: `relocate_model_dl` (each model's levels, by the file's N64 address) and `relocate_texture_loads` (TXLD, by IMAG's), `(w1 + base) & 0xFFFFFF \| segment` (`pc_rcp_reloc`, the K0 address past 16 MiB) | built beside the file when it loads, command for command in the PC's form (`PcGfxWords`, the game's `Gfx`): w0 the file's, w1 a host pointer in the commands that carry an address (VTX, G_DL, G_RDPHALF_1 before G_BRANCH_Z, MTX, MOVEMEM, LOAD_UCODE, SETxIMG; a LOD marker's section end) and the value in the rest ([ASSETS.md](ASSETS.md) 3.2). Every command a walk of the file reaches is built, in the file's order; one G_ENDDL after the last. The N64's relocation is played on the file's offsets to know each address's origin (the file's or IMAG's): w1 points at `(origin + w1) & 0xFFFFFF` in the file, where the renderer read the relocated word; a word the N64 made an address not exactly once pointed into no file, and is NULL, said (`display lists:`). The file keeps its bytes |
+| the vertices | the file's, big-endian, which the renderer read by their range and `mirror_vertex_texcoords` changed in place through `pc_n64_ptr` | the runs the VTX commands load and `mirror_vertex_texcoords` walks, copied beside the file in the host's byte order, each run of the file in one piece with 16 zero bytes after it; registered as model data (`pc_mem_register_model_data`, `port/ultra/memory.c`) |
+| the records' pointers | a level's `displayList` (`unsigned int *`) and a listed texture's `texBase`: the lists in the file | the converter's lists (`union Gfx *`, `texBase` a `Gfx *` for a listed texture) |
+| `SetupWaveModel` (`waves.c`) | `relocate_texture_loads(…, PC_N64A(IMAG))`, `relocate_model_dl(dl, PC_N64A(file), -1, mirrored, keep)` | `relocate_model_dl(dl, mirrored, keep)`: the race's part only (a LOD marker whose bit isn't kept becomes `DE010000` to the list its w1 names; the first VTX's vertex pass); no N64 address |
+| the game's walkers | big-endian accessors (`DLW`, `DLW_SET`, `DL_AT`, `pc_be16/32_get/set`), N64 address rules (`SEGMENTED`, `pc_rdram_k0_high`, `addr += 0x80000000`, `\| 0x80000000`), a callback stepping by words | `Gfx` and `Vtx` as they are: `display_list_traverse` (its callback steps by commands), `flip_triangle_winding`, `mirror_vertex_texcoords`, `displaylist_get_texture_image` (a pointer: NULL where the N64 returned garbage), `displaylist_set_texture_image`, `displaylist_set_tile_size` |
+| the texture animation | a frame's image as the list's N64 word (`FRAME_IMAGE_IN_LIST`: `PC_N64A` of a texel frame's pointer); the TLUT colours written with `pc_be16_set` | images are pointers, moved as they are; the colours written with `pc_tlut_set` (the files' texel format: the prelude's `pc_tlut_get`/`pc_tlut_set` replace its big-endian accessors), as is the car paint's copy (`SetupCarColor.c`) |
+| `relocate_texture_loads`, `port/ultra/rcpaddr.c` (`pc_rcp_reloc`, `pc_rdram_k0_high`), scene.h's `DLW`/`DLW_SET`/`DL_AT`, `rom_tu.h`'s `K0_TO_PHYS`/`K1_TO_PHYS`, the self-test's "RCP addresses" | | gone |
+| the renderer (`gfx_rsp.c`) | two list forms, told apart by `pcgfx_is_be(list)` at the task's start and every list entered; vertices read big-endian in a big-endian range; the high frame rate's static vertices told by that range | one form: `GfxDlPtr` is a `const PcGfxWords *`; vertices in the host's byte order; the recorder asks `pc_mem_is_model_data` (only while it records). MTX and MOVEMEM data, texels and TLUTs are still read by their range. The counter's `gfx.rom_list` stays at 0 |
+| `check.c`, `rushmods.py` | | a listed texture's load list must be 8-aligned (the converter builds lists by 8-byte commands) |
+
+**The crossings** (`crossings.py --guard`, the 64 synthetic paths; 90979a43 before, the step after):
+
+| Kind | Sites before | Crossings before | Sites after | Crossings after | What went |
+|---|---:|---:|---:|---:|---|
+| `PC_N64A` | 1 | 8,655 | 0 | 0 | `waves.c:93`, the file's N64 address for the lists' relocation, once a wave |
+| `pc_n64_ptr` | 4 | 13,503,358 | 2 | 978,693 | the renderer's `rdram` (6,760,217: the ROM lists' relocated physical VTX addresses), `pcgfx_resolve`'s share of the ROM lists (5,747,760: the game's G_DL to a list in the heap, `dl_at`, and the VTX case's K0 addresses past 16 MiB), `mirror_vertex_texcoords` (16,688) |
+| `gfx.rom_list` | 1 | 7,103,807 | 0 | 0 | all (the VTX case: physical 6,760,217, heap 343,590) |
+| `gfx.native_list` | 5 | 6,382,735 | 4 | 978,565 | `dl_at` (5,404,170: the game's `gSPDisplayList` of a level's or a texture's list in the file) |
+| the other ten kinds | 9 | 21,130 | 9 | 21,130 | none |
+| total | 20 | 27,019,685 | 15 | 1,978,388 | 5 sites, 25,041,297 crossings |
+
+What the renderer still takes for an N64 address is the heap's blocks the game names by pointer while the heap is the
+window: a file's texels in its texture loads (`pcgfx_rdp_command`'s SETTIMG, 565,209), the depth and colour images
+(SETZIMG 103,371, SETCIMG 206,742) and the frame `pc_gfx_present` shows (103,243): step 12's. The guard
+(`RUSH2049_WINDOW_GUARD=arenas,count`) found 0 faults at 0 instructions, before and after. `--check --no-faults
+--zero-kind gfx.rom_list,PC_N64A` passes, and `--zero-site` for `relocate_model_dl.c`, `display_list_traverse.c`,
+`flip_triangle_winding.c`, `mirror_vertex_texcoords.c`, `MirrorWaveInstance.c`, the `displaylist_*` helpers,
+`TextureAnimation.c`, `InitTextureAnimation.c`, `waves.c`, `SetupCarColor.c`, `port/assets/wad.c`, the renderer's
+`rdram` and `dl_at`; the control, `pcgfx_resolve`, fails.
+
+**The census** (`window_census.py`, Debug, with the compiler pass; 90979a43's build before): the step's three targets
+at 0, `be.accessors.game` 7 to 0 (scene.h's `DLW`/`DLW_SET`, `mirror_vertex_texcoords`, the texture animation's and
+the car paint's TLUT accessors, now `pc_tlut_get`/`pc_tlut_set`), `lit.mask.game` 6 to 0 (`display_list_traverse`,
+`relocate_model_dl`, `rom_tu.h`'s unused `K0_TO_PHYS`/`K1_TO_PHYS`), `lit.reloc.game` 6 to 0 (`pc_rcp_reloc`,
+`pc_rdram_k0_high`); and `conv.PC_N64A.game` 2 to 0, `conv.pc_n64_ptr.game` 2 to 0 (`DL_AT`, `mirror_vertex_texcoords`),
+`conv.file_macros.defs` and `uses` 4 and 16 to 2 and 15, `conv.silent.trunc` 4 to 3 and `zext` 16 to 15 (the texture
+animation's frame images), `api.u32_address` 4 to 1 (left: a sound helper's, `sound_hw_fetch_sample_range`, a
+cartridge address), `lit.address.game` 4 to 1 (the walkers' K0 base; left: `rom_tu.h`'s `K0BASE`),
+`n64map.uses.port` 116 to 105, `port.rdram_base` 46 to 44,
+`tests.window` 57 to 49 (`assets_wad_game` needs no window), `be.ranges` 38 to 35, `text.window.game` 65 to 57.
+
+**The proof** (Rocky, x86-64, GCC 14; the base is 90979a43's builds in `~/rush2049pc/w3d-ref`):
+
+| Check | Result |
+|---|---|
+| `pconly_gate.sh --base ~/rush2049pc/w3d-ref --skip realtime --data-moved` (Debug, the step's first commit) | PASS: ctest 575 of 575 (`assets_rom` skipped: no ROM on Rocky), synth_compare `--same --shots --audio` 64 of 64 `same` |
+| the final tree against the base (Debug): `drive`, `race2p`, `circuit`, `detail_high`, `memhigh`, `mods_texture`, `demo` | `same` |
+| RelWithDebInfo against the base's RelWithDebInfo (`synth_compare.py --same --shots --audio --data-moved -j6`) | 64 of 64 `same` (a first run beside the moved build's had `mods_off` vary, the base's own two runs apart in the exit's audio, PCONLY.md 2's known variation, and one more path vary; run again, 64 of 64) |
+| `ctest --test-dir build/opt -LE realtime` | 575 of 575 (`assets_rom` skipped) |
+| the high frame rate's realtime tests (`hfr_*`, alone under `flock ~/rush2049pc/.realtime.lock`) | Debug 7 of 7; RelWithDebInfo 7 of 7 |
+| the `--lists` cartridge (`synth_rom.py --lists`: every model's list calls a TXLD state list with an IMAG-relative G_SETTIMG, goes through a G_BRANCH_Z and holds LOD markers), base against step, Debug, `--same --shots --audio --data-moved` | 64 of 64 `same`; the default cartridge `synth_rom.py` makes is the base's file, byte for byte |
+| `rush2049pc_assetcheck` on the synthetic cartridges (default and `--lists`): the native lists against `wad_lists_check.h`'s replay of the N64's relocation, every WAD | no list unlike the N64's, no `display lists:` message (82 WADs and 19 worlds each; the only failures the waves 69-75 no code loads, which the synthetic cartridge leaves empty) |
+| `assets_mods`: every mutated WAD `check.c` passes (2,017 of 3,000 car WADs, 1,985 track WADs, 1,388 worlds) through the converter and the replay | 0 unlike the N64's, 0 converters refusing or cutting |
+| the moved build (`-DRUSH_NOFIXED=ON`, Debug): CI's subset (`ultra_selftest.*`, `pc_data_rom`, `pc_data_synthetic`, `synth_.*`), and against the fixed build (`synth_compare.py --runs 1 --same`) | builds; 94 of 94; 64 of 64 `same` |
+| the counting build (`crossings.py --guard --check --no-faults --zero-kind gfx.rom_list,PC_N64A` and the `--zero-site` checks above) | pass |
+| `offset_check.py --strict` (Debug) | no open finding (3 reviewed, as before) |
+| `alias_check.py`, `bounds_check.py` (RelWithDebInfo) | none open; none new |
+| `census.py` | 1,065 of 1,065 compile (`relocate_texture_loads.c` and `rcpaddr.c` gone) |
+| `nofixed_audit.py --baseline` | no class grew; the baseline lowered for the classes this step moved: `port.rdram_base` 48 to 46, `.tests` 31 to 24, `port.translate.tests` 43 to 21, `port.zext.tests` 19 to 16, `port.mapping.tests` 12 to 11 (the WAD tests' windows and `rcpaddr.c`), `src.lit.annotation` 2 to 1, `src.lit.code.address` 4 to 1, `src.trunc` 4 to 3, `src.zext` 16 to 15 (the walkers' K0 rules, the texture animation's frame images); the compiler's classes (`cc.*`) left as they were, for CI's GCC 13 |
+| `assets_wad`, `assets_wad_game`, `assets_mods`, `mods_tool`, `gfx.bedata`, `gfx.window.*`, `gfx.interp.*`, `hash_aslr` | pass |
+
+**On the retail cartridge** (the lead's, on the Pi): first `rush2049pc_assetcheck` (`assets_rom`), which runs every
+WAD's native lists against the replay of the N64's relocation and fails on any `display lists:` message; then the
+screenshots (`--shots`), base against step, where the lists the synthetic cartridge lacks are drawn: every track
+forward and backward (the LOD markers' sections), one and two players (the player-count sections), mirrored (the
+winding flip and the mirrored texture coordinates, which no synthetic path reaches), the tracks with texture
+animations (traffic lights, lamp chasers, scrolls and flipbooks: the load lists' SETTIMG and SETTILESIZE patched each
+frame), track 5 at night (the Expansion Pak's), the track select's map (its own lists in a model's first level), the
+attract demo, battle and stunt arenas, the cars' models, and a mod's texture pack (`mods_texture`), with
+`video.frame_rate` 120 for the high frame rate's pairing of the models' transforms.
+
+**What this changes for the later steps.**
+
+- **Step 12 meets no display list.** The lists and vertices the game draws hold host pointers wherever their file lies;
+  what the renderer still takes for an N64 address is the heap's own blocks, named by pointer (a file's texels and
+  TLUTs in the game's texture loads, the depth and colour images, the frame shown): they become host pointers when
+  the heap leaves the window, with no change to any list. The renderer's physical rule (`rdram`, `pcgfx_resolve`'s
+  past-16-MiB case) and `pcgfx_segment_value` then serve nothing the game makes: step 12 can drop them with the 4 GiB
+  rule. `pcgfx_is_be` is left for data only (a file's matrices, texels and TLUTs).
+- **The texels and TLUTs** are the last of a file's bytes the renderer reads in the N64's order (by
+  `pc_mem_register_be`'s range); the game reads and writes the colours in that format through `pc_tlut_get` and
+  `pc_tlut_set` only. Step 14 can narrow the big-endian ranges to them: no list or vertex is in one any more.
+- **The native lists and vertices are in no hashed region**, as the WAD's records (section 13): the state hash never
+  saw the lists' relocated words as anything but heap bytes, and a texture animation's pointer into a list (the
+  scrolls' `PaletteLists` rows) lies in the loader's own copy of those tables, which the hash doesn't walk either.
+  `hash_aslr` passes.
+- **A file whose lists the N64 relocated badly** (a level's list reached twice, a G_DL in a texture's load list, a
+  marker's section end outside the file) gets NULL where the N64's word pointed nowhere, and the converter says so;
+  `relocate_model_dl`, `display_list_traverse` and the renderer skip a NULL. The retail cartridge's lists must have
+  none (`rush2049pc_assetcheck`: the lead's run on the Pi), and `assets_mods` shows that every mod file `check.c`
+  passes converts to exactly what the N64's relocation makes of it.
+- **The names**: `relocate_model_dl` relocates nothing any more (it keeps the race's sections and prepares the
+  vertices for a mirrored track); a rename (`prepare_model_dl`, through `tools/port/names`) is left to the lead.

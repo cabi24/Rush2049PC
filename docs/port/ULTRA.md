@@ -16,8 +16,7 @@ owns `main()`. About 3,300 lines of C11.
 | `pi.c` | ROM loading and SHA-1, PI DMA, `osPiReadIo`, inflate (zlib) and the boot LZSS |
 | `si.c` | the PIF: controller status and buttons, each controller's accessory: a controller pak (`.mpk`), a rumble pak, hot swaps |
 | `pakfile.c`, `pakwrite.c` | the controller pak's file: a blank image, what an image is, the atomic write; the thread that writes the paks |
-| `memory.c` | the RDRAM window (its size: `game.memory`), `pc_n64_ptr`/`pc_n64_addr`, big-endian ranges, the absolute-symbol fix-up |
-| `rcpaddr.c` | addresses past 16 MiB of a larger window: the display lists' relocation ([MEMORY.md](MEMORY.md) 3) |
+| `memory.c` | the RDRAM window (its size: `game.memory`), `pc_n64_ptr`/`pc_n64_addr`, the big-endian ranges and the models' vertices' ranges (model data), the absolute-symbol fix-up |
 | `heap.c` | the game heap's high-water marks and fallbacks, the exit line ([MEMORY.md](MEMORY.md) 4) |
 | `crossings.c` | only in the counting build (`cmake -DRUSH_COUNT_CROSSINGS=ON`): every crossing between an N64 address and a host pointer counted by site, and the arena guard (`RUSH2049_WINDOW_GUARD=arenas`) ([NATIVE.md](NATIVE.md) 9) |
 | `misc.c` | `osInitialize` and the low-memory globals, cache/TLB/interrupt no-ops, faults, stubs |

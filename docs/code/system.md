@@ -188,13 +188,14 @@ same input.
 
 - **The heap** is native since [NATIVE.md](../port/NATIVE.md) step 6 (its headers, its interface and the image block),
   but its memory is still the N64's place in the RDRAM window (`pc_heap_memory`) until step 12, and what the game
-  keeps in its blocks may still hold 32-bit addresses (a ghost header's start: step 11; the display lists' relocated
-  words: step 10). The WAD's records and the font's letters are native beside the file since step 7. Every heap file
-  still declares its own `osRecvMesg`/`osSendMesg` and views `heap_lock_queue` its own way.
-- **The WADs' display lists and texture loads** stay in the N64's form: big-endian commands with 32-bit addresses
-  (`relocate_model_dl`, `relocate_texture_loads`, `display_list_traverse`, `mirror_vertex_texcoords` read them through
-  `pc_be32_get` ...), relocated with the N64 addresses of the file and its IMAG chunk (NATIVE.md step 10). Their
-  records are native (step 7).
+  keeps in its blocks may still hold 32-bit addresses (a ghost header's start: step 11). The WAD's records and the
+  font's letters are native beside the file since step 7, its display lists since step 10. Every heap file still
+  declares its own `osRecvMesg`/`osSendMesg` and views `heap_lock_queue` its own way.
+- **The WADs' display lists and texture loads** are native beside the file since NATIVE.md step 10: the WAD converter
+  builds them command for command in the PC's form (`Gfx`, w1 a host pointer where it carries an address) and the
+  vertices they load in the host's byte order; `relocate_model_dl` keeps the race's sections, and
+  `display_list_traverse`, `mirror_vertex_texcoords` and the texture animation read and write them as they are. The
+  texels and the palettes' colours stay in the file in the N64's formats.
 - **The frame**: `frame_records`' tasks are `PcScTaskShape`, the N64 OSScTask in host form; the frame buffers and
   the z-buffer are pointers into the heap (`framebuffer_a`, `zbuffer`), still in the window; `frame_color_buffers`
   is a label 0xC8 bytes into `frame_records`.

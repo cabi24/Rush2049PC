@@ -56,14 +56,15 @@ game C is now proven by running the game (PCONLY.md 2).
     `s32` cursor with `+ 8`, have PC versions with host `Gfx`;
   - overlay A's track-map lists (5 commands a section plus 7) are sized in host bytes (`MAP_DL_*_BYTES`).
   `sizeof(Gfx)`, `gfx++` and `p - q` arithmetic needed nothing.
-- **ROM display lists stay N64 form** (8-byte big-endian commands, 32-bit addresses) in registered BE ranges. The
-  game's in-place walkers read and write them big-endian on PC and follow N64 addresses through `pc_n64_ptr`:
-  `relocate_model_dl` (0x80096734, relocation and LOD markers), `relocate_texture_loads` (TXLD rebase; its local `Gfx`
-  stays 8 bytes), `display_list_traverse`, `flip_triangle_winding` (winding flip), and `mirror_vertex_texcoords` (vertex pass, a
-  big-endian PC version). The relocated value is `(w1 + base) & 0xFFFFFF | segment`: with the WAD in the RDRAM window
-  `(s32)WADptr` is exact. The context copy of `relocate_model_dl` in `waves/group.c` is weak and was left.
-  Texture animation (`displaylist_set_texture_image`, `displaylist_get_texture_image`, `displaylist_set_tile_size`, `TextureAnimation`; ASSETS.md §4 #11)
-  still needs accessors.
+- **The ROM's display lists are native too** since [NATIVE.md](NATIVE.md) step 10: the WAD converter builds them in
+  this form when the file loads (`port/assets/wad.c`, [ASSETS.md](ASSETS.md) 3.2), command for command, w1 a host
+  pointer where it carries an address, and their vertices native beside them. The game's walkers read and write `Gfx`
+  and `Vtx` as they are: `relocate_model_dl` (the race's LOD markers; the relocation is the converter's),
+  `display_list_traverse`, `flip_triangle_winding` (winding flip), `mirror_vertex_texcoords` (vertex pass), and the
+  texture animation (`displaylist_set_texture_image`, `displaylist_get_texture_image`, `displaylist_set_tile_size`,
+  `TextureAnimation`). Until then they stayed N64 form (8-byte big-endian commands, 32-bit addresses relocated in place
+  as `(w1 + base) & 0xFFFFFF | segment`) in registered BE ranges, walked with big-endian accessors and `pc_n64_ptr`;
+  `relocate_texture_loads` and the 24-bit rule (`pc_rcp_reloc`) went with that.
 - **Static display lists in data** (`rdp_init_dl`, `rsp_init_dl`, boot data, `gSPDisplayList` targets) are `Gfx[]`, so
   gen_data gives them host size (272 B, 176 B). Their `w1` are N64 words: an address there must be translated by
   the data loader (B), or the lists left in N64 form and registered BE (C).

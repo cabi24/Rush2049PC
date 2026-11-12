@@ -89,7 +89,8 @@ The loader:
   - `MBFindInWad`'s `H12` got a pointer-sized first field.
   - `MBOffsetWad` was m2c code at the N64 offsets. It has a PC version.
 
-The display-list walkers already used big-endian accessors (POINTERS.md §2): `relocate_model_dl`,
+The display-list walkers already used big-endian accessors (POINTERS.md §2; since NATIVE.md step 10 they work on the
+converter's native lists): `relocate_model_dl`,
 `relocate_texture_loads`, `display_list_traverse`, `flip_triangle_winding` and `mirror_vertex_texcoords`.
 
 The readers of the records:

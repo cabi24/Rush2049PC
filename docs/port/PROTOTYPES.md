@@ -215,8 +215,8 @@ table and reported as `reviewed`:
 |---|---|
 | `PurgeableMemory`, `FindChunk`, `FindHeap`, `DeallocateMemoryInternal`, `DeallocateMemory`, `ReallocateMemory`, `GetPtrSize`; `AllocateMemoryHeap`, `AllocateMemoryHeapHigh` in `initgfx.c`; `CalcChecksumInternal`, `unzipdata` in `DecodeGhost` | heap block addresses are RDRAM-window addresses below 4 GB (POINTERS.md 4.1) |
 | `inflate_decompress`, `lzss_decompress` | the source is a ROM offset from the file table |
-| `relocate_texture_loads` in `waves.c`; `TB_DrawText` in `titlescr_animText.c` | WAD and text-bank records hold 32-bit window addresses (4.2) |
-| `displaylist_set_texture_image`, `displaylist_get_texture_image` | a word of a display list in N64 form (texture animation, POINTERS.md 2) |
+| `TB_DrawText` in `titlescr_animText.c` (and `relocate_texture_loads` in `waves.c` until [NATIVE.md](NATIVE.md) step 10, which removed it) | text-bank records hold 32-bit window addresses (4.2) |
+| (`displaylist_set_texture_image`, `displaylist_get_texture_image`: a word of a display list in N64 form, until [NATIVE.md](NATIVE.md) step 10: they take `Gfx *` and a pointer since) | |
 | `RemovePlayerScores`, `FindChangeCmd` | the pointer is compared with 32-bit slots that hold the same truncation (4.4) |
 | `MBOX_FindObject_WORK`, `MBOX_NewObject` in `runtime_a_availability_refresh` | a model index kept in a `void *` variable |
 | `sound_hw_remove_sample` | empty in retail: the arguments are never read |
