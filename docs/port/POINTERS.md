@@ -59,7 +59,7 @@ game C is now proven by running the game (PCONLY.md 2).
 - **The ROM's display lists are native too** since [NATIVE.md](NATIVE.md) step 10: the WAD converter builds them in
   this form when the file loads (`port/assets/wad.c`, [ASSETS.md](ASSETS.md) 3.2), command for command, w1 a host
   pointer where it carries an address, and their vertices native beside them. The game's walkers read and write `Gfx`
-  and `Vtx` as they are: `relocate_model_dl` (the race's LOD markers; the relocation is the converter's),
+  and `Vtx` as they are: `prepare_model_dl` (the race's LOD markers; the relocation is the converter's),
   `display_list_traverse`, `flip_triangle_winding` (winding flip), `mirror_vertex_texcoords` (vertex pass), and the
   texture animation (`displaylist_set_texture_image`, `displaylist_get_texture_image`, `displaylist_set_tile_size`,
   `TextureAnimation`). Until then they stayed N64 form (8-byte big-endian commands, 32-bit addresses relocated in place

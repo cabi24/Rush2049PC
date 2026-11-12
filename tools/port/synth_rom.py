@@ -926,7 +926,7 @@ def gfx(w0, w1=0):
 # Each model's list sets the state it draws with, so it doesn't depend on what the game set before it: one-cycle
 # mode, the shade colour (G_CC_SHADE in both cycles), an opaque z-buffered surface without blending, no texture, and
 # smooth shading with back faces culled, without fog, lighting or texture generation. Then its vertices (G_VTX, w1
-# file-relative: the WAD relocator, relocate_model_dl, adds the file's address), its triangles (G_TRI2), G_ENDDL. The
+# file-relative: the WAD relocator, prepare_model_dl, adds the file's address), its triangles (G_TRI2), G_ENDDL. The
 # faces wind clockwise seen from outside in the world's axes: the scene's modelview negates x (zoid_draw_window's
 # identity has m[0][0] = -1), which makes them counter-clockwise, front faces, on the screen. So the ground is seen
 # from above only, and a box not from inside (the in-car camera's own car).
@@ -989,7 +989,7 @@ def mesh(quads):
                             (2 * a << 16) | (2 * (a + 2) << 8) | 2 * (a + 3))          # G_TRI2: two halves
             if LISTS and first == 0:
                 # a G_BRANCH_Z on vertex 0, always taken (z at most 0x7FFFFFFF), to the G_NOOP after it, where the list
-                # goes on anyway (relocate_model_dl's walk goes on at the target's second command: the markers);
+                # goes on anyway (prepare_model_dl's walk goes on at the target's second command: the markers);
                 # then the first quads in a section a forward race keeps (marker bit 3, DL_KEEP_FORWARD), and an
                 # empty one only two players keep (bit 2)
                 out += gfx(0xE1000000, dl_off + len(out) + 16) + gfx(0x04000000, 0x7FFFFFFF) + gfx(0)
@@ -1047,7 +1047,7 @@ def model_objs(models, at=WAD_OBJS, state_off=0):
     """OBJS for the models (names): each model's vertices and display list, in the chunk that starts at file offset
     at (WAD_OBJS; with --lists after TXLD, whose state list at state_off every list calls). Returns (the chunk,
     {name: (list offset, vertex offset, radius)}), offsets file-relative. Each model has lists of its own: on the N64
-    SetupWaveModel relocated every model's lists in place (relocate_model_dl added the file's address to each
+    SetupWaveModel relocated every model's lists in place (prepare_model_dl added the file's address to each
     address), so a list two models shared would have been relocated twice (the WAD converter says so)."""
     out, where = b"", {}
     for m in models:

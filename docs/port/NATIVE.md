@@ -236,7 +236,7 @@ address-carrying ones (VTX, DL, BRANCH, the E1/04 pair, MTX, MOVEMEM, SETTIMG) a
 offset maps linearly (command i of the chunk is native command i), so the chunk's lists are converted as a whole and
 the converter needs no list boundaries; the bytes that are vertices, not commands, are never executed in the native
 copy, and VTX points at the vertices themselves, swapped to native byte order (the converter knows them from the
-VTX commands it walks from the OBHD entries). The game's walkers (`relocate_model_dl`'s level-of-detail markers,
+VTX commands it walks from the OBHD entries). The game's walkers (`prepare_model_dl`'s level-of-detail markers,
 `display_list_traverse`, `flip_triangle_winding`, `mirror_vertex_texcoords`, the texture animation's four helpers)
 then work on `Gfx` and `Vtx` with plain loads and stores; their big-endian accessors and N64 address rules go.
 Texels and TLUTs stay in the N64's texel formats: that is a format the renderer decodes (a 16-bit texel load may
@@ -601,7 +601,7 @@ host's byte order; the game's walkers and the renderer read only those; nothing 
 N64-form list path is gone. The plan was:
 
 4.4's display lists: `port/assets/wad.c` (the lists converted, the vertices swapped), the walkers
-(`relocate_model_dl.c`, `relocate_texture_loads.c`, `display_list_traverse.c`, `flip_triangle_winding.c`,
+(`prepare_model_dl.c`, `relocate_texture_loads.c`, `display_list_traverse.c`, `flip_triangle_winding.c`,
 `mirror_vertex_texcoords.c`, `MirrorWaveInstance.c`, `displaylist_get_texture_image.c`,
 `displaylist_set_texture_image.c`, `displaylist_set_tile_size.c`, `TextureAnimation.c`), `port/ultra/rcpaddr.c`
 (`pc_rcp_reloc`, `pc_rdram_k0_high` go), and in the renderer only what reads a ROM list's address (the N64-form
@@ -1461,10 +1461,10 @@ the lists and their readers; the walkers' care for a list the converter couldn't
 
 | What | Before | After |
 |---|---|---|
-| a WAD's display lists (`port/assets/wad.c`) | in the file, N64 form (8-byte big-endian commands), each address an offset the game made a 32-bit address in place: `relocate_model_dl` (each model's levels, by the file's N64 address) and `relocate_texture_loads` (TXLD, by IMAG's), `(w1 + base) & 0xFFFFFF \| segment` (`pc_rcp_reloc`, the K0 address past 16 MiB) | built beside the file when it loads, command for command in the PC's form (`PcGfxWords`, the game's `Gfx`): w0 the file's, w1 a host pointer in the commands that carry an address (VTX, G_DL, G_RDPHALF_1 before G_BRANCH_Z, MTX, MOVEMEM, LOAD_UCODE, SETxIMG; a LOD marker's section end) and the value in the rest ([ASSETS.md](ASSETS.md) 3.2). Every command a walk of the file reaches is built, in the file's order; one G_ENDDL after the last. The N64's relocation is played on the file's offsets to know each address's origin (the file's or IMAG's): w1 points at `(origin + w1) & 0xFFFFFF` in the file, where the renderer read the relocated word; a word the N64 made an address not exactly once pointed into no file, and is NULL, said (`display lists:`). The file keeps its bytes |
+| a WAD's display lists (`port/assets/wad.c`) | in the file, N64 form (8-byte big-endian commands), each address an offset the game made a 32-bit address in place: `relocate_model_dl` (now `prepare_model_dl`; each model's levels, by the file's N64 address) and `relocate_texture_loads` (TXLD, by IMAG's), `(w1 + base) & 0xFFFFFF \| segment` (`pc_rcp_reloc`, the K0 address past 16 MiB) | built beside the file when it loads, command for command in the PC's form (`PcGfxWords`, the game's `Gfx`): w0 the file's, w1 a host pointer in the commands that carry an address (VTX, G_DL, G_RDPHALF_1 before G_BRANCH_Z, MTX, MOVEMEM, LOAD_UCODE, SETxIMG; a LOD marker's section end) and the value in the rest ([ASSETS.md](ASSETS.md) 3.2). Every command a walk of the file reaches is built, in the file's order; one G_ENDDL after the last. The N64's relocation is played on the file's offsets to know each address's origin (the file's or IMAG's): w1 points at `(origin + w1) & 0xFFFFFF` in the file, where the renderer read the relocated word; a word the N64 made an address not exactly once pointed into no file, and is NULL, said (`display lists:`). The file keeps its bytes |
 | the vertices | the file's, big-endian, which the renderer read by their range and `mirror_vertex_texcoords` changed in place through `pc_n64_ptr` | the runs the VTX commands load and `mirror_vertex_texcoords` walks, copied beside the file in the host's byte order, each run of the file in one piece with 16 zero bytes after it; registered as model data (`pc_mem_register_model_data`, `port/ultra/memory.c`) |
 | the records' pointers | a level's `displayList` (`unsigned int *`) and a listed texture's `texBase`: the lists in the file | the converter's lists (`union Gfx *`, `texBase` a `Gfx *` for a listed texture) |
-| `SetupWaveModel` (`waves.c`) | `relocate_texture_loads(…, PC_N64A(IMAG))`, `relocate_model_dl(dl, PC_N64A(file), -1, mirrored, keep)` | `relocate_model_dl(dl, mirrored, keep)`: the race's part only (a LOD marker whose bit isn't kept becomes `DE010000` to the list its w1 names; the first VTX's vertex pass); no N64 address |
+| `SetupWaveModel` (`waves.c`) | `relocate_texture_loads(…, PC_N64A(IMAG))`, `relocate_model_dl(dl, PC_N64A(file), -1, mirrored, keep)` | `prepare_model_dl(dl, mirrored, keep)`: the race's part only (a LOD marker whose bit isn't kept becomes `DE010000` to the list its w1 names; the first VTX's vertex pass); no N64 address |
 | the game's walkers | big-endian accessors (`DLW`, `DLW_SET`, `DL_AT`, `pc_be16/32_get/set`), N64 address rules (`SEGMENTED`, `pc_rdram_k0_high`, `addr += 0x80000000`, `\| 0x80000000`), a callback stepping by words | `Gfx` and `Vtx` as they are: `display_list_traverse` (its callback steps by commands), `flip_triangle_winding`, `mirror_vertex_texcoords`, `displaylist_get_texture_image` (a pointer: NULL where the N64 returned garbage), `displaylist_set_texture_image`, `displaylist_set_tile_size` |
 | the texture animation | a frame's image as the list's N64 word (`FRAME_IMAGE_IN_LIST`: `PC_N64A` of a texel frame's pointer); the TLUT colours written with `pc_be16_set` | images are pointers, moved as they are; the colours written with `pc_tlut_set` (the files' texel format: the prelude's `pc_tlut_get`/`pc_tlut_set` replace its big-endian accessors), as is the car paint's copy (`SetupCarColor.c`) |
 | `relocate_texture_loads`, `port/ultra/rcpaddr.c` (`pc_rcp_reloc`, `pc_rdram_k0_high`), scene.h's `DLW`/`DLW_SET`/`DL_AT`, `rom_tu.h`'s `K0_TO_PHYS`/`K1_TO_PHYS`, the self-test's "RCP addresses" | | gone |
@@ -1486,7 +1486,7 @@ What the renderer still takes for an N64 address is the heap's blocks the game n
 window: a file's texels in its texture loads (`pcgfx_rdp_command`'s SETTIMG, 565,209), the depth and colour images
 (SETZIMG 103,371, SETCIMG 206,742) and the frame `pc_gfx_present` shows (103,243): step 12's. The guard
 (`RUSH2049_WINDOW_GUARD=arenas,count`) found 0 faults at 0 instructions, before and after. `--check --no-faults
---zero-kind gfx.rom_list,PC_N64A` passes, and `--zero-site` for `relocate_model_dl.c`, `display_list_traverse.c`,
+--zero-kind gfx.rom_list,PC_N64A` passes, and `--zero-site` for `prepare_model_dl.c`, `display_list_traverse.c`,
 `flip_triangle_winding.c`, `mirror_vertex_texcoords.c`, `MirrorWaveInstance.c`, the `displaylist_*` helpers,
 `TextureAnimation.c`, `InitTextureAnimation.c`, `waves.c`, `SetupCarColor.c`, `port/assets/wad.c`, the renderer's
 `rdram` and `dl_at`; the control, `pcgfx_resolve`, fails.
@@ -1494,7 +1494,7 @@ window: a file's texels in its texture loads (`pcgfx_rdp_command`'s SETTIMG, 565
 **The census** (`window_census.py`, Debug, with the compiler pass; 90979a43's build before): the step's three targets
 at 0, `be.accessors.game` 7 to 0 (scene.h's `DLW`/`DLW_SET`, `mirror_vertex_texcoords`, the texture animation's and
 the car paint's TLUT accessors, now `pc_tlut_get`/`pc_tlut_set`), `lit.mask.game` 6 to 0 (`display_list_traverse`,
-`relocate_model_dl`, `rom_tu.h`'s unused `K0_TO_PHYS`/`K1_TO_PHYS`), `lit.reloc.game` 6 to 0 (`pc_rcp_reloc`,
+`prepare_model_dl`, `rom_tu.h`'s unused `K0_TO_PHYS`/`K1_TO_PHYS`), `lit.reloc.game` 6 to 0 (`pc_rcp_reloc`,
 `pc_rdram_k0_high`); and `conv.PC_N64A.game` 2 to 0, `conv.pc_n64_ptr.game` 2 to 0 (`DL_AT`, `mirror_vertex_texcoords`),
 `conv.file_macros.defs` and `uses` 4 and 16 to 2 and 15, `conv.silent.trunc` 4 to 3 and `zext` 16 to 15 (the texture
 animation's frame images), `api.u32_address` 4 to 1 (left: a sound helper's, `sound_hw_fetch_sample_range`, a
@@ -1549,11 +1549,12 @@ attract demo, battle and stunt arenas, the cars' models, and a mod's texture pac
   `hash_aslr` passes.
 - **A file whose lists the N64 relocated badly** (a level's list reached twice, a G_DL in a texture's load list, a
   marker's section end outside the file) gets NULL where the N64's word pointed nowhere, and the converter says so;
-  `relocate_model_dl`, `display_list_traverse` and the renderer skip a NULL. The retail cartridge's lists must have
+  `prepare_model_dl`, `display_list_traverse` and the renderer skip a NULL. The retail cartridge's lists must have
   none (`rush2049pc_assetcheck`: the lead's run on the Pi), and `assets_mods` shows that every mod file `check.c`
   passes converts to exactly what the N64's relocation makes of it.
-- **The names**: `relocate_model_dl` relocates nothing any more (it keeps the race's sections and prepares the
-  vertices for a mirrored track); a rename (`prepare_model_dl`, through `tools/port/names`) is left to the lead.
+- **The names**: `relocate_model_dl` relocated nothing any more (it keeps the race's sections and prepares the
+  vertices for a mirrored track), so the lead renamed it `prepare_model_dl` after the merge
+  (`tools/port/names/wave3.tsv`); this page uses the new name throughout.
 
 ## 16. Step 11: the rest that holds heap addresses, and the tests' windows (done 2026-11-11)
 

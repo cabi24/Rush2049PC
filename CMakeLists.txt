@@ -1273,7 +1273,7 @@ set_target_properties(test_musyx_game PROPERTIES EXPORT_COMPILE_COMMANDS OFF)
 # SetupWaveModel on the WAD's records and native display lists, the display-list walkers, the texture lookups and the
 # texture animation, built with the game's flags, in ordinary host memory.
 add_library(test_wad_game OBJECT src/blob/groups/waves/waves.c
-    src/blob/relocate_model_dl.c src/blob/mirror_vertex_texcoords.c src/blob/groups/slot_sound/MirrorWaveInstance.c
+    src/blob/prepare_model_dl.c src/blob/mirror_vertex_texcoords.c src/blob/groups/slot_sound/MirrorWaveInstance.c
     src/blob/display_list_traverse.c src/blob/flip_triangle_winding.c src/blob/ModelActive.c src/blob/MBOX_FindTexture_WORK.c
     src/blob/MBOX_FindPalette_WORK.c src/blob/InitTextureAnimation.c src/blob/TextureAnimation.c src/blob/displaylist_get_texture_image.c
     src/blob/displaylist_set_texture_image.c src/blob/displaylist_set_tile_size.c src/blob/texcmp.c src/blob/game_strcmp.c)

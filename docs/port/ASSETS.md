@@ -187,7 +187,7 @@ the file past IMAG), `struct tBasicTargetPath` (0x38: `trigPtr` the record of th
 `pts` in the file; `parent` the target's record once `ResetPath` sets it; `key` the file's word in `parent`'s place).
 Since step 10 it builds the display lists (OBJS's and TXLD's) and the vertices they load beside the file too, in the
 PC's form with host pointers (§3.2). `SetupWaveModel` points the tables at the records (`pc_wad_records`) and keeps
-the race's sections of the models' lists (`relocate_model_dl`); it relocates nothing. The file's table of contents,
+the race's sections of the models' lists (`prepare_model_dl`); it relocates nothing. The file's table of contents,
 record chunks, lists and vertices stay as the file has them, big-endian; the PATH points are swapped in place, as the
 game reads them through `pts`. The records and lists are kept by the file's heap block (`port/assets/records.c`) and
 go with it. `MBSetupWad`, `MBGetFromWad`, `MBOffsetWad` and `MBFindInWad` are gone, and `relocate_wave_model`
@@ -198,7 +198,7 @@ went with step 10.
 
 | Function | Address | What it does to the loaded file | Tag |
 |---|---|---|---|
-| `relocate_model_dl` | 0x80096734 (`src/blob/relocate_model_dl.c`; copy `waves/group.c:3818-3900`) | Walks one LOD list with a 10-deep stack. For ops 0x01, 0xDA, 0xDC, 0xDD, 0xDE, 0xE1 (before 0x04 or 0xDD) and ≥ 0xFD it sets `w1 = (w1 & 0x0F000000) \| ((w1 + base) & 0xFFFFFF)`. It rewrites the conditional `E0 01 cccc` into `DE010000` / target when load-flag bit `cccc` is clear. The flags are 2 = 1 player, 4 = 2 players, 8 = forward, 0x10 = backward (`waves.c:144-160`). It calls `mirror_vertex_texcoords` on the first VTX, does not enter `G_DL`, follows 0xE1+0x04, and stops at 0xDF | C |
+| `prepare_model_dl` | 0x80096734 (`src/blob/prepare_model_dl.c`; copy `waves/group.c:3818-3900`) | Walks one LOD list with a 10-deep stack. For ops 0x01, 0xDA, 0xDC, 0xDD, 0xDE, 0xE1 (before 0x04 or 0xDD) and ≥ 0xFD it sets `w1 = (w1 & 0x0F000000) \| ((w1 + base) & 0xFFFFFF)`. It rewrites the conditional `E0 01 cccc` into `DE010000` / target when load-flag bit `cccc` is clear. The flags are 2 = 1 player, 4 = 2 players, 8 = forward, 0x10 = backward (`waves.c:144-160`). It calls `mirror_vertex_texcoords` on the first VTX, does not enter `G_DL`, follows 0xE1+0x04, and stops at 0xDF | C |
 | `mirror_vertex_texcoords` | 0x800966D8 | Vertex chain from that VTX: `p = addr \| 0x80000000`, stride 0x10. It reads the u16 at +6 (bit 15 = next vertex follows, bit 14 = done, bits 0–8 = texture width), sets bit 14, and when mirrored sets `s(+8) = width*32 - s` | C |
 | `relocate_texture_loads` | 0x80096A00 | TXLD rebase (§3.1) | C |
 | `MirrorWaveInstance` | 0x800965BC (`groups/slot_sound/MirrorWaveInstance.c:44`) | When the mirror state `gMirrorWaves` changes, walks every LOD list with `display_list_traverse(dl, 0, 0, 2, flip_triangle_winding)` | C |
@@ -229,7 +229,7 @@ pointer-sized w1), command for command:
   run of the file's bytes in one piece with 16 zero bytes after it; registered as model data
   (`pc_mem_register_model_data`) for the high frame rate.
 
-What is left of the table at run time works on those: `relocate_model_dl` keeps the race's sections (a marker whose bit
+What is left of the table at run time works on those: `prepare_model_dl` keeps the race's sections (a marker whose bit
 the race doesn't keep becomes `DE010000` to the native list its w1 names) and runs the vertex pass on the first VTX's
 native vertices; `display_list_traverse`, `flip_triangle_winding` and the texture animation's helpers read and write
 `Gfx` and `Vtx` as they are; `relocate_texture_loads` is gone. `rush2049pc_assetcheck` and `assets_wad` compare the
@@ -367,7 +367,7 @@ Every function in this table reads loaded data with native 32- or 16-bit loads, 
 | 3 | `waves.c:139, 175-182`; `MBGetFromWad.c` | chunk addresses returned and held as `s32` (`IMAGptr`, `TXLDptr`) | done: `struct pc_wad_records`' pointers; since step 10 nothing takes IMAG's or the file's N64 address (the converter builds the display lists) |
 | 4 | `waves.c:171, 195-196, 203-204` | `(u32)displayList + (u32)WADptr`; `offset = *(u8 **)ptr - (u32)lastPtr` | done: the converter's pointers; `lastPtr` unused |
 | 5 | `waves.c:163`, `slot_sound/group.c:127` vs `memsys/group.c:159` | handles dereferenced as `*(u8 **)` while the heap's master slots are `u32` (`count * 4`) | `(u8 *)(uintptr_t)*(u32 *)h`, or 8-byte slots throughout memsys. Done: 8-byte slots on the PC, a window address zero-extended ([POINTERS.md](POINTERS.md) 9.10) |
-| 6 | `relocate_model_dl` (0x80096734) | `(w1 + base) & 0xFFFFFF` plus a segment nibble; writes w0/w1 | done: the converter builds the lists with host pointers; what is left (the LOD markers, the first VTX) works on `Gfx` ([NATIVE.md](NATIVE.md) step 10) |
+| 6 | `prepare_model_dl` (0x80096734) | `(w1 + base) & 0xFFFFFF` plus a segment nibble; writes w0/w1 | done: the converter builds the lists with host pointers; what is left (the LOD markers, the first VTX) works on `Gfx` ([NATIVE.md](NATIVE.md) step 10) |
 | 7 | `relocate_texture_loads.c:19-37` | the same rebase on TXLD; iterates a local 8-byte `Gfx` | done: gone; the converter points TXLD's SETTIMG and branches at IMAG plus the offset (step 10) |
 | 8 | `mirror_vertex_texcoords` | `addr \| 0x80000000` to make a pointer; u16 at Vtx+6, s16 at +8 | done: native `Vtx` the converter copied (step 10) |
 | 9 | `display_list_traverse.c:19-21, 38-40` | `addr += 0x80000000` / `&= 0xF0FFFFFF`, then a `u32 *` cast | done: `Gfx` with pointers (step 10) |

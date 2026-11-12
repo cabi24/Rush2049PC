@@ -187,7 +187,7 @@ static int dl_begin(Ck *c, uint32_t *gen)
     return 0;
 }
 
-/* relocate_model_dl (SetupWaveModel's relocation, src/blob/relocate_model_dl.c): one pass from the list's start,
+/* prepare_model_dl (SetupWaveModel's relocation, src/blob/prepare_model_dl.c): one pass from the list's start,
  * which doesn't enter G_DL, follows E1 + 04 and ends at the first 0xDF; and mirror_vertex_texcoords, the vertex pass, from its
  * first G_VTX: 16-byte vertices while bit 15 of the halfword at +6 says another follows. */
 static int dl_relocation(Ck *c, uint32_t start, const char *what)

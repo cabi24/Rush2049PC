@@ -7100,3 +7100,4 @@ func	tire_extend	wing_extend
 func	tire_sound_off	wing_sound_off
 func	tire_sound_on	wing_sound_on
 func	update_player_visibility	UpdateArrowVis
+func	relocate_model_dl	prepare_model_dl

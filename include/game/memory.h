@@ -120,7 +120,7 @@ void PurgeableMemory(void *ptr, s32 purgeable);
 s32 read_buf(struct z_stream_s *strm, char *buf, u32 size);
 void ReadWave(s32 slot);
 void ReallocateMemory(void *ptr, u32 desired);
-void relocate_model_dl(Gfx *dl, s32 mirrored, u32 keep);
+void prepare_model_dl(Gfx *dl, s32 mirrored, u32 keep);
 void RemoveLLE(struct List *list, struct Link *object);
 void ReplaceWave(s32 curWave, s32 newWave);
 void ReplaceWaveInstance(s32 idx, s32 newWave);

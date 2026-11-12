@@ -1,4 +1,4 @@
-/* mirror_vertex_texcoords: prepares a model's vertices for a mirrored track, once (relocate_model_dl calls it for a
+/* mirror_vertex_texcoords: prepares a model's vertices for a mirrored track, once (prepare_model_dl calls it for a
  * display list's first vertex load). N64 only. */
 #include "game/game.h"
 

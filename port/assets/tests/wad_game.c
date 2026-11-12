@@ -2,7 +2,7 @@
  *
  * The game's C is built with its PC flags (CMakeLists.txt, test_wad_game): _ReadWave and SetupWaveModel
  * (waves/waves.c) on the WAD's records and native display lists (port/assets/wad.c), the race's set-up of the lists
- * (relocate_model_dl: the LOD markers' sections) and its vertex pass (mirror_vertex_texcoords), the mirror pass
+ * (prepare_model_dl: the LOD markers' sections) and its vertex pass (mirror_vertex_texcoords), the mirror pass
  * (MirrorWaveInstance, display_list_traverse, flip_triangle_winding), MBOX_FindTexture_Sub (MBOX_FindTexture_WORK),
  * MBOX_FindPalette_WORK and their slot test (ModelActive), and the texture animation: its set-up
  * (InitTextureAnimation) and per-frame update (TextureAnimation) with the load-list helpers

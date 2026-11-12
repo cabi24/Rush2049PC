@@ -17,7 +17,7 @@ feature can rely on, and how it was tested.
 | The setting, its warning | `port/config/config.c` (`game.memory`, `pc_settings_memory_conflict`), `port/main.c` |
 | The overlay | `port/input/menu.c`: Game > Memory, About > Memory |
 | The renderer's physical rule | `port/gfx/gfx_rsp.c:79-90` (`pcgfx_resolve`) |
-| The game C | `relocate_model_dl.c`, `relocate_texture_loads.c`, `display_list_traverse.c`, `src/rom/sound/hardware.c`; the heap's reports in `memsys/group.c`, `heap_release/alloc_at.c`, `heap_release/group.c`, `loadcars/LoadCars.c`, `car_palette_init.c` |
+| The game C | `prepare_model_dl.c`, `relocate_texture_loads.c`, `display_list_traverse.c`, `src/rom/sound/hardware.c`; the heap's reports in `memsys/group.c`, `heap_release/alloc_at.c`, `heap_release/group.c`, `loadcars/LoadCars.c`, `car_palette_init.c` |
 
 ## 1. The setting
 
@@ -88,7 +88,7 @@ can be met when the window is 8 MiB):
 | Site | The N64's rule | Past 16 MiB on the PC |
 |---|---|---|
 | (`osVirtualToPhysical`: the colour and depth images, `StartGraphics.c`, `ClearScreen.c`. Gone since [NATIVE.md](NATIVE.md) step 4: the game gives the renderer the buffers' pointers) | `addr & 0x1FFFFFFF` | (was the K0 address) |
-| (`relocate_model_dl`: SetupWaveModel's relocation of a model's display lists: G_VTX, G_DL, the matrices, the image pointers, the LOD markers' branches. Gone since [NATIVE.md](NATIVE.md) step 10: the WAD converter builds the lists with host pointers when the file loads, wherever the file lies) | `((w1 + base) & 0xFFFFFF) \| segment` | (was `pc_rcp_reloc`, `rcpaddr.c`: the K0 address of `w1 + base` when the segment is 0) |
+| (`prepare_model_dl`: SetupWaveModel's relocation of a model's display lists: G_VTX, G_DL, the matrices, the image pointers, the LOD markers' branches. Gone since [NATIVE.md](NATIVE.md) step 10: the WAD converter builds the lists with host pointers when the file loads, wherever the file lies) | `((w1 + base) & 0xFFFFFF) \| segment` | (was `pc_rcp_reloc`, `rcpaddr.c`: the K0 address of `w1 + base` when the segment is 0) |
 | (`relocate_texture_loads`: the TXLD lists' SETTIMG and BRANCH_Z, rebased by the IMAG chunk. Gone since step 10, as the line above) | `(w1 & 0x0F000000) \| ((w1 + base) & 0xFFFFFF)` | (was the same, `pc_rcp_reloc`) |
 | (`display_list_traverse`: the mirror pass and the game's other walks of ROM lists, a G_DL or BRANCH_Z target. Since step 10 the target is a pointer) | bits 24-27 set: segmented, taken as segment 0 (`&= 0xF0FFFFFF`); else physical, made K0 | (was: a K0 address past 16 MiB is not segmented, `pc_rdram_k0_high`) |
 | `sound_hw_translate_address` (`hardware.c:1956`: is a sample bank's address RAM, or a cartridge offset to convert?) | RAM if its top byte is 0x80 (or 0xB0, the cartridge) | a K0 address in the window past 16 MiB is RAM too (a guard: this game's banks are cartridge addresses, section 6) |
@@ -278,8 +278,8 @@ units the PC doesn't replace) for 0x7FFFFF, 0x3FFFFF, 0xFFFFFF, 0x00FFFFFF, 0x1F
 | `gen_data.py:83`, `gen_stubs.py:101`, `n64syms.py:73` | the arenas' and absolute symbols' range, the overlay region | the N64 images' layout, inside the first 8 MiB at any size |
 | `absfix.c` | GOT slots of absolute symbols: addends at 0x80000000 or more | the symbols are the N64's: right |
 | `memsys/group.c:198-216` (`locate_main_heap`), `heap.c` (`pc_heap_memory`) | the heap's end `osMemSize \| 0x80000000` (the window's bytes to osMemSize); the Expansion Pak flag past 4 MiB (the N64's end past 0x80400000) | follows osMemSize (section 1) |
-| `relocate_model_dl.c:107, 111, 129, 134`; `relocate_texture_loads.c:42, 47` | 24-bit relocations | `pc_rcp_reloc` (section 3) |
-| `waves/group.c:3854-3887` | a second `relocate_model_dl`, 24-bit | a context copy for IDO's optimizer, weak on the PC: the linked one is `src/blob/relocate_model_dl.c` |
+| `prepare_model_dl.c:107, 111, 129, 134`; `relocate_texture_loads.c:42, 47` | 24-bit relocations | `pc_rcp_reloc` (section 3) |
+| `waves/group.c:3854-3887` | a second `prepare_model_dl`, 24-bit | a context copy for IDO's optimizer, weak on the PC: the linked one is `src/blob/prepare_model_dl.c` |
 | `display_list_traverse.c:33, 52` | segmented or physical | section 3 |
 | `mirror_vertex_texcoords.c:3808` | the vertex pass, `pc_n64_ptr(arg0 \| 0x80000000)` | K0 or physical: right |
 | `hardware.c:1956` (`sound_hw_translate_address`) | RAM if the top byte is 0x80 | section 3 |

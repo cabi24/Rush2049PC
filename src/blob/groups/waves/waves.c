@@ -17,7 +17,7 @@ typedef struct OSIoMesg { OSIoMesgHdr hdr; void *dramAddr; u32 devAddr; u32 size
 /* The waves that hold a track's target paths. */
 #define WAVE_TRACK_PATHS_FIRST 101
 #define WAVE_TRACK_PATHS_END 120
-/* The sections of a model's display lists relocate_model_dl keeps (its markers name the case each is for). */
+/* The sections of a model's display lists prepare_model_dl keeps (its markers name the case each is for). */
 #define DL_KEEP_ONE_PLAYER 2
 #define DL_KEEP_TWO_PLAYERS 4
 #define DL_KEEP_FORWARD 8           /* the track run the usual way */
@@ -38,9 +38,9 @@ s32 osRecvMesg(OSMesgQueue *mq, OSMesg *msg, s32 flags);
  * pointers (pc_wad_records, port/assets/wad.c). On the N64 this rebased the file's own records in place: the table of
  * contents (MBSetupWad), every record's offsets by the file's or the IMAG chunk's address (texBase, palBase,
  * displayList, vtxList, pts, trigPtr), and a moved handle wave's by how far it had moved (MBOffsetWad); and it
- * relocated the display lists and texture loads in place by those two addresses (relocate_model_dl,
+ * relocated the display lists and texture loads in place by those two addresses (prepare_model_dl,
  * relocate_texture_loads; docs/port/NATIVE.md steps 7 and 10). video.detail high keeps the one-player sections of the
- * models' display lists in split screen too (the LOD markers relocate_model_dl rewrites: docs/port/DETAIL.md 2.5);
+ * models' display lists in split screen too (the LOD markers prepare_model_dl rewrites: docs/port/DETAIL.md 2.5);
  * PC_DETAIL_PLAYERS is pc_game_types.h's. */
 void SetupWaveModel(s32 idx, s32 first) {
     struct pc_wad_records *wad;
@@ -89,7 +89,7 @@ void SetupWaveModel(s32 idx, s32 first) {
         for (j = 0; j < gRomObjDefPtrs[modelIdx].romObjDefs[i].lodCount; j++) {
             /* PC: a level whose list the converter couldn't build (it said why) has none */
             if (gRomObjDefPtrs[modelIdx].romObjDefs[i].lod[j].displayList != NULL) {
-                relocate_model_dl(gRomObjDefPtrs[modelIdx].romObjDefs[i].lod[j].displayList, gMirrorWaves ? 1 : 0, flags);
+                prepare_model_dl(gRomObjDefPtrs[modelIdx].romObjDefs[i].lod[j].displayList, gMirrorWaves ? 1 : 0, flags);
             }
         }
     }

@@ -1,0 +1,3 @@
+# Wave 3's names (docs/port/NATIVE.md): functions whose N64 job a step took away, named for what is left.
+old	new	kind	source	confidence	note
+relocate_model_dl	prepare_model_dl	func	code	sure	NATIVE.md step 10: the WAD converter builds the lists with host pointers, so nothing is relocated any more; what is left is the race's part (the LOD sections it keeps, the vertex pass for a mirrored track)

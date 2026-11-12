@@ -79,7 +79,7 @@ A full run, which compiles the 1,300 game units again, takes about a minute with
   it was before the fixes (the branch's base), section 1 had 72 conflicts: **24 real ones in 11 storages, all fixed
   here** (section 3); 20 real ones in the initialized data left to other parts (section 4: the loader's union rule,
   gTargInfo); 23 by design (the controller pak's page links, ULTRA.md); and **5 false positives**, a discarded
-  native read in `relocate_model_dl` (4 byte positions) and route_cross's `LEN(k)`, element k+1's word at +8,
+  native read in `prepare_model_dl` (4 byte positions) and route_cross's `LEN(k)`, element k+1's word at +8,
   against element 0's `count`. StartBlast's two kinds of `data`, merged in its parameter, gave 2 more before it went
   into `NOT_FOLLOWED`. Section 2b listed 25 low-half reads in 9 views, all real and all fixed (the handle views of
   3.1 and `TPos`). Sections 3 and 4b (initialized data read at another width, or passed as bytes) led to the

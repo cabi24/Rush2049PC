@@ -74,8 +74,8 @@ A model (OBHD, `tLod`: docs/port/ASSETS.md) has up to four levels, each with a d
   with no limit; a car's body has two levels and a car is left out a few hundred feet away, its wheels and sheen
   within a hundred feet, so a car further out is drawn without its wheels; a few trackside objects have limits of
   their own.
-- **The display lists' own markers** (load time). SetupWaveModel (`waves.c`) gives relocate_model_dl
-  (`relocate_model_dl.c`) a mask: 2 with one player, 4 with two, none with three or four; 0x10 on a reversed
+- **The display lists' own markers** (load time). SetupWaveModel (`waves.c`) gives prepare_model_dl
+  (`prepare_model_dl.c`) a mask: 2 with one player, 4 with two, none with three or four; 0x10 on a reversed
   track (`gBackwards`), else 8. A G_SPNOOP marker of type 1 whose bit isn't in the mask becomes a branch past its
   section, so sections tagged one-player-only or two-player-only are cut out of every model at load. Which sections
   carry which tag is ROM data.
@@ -228,7 +228,7 @@ a flat colour behind the world (5.3). The game reads `video.fog` for that alone 
 
 - `waves.c:178` (SetupWaveModel): the LOD markers' mask as one player's (`PC_DETAIL_PLAYERS`, detail.c:49-52): the
   one-player sections of every model in split screen, without the two-player ones (one player's mask has no
-  two-player bit). From the next track load, as the models' lists are set up once (`relocate_model_dl`).
+  two-player bit). From the next track load, as the models' lists are set up once (`prepare_model_dl`).
 - `targets/group.c:490`: a level object with metadata 0x100 gets its scene node with two to four players.
 - Not changed: the smoke, skid, explosion and trail cuts of 1.8 (spawn decisions on shared pools: the poly list's
   200, the effect pools); the fog tables by player count (fog far moves those).

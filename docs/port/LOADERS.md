@@ -90,7 +90,7 @@ The loader:
   - `MBOffsetWad` was m2c code at the N64 offsets. It has a PC version.
 
 The display-list walkers already used big-endian accessors (POINTERS.md §2; since NATIVE.md step 10 they work on the
-converter's native lists): `relocate_model_dl`,
+converter's native lists): `prepare_model_dl`,
 `relocate_texture_loads`, `display_list_traverse`, `flip_triangle_winding` and `mirror_vertex_texcoords`.
 
 The readers of the records:
@@ -157,7 +157,7 @@ was to be looked at:
   one, isn't used.
 - **`trigPtr` targets** are relocated but not swapped (no reader found).
 - **The display lists.** A real model's display lists, through `--stop-at-gfx` and `--screenshot-at`, should
-  render. Check `relocate_model_dl`'s 24-bit relocations, segment nibbles and the E1/04 branch on real data.
+  render. Check `prepare_model_dl`'s 24-bit relocations, segment nibbles and the E1/04 branch on real data.
 
 ### Still open: other agents' or later work
 

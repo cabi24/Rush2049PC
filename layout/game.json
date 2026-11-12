@@ -1124,7 +1124,7 @@
         {
           "kind": "function",
           "size": 716,
-          "target_id": "relocate_model_dl",
+          "target_id": "prepare_model_dl",
           "vaddr": 2148099892
         },
         {

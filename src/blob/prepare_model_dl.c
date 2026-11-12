@@ -1,5 +1,5 @@
-/* relocate_model_dl: a model's display list set up for the race once its WAD is loaded (N64 only: MAT3's GameCube
- * models have no display lists). Called by SetupWaveModel for each level of detail. On the N64 it relocated the list
+/* prepare_model_dl (relocate_model_dl until NATIVE.md step 10): a model's display list set up for the race once its
+ * WAD is loaded (N64 only: MAT3's GameCube models have no display lists). Called by SetupWaveModel for each level of detail. On the N64 it relocated the list
  * too: it added the file's address to every address in it, in place. On the PC the WAD's converter built the list
  * with host pointers when the file loaded (port/assets/wad.c, docs/port/NATIVE.md step 10), so what is left is the
  * race's: the sections it keeps and the mirrored texture coordinates. */
@@ -17,7 +17,7 @@
  * On the N64 the marker's bit was 1 << (its low half), which the CPU took modulo 32: so is it here. A marker or a
  * G_RDPHALF_1 that names no list (where the N64's word named no place in the file: the converter said so) stays a
  * no-op, or ends the walk, where the N64 branched into whatever lay there. */
-void relocate_model_dl(Gfx *dl, s32 mirrored, u32 keep) {
+void prepare_model_dl(Gfx *dl, s32 mirrored, u32 keep) {
     Gfx *cmd;
     Gfx *latched;
     u32 w0;

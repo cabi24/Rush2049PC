@@ -216,7 +216,7 @@ probability of about 1 - 8 MB / 4 GB.
 | File | Functions (warnings), each a weak copy of the owner's | Owner |
 |---|---|---|
 | `nonmatching/game/PS_ReadPartialFile.c` | `RemovePak` (1), `PS_DeleteFile` (1) | `src/blob/groups/paksysdc/group.c` |
-| `src/blob/groups/waves/group.c` | `relocate_model_dl` (1) | `src/blob/relocate_model_dl.c` |
+| `src/blob/groups/waves/group.c` | `prepare_model_dl` (1) | `src/blob/prepare_model_dl.c` |
 | `src/blob/groups/StartCar/group.c` | `StartWingFlame` (1) | `src/blob/groups/StartWingFlame/group.c` |
 | `src/blob/groups/AudioInitSys/ctx_func_800A4E58.c` | `AdjustTextWavePointers` (3) | `src/blob/groups/slot_sound/AdjustTextWavePointers.c` |
 | `src/blob/groups/SetupCarColor/ctx_alloc_at.c` | `allocate_memory_at` (7) | `src/blob/groups/heap_release/alloc_at.c` |

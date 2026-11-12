@@ -3,7 +3,7 @@
  *
  * The reference is what the N64 did, written here again apart from the converter: SetupWaveModel's relocation of a
  * copy of the file at a made-up RDRAM address (relocate_texture_loads over TXLD by IMAG's address, then
- * relocate_model_dl's walk of each model's levels by the file's, the 24-bit rule, every LOD marker's section kept),
+ * prepare_model_dl's walk of each model's levels by the file's, the 24-bit rule, every LOD marker's section kept),
  * and the RCP's reading of a relocated word: the RDRAM at its 24 bits. Then each list is walked from its record (a
  * level of detail's, a listed texture's) in both, command for command, as far as any walk goes (to G_ENDDL, into the
  * lists G_DL, G_RDPHALF_1 before G_BRANCH_Z and a walked LOD marker name):
@@ -38,7 +38,7 @@ static int wlc_no_address(unsigned op)
     return (op & 0xC0) == 0x40 || (op & 0xC0) == 0x80 || (op >= 9 && op < 0x40) || (op >= 0xC0 && op < 0xD6);
 }
 
-/* relocate_model_dl's and relocate_texture_loads's rule at game.memory original: w1 + base in 24 bits, w1's segment. */
+/* prepare_model_dl's and relocate_texture_loads's rule at game.memory original: w1 + base in 24 bits, w1's segment. */
 static uint32_t wlc_reloc(uint32_t w1, uint32_t base)
 {
     return ((w1 + base) & 0xFFFFFFu) | (w1 & 0x0F000000u);
@@ -49,7 +49,7 @@ typedef struct {
     const uint8_t *orig;        /* its bytes as the cartridge has them (before the converter swapped its paths' points) */
     uint8_t *n64;               /* the copy, relocated */
     size_t size;
-    uint8_t *marker;            /* a LOD marker relocate_model_dl's walk came to */
+    uint8_t *marker;            /* a LOD marker prepare_model_dl's walk came to */
     const PcGfxWords **native;  /* the native command each of the file's commands the check came to is */
     struct { uint32_t off; const PcGfxWords *nat; } *todo;
     size_t ntodo, room;

@@ -596,7 +596,7 @@ struct tLod {                           /* 0x18 */
     unsigned short flags;               /* +0x02 LOD_* (scene.h) */
     float lodRad;                       /* +0x04 drawn up to this distance, feet times the node's scale; 0: no limit */
     union Gfx *displayList;             /* +0x08 its display list, native: the converter's (SetupWaveModel keeps the
-                                         * race's sections of it: relocate_model_dl), or the track map's */
+                                         * race's sections of it: prepare_model_dl), or the track map's */
     void *vtxList;                      /* +0x10 its vertices, in the file (the N64's; MAT3 has none): read only in the
                                          * track map's own copies, where they are its map's */
 };

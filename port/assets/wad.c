@@ -354,7 +354,7 @@ static void build_paths(int wave, struct pc_wad_records *w, uint8_t *buf, size_t
 /* The file's display lists are F3DEX2 commands in the N64's form: 8 bytes, big-endian, w0 then w1, and in w1 of a
  * command that carries an address an offset: from the file's start in the models' lists (OBJS), from IMAG's in the
  * texture loads (TXLD). On the N64 SetupWaveModel added the file's or IMAG's address to those offsets in place, in 24
- * bits (relocate_model_dl, relocate_texture_loads). Here the lists are built again beside the file in the PC's own
+ * bits (prepare_model_dl, relocate_texture_loads). Here the lists are built again beside the file in the PC's own
  * form (PcGfxWords: w0, and a pointer-sized w1; docs/port/GFX.md "Command formats"), command for command: w0 as it is,
  * w1 a host pointer in a command that carries an address and the value in the rest. The records point at them (a
  * level of detail's displayList, a listed texture's texBase), so the game's frame list calls them (gSPDisplayList).
@@ -367,14 +367,14 @@ static void build_paths(int wave, struct pc_wad_records *w, uint8_t *buf, size_t
  * vertices) are none. One G_ENDDL after the last command stops a walk that ran to the file's end.
  *
  * The addresses: the N64's relocation is played on the file's offsets (relocate_texture_loads over TXLD, then
- * relocate_model_dl's walk of each model's levels, in SetupWaveModel's order) to know what each word became: an
+ * prepare_model_dl's walk of each model's levels, in SetupWaveModel's order) to know what each word became: an
  * offset from the file's start or from IMAG's, made an address once. A command the renderer reads an address from
  * (VTX, MTX, MOVEMEM, G_DL, G_RDPHALF_1 before G_BRANCH_Z, SETTIMG, SETZIMG, SETCIMG; and LOAD_UCODE's) points where
  * that word did: at (origin + w1) & 0xFFFFFF in the file, which is where the renderer took the word (the RDRAM's
  * address of the file plus the offset, in the 24 bits the RCP reads). A word the N64 made an address not exactly once
  * (in a list no relocation walked, or one two walks went over) pointed into no file: the converter says so and leaves
  * it NULL (rush2049pc_assetcheck counts such a message as a failure). A LOD marker (G_SPNOOP with byte 1 set,
- * relocate_model_dl.c) gets a pointer to the place its w1 names, which the game's walk makes a G_DL branch to when the
+ * prepare_model_dl.c) gets a pointer to the place its w1 names, which the game's walk makes a G_DL branch to when the
  * race doesn't keep the marker's section.
  *
  * The vertices: a VTX's w1 points at native vertices (Vtx: s16 x, y, z, u16 flag, s16 s, t in the host's byte order,
@@ -413,7 +413,7 @@ static int no_address(unsigned op)
     return (op & 0xC0) == 0x40 || (op & 0xC0) == 0x80 || (op >= 0x09 && op < 0x40) || (op >= 0xC0 && op < 0xD6);
 }
 
-/* The commands relocate_model_dl made an address of (op not no_address; next: the next command's opcode). */
+/* The commands prepare_model_dl made an address of (op not no_address; next: the next command's opcode). */
 static int model_list_address(unsigned op, unsigned next)
 {
     return op == OP_VTX || op == OP_LOAD_UCODE || op == OP_DL || op == OP_MTX || op == OP_MOVEMEM ||
@@ -575,7 +575,7 @@ static void mirror_run(Lists *L, uint32_t v, const char *what, uint32_t at)
         add_run(L, v, end);
 }
 
-/* relocate_model_dl's walk of the list at start (SetupWaveModel's, for each level of each model in turn): a command at
+/* prepare_model_dl's walk of the list at start (SetupWaveModel's, for each level of each model in turn): a command at
  * a time, past a G_DL (not into it), at a G_BRANCH_Z on at the second command of the list its G_RDPHALF_1 names, to
  * the first G_ENDDL. Each word it made an address got the file's address once more; its first VTX's vertices are the
  * run mirror_vertex_texcoords walks; each LOD marker it came to may become a branch. */

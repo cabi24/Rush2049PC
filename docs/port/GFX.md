@@ -901,7 +901,7 @@ by w in double for every triangle that uses it; computing that once a vertex at 
 - **The files' lists.** The WAD converter builds them, and the vertices they load, in the PC's form
   ([NATIVE.md](NATIVE.md) step 10; [ASSETS.md](ASSETS.md) 3.2); texels and TLUTs stay big-endian in the file's
   registered range. The game's
-  walkers over the lists read and write `Gfx` and `Vtx` as they are: `relocate_model_dl` (the race's LOD markers),
+  walkers over the lists read and write `Gfx` and `Vtx` as they are: `prepare_model_dl` (the race's LOD markers),
   `display_list_traverse`, the mirror winding flip (`flip_triangle_winding`), the vertex flag pass
   (`mirror_vertex_texcoords`) and the texture animation's `displaylist_*` helpers.
 
@@ -924,7 +924,7 @@ since NATIVE.md step 10), as seen through the game's walkers. **T** = covered by
 | DB | MOVEWORD: SEGMENT, NUMLIGHT, FOG, PERSPNORM | code | done, T (PERSPNORM has no effect) |
 | DB | MOVEWORD: LIGHTCOL, MATRIX, CLIP, FORCEMTX | not emitted | LIGHTCOL/MATRIX done, untested |
 | DC | MOVEMEM: VIEWPORT, LIGHT (lookat 0/24, lights 48/72/96) | code | done, T |
-| DD | LOAD_UCODE | only in the relocation's list of address commands (relocate_model_dl's, then the WAD converter's) | ignored |
+| DD | LOAD_UCODE | only in the relocation's list of address commands (prepare_model_dl's, then the WAD converter's) | ignored |
 | DE / DF | DL / ENDDL | code, ROM | done, T |
 | E0 | SPNOOP (LOD marker) | ROM | no-op, T |
 | E1 / F1 | RDPHALF_1/2 | code (texrect), ROM (BRANCH_Z) | done, T |

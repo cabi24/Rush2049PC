@@ -142,7 +142,7 @@ handle, wave, size, ptr, lastPtr):
   (`gRomObjDefPtrs`, `gTexDefPtrs`, `gPalDefPtrs`; a track's target paths `gTargetPaths`) point at the WAD's records,
   which its converter built beside the file (`pc_wad_records`: OBHD, TXHD, PLHD, PTHD; on the N64 `MBSetupWad` and
   `MBGetFromWad` rebased the file's own records in place), the texture loads (TXLD) are relocated to the texels
-  (IMAG), and each model's display lists relocated (`relocate_model_dl`, keeping the sections for the player count
+  (IMAG), and each model's display lists relocated (`prepare_model_dl`, keeping the sections for the player count
   and the track's direction) and mirrored for a mirrored track (`MirrorWaveInstance`). The converters' records go
   with the block when the heap frees it, and follow it when the heap moves it (the font data, a handle:
   `pc_heap_block_moved`; port/assets/records.c).
@@ -180,7 +180,7 @@ same input.
 | Frame loop, states, start-up | groups/mainloop/mainloop.c, groups/state/state.c, groups/heap_release/initsystem.c, groups/heap_release/initsystem_start.c, groups/initgraphics/*.c (not called on the PC), UpdateGraphics.c (not called), ClearScreen.c, ZOID_SplitScreen.c, groups/hal_time/group.c, HAL_CallOncePerFrameFuncs.c |
 | Heap | groups/memsys/group.c, AllocateMemoryHeapHigh.c, FindHeap.c, groups/heap_release/group.c, groups/destroy_heap, groups/largest_heap_chunk, groups/purgeable_memory, groups/pointer_counters (and FindChunk.c, ClearMemoryHeap.c, alloc_at.c, heap_move_block_low.c, memsys_free_total: other areas' files) |
 | Lists and trees | InitStatLL.c, GetStatLLE.c, FreeStatLLE.c, ClearStatLL.c, InsertLLE.c, RemoveLLE.c, groups/save/save.c (InitLL, ClearLL), InitBST.c, ClearBST.c, InsertBSTE.c, InsertBSTEInternal.c, WalkBST.c, WalkBSTInternal.c |
-| Waves and WADs | InitWaves.c, FindWaveInstance.c, ModelActive.c, groups/waves/*.c, groups/UnloadWaveAll, groups/slot_sound/*.c, groups/state_waves/FindWaveInstanceInternal.c, groups/heap_release/UnloadWaveInstance.c, MB*Wad.c, relocate_model_dl.c, display_list_traverse.c, mirror_vertex_texcoords.c |
+| Waves and WADs | InitWaves.c, FindWaveInstance.c, ModelActive.c, groups/waves/*.c, groups/UnloadWaveAll, groups/slot_sound/*.c, groups/state_waves/FindWaveInstanceInternal.c, groups/heap_release/UnloadWaveInstance.c, MB*Wad.c, prepare_model_dl.c, display_list_traverse.c, mirror_vertex_texcoords.c |
 | Compression | groups/heap_release/zip.c, groups/zlib_deflate/group.c, groups/heap_release/zcfree.c (zlib 1.0.4's deflate, for the ghosts) |
 | Input | ControllerUpdate.c, groups/controlsys/group.c, InitControlSys.c, ClearControls.c, Get/SetController*, InitRushControls.c, SetDefaultControls.c, SetControls.c, UpdateRushControls.c, ClearRushControls.c, FindPlayerNum.c, groups/model_controls_input/group.c, pak_poll_inserted.c, groups/pakerr/group.c |
 
@@ -193,7 +193,7 @@ same input.
   declares its own `osRecvMesg`/`osSendMesg` and views `heap_lock_queue` its own way.
 - **The WADs' display lists and texture loads** are native beside the file since NATIVE.md step 10: the WAD converter
   builds them command for command in the PC's form (`Gfx`, w1 a host pointer where it carries an address) and the
-  vertices they load in the host's byte order; `relocate_model_dl` keeps the race's sections, and
+  vertices they load in the host's byte order; `prepare_model_dl` keeps the race's sections, and
   `display_list_traverse`, `mirror_vertex_texcoords` and the texture animation read and write them as they are. The
   texels and the palettes' colours stay in the file in the N64's formats.
 - **The frame**: `frame_records`' tasks are `PcScTaskShape`, the N64 OSScTask in host form; the frame buffers and
