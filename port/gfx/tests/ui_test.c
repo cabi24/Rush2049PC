@@ -32,6 +32,7 @@ uint32_t pc_n64_addr(const void *h) { (void)h; return 0; }
 void pc_mem_register_be(const void *start, size_t size) { (void)start, (void)size; }
 void pc_mem_unregister_be(const void *start) { (void)start; }
 int pc_mem_is_be(const void *p) { (void)p; return 0; }
+int pc_mem_is_model_data(const void *p) { (void)p; return 0; }
 
 /* ---------------------------------------------------------------- harness */
 
@@ -54,7 +55,6 @@ static PcGfxWords s_list[64];
 /* A 320 x 240 frame of one 5551 color, presented. */
 static void show_frame(uint16_t color) {
     gp = s_list;
-    g_be_mode = 0;
     gsDPPipeSync();
     gsDPSetScissor(0, 0, 320, 240);
     gsDPSetCycleType(G_CYC_FILL);

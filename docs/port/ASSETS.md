@@ -169,8 +169,8 @@ Chunks:
 | PLHD | count × 0x18 | `char name[16]`; `u8 start` +0x10, `end` +0x11; `u16 format` +0x12; `char *palBase` +0x14 (`waves.c:84-90`) | `palBase += IMAG` (`waves.c:190`) | 16 at 0x12, 32 at 0x14 [M `:377`] | C |
 | PTHD | count × 0x24, waves 101–119 | `tBasicTargetPath` (`waves.c:91-99`): `char name[16]`; `u32 flags` +0x10; `s16 numPts` +0x14; `s16 collIdx` +0x16; `trigPtr` +0x18; `pts` +0x1C; `parent` +0x20 (set at run time) | `pts` and `trigPtr` are file-relative, `+= file` (`waves.c:203-204`). The camera reads `trigPtr` as the linked scene, another PTHD record (§8.2). `parent` is a file key that level objects read and the camera then overwrites | 32 at 0x10, 0x18, 0x1C, 0x20; 16 at 0x14, 0x16 [M `:384`] | C |
 | PATH | bytes | path points, numPts × 0x44: `f32 pos[3], norm[3], scale[3], quat[4], distToNext, timeToNext, speed; u32 flags` [M `rush_types.h:2435`] | none | 17 × u32 per point [M `waves.c:418`] | M |
-| TXLD | bytes | texture-load display lists, 8-byte F3DEX2 commands | `G_SETTIMG` (0xFD) w1, and w1 of `G_RDPHALF_1` (0xE1) followed by 0x04, are IMAG-relative. `relocate_texture_loads` (0x80096A00, `src/blob/relocate_texture_loads.c:19-37`) rebases them to `(w1 & 0x0F000000) \| ((w1 + IMAG) & 0xFFFFFF)` | stays N64 form | C |
-| OBJS | bytes | object display lists and `Vtx` (16 B: `s16 ob[3]`, `u16 flag` +6, `s16 tc[2]` +8, `u8 cn[4]` +0xC) | VTX/DL/MTX/MOVEMEM/SETxIMG w1 are file-relative with segment nibble 0. The relocator rewrites them (§3.2) | stays N64 form | C |
+| TXLD | bytes | texture-load display lists, 8-byte F3DEX2 commands | `G_SETTIMG` (0xFD) w1, and w1 of `G_RDPHALF_1` (0xE1) followed by 0x04, are IMAG-relative. `relocate_texture_loads` (0x80096A00, `src/blob/relocate_texture_loads.c:19-37`) rebases them to `(w1 & 0x0F000000) \| ((w1 + IMAG) & 0xFFFFFF)` | native beside the file since [NATIVE.md](NATIVE.md) step 10 (§3.2); the file keeps its bytes | C |
+| OBJS | bytes | object display lists and `Vtx` (16 B: `s16 ob[3]`, `u16 flag` +6, `s16 tc[2]` +8, `u8 cn[4]` +0xC) | VTX/DL/MTX/MOVEMEM/SETxIMG w1 are file-relative with segment nibble 0. The relocator rewrites them (§3.2) | native beside the file since step 10, the vertices too (§3.2); the file keeps its bytes | C |
 | IMAG | bytes | texels (N64 formats per TXHD `size`/`format`) and TLUTs (RGBA16) | none | stays N64 form (renderer) | C (use), R (contents) |
 
 Model handle = `(waveSlot << 10) | index` (`zoid_draw_object` 0x8009C8F0, really the model draw,
@@ -180,16 +180,19 @@ Model handle = `(waveSlot << 10) | index` (`zoid_draw_object` 0x8009C8F0, really
 **On the PC** (since [NATIVE.md](NATIVE.md) step 7) the tables above are what the N64 did. The WAD's converter
 (`port/assets/wad.c`) builds the four record chunks beside the file when it loads, native, MAT3's fields with host
 pointers where the file has offsets (`port/include/pc_game_types.h`): `struct tModelDef` (0x78, its four `struct tLod`
-0x18 each: `displayList` and `vtxList` pointers into the file for the levels below `lodCount`, NULL past it),
-`struct tTexture` (0x28: `texBase` IMAG's offset plus the record's in 32 bits, in the file), `struct tPaletteDef`
-(0x20: `palBase` in the file past IMAG), `struct tBasicTargetPath` (0x38: `trigPtr` the record of the same chunk it
-names, NULL for 0; `pts` in the file; `parent` the target's record once `ResetPath` sets it; `key` the file's word in
-`parent`'s place). `SetupWaveModel` points the tables at them (`pc_wad_records`) and relocates only the display lists
-and the texture loads, in the file, in the N64's form (step 10). The file's table of contents and record chunks stay
-as the file has them, big-endian; the PATH points are swapped in place, as the game reads them through `pts`. The
-records are kept by the file's heap block (`port/assets/records.c`) and go with it. `MBSetupWad`, `MBGetFromWad`,
-`MBOffsetWad` and `MBFindInWad` are gone, and `relocate_wave_model` (`SetupWaveModel` with `first` clear, for a moved
-handle WAD, which no model WAD is) with them.
+0x18 each: `displayList` the converter's native list (below) and `vtxList` a pointer into the file for the levels
+below `lodCount`, NULL past it), `struct tTexture` (0x28: `texBase` IMAG's offset plus the record's in 32 bits, in the
+file, or for a texture drawn by its load list the converter's native list), `struct tPaletteDef` (0x20: `palBase` in
+the file past IMAG), `struct tBasicTargetPath` (0x38: `trigPtr` the record of the same chunk it names, NULL for 0;
+`pts` in the file; `parent` the target's record once `ResetPath` sets it; `key` the file's word in `parent`'s place).
+Since step 10 it builds the display lists (OBJS's and TXLD's) and the vertices they load beside the file too, in the
+PC's form with host pointers (§3.2). `SetupWaveModel` points the tables at the records (`pc_wad_records`) and keeps
+the race's sections of the models' lists (`relocate_model_dl`); it relocates nothing. The file's table of contents,
+record chunks, lists and vertices stay as the file has them, big-endian; the PATH points are swapped in place, as the
+game reads them through `pts`. The records and lists are kept by the file's heap block (`port/assets/records.c`) and
+go with it. `MBSetupWad`, `MBGetFromWad`, `MBOffsetWad` and `MBFindInWad` are gone, and `relocate_wave_model`
+(`SetupWaveModel` with `first` clear, for a moved handle WAD, which no model WAD is) with them; `relocate_texture_loads`
+went with step 10.
 
 ### 3.2 Display-list relocation and the post-load passes
 
@@ -204,11 +207,35 @@ handle WAD, which no model WAD is) with them.
 | Texture animation | setup `InitTextureAnimation` 0x800BDAA8, update `TextureAnimation` 0x800BD2C8, helpers `displaylist_get_texture_image` 0x800BDA24 (read the first SETTIMG w1), `displaylist_set_texture_image` 0x800BD080 (write it), `displaylist_set_tile_size` 0x800BD104 (rewrite G_SETTILESIZE uls/ult) | Patches TXLD lists, TXHD `texBase`, and TLUT entries (palette kinds 0–8 store RGBA16 constants, `TextureAnimation.c`) once per frame. Tables `0x8011A31C` / `0x8011A840` [R] | C, R |
 | Model draw `zoid_draw_object` / texture-load builder `zoid_load_texture` / TLUT load `zoid_load_palette` | 0x8009C8F0 / 0x80099BFC / 0x80099B30 (`groups/zoid_draw/group.c:822/655/640`) | Read OBHD/TXHD/PLHD fields and emit native commands: `gSPDisplayList(lod.dl)` with the relocated 24-bit address, and `gSPDisplayList(tex->image)` (`:665`) for a TXLD list. Texture and TLUT loads point at IMAG (K0 addresses). `G_SETOTHERMODE_H(TEXTLUT)` once per frame | C |
 
-Consequence for the renderer: native lists built by the game carry three kinds of address to big-endian payload.
-These are physical 24-bit (`0x00xxxxxx`, from the relocator), K0 (`0x80xxxxxx`, TXHD/PLHD/IMAG) and, rarely,
-segmented. All three resolve to `PC_RDRAM_BASE + (a & 0x00FFFFFF)` for segment 0. Optionally, under `TARGET_PC` the
-two relocators can emit `| 0x80000000` (K0) instead. That is idempotent for `mirror_vertex_texcoords`, `display_list_traverse`
-and the bit-31 test, and makes every relocated w1 a literal host address.
+The table is the N64's. **On the PC** (since [NATIVE.md](NATIVE.md) step 10) the WAD's converter (`port/assets/wad.c`)
+builds the lists again beside the file when it loads, in the PC's own form (`PcGfxWords`, the game's `Gfx`: w0, and a
+pointer-sized w1), command for command:
+
+- **Which commands**: every command a walk of the file comes to, from each level's list (below `lodCount`) and each
+  listed texture's load list, a command at a time to G_ENDDL (past a G_DL or a branch too: the game's own walks go on
+  past them), and into each list a G_DL, a G_RDPHALF_1 before G_BRANCH_Z or a LOD marker names. They are built in the
+  file's order, so the command after a built one is the next one built, and a walk of the native lists comes to the
+  commands its walk of the file came to. One G_ENDDL follows the last. The bytes between the lists (vertices) are none.
+- **The addresses**: SetupWaveModel's relocation (the table's two relocators, in its order) is played on the file's
+  offsets, to know whether each address-carrying command (0x01, 0xDA, 0xDC, 0xDD, 0xDE, 0xE1 before 0x04 or 0xDD,
+  ≥ 0xFD) was made an address once, by the file's origin or IMAG's. Its w1 then points at
+  `(origin + w1) & 0xFFFFFF` in the file, where the renderer read the relocated word (the file's RDRAM address plus the offset, in 24 bits): at the
+  native command that starts there (G_DL, the E1 of a branch, a LOD marker's section end), at the native vertices
+  (VTX), or into the file (SETTIMG, MTX, MOVEMEM: texels, TLUTs and matrices stay in the file, big-endian). A word the
+  N64 made an address not exactly once (a list no relocation walked, two walks over one command) pointed into no file:
+  the converter says so (`display lists:` in the log) and leaves it NULL. Every other w1 is the file's word.
+- **The vertices**: the runs the VTX commands load, and the run `mirror_vertex_texcoords` walks from a level's first
+  VTX, copied beside the file in the host's byte order (x, y, z, flag, s, t swapped; the colour's bytes as they are), each
+  run of the file's bytes in one piece with 16 zero bytes after it; registered as model data
+  (`pc_mem_register_model_data`) for the high frame rate.
+
+What is left of the table at run time works on those: `relocate_model_dl` keeps the race's sections (a marker whose bit
+the race doesn't keep becomes `DE010000` to the native list its w1 names) and runs the vertex pass on the first VTX's
+native vertices; `display_list_traverse`, `flip_triangle_winding` and the texture animation's helpers read and write
+`Gfx` and `Vtx` as they are; `relocate_texture_loads` is gone. `rush2049pc_assetcheck` and `assets_wad` compare the
+native lists with an independent replay of the N64's relocation of the file (`port/assets/tests/wad_lists_check.h`):
+the same commands, every address where the N64's word pointed, the vertices the file's; `assets_mods` runs that on
+every mutated WAD `check.c` passes.
 
 ### 3.3 Text bank (waves 0–5)
 
@@ -337,15 +364,15 @@ Every function in this table reads loaded data with native 32- or 16-bit loads, 
 |---|---|---|---|
 | 1 | `MBSetupWad.c:35-41` | TOC word replaced by the absolute address; "relocated" means bit 31 set; `offset += (u32)header` | done: the converter reads the TOC and builds the records beside the file; `MBSetupWad` is gone ([NATIVE.md](NATIVE.md) step 7) |
 | 2 | `MBOffsetWad.c` (`MBOffsetWad`) | raw +0/+4/+8 into the 12-byte WAD handle | done: gone (a moved handle's records follow the block, `pc_heap_block_moved`) |
-| 3 | `waves.c:139, 175-182`; `MBGetFromWad.c` | chunk addresses returned and held as `s32` (`IMAGptr`, `TXLDptr`) | done: `struct pc_wad_records`' pointers; the display-list relocation still takes IMAG's and the file's N64 addresses (step 10) |
+| 3 | `waves.c:139, 175-182`; `MBGetFromWad.c` | chunk addresses returned and held as `s32` (`IMAGptr`, `TXLDptr`) | done: `struct pc_wad_records`' pointers; since step 10 nothing takes IMAG's or the file's N64 address (the converter builds the display lists) |
 | 4 | `waves.c:171, 195-196, 203-204` | `(u32)displayList + (u32)WADptr`; `offset = *(u8 **)ptr - (u32)lastPtr` | done: the converter's pointers; `lastPtr` unused |
 | 5 | `waves.c:163`, `slot_sound/group.c:127` vs `memsys/group.c:159` | handles dereferenced as `*(u8 **)` while the heap's master slots are `u32` (`count * 4`) | `(u8 *)(uintptr_t)*(u32 *)h`, or 8-byte slots throughout memsys. Done: 8-byte slots on the PC, a window address zero-extended ([POINTERS.md](POINTERS.md) 9.10) |
-| 6 | `relocate_model_dl` (0x80096734) | `(w1 + base) & 0xFFFFFF` plus a segment nibble; writes w0/w1 | window (RDRAM ≤ 16 MB); BE32 accessors |
-| 7 | `relocate_texture_loads.c:19-37` | the same rebase on TXLD; iterates a local 8-byte `Gfx` | BE32; keep its local `Gfx` 8 bytes even after the `TARGET_PC` widening of `Gfx` |
-| 8 | `mirror_vertex_texcoords` | `addr \| 0x80000000` to make a pointer; u16 at Vtx+6, s16 at +8 | window; BE16 |
-| 9 | `display_list_traverse.c:19-21, 38-40` | `addr += 0x80000000` / `&= 0xF0FFFFFF`, then a `u32 *` cast | window; BE32 |
-| 10 | `flip_triangle_winding` | swaps index bytes at fixed bit positions of w0/w1 | BE32 load and store |
-| 11 | `displaylist_set_texture_image`, `displaylist_get_texture_image`, `displaylist_set_tile_size`, `TextureAnimation` | texture animation writes w1, SETTILESIZE w0 and RGBA16 TLUT entries | BE accessors |
+| 6 | `relocate_model_dl` (0x80096734) | `(w1 + base) & 0xFFFFFF` plus a segment nibble; writes w0/w1 | done: the converter builds the lists with host pointers; what is left (the LOD markers, the first VTX) works on `Gfx` ([NATIVE.md](NATIVE.md) step 10) |
+| 7 | `relocate_texture_loads.c:19-37` | the same rebase on TXLD; iterates a local 8-byte `Gfx` | done: gone; the converter points TXLD's SETTIMG and branches at IMAG plus the offset (step 10) |
+| 8 | `mirror_vertex_texcoords` | `addr \| 0x80000000` to make a pointer; u16 at Vtx+6, s16 at +8 | done: native `Vtx` the converter copied (step 10) |
+| 9 | `display_list_traverse.c:19-21, 38-40` | `addr += 0x80000000` / `&= 0xF0FFFFFF`, then a `u32 *` cast | done: `Gfx` with pointers (step 10) |
+| 10 | `flip_triangle_winding` | swaps index bytes at fixed bit positions of w0/w1 | done: `Gfx` (step 10) |
+| 11 | `displaylist_set_texture_image`, `displaylist_get_texture_image`, `displaylist_set_tile_size`, `TextureAnimation` | texture animation writes w1, SETTILESIZE w0 and RGBA16 TLUT entries | done: `Gfx` with pointers; the TLUT colours by `pc_tlut_get`/`pc_tlut_set`, the files' texel format (step 10) |
 | 12 | `loadtrack.c:120` | `woff += (u32)worldptr` into a u32 field | done: the world's converter builds the name table beside the file with each root a host pointer (`struct pc_world_records`, `port/assets/world.c`); the file keeps its offsets, and `LoadTrack` takes the records instead of `MBSetupWad`/`MBGetFromWad` ([NATIVE.md](NATIVE.md) step 8) |
 | 13 | `NewWorld.c:28-30` | `NameEntry {Node104 *node; char name[16]}` overlaid on 0x14-byte WHDR entries, `bsearch(.., sizeof(NameEntry))` | done: `NameEntry` is the native table's entry (`pc_game_types.h`, 24 bytes, `node` a pointer), and the bsearch's stride is its size |
 | 14 | `targets/group.c` (`SetTargetDefs`), `CheckTargetCollision.c` | GTLD u32 keys replaced in place by `Object *` and read as `void **` | done: a native side table, `struct pc_target_group` (`pc_game_types.h`: each key and the target `SetTargetDefs` finds for it, NULL none), which the world's converter (`port/assets/world.c`) builds from the file's keys when the file loads (NATIVE.md step 8; step 3 made it a side table); `CheckTargetCollision` reads `gTargetGroupList[i].target` (NATIVE.md step 3) |
@@ -378,7 +405,8 @@ hook in `_ReadWave` just before its `SetupWaveModel` call (`waves.c:254`), keyed
 | TXHD | WADs | side: done since NATIVE.md step 7 (before: swap) | 16 at 0x10, 0x12, 0x16; 32 at 0x18, 0x1C, 0x20 | `struct tTexture` in every reader |
 | PLHD | WADs | side: done since NATIVE.md step 7 (before: swap) | 16 at 0x12; 32 at 0x14 | `struct tPaletteDef` in every reader, the car palettes too |
 | PTHD + PATH points | 101–119 | side (the records) and swap (the points): done since NATIVE.md step 7 | §3.1 | `struct tBasicTargetPath`; a path target's record names its path by index |
-| TXLD, OBJS DLs, Vtx, IMAG texels and TLUTs | WADs | BE | none; register the buffer | §4 #6–11 (about 12 functions) |
+| TXLD, OBJS DLs, Vtx | WADs | side: done since NATIVE.md step 10, the lists in the PC's form with host pointers, the vertices native (before: BE in the registered buffer) | §3.2 | §4 #6–11: `Gfx` and `Vtx` in the walkers |
+| IMAG texels and TLUTs | WADs | BE (the N64's texel formats, which the renderer decodes) | none; register the buffer | the TLUT colours by `pc_tlut_get`/`pc_tlut_set` |
 | WHDR | 120–138 | swap + side: done, `port/assets/world.c` ([LOADERS.md](LOADERS.md)): the name table native beside the file | u32 count, u32 woff | §4 #12–13 |
 | World nodes (WOBJ) | 120–138 | swap: done | 12 f32, u32, 4 × s16, s32, 6 f32 per 0x68 | none |
 | GDAT | 120–138 | swap: done | s16 at 0, 4 × f32, 4 × u16 | none |

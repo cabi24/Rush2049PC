@@ -580,20 +580,23 @@ const struct pc_path_records *pc_path_records(const void *file);   /* the path f
  * with offsets where these have pointers; on the N64 SetupWaveModel turned the offsets into 32-bit addresses in place
  * (MBSetupWad, MBGetFromWad: `+= (u32)base`). On the PC the WAD's converter (port/assets/wad.c) builds these beside the
  * file when it loads, MAT3's fields in MAT3's order with host pointers, and SetupWaveModel points the wave's entries
- * of gRomObjDefPtrs, gTexDefPtrs, gPalDefPtrs and gTargetPaths at them. The file keeps the rest in the N64's form: the
- * display lists and their vertices, the texture loads (TXLD), the texels and colours (IMAG), all big-endian until
- * docs/port/NATIVE.md step 10, and the paths' points (PATH), which the converter swaps in place. */
+ * of gRomObjDefPtrs, gTexDefPtrs, gPalDefPtrs and gTargetPaths at them. The converter builds the display lists (the
+ * models' and the texture loads', TXLD) and the vertices they load beside the file too, in the PC's own form
+ * (docs/port/NATIVE.md step 10): a list is the game's Gfx, 16-byte commands with host pointers, as the lists the game
+ * builds are. The file keeps the texels and colours (IMAG) in the N64's formats, which the renderer decodes, and the
+ * paths' points (PATH), which the converter swaps in place. */
 
 /* One level of detail of an object definition (MAT3 anon_texidx_flags_c; 0x10 bytes in the file). The track select
  * puts lists of its own into a map's first level (trackscr.c's mapObj) and puts the file's back after
  * (saved_map_lods). */
+union Gfx;
 struct tLod {                           /* 0x18 */
     unsigned short texidx;              /* +0x00 with LOD_TEXTURE_SET a texture ZOID_ChangeTexture gave it, a handle:
                                          * (model << 10) | its index in that model file's textures */
     unsigned short flags;               /* +0x02 LOD_* (scene.h) */
     float lodRad;                       /* +0x04 drawn up to this distance, feet times the node's scale; 0: no limit */
-    unsigned int *displayList;          /* +0x08 its display list: in the file, in the N64's form (8-byte big-endian
-                                         * commands, which SetupWaveModel relocates in place: relocate_model_dl) */
+    union Gfx *displayList;             /* +0x08 its display list, native: the converter's (SetupWaveModel keeps the
+                                         * race's sections of it: relocate_model_dl), or the track map's */
     void *vtxList;                      /* +0x10 its vertices, in the file (the N64's; MAT3 has none): read only in the
                                          * track map's own copies, where they are its map's */
 };
@@ -614,8 +617,8 @@ struct tTexture {                       /* 0x28 */
     unsigned char size, format;         /* +0x14 G_IM_SIZ_*, G_IM_FMT_* */
     short palIndex;                     /* +0x16 its palette among its file's, -1 none */
     void *texBase;                      /* +0x18 with TEX_IMAGE_DIRECT its texels, in the file's IMAG; else the display
-                                         * list in TXLD that loads them (N64 form). The texture animation's flipbooks
-                                         * change it (MAT3 char *) */
+                                         * list that loads them (the converter's of the file's TXLD list: a Gfx *).
+                                         * The texture animation's flipbooks change it (MAT3 char *) */
     unsigned int flags;                 /* +0x20 TEX_* (scene.h) */
     unsigned int xflags;                /* +0x24 no reader */
 };
@@ -649,8 +652,7 @@ struct tBasicTargetPath {               /* 0x38 */
 };
 /* A WAD's records (port/assets/wad.c builds them when the file loads), each chunk's a native array; a chunk the file
  * doesn't have is NULL with a count of 0, as MBGetFromWad gave it (one it has with no records is an empty array).
- * textureLoads and images are the file's own: SetupWaveModel relocates the texture loads (relocate_texture_loads)
- * and the display lists in the N64's form. */
+ * The display lists the records point at are the converter's too, kept with them. */
 struct pc_wad_records {
     struct tModelDef *models;           /* OBHD */
     int numModels;
@@ -660,9 +662,6 @@ struct pc_wad_records {
     int numPalettes;
     struct tBasicTargetPath *paths;     /* PTHD */
     int numPaths;
-    void *textureLoads;                 /* TXLD: the texture loads' display lists, N64 form */
-    int textureLoadsSize;               /* their bytes */
-    void *images;                       /* IMAG: the texels and colours */
 };
 struct pc_wad_records *pc_wad_records(const void *file);   /* the WAD in the heap block `file` */
 

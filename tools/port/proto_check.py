@@ -85,17 +85,12 @@ ABI = "sysv"   # --abi: "sysv" (x86-64 SysV and AAPCS64, both Linux hosts) or "w
 # Disagreements that are read and known not to matter on the PC (docs/port/PROTOTYPES.md): function, or
 # function@view file, -> why.
 _HEAP = "heap block addresses are RDRAM-window addresses below 4 GB, which 32 bits hold exactly (POINTERS.md 4.1)"
-_ROMDL = ("a word of a display list loaded from the ROM (N64 form): a 32-bit window address of loaded data "
-          "(POINTERS.md 2)")
 _SAME32 = "compared with 32-bit slots that hold the same truncation of the pointer (POINTERS.md 4.4)"
 _INDEX = "a model index carried in a void * variable"
 REVIEWED = {
     "AddStunt": "old-style definition; `hits` is a third parameter no caller passes, written before it is read",
     "inflate_decompress": "the source is a ROM offset from the file table wave_rom_offsets, not a host pointer",
     "lzss_decompress": "the source is a ROM offset from the file table wave_rom_offsets, not a host pointer",
-    "relocate_texture_loads@src/blob/groups/waves/waves.c":
-        "the WAD loader (an N64_WORLD file) passes its loaded block's window addresses as 32-bit integers",
-    "displaylist_set_texture_image": _ROMDL, "displaylist_get_texture_image": _ROMDL,
     "TB_DrawText@src/ovl_a/titlescr_animText.c":
         "the text comes from the loaded text bank, whose fields are 32-bit window addresses (POINTERS.md 4.2)",
     "RemovePlayerScores": _SAME32, "FindChangeCmd": _SAME32,

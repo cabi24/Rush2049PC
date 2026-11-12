@@ -7,7 +7,7 @@
  *   0x124 PLHD   2 palettes
  *   0x154 PTHD   3 target paths: 0 and 1 share their middle point, 2 has none; 0's trigger is 1, 1's is 2
  *   0x1C0 PATH   4 points of 0x44
- *   0x2D0 TXLD   SETTIMG, SETTILE, E1+04 (a branch), SETTILESIZE, ENDDL; texture 1's list
+ *   0x2D0 TXLD   SETTIMG, SETTILE, E1+04 (a branch to its SETTILESIZE), SETTILESIZE, ENDDL; texture 1's list
  *   0x300 OBJS   display lists (LOD 0: VTX, TRI1, a LOD marker the load flags keep, a call, a LOD marker they
  *                turn into a branch, ENDDL; the called list; the branch target; LOD 1 and model 1's lists) and
  *                three Vtx
@@ -134,10 +134,11 @@ static size_t wad_build(uint8_t *buf)
         test_put32(pt + 0x40, 0xF1A90000u + (uint32_t)i);     /* flags */
     }
 
-    /* TXLD: SETTIMG (IMAG-relative), SETTILE, E1 + 04 (IMAG-relative), SETTILESIZE, ENDDL */
+    /* TXLD: SETTIMG (IMAG-relative), SETTILE, E1 + 04 (IMAG-relative: a branch back to this list's SETTILESIZE, which
+     * lies before IMAG), SETTILESIZE, ENDDL */
     wad_cmd(buf + W_TXLD, 0xFD100000u, 0x00000010u);
     wad_cmd(buf + W_TXLD + 8, 0xF5100000u, 0x07000000u);
-    wad_cmd(buf + W_TXLD + 16, 0xE1000000u, 0x00000020u);
+    wad_cmd(buf + W_TXLD + 16, 0xE1000000u, (uint32_t)(W_TXLD + 32 - W_IMAG));
     wad_cmd(buf + W_TXLD + 24, 0x04000000u, 0x00000000u);
     wad_cmd(buf + W_TXLD + 32, 0xF2000000u, 0x0007C03Cu);
     wad_cmd(buf + W_TXLD + 40, 0xDF000000u, 0);

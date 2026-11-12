@@ -409,81 +409,95 @@ uint32_t pc_n64_addr(const void *host)
     return 0;
 }
 
-/* ---------------------------------------------------------------- the RCP's addresses (docs/port/MEMORY.md 3) */
+/* The game gives the renderer its colour and depth images as pointers (StartGraphics, ClearScreen): libultra's
+ * osVirtualToPhysical and osPhysicalToVirtual, which turned window pointers into the N64's physical addresses and
+ * back, went with their last callers (docs/port/NATIVE.md step 4); the display lists' 24-bit relocation and its rule
+ * past 16 MiB (rcpaddr.c) with the files' lists in the N64's form (step 10). */
 
-/* The rule past 16 MiB, and the display lists' relocation, are in rcpaddr.c (which tests link alone). The game gives
- * the renderer its colour and depth images as pointers (StartGraphics, ClearScreen): libultra's osVirtualToPhysical
- * and osPhysicalToVirtual, which turned window pointers into the N64's physical addresses and back, went with their
- * last callers (docs/port/NATIVE.md step 4). */
+/* ---------------------------------------------------------------- ranges of the files' data */
 
-/* ---------------------------------------------------------------- big-endian ranges */
-
+/* Two sets of address ranges that the converters and the PI DMA keep, and that the renderer and the audio interpreter
+ * ask about: the bytes still in the N64's byte order (big-endian: texels, TLUTs, the sound's data), and the models'
+ * vertices the WAD converter made native (port/assets/wad.c, docs/port/NATIVE.md step 10). Each set is sorted and
+ * disjoint. A range that overlaps existing ones merges with them, so a PI DMA into a registered buffer (the MusyX
+ * caches) leaves it one range; adjacent ranges stay apart, so each buffer can be dropped on its own when it is freed.
+ * The converters run on the N64 threads and the renderer on the main thread: each set has a lock. */
 typedef struct { uintptr_t start, end; } Range;
-static pthread_mutex_t g_be_lock = PTHREAD_MUTEX_INITIALIZER;
-static Range *g_be;
-static size_t g_nbe, g_cap;
+typedef struct {
+    pthread_mutex_t lock;
+    Range *r;
+    size_t n, cap;
+} RangeSet;
 
-/* Sorted and disjoint. A range that overlaps existing ones merges with them, so a PI DMA into a registered
- * buffer (the MusyX caches) leaves it one range; adjacent ranges stay apart, so each buffer can be dropped on
- * its own when it is freed. */
-void pc_mem_register_be(const void *start, size_t size)
+static RangeSet g_be = {PTHREAD_MUTEX_INITIALIZER, NULL, 0, 0};
+static RangeSet g_model_data = {PTHREAD_MUTEX_INITIALIZER, NULL, 0, 0};
+
+static void range_add(RangeSet *set, const void *start, size_t size)
 {
     uintptr_t s = (uintptr_t)start, e = s + size;
     if (!size)
         return;
-    pthread_mutex_lock(&g_be_lock);
+    pthread_mutex_lock(&set->lock);
     size_t i = 0, j;
-    while (i < g_nbe && g_be[i].end <= s)
+    while (i < set->n && set->r[i].end <= s)
         i++;
-    for (j = i; j < g_nbe && g_be[j].start < e; j++) {
-        if (g_be[j].start < s)
-            s = g_be[j].start;
-        if (g_be[j].end > e)
-            e = g_be[j].end;
+    for (j = i; j < set->n && set->r[j].start < e; j++) {
+        if (set->r[j].start < s)
+            s = set->r[j].start;
+        if (set->r[j].end > e)
+            e = set->r[j].end;
     }
-    if (j == i && g_nbe == g_cap) {
-        g_cap = g_cap * 2 + 16;
-        g_be = realloc(g_be, g_cap * sizeof *g_be);
+    if (j == i && set->n == set->cap) {
+        set->cap = set->cap * 2 + 16;
+        set->r = realloc(set->r, set->cap * sizeof *set->r);
     }
     if (j == i) {   /* no overlap: insert */
-        memmove(&g_be[i + 1], &g_be[i], (g_nbe - i) * sizeof *g_be);
-        g_nbe++;
+        memmove(&set->r[i + 1], &set->r[i], (set->n - i) * sizeof *set->r);
+        set->n++;
     } else {        /* replace ranges i..j-1 with their union */
-        memmove(&g_be[i + 1], &g_be[j], (g_nbe - j) * sizeof *g_be);
-        g_nbe -= j - i - 1;
+        memmove(&set->r[i + 1], &set->r[j], (set->n - j) * sizeof *set->r);
+        set->n -= j - i - 1;
     }
-    g_be[i] = (Range){s, e};
-    pthread_mutex_unlock(&g_be_lock);
+    set->r[i] = (Range){s, e};
+    pthread_mutex_unlock(&set->lock);
 }
 
-/* Drops the range that holds start (the buffer is freed or refilled with native data). */
-void pc_mem_unregister_be(const void *start)
+/* Drops the range that holds start (the buffer is freed, or refilled with other data). */
+static void range_drop(RangeSet *set, const void *start)
 {
     uintptr_t a = (uintptr_t)start;
-    pthread_mutex_lock(&g_be_lock);
-    for (size_t i = 0; i < g_nbe; i++)
-        if (g_be[i].start <= a && a < g_be[i].end) {
-            memmove(&g_be[i], &g_be[i + 1], (g_nbe - i - 1) * sizeof *g_be);
-            g_nbe--;
+    pthread_mutex_lock(&set->lock);
+    for (size_t i = 0; i < set->n; i++)
+        if (set->r[i].start <= a && a < set->r[i].end) {
+            memmove(&set->r[i], &set->r[i + 1], (set->n - i - 1) * sizeof *set->r);
+            set->n--;
             break;
         }
-    pthread_mutex_unlock(&g_be_lock);
+    pthread_mutex_unlock(&set->lock);
 }
 
-int pc_mem_is_be(const void *p)
+static int range_has(RangeSet *set, const void *p)
 {
     uintptr_t a = (uintptr_t)p;
-    int found = 0;
-    pthread_mutex_lock(&g_be_lock);
-    size_t lo = 0, hi = g_nbe;
+    int found;
+    pthread_mutex_lock(&set->lock);
+    size_t lo = 0, hi = set->n;
     while (lo < hi) {
         size_t mid = (lo + hi) / 2;
-        if (g_be[mid].end <= a)
+        if (set->r[mid].end <= a)
             lo = mid + 1;
         else
             hi = mid;
     }
-    found = lo < g_nbe && g_be[lo].start <= a;
-    pthread_mutex_unlock(&g_be_lock);
+    found = lo < set->n && set->r[lo].start <= a;
+    pthread_mutex_unlock(&set->lock);
     return found;
 }
+
+void pc_mem_register_be(const void *start, size_t size) { range_add(&g_be, start, size); }
+void pc_mem_unregister_be(const void *start) { range_drop(&g_be, start); }
+int pc_mem_is_be(const void *p) { return range_has(&g_be, p); }
+
+void pc_mem_register_model_data(const void *start, size_t size) { range_add(&g_model_data, start, size); }
+void pc_mem_unregister_model_data(const void *start) { range_drop(&g_model_data, start); }
+int pc_mem_is_model_data(const void *p) { return range_has(&g_model_data, p); }

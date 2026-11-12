@@ -435,6 +435,8 @@ def wad_textures(w):
             if not inside(size, (imag + base) & 0xFFFFFFFF, 1 if texels else 8):   # the game's 32-bit sum
                 raise Refused(f"texture '{name}''s {'texels' if texels else 'load list'} (0x{base:X} past IMAG) "
                               f"{'are' if texels else 'is'} outside the file")
+            if not texels and (imag + base) & 7:   # a list's commands are 8 bytes, 8-aligned (wad.c builds it)
+                raise Refused(f"texture '{name}''s load list (0x{base:X} past IMAG) is not 8-aligned in the file")
     if pl and pl[1]:
         off, count = pl
         w.names_sorted("palette", off, count, 0x18)

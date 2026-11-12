@@ -6,12 +6,16 @@
  * Each of the 183 waves is taken from the file table as _ReadWave takes it (ROM offset wave_rom_offsets, size
  * gWaveSizes, storage wave_storage_kinds: raw, LZSS or DEFLATE), put in a 32-byte-rounded block (of the tests' memory,
  * as the game's heap gives one) and passed to pc_wave_loaded. Then:
- *   - no converter may report a file it refused or cut ("runs past", "outside", "doesn't parse", ...);
+ *   - no converter may report a file it refused or cut ("runs past", "outside", "doesn't parse", ...), or a display
+ *     list it couldn't build as the N64 relocated it ("display lists:");
  *   - WADs (the records the converter built beside the file, against the file's own): each record chunk's count fits
- *     before the next chunk; OBHD radii and LOD radii are finite, display lists 8-aligned in the file, and a level
- *     past lodCount has none (the mirror pass reads all four); texture and palette bases inside IMAG; PTHD points
- *     inside the file, their normals unit length and distToNext the distance to the next point; trigPtr 0 or a PTHD
- *     record, and one where the game reads a path's trigger (flags 0x40, not 0x4000, and 0x1000 or 0x2000);
+ *     before the next chunk; OBHD radii and LOD radii are finite, every level below lodCount has its native display
+ *     list, and a level past lodCount has none in the file (the mirror pass reads all four); texture and palette
+ *     bases inside IMAG, a listed texture's load list built; PTHD points inside the file, their normals unit length
+ *     and distToNext the distance to the next point; trigPtr 0 or a PTHD record, and one where the game reads a
+ *     path's trigger (flags 0x40, not 0x4000, and 0x1000 or 0x2000); the native display lists, command for command,
+ *     against the N64's relocation of the file (wad_lists_check.h: the same commands, every address where the N64's
+ *     pointed, the vertices the file's);
  *   - worlds: WHDR names and offsets; every node WHDR reaches is inside WOBJ, finite, with ordered bounds; the
  *     quadtree's children inside GDAT and its leaves' keys inside GTLD;
  *   - roads: the sections fit; path floats finite; tree parents inside the tree; each surface's basis rows of
@@ -33,6 +37,7 @@
 #include "pc_game_types.h"
 #include "pc_symbol_file.h"
 #include "support.h"
+#include "wad_lists_check.h"
 
 #ifndef PC_DATA_ROM
 #define PC_DATA_ROM "baserom.us.z64"
@@ -150,6 +155,7 @@ typedef struct { uint32_t tag, off, count; } Entry;
 static Entry g_toc[256];
 static int g_ntoc;
 static const uint8_t *W;
+static uint8_t *g_raw;   /* the file before its converter ran (wad_lists_check) */
 static size_t WS;
 
 /* The file's table of contents, which stays big-endian (the converter builds the records beside the file). */
@@ -237,8 +243,7 @@ static void check_wad(void)
                 continue;
             }
             EXPECT(isfinite(d->lodRad) && fabsf(d->lodRad) <= 1e7f, "OBHD lodRad", i, l);
-            EXPECT(in_wad(d->displayList) != ~0u && !(in_wad(d->displayList) & 7), "OBHD display list", i,
-                   in_wad(d->displayList));
+            EXPECT(d->displayList != NULL, "OBHD display list (the converter's)", i, l);
             EXPECT(in_wad(d->vtxList) != ~0u, "OBHD vertices", i, l);
             EXPECT(!tx || d->texidx < tx->count || d->texidx == 0 || d->texidx == 0xFFFF, "OBHD texidx", i, d->texidx);
         }
@@ -249,7 +254,10 @@ static void check_wad(void)
         EXPECT(t->size <= 3, "TXHD texel size", i, t->size);
         EXPECT(!(t->flags & 0x08000000) || !im || in_wad(t->texBase) - im->off < imag, "TXHD texBase", i,
                in_wad(t->texBase));
-        EXPECT(in_wad(t->texBase) != ~0u, "TXHD texBase outside the file", i, in_wad(t->texBase));
+        if (t->flags & 0x08000000)   /* its texels, in the file */
+            EXPECT(in_wad(t->texBase) != ~0u, "TXHD texBase outside the file", i, in_wad(t->texBase));
+        else                          /* its load list, the converter's */
+            EXPECT(t->texBase != NULL, "TXHD load list (the converter's)", i, 0);
     }
     for (int i = 0; pl && i < wr->numPalettes; i++) {
         const struct tPaletteDef *r = &wr->palettes[i];
@@ -278,6 +286,11 @@ static void check_wad(void)
                 EXPECT(fabs(sqrt(d) - f32(q + 52)) <= 1e-3 * f32(q + 52) + 1e-3, "PATH distToNext", i, k);
             }
         }
+    }
+    {   /* the converter's display lists, command for command, against the N64's relocation of the file */
+        char what[32];
+        snprintf(what, sizeof what, "wave %d", g_wave);
+        EXPECT(wad_lists_check(W, g_raw, WS, wr, what) == 0, "display lists against the N64's relocation", 0, 0);
     }
 }
 
@@ -436,7 +449,7 @@ static void check_font(size_t block)
 static void convert(int wave, uint8_t *buf, size_t block)
 {
     static const char *const bad[] = {"runs past", "outside", "no WHDR", "doesn't parse", "not converted",
-                                      "left as is", "need 0x"};
+                                      "display lists:", "left as is", "need 0x"};
     FILE *log = tmpfile();
     char line[512];
     int saved;
@@ -508,6 +521,9 @@ int main(int argc, char **argv)
         return 1;
     }
     uint8_t *buf = test_memory() + 0x200000;
+    g_raw = malloc(BLOCK_MAX);
+    if (!g_raw)
+        return 1;
     unsigned files[8] = {0};
     for (int w = 0; w < WAVES; w++) {
         uint32_t off = game32(g_wave_rom_offsets + 4 * w) & 0x0FFFFFFF, size = boot32(g_wave_sizes + 4 * w);
@@ -525,6 +541,7 @@ int main(int argc, char **argv)
         else
             got = inflate_raw(rom + off, g_rom_size - off, buf, BLOCK_MAX);
         EXPECT(got == size, "decompressed size is not gWaveSizes", got, size);
+        memcpy(g_raw, buf, block);
         convert(w, buf, block);
         W = buf, WS = block;
         if (w <= PC_WAVE_TEXT_LAST)

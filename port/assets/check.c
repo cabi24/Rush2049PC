@@ -366,6 +366,8 @@ static int wad_textures(Wad *w)
             if ((flags & 0x08000000u) ? !in(c, at, 1) : !in(c, at, 8))   /* the texels start in the file */
                 return bad(c, "texture '%.16s''s %s (0x%X past IMAG) %s outside the file", name,
                            flags & 0x08000000u ? "texels" : "load list", base, flags & 0x08000000u ? "are" : "is");
+            if (!(flags & 0x08000000u) && (at & 7))   /* a list's commands are 8 bytes, 8-aligned (wad.c builds it) */
+                return bad(c, "texture '%.16s''s load list (0x%X past IMAG) is not 8-aligned in the file", name, base);
         }
     }
     if (pl && pl->count) {

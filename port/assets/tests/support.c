@@ -64,6 +64,37 @@ size_t test_be_range_count(void) { return g_nbe; }
 
 void test_be_reset(void) { g_nbe = 0; }
 
+/* The models' vertices the WAD converter registers (port/ultra/memory.c's model data): the ranges, unsorted. */
+static struct { uintptr_t start, end; } g_model_data[64];
+static size_t g_nmodel_data;
+
+void pc_mem_register_model_data(const void *start, size_t size)
+{
+    if (g_nmodel_data == sizeof g_model_data / sizeof g_model_data[0])
+        abort();
+    g_model_data[g_nmodel_data].start = (uintptr_t)start;
+    g_model_data[g_nmodel_data++].end = (uintptr_t)start + size;
+}
+
+void pc_mem_unregister_model_data(const void *start)
+{
+    for (size_t i = 0; i < g_nmodel_data; i++)
+        if (g_model_data[i].start <= (uintptr_t)start && (uintptr_t)start < g_model_data[i].end) {
+            g_model_data[i] = g_model_data[--g_nmodel_data];
+            return;
+        }
+}
+
+int pc_mem_is_model_data(const void *p)
+{
+    for (size_t i = 0; i < g_nmodel_data; i++)
+        if (g_model_data[i].start <= (uintptr_t)p && (uintptr_t)p < g_model_data[i].end)
+            return 1;
+    return 0;
+}
+
+size_t test_model_data_count(void) { return g_nmodel_data; }
+
 /* The cars a race holds (pc_game_types.h), for tests that build game C reading PC_RACE_CARS: the N64's 6 unless the
  * test sets test_race_cars, which is both the setting (pc_cars_setting) and the race's count (pc_race_cars), so a
  * test sets the count and calls a loop without a race's start. pc_race_cars_begin latches the setting into the count
@@ -145,11 +176,9 @@ uint8_t *test_memory(void)
 }
 
 /* port/ultra's RDRAM functions over the tests' memory (docs/port/MEMORY.md), for game C and port code a test links:
- * rcpaddr.c's rule reads pc_rdram_size, and port/ultra/heap.c's reports give the heap's N64 addresses (until
- * docs/port/NATIVE.md step 12), which pc_n64_addr makes of the block's offsets as the N64 would number RDRAM (KSEG0
- * from its first byte). A test with a window of its own (wad_game) defines them instead and is built with
- * TEST_OWN_WINDOW. (Not weak definitions: mingw's linker doesn't take those for another object's reference.) */
-#ifndef TEST_OWN_WINDOW
+ * port/ultra/heap.c's reports give the heap's N64 addresses (until docs/port/NATIVE.md step 12), which pc_n64_addr
+ * makes of the block's offsets as the N64 would number RDRAM (KSEG0 from its first byte). (Not weak definitions:
+ * mingw's linker doesn't take those for another object's reference.) */
 uint8_t *pc_rdram(void) { return test_memory(); }
 uint32_t pc_rdram_size(void) { return test_memory_bytes; }
 void *pc_n64_ptr(uint32_t addr)
@@ -162,7 +191,6 @@ uint32_t pc_n64_addr(const void *host)
     const uint8_t *p = host, *m = test_memory();
     return p >= m && p < m + test_memory_bytes ? N64_KSEG0 + (uint32_t)(p - m) : 0;
 }
-#endif
 
 /* The game heap's memory and reports; a test that links port/ultra/heap.c instead (assets_heap) is built with
  * TEST_HEAP_C. The memory is heap.c's: the tests' memory past what lies below the heap on the N64 (the game image,
@@ -183,7 +211,7 @@ void pc_heap_none(void *heap, uint32_t size, uint32_t free_bytes, uint32_t large
 void pc_heap_short(const char *what, uint32_t need) { (void)what, (void)need; }
 #endif
 
-/* port/ultra's log, for what heap.c and rcpaddr.c's callers print. */
+/* port/ultra's log, for what heap.c and its callers print. */
 int pc_verbose;
 void pc_log(const char *fmt, ...)
 {

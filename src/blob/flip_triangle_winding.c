@@ -10,25 +10,27 @@
 #define GBI_TRI2 0x06000000
 #define GBI_QUAD 0x07000000
 
-/* display_list_traverse's callback for the command at gfx: in a triangle command, swap the second and third vertex
- * index of each triangle (bits 8-15 and 0-7 of its word), which reverses its winding. Returns the command's length
- * in words, 2. */
-s32 flip_triangle_winding(u32 *gfx) {
+/* A triangle's word with its second and third vertex index (bits 8-15 and 0-7) swapped, which reverses its winding. */
+static u32 swap_last_two_vertices(u32 word) {
     u32 mid;
     u32 low;
 
-    if ((DLW(*gfx) & 0xFF000000) == GBI_TRI1) {
-        mid = DLW(*gfx) & 0xFF00;
-        low = DLW(*gfx) & 0xFF;
-        DLW_SET(*gfx, (DLW(*gfx) & 0xFFFF0000) | (mid >> 8) | (low << 8));
-    } else if ((DLW(*gfx) & 0xFF000000) == GBI_QUAD || (DLW(*gfx) & 0xFF000000) == GBI_TRI2) {
-        mid = DLW(*gfx) & 0xFF00;
-        low = DLW(*gfx) & 0xFF;
-        DLW_SET(*gfx, (DLW(*gfx) & 0xFFFF0000) | (mid >> 8) | (low << 8));
-        gfx++;
-        mid = DLW(*gfx) & 0xFF00;
-        low = DLW(*gfx) & 0xFF;
-        DLW_SET(*gfx, (DLW(*gfx) & 0xFFFF0000) | (mid >> 8) | (low << 8));
+    mid = word & 0xFF00;
+    low = word & 0xFF;
+    return (word & 0xFFFF0000) | (mid >> 8) | (low << 8);
+}
+
+/* display_list_traverse's callback for the command at gfx: in a triangle command, reverse each triangle's winding.
+ * Returns the command's length, 1. */
+s32 flip_triangle_winding(Gfx *gfx) {
+    u32 op;
+
+    op = gfx->words.w0 & 0xFF000000;
+    if (op == GBI_TRI1) {
+        gfx->words.w0 = swap_last_two_vertices(gfx->words.w0);
+    } else if (op == GBI_QUAD || op == GBI_TRI2) {
+        gfx->words.w0 = swap_last_two_vertices(gfx->words.w0);
+        gfx->words.w1 = swap_last_two_vertices((u32)gfx->words.w1);
     }
-    return 2;
+    return 1;
 }

@@ -22,7 +22,7 @@ void MirrorWaveInstance(s32 index)
             for (i = 0; i < count; i++) {
                 for (j = 0; j < 4; j++) {
                     if (m->lod[j].displayList) {
-                        display_list_traverse(m->lod[j].displayList, 0, 0, 2, flip_triangle_winding);
+                        display_list_traverse(m->lod[j].displayList, NULL, NULL, 2, flip_triangle_winding);
                     }
                 }
                 m++;

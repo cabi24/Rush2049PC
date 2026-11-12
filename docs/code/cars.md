@@ -226,9 +226,11 @@ tires, `steer_constants`), then `init_road`, `init_collision`, `road` and `posit
   regions.
 - **Texture animation** (`InitTextureAnimation`, `TextureAnimation`; MAT3 textureanim.c): `PaletteLists` (palette
   rotations, traffic lights, lamp chasers, texture scrolls through `displaylist_set_tile_size`; `PALANIM_*`) and
-  `TextureSwapLists` (flipbooks: a new `texBase` in the texture's record, or a new image command through
-  `displaylist_set_texture_image`); `relocate_texture_loads` rebases a wave's texture loads when it arrives,
-  `flip_triangle_winding` reverses a model's triangles for the mirrored tracks.
+  `TextureSwapLists` (flipbooks: a new `texBase` in the texture's record, or a new image pointer in the texture's load
+  list through `displaylist_set_texture_image`); `flip_triangle_winding` reverses a model's triangles for the mirrored
+  tracks. The load lists and the models' lists are the WAD converter's, in the PC's form with host pointers
+  (port/assets/wad.c, [NATIVE.md](../port/NATIVE.md) step 10: on the N64 `relocate_texture_loads` rebased a wave's
+  texture loads when it arrived); the palettes' colours stay in the file's texel format (`pc_tlut_set`).
 
 ## 8. Files
 
@@ -243,7 +245,7 @@ tires, `steer_constants`), then `init_road`, `init_collision`, `road` and `posit
 | effects | groups/blast, AnimateNewBlast.c, AnimateNewBlastRing.c, InitBlast.c, InitSmoke.c, InitSmokeBlast.c, InitWingSmoke.c, groups/start_smoke, groups/start_water, UpdateSmoke.c, InitSkids.c, AnimateSkids.c, StopSkid.c, ContinueSkid.c, StartSparks.c, groups/sparks, groups/animate_arrow, src/ovl_b InitStreaks.c and groups/streaks |
 | maths | CopyUV.c, CreateQuatMat.c, CreateYPRMatrix.c, ExtractYaw.c, MakeQuatFromUvs.c, MakeUvsFromQuat.c, MulUVS.c, PitchUV.c, RollUV.c, YawUV.c, WPitchUV.c, WRollUV.c, WYawUV.c, RotateUV.c, ScaleUV.c, ScaleUVXYZ.c, TransposeUV.c, WorldVector.c, U64WorldVector.c, dot_uv_y_axis.c, fatan.c, fatan2.c, groups/fsatan, fxatan.c, fyaw.c, fpitch.c, froll.c, tan_cody_waite.c, invsqr.c, invmagnitude.c, groups/normal_vector, groups/distance, Distance2D.c, vector_direction.c, vector_magnitude.c, TB_Vector2Normalize.c, game_rand.c, Random.c, pick_random_masked_bit.c, game_bsearch.c, game_strcmp.c, game_strncmp.c, objcmp.c, texcmp.c, world_name_compare.c |
 | scene | MBOX_*.c, groups/mbox_new_object, ZOID_*.c, zoid_*.c, groups/ZOID_InitializeWindow, groups/ZOID_ProjectWindow, groups/ZOID_SetFog, groups/zoid_update_poly, groups/zoid_draw, build_node_matrix.c, build_node_matrix_rows4.c, mtx_rotation_to_fixed.c, lookat_reflect_fill.c, RemoveObjectTree.c |
-| sky, world, textures | SkyInit.c, SkyUpdate.c, SkyClear.c, NewWorld.c, groups/targets/NewWorldObject.c, FindWorldGroup.c, FindChunk.c, downleaf.c, WorldClear.c, WorldFogDensity.c, InitTextureAnimation.c, TextureAnimation.c, displaylist_*.c, relocate_texture_loads.c, flip_triangle_winding.c |
+| sky, world, textures | SkyInit.c, SkyUpdate.c, SkyClear.c, NewWorld.c, groups/targets/NewWorldObject.c, FindWorldGroup.c, FindChunk.c, downleaf.c, WorldClear.c, WorldFogDensity.c, InitTextureAnimation.c, TextureAnimation.c, displaylist_*.c, flip_triangle_winding.c |
 
 A few files the area holds belong elsewhere by what they do (the header placement put them here): the audio retrace
 and sample DMA threads (audio_retrace_thread_entry.c, groups/sample_dma_*), the game music start
@@ -258,9 +260,9 @@ code (`ROADCODE_*`, `VIS_*`, `OBJLIST_*`, `SMOKE_*`, `PUFF_*`, `STREAK_*`, `OBJ_
 `PALANIM_*`), and the shared ones of other areas by their names: the race kinds (`gRace == kBattle`, race.h),
 the game states (`GS_*`, race.h), the roster's owners (`LINK_OWNER_HUMAN`, physics.h, MAT3's), `TRUNC_W` and
 `FEET_PER_TENTH_MILE` (physics.h). The display lists the scene draw and the blitter write use include/game/gbi.h's
-encodings (`G_*`, libultra's names); the display lists the files hold are read with scene.h's `DLW`, `DLW_SET` and
-`DL_AT`. Each meaning has one name, defined once in its header (`tools/port/one_spelling.py`, which brings a file's
-own copies and other spellings to it).
+encodings (`G_*`, libultra's names), and so do the walkers of the files' lists, which are `Gfx` too since
+[NATIVE.md](../port/NATIVE.md) step 10. Each meaning has one name, defined once in its header
+(`tools/port/one_spelling.py`, which brings a file's own copies and other spellings to it).
 
 ## 10. What is still N64-shaped (for wave 3)
 
@@ -278,9 +280,10 @@ own copies and other spellings to it).
   pixels) that port/gfx interprets; the WAD's records (TXHD, PLHD, OBHD, PTHD) are native beside the file since
   [NATIVE.md](../port/NATIVE.md) step 7, with host pointers to the texels, colours and display lists, and the car
   palettes `car_palettes` are the same palette record (own storage); the texture loads and the models' display lists
-  stay big-endian in the file (`pc_be32_get`/`set`) with 32-bit addresses, until step 10; the sky's matrices are
-  pointers since step 4, the arenas host blocks since step 5, the heap's headers native since step 6, the world
-  table native since step 8.
+  are native beside the file since step 10 (the converter's, `Gfx` with host pointers, their vertices native); the
+  texels and the palettes' colours stay in the file in the N64's texel formats; the sky's matrices are pointers since
+  step 4, the arenas host blocks since step 5, the heap's headers native since step 6, the world table native since
+  step 8.
 - **The pools** keep their N64 element order with pointer-sized links (the StatLL headers' 40-byte host layout; the
   puffs, skids and streaks are larger than on the N64); scene handles are `s32` whose low half is the node (read
   through an endian-aware union, ENDIAN.md).

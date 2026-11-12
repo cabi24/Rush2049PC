@@ -397,6 +397,11 @@ counts arena pointers whose target no declaration describes (`undescribed` in it
 - **Graphics.** The models are untextured boxes and a checker of tiles with their own render state, and the menus'
   blit tables and button records are zero (black menus): texture loads, the combiners the real models set, fog,
   lighting, the front end's 3D buttons and 2D panes, and mirroring have not been drawn on the synthetic cartridge.
+  Their display lists hold VTX, TRI2, the state and G_ENDDL only. The one `--lists` makes (not in ctest; its pictures
+  differ: a backward race cuts every model's first quads) has every model's list call a state list in a TXLD chunk
+  (G_DL) with a texture load whose G_SETTIMG the N64 rebased by IMAG's address, go through a G_BRANCH_Z, and hold LOD
+  markers a forward race and two players keep; a comparison of two builds on it covers the display lists' conversion
+  and the race's set-up of them ([NATIVE.md](NATIVE.md) 15).
 - **Windows.** The paths run in both Windows CI jobs (section 2). Their first run there faulted at once, on an
   argument the Microsoft x64 convention passes in a stack slot ([WINDOWS.md](WINDOWS.md) 4). Now all 14 pass there,
   to the same states, in times within the Linux runners' range.

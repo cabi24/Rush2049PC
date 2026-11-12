@@ -199,7 +199,6 @@ static PcGfxWords s_list[64];
 static void show_frame(void)
 {
     gp = s_list;
-    g_be_mode = 0;
     gsDPPipeSync();
     gsDPSetScissor(0, 0, 320, 240);
     gsDPSetCycleType(G_CYC_FILL);

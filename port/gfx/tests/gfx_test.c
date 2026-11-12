@@ -95,6 +95,12 @@ int pc_mem_is_be(const void *p) {
             return 1;
     return 0;
 }
+
+/* No model data here: the high frame rate's recorder, which asks, is off (interp_test tests it). */
+int pc_mem_is_model_data(const void *p) {
+    (void)p;
+    return 0;
+}
 #endif
 
 /* ---------------------------------------------------------------- frame and helpers */
@@ -208,7 +214,6 @@ static int x5(int v) {   /* what a 5-bit channel decodes to */
 static void frame_begin(int r, int g, int b) {
     uint16_t c = rgba16(r, g, b, 1);
     gp = s_list;
-    g_be_mode = 0;
     gsDPPipeSync();
     gsDPSetScissor(0, 0, FB_W, FB_H);
     gsDPSetCycleType(G_CYC_FILL);
@@ -1118,13 +1123,16 @@ static void case_dualtile(void) {
         }
 }
 
-/* N64-form (big-endian) lists and every address kind (GFX.md "Addresses"):
- *   native list --G_DL 0x06000000 (segment 6 = a host pointer)--> BE list in a host buffer
- *     BE list: matrix, texture image and vertices through segment 6; then G_DL to K0 RAM_SCENE (1 MiB in)
- *   BE list in RDRAM: matrix at K0, vertices at a physical address, a segment base set from this list (physical),
- *     vertices through that segment
- *   native list again: a texture at a K0 address (a game-built list pointing at a heap texture) */
-static uint8_t s_asset[8192];
+/* Data in the N64's byte order (big-endian: a file's matrices and texels) and every address kind (GFX.md "Command
+ * formats and addresses"). Every list is the PC's form, the files' too (docs/port/NATIVE.md step 10), and so are
+ * vertices, wherever they lie:
+ *   the frame's list --G_DL 0x06000000 (segment 6 = a host pointer)--> a list in a host buffer, inside a big-endian
+ *     range: a LOD marker the race kept (a no-op), a big-endian matrix, texture image and native vertices through
+ *     segment 6; then G_DL to K0 RAM_SCENE (1 MiB in)
+ *   the list in RDRAM (a big-endian range too): a big-endian matrix at K0, native vertices at a physical address, a
+ *     segment base set from this list (physical), vertices through that segment
+ *   the frame's list again: a texture at a K0 address (a game-built list pointing at a heap texture) */
+static _Alignas(16) uint8_t s_asset[8192];
 #define RAM_SCENE (PC_RDRAM_BASE + 0x100000u)   /* the RDRAM list's place: its KSEG0 address, 1 MiB into the window */
 
 static void be16(uint8_t *p, uint16_t v) {
@@ -1137,17 +1145,11 @@ static void be32w(uint8_t *p, uint32_t v) {
     p[2] = v >> 8;
     p[3] = v;
 }
-static void be_vtx(uint8_t *p, int x, int y, int s, int t, uint8_t r, uint8_t g, uint8_t b) {
-    memset(p, 0, 16);
-    be16(p, (uint16_t)x);
-    be16(p + 2, (uint16_t)y);
-    be16(p + 4, 0);
-    be16(p + 8, (uint16_t)s);
-    be16(p + 10, (uint16_t)t);
-    p[12] = r;
-    p[13] = g;
-    p[14] = b;
-    p[15] = 255;
+/* A vertex at p (any alignment), in the host's byte order: a model's, as the WAD converter makes them. */
+static void vtx_at(uint8_t *p, int x, int y, int s, int t, uint8_t r, uint8_t g, uint8_t b) {
+    Vtx v;
+    vtx(&v, x, y, 0, s, t, r, g, b, 255);
+    memcpy(p, &v, sizeof v);
 }
 static void be_mtx(uint8_t *p, float x, float y) {
     Mtx m;
@@ -1157,7 +1159,7 @@ static void be_mtx(uint8_t *p, float x, float y) {
         be32w(p + 4 * i, m.m[i]);
 }
 
-static void case_belist(void) {
+static void case_bedata(void) {
     uint8_t *ram = (uint8_t *)pc_n64_ptr(RAM_SCENE);
     int i;
     enum { DL = 0, MTX = 2048, VTX = 2304, TEX = 2560 };                     /* in s_asset */
@@ -1165,27 +1167,26 @@ static void case_belist(void) {
     memset(s_asset, 0, sizeof(s_asset));
     memset(ram, 0, 0x4000);
     be_mtx(s_asset + MTX, 100, 0);
-    be_vtx(s_asset + VTX + 0, 10, 10, 0, 0, 255, 255, 255);
-    be_vtx(s_asset + VTX + 16, 10, 42, 0, 32 << 5, 255, 255, 255);
-    be_vtx(s_asset + VTX + 32, 42, 10, 32 << 5, 0, 255, 255, 255);
-    be_vtx(s_asset + VTX + 48, 42, 42, 32 << 5, 32 << 5, 255, 255, 255);
+    vtx_at(s_asset + VTX + 0, 10, 10, 0, 0, 255, 255, 255);
+    vtx_at(s_asset + VTX + 16, 10, 42, 0, 32 << 5, 255, 255, 255);
+    vtx_at(s_asset + VTX + 32, 42, 10, 32 << 5, 0, 255, 255, 255);
+    vtx_at(s_asset + VTX + 48, 42, 42, 32 << 5, 32 << 5, 255, 255, 255);
     for (i = 0; i < 32 * 32; i++)   /* left half red, right half yellow, BE texels */
         be16(s_asset + TEX + 2 * i, (i & 31) < 16 ? rgba16(255, 0, 0, 1) : rgba16(255, 255, 0, 1));
     be_mtx(ram + R_MTX, 0, 100);
-    be_vtx(ram + R_VTX + 0, 10, 10, 0, 0, 0, 0, 0);
-    be_vtx(ram + R_VTX + 16, 10, 42, 0, 0, 0, 0, 0);
-    be_vtx(ram + R_VTX + 32, 42, 10, 0, 0, 0, 0, 0);
-    be_vtx(ram + R_SEG7 + 0, 60, 10, 0, 0, 0, 0, 0);
-    be_vtx(ram + R_SEG7 + 16, 60, 42, 0, 0, 0, 0, 0);
-    be_vtx(ram + R_SEG7 + 32, 92, 10, 0, 0, 0, 0, 0);
+    vtx_at(ram + R_VTX + 0, 10, 10, 0, 0, 0, 0, 0);
+    vtx_at(ram + R_VTX + 16, 10, 42, 0, 0, 0, 0, 0);
+    vtx_at(ram + R_VTX + 32, 42, 10, 0, 0, 0, 0, 0);
+    vtx_at(ram + R_SEG7 + 0, 60, 10, 0, 0, 0, 0, 0);
+    vtx_at(ram + R_SEG7 + 16, 60, 42, 0, 0, 0, 0, 0);
+    vtx_at(ram + R_SEG7 + 32, 92, 10, 0, 0, 0, 0, 0);
     for (i = 0; i < 8 * 8; i++)
         be16(ram + R_TEX + 2 * i, rgba16(0, 255, 255, 1));
     pc_mem_register_be(s_asset, sizeof(s_asset));
     pc_mem_register_be(ram, 0x4000);
 
-    /* BE list in RDRAM, reached at its K0 address */
-    g_be_mode = 1;
-    bp = ram + R_DL;
+    /* The list in RDRAM, reached at its K0 address */
+    gp = (PcGfxWords *)(void *)(ram + R_DL);
     gsSPMatrix(RAM_SCENE + R_MTX, G_MTX_MODELVIEW | G_MTX_LOAD | G_MTX_NOPUSH);   /* K0 */
     gsDPSetPrimColor(0, 0, 0, 255, 0, 255);
     cc_prim();
@@ -1197,9 +1198,9 @@ static void case_belist(void) {
     gsSP1Triangle(0, 1, 2);
     gsSPEndDisplayList();
 
-    /* BE list in a host buffer, reached through segment 6 */
-    bp = s_asset + DL;
-    gsSPNoOp(0x010003);   /* an unrewritten LOD marker: a no-op */
+    /* The list in a host buffer, reached through segment 6 */
+    gp = (PcGfxWords *)(void *)(s_asset + DL);
+    gsSPNoOp(0x010003);   /* a LOD marker the race kept: a no-op */
     gsSPMatrix(0x06000000u + MTX, G_MTX_MODELVIEW | G_MTX_LOAD | G_MTX_PUSH);
     gsSPTexture(0xFFFF, 0xFFFF, 0, 0, 1);
     gsDPSetTextureImage(G_IM_FMT_RGBA, G_IM_SIZ_16b, 1, 0x06000000u + TEX);
@@ -1214,7 +1215,6 @@ static void case_belist(void) {
     gsSPPopMatrixN(1);
     gsSPDisplayList(RAM_SCENE + R_DL);
     gsSPEndDisplayList();
-    g_be_mode = 0;
 
     frame_begin(0, 0, 0);
     gsSPSegment(6, (uintptr_t)s_asset);   /* a host pointer */
@@ -1228,21 +1228,20 @@ static void case_belist(void) {
     frame_end();
     pc_mem_unregister_be(s_asset);
     pc_mem_unregister_be(ram);
-    check("seg 6: BE quad left (red)", 115, 25, 255, 0, 0, 2);
-    check("seg 6: BE quad right (yellow)", 135, 25, 255, 255, 0, 2);
-    check("K0 list, physical vertices", 15, 115, 0, 255, 0, 2);
-    check("segment set from a BE list", 65, 115, 255, 0, 255, 2);
+    check("seg 6: quad of BE texels, left (red)", 115, 25, 255, 0, 0, 2);
+    check("seg 6: quad of BE texels, right (yellow)", 135, 25, 255, 255, 0, 2);
+    check("K0 list, BE matrix, physical vertices", 15, 115, 0, 255, 0, 2);
+    check("segment set from a called list", 65, 115, 255, 0, 255, 2);
     check("nothing at the origin", 25, 25, 0, 0, 0, 0);
-    check("native list, K0 texture", 204, 54, 0, 255, 255, 2);
-    check("native after BE", 205, 15, 0, 0, 255, 2);
+    check("the frame's list, K0 texture", 204, 54, 0, 255, 255, 2);
+    check("the frame's list after the calls", 205, 15, 0, 0, 255, 2);
 }
 
-/* game.memory (docs/port/MEMORY.md 3, 6): belist's RDRAM scene at three places in a 64 MiB window, 1 MiB in, 18 MiB in
+/* game.memory (docs/port/MEMORY.md 3, 6): bedata's RDRAM scene at three places in a 64 MiB window, 1 MiB in, 18 MiB in
  * and in its last MiB, with its colour image there too (its pointer, as the game sets it: StartGraphics). Past 16 MiB
- * a physical address would read as a segmented one: the display lists' relocations keep K0 addresses there, and the
- * renderer takes a physical one whose segment has no base as the RAM it is. Each place is drawn reached at K0
- * addresses and at physical ones, and each picture must be the first's, pixel for pixel. Only in gfx_window_test, on
- * port/ultra's own window; gfx_test, whose RDRAM is 8 MiB, skips it. */
+ * a physical address would read as a segmented one: the renderer takes a physical one whose segment has no base as the
+ * RAM it is. Each place is drawn reached at K0 addresses and at physical ones, and each picture must be the first's,
+ * pixel for pixel. Only in gfx_window_test, on port/ultra's own window; gfx_test, whose RDRAM is 8 MiB, skips it. */
 #ifdef GFX_TEST_WINDOW
 enum { HM_DL = 0, HM_MTX = 0x800, HM_VTX = 0xC00, HM_TVTX = 0xD00, HM_TEX = 0x1000, HM_SEG7 = 0x2000, HM_FB = 0x4000,
        HM_SIZE = 0x4000 + FB_W * FB_H * 2 };
@@ -1264,22 +1263,21 @@ static uint8_t *highmem_draw(uint32_t base, int physical, int *w, int *h, int *n
     cimg = (uintptr_t)fb;
     memset(ram, 0, HM_SIZE);
     be_mtx(ram + HM_MTX, 0, 100);
-    be_vtx(ram + HM_VTX + 0, 10, 10, 0, 0, 0, 0, 0);
-    be_vtx(ram + HM_VTX + 16, 10, 42, 0, 0, 0, 0, 0);
-    be_vtx(ram + HM_VTX + 32, 42, 10, 0, 0, 0, 0, 0);
-    be_vtx(ram + HM_SEG7 + 0, 60, 10, 0, 0, 0, 0, 0);
-    be_vtx(ram + HM_SEG7 + 16, 60, 42, 0, 0, 0, 0, 0);
-    be_vtx(ram + HM_SEG7 + 32, 92, 10, 0, 0, 0, 0, 0);
-    be_vtx(ram + HM_TVTX + 0, 110, 10, 0, 0, 255, 255, 255);
-    be_vtx(ram + HM_TVTX + 16, 110, 42, 0, 32 << 5, 255, 255, 255);
-    be_vtx(ram + HM_TVTX + 32, 142, 10, 32 << 5, 0, 255, 255, 255);
-    be_vtx(ram + HM_TVTX + 48, 142, 42, 32 << 5, 32 << 5, 255, 255, 255);
+    vtx_at(ram + HM_VTX + 0, 10, 10, 0, 0, 0, 0, 0);
+    vtx_at(ram + HM_VTX + 16, 10, 42, 0, 0, 0, 0, 0);
+    vtx_at(ram + HM_VTX + 32, 42, 10, 0, 0, 0, 0, 0);
+    vtx_at(ram + HM_SEG7 + 0, 60, 10, 0, 0, 0, 0, 0);
+    vtx_at(ram + HM_SEG7 + 16, 60, 42, 0, 0, 0, 0, 0);
+    vtx_at(ram + HM_SEG7 + 32, 92, 10, 0, 0, 0, 0, 0);
+    vtx_at(ram + HM_TVTX + 0, 110, 10, 0, 0, 255, 255, 255);
+    vtx_at(ram + HM_TVTX + 16, 110, 42, 0, 32 << 5, 255, 255, 255);
+    vtx_at(ram + HM_TVTX + 32, 142, 10, 32 << 5, 0, 255, 255, 255);
+    vtx_at(ram + HM_TVTX + 48, 142, 42, 32 << 5, 32 << 5, 255, 255, 255);
     for (i = 0; i < 32 * 32; i++)   /* left half red, right half yellow, BE texels */
         be16(ram + HM_TEX + 2 * i, (i & 31) < 16 ? rgba16(255, 0, 0, 1) : rgba16(255, 255, 0, 1));
     pc_mem_register_be(ram, HM_FB);
 
-    g_be_mode = 1;   /* the scene's list, in N64 form, as ROM lists the game relocated are */
-    bp = ram + HM_DL;
+    gp = (PcGfxWords *)(void *)(ram + HM_DL);   /* the scene's list, in RDRAM, with N64 addresses in it */
     gsSPMatrix(hm_addr(base, HM_MTX, physical), G_MTX_MODELVIEW | G_MTX_LOAD | G_MTX_PUSH);
     gsDPSetPrimColor(0, 0, 0, 255, 0, 255);
     cc_prim();
@@ -1301,7 +1299,6 @@ static uint8_t *highmem_draw(uint32_t base, int physical, int *w, int *h, int *n
     gsSPQuadrangle(0, 1, 3, 2);
     gsSPPopMatrixN(1);
     gsSPEndDisplayList();
-    g_be_mode = 0;
 
     gp = s_list;   /* frame_begin's, into the window's colour image */
     gsDPPipeSync();
@@ -1362,7 +1359,7 @@ static void case_highmem(void) {
                 s_fail++;
                 continue;
             }
-            if (first == NULL) {   /* the first: the scene's colours, where belist has them */
+            if (first == NULL) {   /* the first: the scene's colours, where bedata has them */
                 first = pic, w0 = w, h0 = h;
                 free(s_px);
                 s_px = (uint8_t *)malloc((size_t)w * h * 4);
@@ -2477,7 +2474,6 @@ static uint16_t s_fill_fb[FB_W * FB_H];
 static void fill_frame(void) {   /* the frame cleared to one color, its scissor the game's 220 rows */
     uint16_t c = rgba16(40, 200, 120, 1);
     gp = s_list;
-    g_be_mode = 0;
     gsDPPipeSync();
     gsDPSetScissor(0, 0, FB_W, 220);
     gsDPSetCycleType(G_CYC_FILL);
@@ -2771,7 +2767,7 @@ static const Case s_cases[] = {
     {"fill", case_fill},         {"shade", case_shade},       {"zbuf", case_zbuf},
     {"textures", case_textures}, {"texwrap", case_texwrap},   {"texrect", case_texrect},
     {"lit", case_lit},           {"fog", case_fog},           {"twocycle", case_twocycle},
-    {"lod", case_lod},           {"dualtile", case_dualtile}, {"belist", case_belist},
+    {"lod", case_lod},           {"dualtile", case_dualtile}, {"bedata", case_bedata},
     {"matrix", case_matrix},     {"cull", case_cull},         {"branchz", case_branchz},
     {"nearclip", case_nearclip}, {"eyeplane", case_eyeplane}, {"clip", case_clip},
     {"xlu", case_xlu},           {"widescreen", case_widescreen}, {"autosize", case_autosize}, {"fillwindow", case_fillwindow},

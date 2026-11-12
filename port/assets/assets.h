@@ -2,12 +2,13 @@
  * (docs/port/ASSETS.md §5). PC-layer code only.
  *
  * _ReadWave (src/blob/groups/waves/waves.c) calls pc_wave_loaded once per wave, after the file is in
- * its heap block and before SetupWaveModel relocates it. pc_wave_loaded picks the converter by wave number.
+ * its heap block and before SetupWaveModel sets it up. pc_wave_loaded picks the converter by wave number.
  * Each converter is a strong definition in its own file of this directory. assets.c has a weak no-op for each,
  * so a format that isn't converted yet stays big-endian:
  *
- *   wad.c     WAD container: the OBHD, TXHD, PLHD and PTHD records built native, the PATH points; registers the
- *             big-endian payloads (TXLD, OBJS display lists, Vtx, IMAG texels and TLUTs) with pc_mem_register_be
+ *   wad.c     WAD container: the OBHD, TXHD, PLHD and PTHD records, the display lists (OBJS, TXLD) and their vertices
+ *             built native beside the file, the PATH points swapped; registers the block (IMAG texels and TLUTs stay
+ *             big-endian) with pc_mem_register_be and the vertices with pc_mem_register_model_data
  *   world.c   world WADs' WHDR, WOBJ, GDAT, GTLD (after the WAD pass)
  *   road.c    road / collision
  *   path.c    paths

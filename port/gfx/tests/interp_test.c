@@ -70,6 +70,19 @@ int pc_mem_is_be(const void *p) {
     return 0;
 }
 
+/* The models' vertices (port/ultra/memory.c's model data: what a WAD's converter made native), one range. */
+static const uint8_t *s_model_data;
+static size_t s_model_data_n;
+
+void pc_mem_register_model_data(const void *start, size_t size) {
+    s_model_data = (const uint8_t *)start;
+    s_model_data_n = size;
+}
+
+int pc_mem_is_model_data(const void *p) {
+    return s_model_data != NULL && (const uint8_t *)p >= s_model_data && (const uint8_t *)p < s_model_data + s_model_data_n;
+}
+
 /* ---------------------------------------------------------------- matrices */
 
 #define FB_W 320
@@ -174,9 +187,10 @@ typedef struct {
     int extras;               /* fog, the near plane, a texture, culling, depth */
 } Scene;
 
-/* Big-endian model data, as the game's WADs keep it: a 20 x 20 square per model, in the xy plane, a colour each.
+/* Model data, as the game's WADs give it: a 20 x 20 square per model, in the xy plane, a colour each, its vertices
+ * native and registered as model data (what the WAD's converter makes them), its texture big-endian (the file's).
  * The ground is a large square in the xz plane, through the eye plane; the textured one samples a checker. */
-static uint8_t *s_models;          /* in the RDRAM window, registered big-endian */
+static uint8_t *s_models;          /* in the RDRAM window */
 static uint32_t s_model_vtx[NUM_MODELS];
 static uint32_t s_tex_addr;
 
@@ -185,13 +199,9 @@ static void be16(uint8_t *p, uint16_t v) {
     p[1] = (uint8_t)v;
 }
 
-static void be_vtx(uint8_t *p, int x, int y, int z, int s, int t, uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
-    be16(p, (uint16_t)x);
-    be16(p + 2, (uint16_t)y);
-    be16(p + 4, (uint16_t)z);
-    be16(p + 6, 0);
-    be16(p + 8, (uint16_t)s);
-    be16(p + 10, (uint16_t)t);
+static void model_vtx(uint8_t *p, int x, int y, int z, int s, int t, uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
+    int16_t h[6] = {(int16_t)x, (int16_t)y, (int16_t)z, 0, (int16_t)s, (int16_t)t};
+    memcpy(p, h, sizeof h);
     p[12] = r;
     p[13] = g;
     p[14] = b;
@@ -215,21 +225,22 @@ static void make_models(void) {
         uint8_t *v = s_models + m * 64;
         s_model_vtx[m] = MODELS_AT + (uint32_t)m * 64;
         if (m == M_GROUND) {   /* 4000 x 4000 at y = -40, so it reaches behind the eye */
-            be_vtx(v + 0, -2000, -40, -2000, 0, 0, 90, 140, 90, 255);
-            be_vtx(v + 16, -2000, -40, 2000, 0, 0, 90, 140, 90, 255);
-            be_vtx(v + 32, 2000, -40, -2000, 0, 0, 140, 90, 90, 255);
-            be_vtx(v + 48, 2000, -40, 2000, 0, 0, 140, 90, 90, 255);
+            model_vtx(v + 0, -2000, -40, -2000, 0, 0, 90, 140, 90, 255);
+            model_vtx(v + 16, -2000, -40, 2000, 0, 0, 90, 140, 90, 255);
+            model_vtx(v + 32, 2000, -40, -2000, 0, 0, 140, 90, 90, 255);
+            model_vtx(v + 48, 2000, -40, 2000, 0, 0, 140, 90, 90, 255);
         } else {
-            be_vtx(v + 0, -10, -10, 0, 0, 16 << 5, col[m][0], col[m][1], col[m][2], 255);
-            be_vtx(v + 16, 10, -10, 0, 16 << 5, 16 << 5, col[m][0], col[m][1], col[m][2], 255);
-            be_vtx(v + 32, -10, 10, 0, 0, 0, col[m][0], col[m][1], col[m][2], 255);
-            be_vtx(v + 48, 10, 10, 0, 16 << 5, 0, col[m][0], col[m][1], col[m][2], 255);
+            model_vtx(v + 0, -10, -10, 0, 0, 16 << 5, col[m][0], col[m][1], col[m][2], 255);
+            model_vtx(v + 16, 10, -10, 0, 16 << 5, 16 << 5, col[m][0], col[m][1], col[m][2], 255);
+            model_vtx(v + 32, -10, 10, 0, 0, 0, col[m][0], col[m][1], col[m][2], 255);
+            model_vtx(v + 48, 10, 10, 0, 16 << 5, 0, col[m][0], col[m][1], col[m][2], 255);
         }
     }
     s_tex_addr = MODELS_AT + 0x1000u;
     for (i = 0; i < 16 * 16; i++)   /* a 16 x 16 RGBA16 checker */
         be16(s_models + 0x1000 + 2 * i, ((i & 15) / 4 + i / 64) & 1 ? rgba16(255, 255, 255, 1) : rgba16(255, 0, 255, 1));
-    pc_mem_register_be(s_models, 0x2000);
+    pc_mem_register_model_data(s_models, 0x1000);        /* the vertices */
+    pc_mem_register_be(s_models + 0x1000, 0x1000);       /* the texels */
 }
 
 /* Two frame buffers, as the game alternates its frame records: matrices, viewports, lists and native vertices. */
@@ -277,7 +288,6 @@ static void build(const Scene *sc, int buf, float a, int expect) {
     float f[4][4], g[4][4];
     s_nmtx = 0;
     gp = s_list[buf];
-    g_be_mode = 0;
     gsDPPipeSync();
     gsDPSetScissor(0, 0, FB_W, FB_H);
     gsDPSetCycleType(G_CYC_FILL);

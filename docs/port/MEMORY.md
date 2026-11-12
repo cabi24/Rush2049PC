@@ -11,7 +11,7 @@ feature can rely on, and how it was tested.
 | Piece | Where |
 |---|---|
 | The window's size, its views, `pc_n64_ptr` | `port/ultra/memory.c` (`pc_mem_set_size`, `pc_rdram_size`) |
-| The rule past 16 MiB, the display lists' relocation | `port/ultra/rcpaddr.c` (`pc_rdram_k0_high`, `pc_rcp_reloc`) |
+| The rule past 16 MiB | `port/gfx/gfx_rsp.c` (`pcgfx_resolve`); the display lists' relocation (`port/ultra/rcpaddr.c`: `pc_rdram_k0_high`, `pc_rcp_reloc`) went with [NATIVE.md](NATIVE.md) step 10, which builds the files' lists with host pointers |
 | osMemSize | `port/ultra/misc.c` (`pc_os_set_mem_size`) |
 | The heap's high-water marks, the exit line, the test floor | `port/ultra/heap.c` |
 | The setting, its warning | `port/config/config.c` (`game.memory`, `pc_settings_memory_conflict`), `port/main.c` |
@@ -88,16 +88,16 @@ can be met when the window is 8 MiB):
 | Site | The N64's rule | Past 16 MiB on the PC |
 |---|---|---|
 | (`osVirtualToPhysical`: the colour and depth images, `StartGraphics.c`, `ClearScreen.c`. Gone since [NATIVE.md](NATIVE.md) step 4: the game gives the renderer the buffers' pointers) | `addr & 0x1FFFFFFF` | (was the K0 address) |
-| `relocate_model_dl.c:107, 111, 129, 134` (SetupWaveModel's relocation of a model's display lists: G_VTX, G_DL, the matrices, the image pointers, the LOD markers' branches) | `((w1 + base) & 0xFFFFFF) \| segment` | `pc_rcp_reloc` (`rcpaddr.c:29-39`): the K0 address of `w1 + base` when the segment is 0 |
-| `relocate_texture_loads.c:42, 47` (the TXLD lists' SETTIMG and BRANCH_Z, rebased by the IMAG chunk) | `(w1 & 0x0F000000) \| ((w1 + base) & 0xFFFFFF)` | the same, `pc_rcp_reloc` |
-| `display_list_traverse.c:33, 52` (the mirror pass and the game's other walks of ROM lists: a G_DL or BRANCH_Z target) | bits 24-27 set: segmented, taken as segment 0 (`&= 0xF0FFFFFF`); else physical, made K0 | a K0 address past 16 MiB is not segmented (`SEGMENTED`, `pc_rdram_k0_high`) |
+| (`relocate_model_dl`: SetupWaveModel's relocation of a model's display lists: G_VTX, G_DL, the matrices, the image pointers, the LOD markers' branches. Gone since [NATIVE.md](NATIVE.md) step 10: the WAD converter builds the lists with host pointers when the file loads, wherever the file lies) | `((w1 + base) & 0xFFFFFF) \| segment` | (was `pc_rcp_reloc`, `rcpaddr.c`: the K0 address of `w1 + base` when the segment is 0) |
+| (`relocate_texture_loads`: the TXLD lists' SETTIMG and BRANCH_Z, rebased by the IMAG chunk. Gone since step 10, as the line above) | `(w1 & 0x0F000000) \| ((w1 + base) & 0xFFFFFF)` | (was the same, `pc_rcp_reloc`) |
+| (`display_list_traverse`: the mirror pass and the game's other walks of ROM lists, a G_DL or BRANCH_Z target. Since step 10 the target is a pointer) | bits 24-27 set: segmented, taken as segment 0 (`&= 0xF0FFFFFF`); else physical, made K0 | (was: a K0 address past 16 MiB is not segmented, `pc_rdram_k0_high`) |
 | `sound_hw_translate_address` (`hardware.c:1956`: is a sample bank's address RAM, or a cartridge offset to convert?) | RAM if its top byte is 0x80 (or 0xB0, the cartridge) | a K0 address in the window past 16 MiB is RAM too (a guard: this game's banks are cartridge addresses, section 6) |
 | `pcgfx_resolve` (`gfx_rsp.c:79-90`) | physical with no segment base: `rdram(a & 0xFFFFFF)` | a physical address past 16 MiB whose segment has no base, or past 256 MiB, in the window: that RAM (outside the window `pc_n64_ptr` is NULL and the old rule stands) |
 
-A `w1` that is already such a K0 address (relocated once and moved by a delta, as SetupWaveModel's handle-wave path
-does) has no segment of its own in `pc_rcp_reloc`. The renderer's rule is for code that strips K0 itself: none was
-found (section 7), so it is there in case. The one physical address past 16 MiB that would still be ambiguous is
-one whose bits 24-27 name a segment with a base: the game sets only segment 0 (to 0, `StartGraphics.c:174`).
+Since step 10 no display list holds an address the game relocated, so what is left past 16 MiB is the renderer's rule,
+for code that strips K0 itself: none was found (section 7), so it is there in case. The one physical address past
+16 MiB that would still be ambiguous is one whose bits 24-27 name a segment with a base: the game sets only segment 0
+(to 0, `StartGraphics.c:174`).
 
 ## 4. Seeing the heap
 
@@ -192,10 +192,10 @@ it (`InitWaves.c:92`), not when the heap is short. So at the N64's 8 MiB:
 |---|---|
 | `frontend.memory` | `game.memory`: the default `original`, 16-256 each set and read back (16, 17, 32, 64, 100, 128, 255, 256), 15, 8, 4, 0, -1, 257, 512, 1024, `64M`, words and an empty value refused with the range in the message, any case, `--set`, the file written and read back, a bad line skipped, the warning only for `expansion_pak = off` with a size |
 | `frontend.menu.live`, `frontend.menu.pages` | the Game page's Memory: original to 64 and 256, wrapping, Defaults; About's Memory row |
-| `ultra_selftest_memory64`, `_memory256` | the self-test at 64 and 256 MiB: the window's last byte through K0, K1 and physical, nothing one past it, osMemSize, and `pc_rcp_reloc` below and past 16 MiB (`osVirtualToPhysical` too, until [NATIVE.md](NATIVE.md) step 4) (and at 8 MiB, `ultra_selftest`: the N64's rules) |
-| `gfx.window.highmem` | gfx_test built on port/ultra's own window (`memory.c`, 64 MiB): a scene (an N64-form list, its matrix, vertices, a segment's base and a 32 x 32 texture) at 1 MiB, 18 MiB and in the window's last MiB, reached at K0 addresses and at physical ones, drawn into a colour image there set as its pointer, as the game sets it (through `osVirtualToPhysical` until [NATIVE.md](NATIVE.md) step 4); each of the six pictures byte for byte the first's, whose colours are checked. `gfx.window.belist` and `.textures` check the harness on the window |
+| `ultra_selftest_memory64`, `_memory256` | the self-test at 64 and 256 MiB: the window's last byte through K0, K1 and physical, nothing one past it, osMemSize (and `pc_rcp_reloc` below and past 16 MiB until [NATIVE.md](NATIVE.md) step 10, `osVirtualToPhysical` until step 4) (and at 8 MiB, `ultra_selftest`: the N64's rules) |
+| `gfx.window.highmem` | gfx_test built on port/ultra's own window (`memory.c`, 64 MiB): a scene (a list with N64 addresses, a big-endian matrix, vertices, a segment's base and a 32 x 32 big-endian texture; until [NATIVE.md](NATIVE.md) step 10 the list in N64 form) at 1 MiB, 18 MiB and in the window's last MiB, reached at K0 addresses and at physical ones, drawn into a colour image there set as its pointer, as the game sets it (through `osVirtualToPhysical` until [NATIVE.md](NATIVE.md) step 4); each of the six pictures byte for byte the first's, whose colours are checked. `gfx.window.bedata` (`belist` until step 10) and `.textures` check the harness on the window |
 | `audio_window` | (until [NATIVE.md](NATIVE.md) step 9, which took the interpreter's N64-form records away) test_forms' scene (PCM16 big-endian, ADPCM with a big-endian book, native PCM16, the delay effect) as N64-form records and samples in that window, at the same three places and both kinds of address: every render, the state and the delay line the first's; the scene is loud enough to prove it |
-| `assets_wad_game` | the game's own WAD loader with the WAD at 0x81200000 too: `_ReadWave`, SetupWaveModel, `relocate_model_dl`, `relocate_texture_loads`, the vertex pass (`mirror_vertex_texcoords`) and `display_list_traverse`, which follows the K0 addresses to the called list and the branch and flips their windings |
+| `assets_wad_game` | (until [NATIVE.md](NATIVE.md) step 10) the game's own WAD loader with the WAD at 0x81200000 too, its relocated words K0 addresses there; since step 10 the lists hold host pointers wherever the file lies, and the test runs in ordinary host memory |
 | `assets_heap` | `port/ultra/heap.c` on the game's own heap: its size, the least free as the game sums it, the allocations counted, a fallback counted; at 32 MiB with the floor at 17 MiB, the game's next blocks at 17 MiB (heap.c's report: 0x81100000), the runtime images' block taken and locked where `allocate_memory_at` finds it. The heap is in the tests' memory, a host block at no fixed place, at the N64's offsets ([NATIVE.md](NATIVE.md) step 11) |
 | `synth_boot_mem64` | drive.press at `memory = 64`: the heap to 0x84000000 (`tools/port/heap_check.py --memory 64`) |
 | `synth_boot_memhigh`, `memhigh2p` | drive and race2p at 64 with everything the game allocates above 17 MiB (RUSH2049_TEST_HEAP_FLOOR=17): its files, their lists, textures and vertices, the frame and depth buffers, the sound's buffers |

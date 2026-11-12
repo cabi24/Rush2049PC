@@ -819,7 +819,7 @@ void buildRaceTrackMaps(void)
             mapObj[gTrackNum].vtxList = vtx = (Vtx_t *)(((uintptr_t)map_vertex_blocks[gTrackNum] + 7) & ~7);
             dlSize = kNumMapSects * MAP_DL_SECTION_BYTES + MAP_DL_FIXED_BYTES;
             map_display_list_blocks[gTrackNum] = AllocateMemoryHeap(0, dlSize + 7);
-            mapObj[gTrackNum].displayList = (u32 *)(dl = (Gfx *)(((uintptr_t)map_display_list_blocks[gTrackNum] + 7) & ~7));
+            mapObj[gTrackNum].displayList = (void *)(dl = (Gfx *)(((uintptr_t)map_display_list_blocks[gTrackNum] + 7) & ~7));
             dl[0].words.w0 = 0xD7000000; dl[0].words.w1 = 0xFFFFFFFF;
             dl[1].words.w0 = 0xE7000000; dl[1].words.w1 = 0;
             dl[2].words.w0 = 0xE200001C; dl[2].words.w1 = 0xC8112230;
@@ -940,7 +940,7 @@ void buildRaceTrackMaps(void)
     map_vertex_blocks[MAP_LOD_SELECTED] = AllocateMemoryHeap(0, kNumMapSects * 64 + 64 + 7);
     mapObj[MAP_LOD_SELECTED].vtxList = (void *)(((uintptr_t)map_vertex_blocks[MAP_LOD_SELECTED] + 7) & ~7);
     map_display_list_blocks[MAP_LOD_SELECTED] = AllocateMemoryHeap(0, kNumMapSects * MAP_DL_SECTION_BYTES + MAP_DL_FIXED_BYTES + 7);
-    mapObj[MAP_LOD_SELECTED].displayList = (u32 *)(((uintptr_t)map_display_list_blocks[MAP_LOD_SELECTED] + 7) & ~7);
+    mapObj[MAP_LOD_SELECTED].displayList = (void *)(((uintptr_t)map_display_list_blocks[MAP_LOD_SELECTED] + 7) & ~7);
     mapObj[MAP_LOD_SELECTED].flags = 0;
     mapObj[MAP_LOD_SELECTED].texidx = 0;
     mapObj[MAP_LOD_SELECTED].lodRad = 0.0f;

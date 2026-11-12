@@ -150,7 +150,6 @@ struct OSThread_s;
 struct Obj;
 struct Object;
 struct Outer;
-struct N64Gfx;          /* a display list command in the N64's form, two 32-bit words (relocate_texture_loads) */
 struct ObjInstance;
 struct Owner;
 struct P3;

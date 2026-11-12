@@ -1,11 +1,9 @@
-/* display_list_traverse: a walk over an N64 display list and the lists it calls, for MirrorWaveInstance (which
- * flips the triangles' winding through it); N64 only (MAT3's models have no display lists). */
+/* display_list_traverse: a walk over a display list and the lists it calls, for MirrorWaveInstance (which flips the
+ * triangles' winding through it); N64 only (MAT3's models have no display lists). The lists are the PC's own form,
+ * the WAD converter's (port/assets/wad.c): a command's w1 holds a pointer where it names a list. */
 #include "game/game.h"
 
-/* A K0 address past 16 MiB of a larger window (game.memory: what relocate_model_dl's relocation gives there) is no
- * segmented one, whatever its bits 24-27 (docs/port/MEMORY.md 3); at original none reaches 16 MiB. */
-#define SEGMENTED(a) ((a & 0x0F000000) && !pc_rdram_k0_high(a))
-/* The F3DEX2 commands the walk follows (the first word of a command, its first byte the opcode). */
+/* The F3DEX2 commands the walk follows (a command's first word, its first byte the opcode). */
 #define G_ENDDL_WORD 0xDF000000
 #define G_DL_OP 0xDE000000
 #define G_RDPHALF_1_OP 0xE1000000
@@ -17,56 +15,53 @@
 #define DLT_REPLACE 8           /* replace the G_DL target match by replace */
 
 /* Walks the display list at dl to its G_ENDDL. A G_DL that calls a list is walked into (unless DLT_SKIP_CALLS),
- * one that branches is followed; with DLT_REPLACE a G_DL whose target is match gets replace instead. A G_BRANCH_Z
- * is entered or followed as flags say. Every other command goes to cb, which returns how many words to step (two a
- * command); with no cb they are stepped over. A segmented address is made a plain one (the segment bits dropped),
- * a physical one a K0 address. */
-void display_list_traverse(u32 *dl, u32 match, u32 replace, s32 flags, s32 (*cb)(u32 *)) {
+ * one that branches is followed; with DLT_REPLACE a G_DL whose target is match gets replace instead (the walk still
+ * goes into match). A G_BRANCH_Z is entered or followed as flags say; a G_RDPHALF_1 without a G_BRANCH_Z after it is
+ * stepped over with the command after it. Every other command goes to cb, which returns how many commands to step;
+ * with no cb they are stepped over one at a time.
+ * PC: a G_DL or a branch that names no list (where the N64's word named no place in the file: the WAD converter said
+ * so) is not followed: a call is stepped over, a branch ends the walk, where the N64 went into whatever lay there. */
+void display_list_traverse(Gfx *dl, Gfx *match, Gfx *replace, s32 flags, s32 (*cb)(Gfx *)) {
     u32 w0;
-    u32 addr;
+    Gfx *target;
 
-    while (DLW(*dl) != G_ENDDL_WORD) {
-        if ((DLW(*dl) & 0xFF000000) == G_DL_OP) {
-            w0 = DLW(*dl++);
-            addr = DLW(*dl);
-            if SEGMENTED(addr) {
-                addr &= 0xF0FFFFFF;
-            } else if (!(addr & 0xFF000000)) {
-                addr += 0x80000000;
-            }
-            if ((flags & DLT_REPLACE) && addr == match) {
-                DLW_SET(*dl, replace);
+    while (dl->words.w0 != G_ENDDL_WORD) {
+        w0 = dl->words.w0;
+        if ((w0 & 0xFF000000) == G_DL_OP) {
+            target = (Gfx *)dl->words.w1;
+            if ((flags & DLT_REPLACE) && target == match) {
+                dl->words.w1 = (uintptr_t)replace;
             }
             dl++;
             if (!(w0 & 0x00FF0000)) {
-                if (!(flags & DLT_SKIP_CALLS)) {
-                    display_list_traverse(DL_AT(addr), match, replace, flags, cb);
+                if (!(flags & DLT_SKIP_CALLS) && target != NULL) {
+                    display_list_traverse(target, match, replace, flags, cb);
                 }
+            } else if (target == NULL) {
+                return;
             } else {
-                dl = DL_AT(addr);
+                dl = target;
             }
-        } else if ((DLW(*dl) & 0xFF000000) == G_RDPHALF_1_OP) {
-            addr = DLW(dl[1]);
-            dl += 2;
-            if SEGMENTED(addr) {
-                addr &= 0xF0FFFFFF;
-            } else if (!(addr & 0xFF000000)) {
-                addr += 0x80000000;
-            }
-            if ((DLW(*dl) & 0xFF000000) == G_BRANCH_Z_OP) {
-                dl += 2;
+        } else if ((w0 & 0xFF000000) == G_RDPHALF_1_OP) {
+            target = (Gfx *)dl->words.w1;
+            dl++;
+            if ((dl->words.w0 & 0xFF000000) == G_BRANCH_Z_OP) {
+                dl++;
                 if (flags & DLT_FOLLOW_BRANCH) {
-                    dl = DL_AT(addr);
-                } else if (flags & DLT_ENTER_BRANCH) {
-                    display_list_traverse(DL_AT(addr), match, replace, flags, cb);
+                    if (target == NULL) {
+                        return;
+                    }
+                    dl = target;
+                } else if ((flags & DLT_ENTER_BRANCH) && target != NULL) {
+                    display_list_traverse(target, match, replace, flags, cb);
                 }
             } else {
-                dl += 2;
+                dl++;
             }
         } else if (cb != 0) {
             dl += cb(dl);
         } else {
-            dl += 2;
+            dl++;
         }
     }
 }

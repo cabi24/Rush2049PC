@@ -1,6 +1,7 @@
-/* port/gfx/gfx_rsp.c: the RSP half of the F3DEX2 interpreter. Walks display lists (native or N64 form), keeps
- * the matrix stack, vertex buffer, lights, fog and segments, transforms and lights vertices on the CPU, and turns
- * triangles into clipped, culled GL vertices. RDP commands go to gfx_rdp.c. */
+/* port/gfx/gfx_rsp.c: the RSP half of the F3DEX2 interpreter. Walks display lists (the PC's form: the game's, and
+ * the files' that port/assets/wad.c builds when they load), keeps the matrix stack, vertex buffer, lights, fog and
+ * segments, transforms and lights vertices on the CPU, and turns triangles into clipped, culled GL vertices. RDP
+ * commands go to gfx_rdp.c. */
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
@@ -12,15 +13,12 @@
 GfxState pcgfx;
 
 /* The counting build (RUSH_COUNT_CROSSINGS, docs/port/NATIVE.md 9): every address below 4 GiB the renderer takes for
- * an N64 one is counted by the code that asked, as a ROM list's (N64 form) or a native list's, by the form of the list
- * the command came from. Nothing in the default build. */
+ * an N64 one is counted by the code that asked, as a native list's: since step 10 every list is native, and the kind
+ * of a ROM list's (gfx.rom_list) stays at 0. Nothing in the default build. */
 #ifdef RUSH_COUNT_CROSSINGS
-static int g_cross_rom_list;
-#define GFX_CROSSING(value) PC_CROSS_CALLER(g_cross_rom_list ? PC_CROSS_GFX_ROM_LIST : PC_CROSS_GFX_LIST, value)
-#define GFX_CROSSING_LIST(be) (g_cross_rom_list = (be))
+#define GFX_CROSSING(value) PC_CROSS_CALLER(PC_CROSS_GFX_LIST, value)
 #else
 #define GFX_CROSSING(value) ((void)0)
-#define GFX_CROSSING_LIST(be) ((void)0)
 #endif
 
 /* Clipping (GFX.md "Clipping"). The NoN microcode has no near plane. As the RSP does, a polygon that crosses the
@@ -59,10 +57,11 @@ static const uint8_t *rdram(uint32_t phys) {
     return (const uint8_t *)pc_n64_ptr(PC_RDRAM_BASE | N64_TO_PHYS(phys));
 }
 
-/* Addresses (docs/port/GFX.md "Addresses"). Host pointers are at or above 4 GB (the build is PIE and RDRAM is the
- * window at PC_RDRAM_BASE); anything below is an N64 address, in a native list or an N64-form one alike:
- * K0/K1 (N64_KSEG0 up to N64_KSEG2), segmented (0x0S000000 + offset, S = 1..15 with a base set) or physical
- * (segment 0, or a segment with no base: RDRAM offset). */
+/* Addresses (docs/port/GFX.md "Command formats and addresses"). Host pointers are at or above 4 GB (the build is PIE
+ * and RDRAM is the window at PC_RDRAM_BASE); anything below is an N64 address: K0/K1 (N64_KSEG0 up to N64_KSEG2: the
+ * game's heap blocks, its files' texels among them, until the window goes, docs/port/NATIVE.md step 12), segmented
+ * (0x0S000000 + offset, S = 1..15 with a base set) or physical (segment 0, or a segment with no base: RDRAM
+ * offset). */
 static int is_host(uintptr_t a) {
 #if UINTPTR_MAX > 0xFFFFFFFFu
     return a > 0xFFFFFFFFu;
@@ -94,9 +93,10 @@ const uint8_t *pcgfx_resolve(uintptr_t a) {
         return (const uint8_t *)pc_n64_ptr(a32);
     seg = (a32 & N64_SEGMENT_ID_MASK) >> 24;
     /* A physical address past 16 MiB of a larger window (game.memory, docs/port/MEMORY.md 3) whose segment has no
-     * base, or past 256 MiB (bits 28-30, which no segment has): the RAM there. The PC gives the RCP the K0 address
-     * there (the game's display-list relocations), so this is for code that strips it itself. Outside the
-     * window pc_n64_ptr is NULL, so at game.memory = original (8 MiB) this never applies. */
+     * base, or past 256 MiB (bits 28-30, which no segment has): the RAM there. The game gives the RCP pointers, and
+     * its files' lists hold pointers since docs/port/NATIVE.md step 10, so this is for code that makes a physical
+     * address itself. Outside the window pc_n64_ptr is NULL, so at game.memory = original (8 MiB) this never
+     * applies. */
     if (a32 >= PC_RCP_SEGMENT_SPAN && (pcgfx.seg[seg] == 0 || a32 >= PC_RDRAM_MAX) &&
         (p = (const uint8_t *)pc_n64_ptr(a32)) != NULL)
         return p;
@@ -292,7 +292,16 @@ uint8_t pcgfx_outcode(const GfxVtx *v, float xs, float ys) {
 
 /* pcgfx_fog_alpha: gfx_detail.c (the fog as the N64 makes it, and video.fog's) */
 
-static void load_vertices(const uint8_t *p, int be, int v0, int n) {
+/* A vertex's (Vtx) 16-bit field at p: the host's byte order, the game's own vertices and the files' alike (the WAD
+ * converter swaps a model's vertices when its file loads, docs/port/NATIVE.md step 10). */
+static int16_t vtx_s16(const uint8_t *p) {
+    int16_t v;
+    memcpy(&v, p, 2);
+    return v;
+}
+
+/* G_VTX: n vertices from p into the vertex buffer from v0. */
+static void load_vertices(const uint8_t *p, int v0, int n) {
     const float(*mp)[4];
     int i, k;
     float xs, ys;
@@ -308,11 +317,11 @@ static void load_vertices(const uint8_t *p, int be, int v0, int n) {
         if (v0 + i >= 32)
             break;
         v = &pcgfx.vtx[v0 + i];
-        x = (int16_t)pcgfx_rd16(p + 0, be);
-        y = (int16_t)pcgfx_rd16(p + 2, be);
-        z = (int16_t)pcgfx_rd16(p + 4, be);
-        s = (int16_t)pcgfx_rd16(p + 8, be);
-        t = (int16_t)pcgfx_rd16(p + 10, be);
+        x = vtx_s16(p + 0);
+        y = vtx_s16(p + 2);
+        z = vtx_s16(p + 4);
+        s = vtx_s16(p + 8);
+        t = vtx_s16(p + 10);
         v->x = x * mp[0][0] + y * mp[1][0] + z * mp[2][0] + mp[3][0];
         v->y = x * mp[0][1] + y * mp[1][1] + z * mp[2][1] + mp[3][1];
         v->z = x * mp[0][2] + y * mp[1][2] + z * mp[2][2] + mp[3][2];
@@ -365,8 +374,8 @@ static void load_vertices(const uint8_t *p, int be, int v0, int n) {
                                     : p[15] / 255.0f;
         v->clip = pcgfx_outcode(v, xs, ys);
     }
-    if (pcgfx_rec != NULL)
-        pcgfx_rec_load(p - 16 * i, be, v0, i);
+    if (pcgfx_rec != NULL)   /* the high frame rate's record: a model's vertices stay put, the game's own don't */
+        pcgfx_rec_load(p - 16 * i, pc_mem_is_model_data(p - 16 * i), v0, i);
 }
 
 static float screen_z(const GfxVtx *v) {
@@ -724,24 +733,18 @@ static void tri_word(uint32_t w) {
 
 /* ---------------------------------------------------------------- display list walk */
 
+/* A display list position: every list is the PC's form (PcGfxWords, 16 bytes a command), the game's own and the
+ * files' (built by port/assets/wad.c when the file loads: docs/port/NATIVE.md step 10). */
+typedef const PcGfxWords *GfxDlPtr;
+
 static void fetch(GfxDlPtr *d, uint32_t *w0, uintptr_t *w1) {
-    if (d->be) {
-        *w0 = pcgfx_rd32(d->p, 1);
-        *w1 = pcgfx_rd32(d->p + 4, 1);
-        d->p += 8;
-    } else {
-        const PcGfxWords *g = (const PcGfxWords *)(const void *)d->p;
-        *w0 = g->w0;
-        *w1 = g->w1;
-        d->p += sizeof(PcGfxWords);
-    }
+    *w0 = (*d)->w0;
+    *w1 = (*d)->w1;
+    (*d)++;
 }
 
 static GfxDlPtr dl_at(uintptr_t addr) {
-    GfxDlPtr d;
-    d.p = pcgfx_resolve(addr);
-    d.be = pcgfx_is_be(d.p);
-    return d;
+    return (GfxDlPtr)(const void *)pcgfx_resolve(addr);
 }
 
 void pcgfx_rsp_reset(void) {
@@ -919,13 +922,11 @@ void pcgfx_run_list(const void *dl) {
 
     PC_CROSS_FRAME();   /* the counting build's arena guard closes its pages again (docs/port/NATIVE.md 9) */
     pcgfx_rsp_reset();
-    cur.p = (const uint8_t *)dl;
-    cur.be = pcgfx_is_be(dl);
-    while (cur.p != NULL && budget-- > 0) {
+    cur = (GfxDlPtr)dl;
+    while (cur != NULL && budget-- > 0) {
         uint32_t w0, op;
         uintptr_t w1;
         fetch(&cur, &w0, &w1);
-        GFX_CROSSING_LIST(cur.be);
         op = w0 >> 24;
         pcgfx.stat_cmds++;
         if (trace)   /* RUSH_GFX_TRACE: the task's commands, with the depth of the list they are in */
@@ -942,7 +943,7 @@ void pcgfx_run_list(const void *dl) {
             unsigned n = (w0 >> 12) & 0xFF, end = (w0 >> 1) & 0x7F;
             const uint8_t *p = pcgfx_resolve(w1);
             if (p != NULL && n <= end)
-                load_vertices(p, pcgfx_is_be(p), (int)(end - n), (int)n);
+                load_vertices(p, (int)(end - n), (int)n);
             break;
         }
         case G_MODIFYVTX:
@@ -954,7 +955,7 @@ void pcgfx_run_list(const void *dl) {
             /* fall through - a culled list ends here */
         case G_ENDDL:
             if (sp == 0)
-                cur.p = NULL;
+                cur = NULL;
             else
                 cur = stack[--sp];
             break;
@@ -962,7 +963,7 @@ void pcgfx_run_list(const void *dl) {
             unsigned idx = (w0 & 0xFFF) >> 1;
             if (idx < 32 && screen_z(&pcgfx.vtx[idx]) * 65536.0f <= (float)(int32_t)(uint32_t)w1) {
                 GfxDlPtr t = dl_at(pcgfx.half1);
-                if (t.p != NULL)
+                if (t != NULL)
                     cur = t;
             }
             break;
@@ -1012,7 +1013,7 @@ void pcgfx_run_list(const void *dl) {
             break;
         case G_DL: {
             GfxDlPtr t = dl_at(w1);
-            if (t.p == NULL)
+            if (t == NULL)
                 break;
             if (((w0 >> 16) & 0xFF) == 0) {   /* G_DL_PUSH */
                 if (sp >= GFX_DL_STACK)

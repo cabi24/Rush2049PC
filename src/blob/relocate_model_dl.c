@@ -1,140 +1,57 @@
-/* relocate_model_dl: the relocation of a model's display list after its WAD is loaded (N64 only: MAT3's GameCube
- * models have no display lists). Called by SetupWaveModel for each level of detail. */
+/* relocate_model_dl: a model's display list set up for the race once its WAD is loaded (N64 only: MAT3's GameCube
+ * models have no display lists). Called by SetupWaveModel for each level of detail. On the N64 it relocated the list
+ * too: it added the file's address to every address in it, in place. On the PC the WAD's converter built the list
+ * with host pointers when the file loaded (port/assets/wad.c, docs/port/NATIVE.md step 10), so what is left is the
+ * race's: the sections it keeps and the mirrored texture coordinates. */
 #include "game/game.h"
 
-/* The relocated address past 16 MiB of a larger window (game.memory) is the K0 one, not the 24-bit offset; at
- * original, the N64's (pc_rcp_reloc, docs/port/MEMORY.md 3). KEEP: w's own segment; SEG: segment bits >> 24. */
-#define RELOC_KEEP(w, b) pc_rcp_reloc(w, b, -1)
-#define RELOC_SEG(w, b, bits) pc_rcp_reloc(w, b, (s32)((bits) >> 24))
-#define LOD_KEEP(sum, bits, w, b) pc_rcp_reloc(w, b, -1)
-#define LOD_SEG(sum, bits, w, b) pc_rcp_reloc(w, b, (s32)((bits) >> 24))
+/* A LOD marker: a G_SPNOOP whose byte 1 is LOD_MARKER, its low half the bit of the race's keep mask its section needs
+ * (waves.c's DL_KEEP_*), its w1 the list where the section ends (a pointer: the converter's). */
+#define LOD_MARKER 1
+#define G_DL_BRANCH_WORD 0xDE010000u   /* a G_DL that doesn't come back */
 
-/* Walks the display list at dl to its end and relocates every address in it by base: vertices, matrices, the lists
- * it calls or branches to, images. seg < 0 keeps each address's own segment, else the relocated addresses get
- * segment seg. The walk doesn't enter the lists a G_DL calls (the stack of ten is never pushed); at a G_BRANCH_Z it
- * goes on at the target's second command and doesn't come back to the commands after the branch. A section marker
- * whose bit isn't in mask (DL_KEEP_*: waves.c) becomes a branch to the address it holds, skipping the section. The
- * first vertex load's vertices are prepared for mirroring (mirror_vertex_texcoords; flag: the track is mirrored). */
-void relocate_model_dl(u32 *dl, s32 base, s32 seg, s32 flag, u32 mask) {
-    u32 *cmd;
-    u32 *head;
-    u32 val;
-    u32 saved;
-    s32 first;
-    s32 was;
-    u8 op;
-    u8 op2;
-    u32 *stk[10];
-    u32 *start;
-    u32 **slot;
-    u32 *nextcmd;
-    u32 segbits;
-    u32 segnib;
-    u32 newaddr;
-    s32 w1;
-    s32 depth;
-    s32 type;
-    s32 idx;
+/* Walks the display list dl a command at a time to its G_ENDDL: past a G_DL (not into it), and at a G_BRANCH_Z on at
+ * the second command of the list its G_RDPHALF_1 names. A LOD marker whose bit isn't in keep becomes a branch to the
+ * list it names, so the race skips its section. The first vertex load's vertices are prepared for mirroring
+ * (mirror_vertex_texcoords; mirrored: the track is mirrored).
+ * On the N64 the marker's bit was 1 << (its low half), which the CPU took modulo 32: so is it here. A marker or a
+ * G_RDPHALF_1 that names no list (where the N64's word named no place in the file: the converter said so) stays a
+ * no-op, or ends the walk, where the N64 branched into whatever lay there. */
+void relocate_model_dl(Gfx *dl, s32 mirrored, u32 keep) {
+    Gfx *cmd;
+    Gfx *latched;
     u32 w0;
-    u32 one;
-    u32 bit;
-    u32 hit;
-    s32 islod;
-    u32 sum;
-    u32 hiaddr;
-    u32 sum2;
-    u32 segnib2;
-    u32 segbits2;
-    u32 branch;
-    u32 *target;
-    s32 up;
-    u32 vtx;
-    s32 step;
+    s32 first;
 
     first = 1;
-    depth = 0;
-    start = dl;
-    stk[0] = start;
-
-    while (depth >= 0 && depth < 10) {
-        head = stk[depth];
-        slot = &stk[depth];
-        cmd = *slot;
-        op = (DLW(head[0]) & 0xFF000000) >> 24;
-        /* commands with no address (the RDP's, most of the RSP's) */
-        if ((op & 0xC0) == 0x40 || (op & 0xC0) == 0x80 || (op >= 9 && op < 0x40) || (op >= 0xC0 && op < 0xD6)) {
-            goto next;
-        }
-        nextcmd = cmd + 2;
-        op2 = (DLW(nextcmd[0]) & 0xFF000000) >> 24;
-        if (op == G_VTX || op == G_LOAD_UCODE || op == G_DL || op == G_MTX || op == G_MOVEMEM ||
-            (op == G_RDPHALF_1 && (op2 == G_BRANCH_Z || op2 == G_LOAD_UCODE)) || op >= G_SETTIMG) {
-            if (seg < 0) {
-                val = RELOC_KEEP(DLW(cmd[1]), base);
-            } else {
-                segnib = seg & 0xF;
-                segbits = segnib << 24;
-                val = RELOC_SEG(DLW(cmd[1]), base, segbits);
-            }
-            newaddr = val;
-            DLW_SET(cmd[1], newaddr);
-        }
-        switch (op) {
+    latched = NULL;
+    for (cmd = dl;; cmd++) {
+        w0 = cmd->words.w0;
+        switch (w0 >> 24) {
             case G_SPNOOP:
-                type = (DLW(cmd[0]) & 0x00FF0000) >> 16;
-                w1 = DLW(cmd[1]);
-                w0 = DLW(cmd[0]);
-                idx = w0 & 0xFFFF;
-                one = 1;
-                bit = one << idx;
-                islod = type == 1;
-                if (islod && (hit = bit & mask) == 0) {
-                    if (seg < 0) {
-                        sum = w1 + (u32) base;
-                        hiaddr = w1 & 0x0F000000;
-                        val = LOD_KEEP(sum, hiaddr, w1, base);
-                    } else {
-                        sum2 = w1 + (u32) base;
-                        segnib2 = seg & 0xF;
-                        segbits2 = segnib2 << 24;
-                        val = LOD_SEG(sum2, segbits2, w1, base);
-                    }
-                    branch = 0xDE010000;    /* G_DL without return: a branch */
-                    DLW_SET(cmd[0], branch);
-                    DLW_SET(cmd[1], val);
+                if (((w0 >> 16) & 0xFF) == LOD_MARKER && !((1u << (w0 & 0x1F)) & keep) && cmd->words.w1 != 0) {
+                    cmd->words.w0 = G_DL_BRANCH_WORD;
                 }
                 break;
             case G_VTX:
-                was = first != 0;
-                first = 0;
-                if (was) {
-                    vtx = val;
-                    mirror_vertex_texcoords(vtx, flag);
+                if (first) {
+                    first = 0;
+                    if (cmd->words.w1 != 0) {   /* PC: none where the converter found none (it said so) */
+                        mirror_vertex_texcoords((Vtx *)cmd->words.w1, mirrored);
+                    }
                 }
                 break;
             case G_RDPHALF_1:
-                saved = DLW(cmd[1]);
+                latched = (Gfx *)cmd->words.w1;
                 break;
             case G_BRANCH_Z:
-                target = DL_AT(saved);
-                stk[depth] = target;
-                break;
-            case G_DL:
-                step = 2;
-                stk[depth] += step;
+                if (latched == NULL) {
+                    return;
+                }
+                cmd = latched;   /* the loop's step takes it to the list's second command */
                 break;
             case G_ENDDL:
-                up = depth - 1;
-                depth = up;
-                break;
-            case G_MOVEWORD:
-            case G_MOVEMEM:
-            case G_LOAD_UCODE:
-                break;
-        }
-next:
-        if (op != G_DL && depth >= 0) {
-            stk[depth] += 2;
+                return;
         }
     }
 }

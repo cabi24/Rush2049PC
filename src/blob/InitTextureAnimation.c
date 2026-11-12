@@ -67,10 +67,10 @@ flipbooks:
                 tlist->swapTexs[i].tex = MBOX_FindTexture_WORK(tlist->swapTexs[i].name, &index, 0, gNumModels[0] - 1, 1);
             } else continue;
             texture = tlist->swapTexs[i].tex;
-            /* the frame's image: a texture's own texels, or the address its load list's G_SETTIMG holds (the list's
-             * N64 form, which TextureAnimation writes it back into: docs/port/NATIVE.md step 10) */
+            /* the frame's image: a texture's own texels, or the image its load list's G_SETTIMG holds (which
+             * TextureAnimation writes into the drawn texture's texBase or its own load list) */
             if (texture->flags & TEX_IMAGE_DIRECT) tlist->swapTexs[i].texBase = texture->texBase;
-            else tlist->swapTexs[i].texBase = (void *)(uintptr_t)displaylist_get_texture_image(texture->texBase);
+            else tlist->swapTexs[i].texBase = displaylist_get_texture_image(texture->texBase);
             tlist->time = tlist->initTime;
             tlist->idx = tlist->startnum;
         }

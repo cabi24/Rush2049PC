@@ -202,8 +202,8 @@ the GBI's segmented addresses stay as long as the renderer interprets N64 displa
 | `port/ultra/misc.c:101` | `0x1FFFFFFFu` | KSEG mask in __osTLBLookup | K0_TO_PHYS (libultra) |
 | `port/ultra/n64mem.c:17` | `0x80000000u` | KSEG0 base: the default pc_window_base, and pc_n64_identity | PC_RDRAM_BASE; goes with the window |
 | `port/ultra/n64mem.c:31` | `0x80000000u` | KSEG0 base: the default pc_window_base, and pc_n64_identity | PC_RDRAM_BASE; goes with the window |
-| `port/ultra/rcpaddr.c:21` | `0x80000000u`, `0x1FFFFFFFu` | KSEG0..KSEG1 range test; `0x1FFFFFFFu`: KSEG mask: K0/K1 to physical | IS_KSEG0 / IS_KSEG1 (libultra), K2BASE for the 0xC0000000 bound; `0x1FFFFFFFu`: K0_TO_PHYS / K1_TO_PHYS (libultra), or a PC_PHYS_MASK constant |
-| `port/ultra/rcpaddr.c:38` | `0x00FFFFFFu` | a segmented address's 24-bit offset | a SEGMENT_OFFSET macro (with SEGMENT_NUMBER for bits 24-27) |
+| `port/ultra/rcpaddr.c:21` (gone since [NATIVE.md](../port/NATIVE.md) step 10) | `0x80000000u`, `0x1FFFFFFFu` | KSEG0..KSEG1 range test; `0x1FFFFFFFu`: KSEG mask: K0/K1 to physical | IS_KSEG0 / IS_KSEG1 (libultra), K2BASE for the 0xC0000000 bound; `0x1FFFFFFFu`: K0_TO_PHYS / K1_TO_PHYS (libultra), or a PC_PHYS_MASK constant |
+| `port/ultra/rcpaddr.c:38` (gone since step 10) | `0x00FFFFFFu` | a segmented address's 24-bit offset | a SEGMENT_OFFSET macro (with SEGMENT_NUMBER for bits 24-27) |
 | `port/ultra/statehash.c:643` | `0x80000000u` | KSEG0 base: a window offset to its N64 address | PC_RDRAM_BASE (or pc_n64_addr) |
 | `port/ultra/statehash.c:771` | `0x80000000u` | KSEG0 base: a window offset to its N64 address | PC_RDRAM_BASE (or pc_n64_addr) |
 | `port/ultra/statehash.c:929` | `0x80000000u` | KSEG0 base: a window offset to its N64 address | PC_RDRAM_BASE (or pc_n64_addr) |

@@ -35,25 +35,32 @@ Every external symbol except the `pc_gfx_*` API is `pcgfx`/`pcgfx_*`. The game h
 
 ## Command formats and addresses
 
-- **Native lists** (game C on `TARGET_PC`): `PcGfxWords { uint32_t w0; uintptr_t w1; }`, 16 bytes per command.
-- **N64-form lists** (ROM data in a `pc_mem_register_be` range): 8-byte big-endian commands with 32-bit addresses.
-- The form is decided per list, by `pc_mem_is_be(list)` at the task start and at every G_DL or BRANCH_Z target. So
-  native lists can call N64-form lists and the reverse.
-- **Address values** (w1, segment bases, `pc_gfx_present`'s argument) are resolved the same way in both forms:
+- **Every list is the PC's form**: `PcGfxWords { uint32_t w0; uintptr_t w1; }` (the game's `Gfx`), 16 bytes per
+  command. The game builds its own lists so; the files' lists (a model's levels of detail, a texture's load list),
+  8-byte big-endian commands with 32-bit offsets in the ROM, are built again in this form by the WAD converter when
+  the file loads (`port/assets/wad.c`, [NATIVE.md](NATIVE.md) step 10): command for command, w0 the file's, w1 a host
+  pointer in the commands that carry an address (VTX, G_DL, G_RDPHALF_1 before G_BRANCH_Z, MTX, MOVEMEM, SETxIMG)
+  and the value in the rest. Until then the renderer read the ROM's lists in their N64 form, told apart by
+  `pc_mem_is_be(list)` at every list it entered.
+- **Address values** (w1, segment bases, `pc_gfx_present`'s argument):
 
 | Value | Meaning | Host address |
 |---|---|---|
 | ≥ 4 GB | host pointer (the build is PIE; its data with pointers lives high) | as is |
-| 0x80000000–0xBFFFFFFF | K0/K1: the heap, frame buffers, the game's pointer-free data (DATA.md §3) | `pc_n64_ptr(v)` (identity through the RDRAM window) |
+| 0x80000000–0xBFFFFFFF | K0/K1: the heap's blocks (frame buffers, a file's texels), while the heap is the RDRAM window (until [NATIVE.md](NATIVE.md) step 12) | `pc_n64_ptr(v)` (identity through the RDRAM window) |
 | 0x0S000000 + off, segment S has a base | segmented | `base[S] + off` |
 | anything else below 0x80000000 | physical (segment 0, or no base) | `pc_n64_ptr(0x80000000 \| (v & 0xFFFFFF))` |
 | 0 | null | none (the command is skipped) |
 
 - The segment table holds host bases (`uintptr_t`). A base set by MOVEWORD G_MW_SEGMENT goes through the same rules,
-  so a host pointer, a K0 address or a physical address all work, from either list form. The table resets at every
-  task, as the microcode's DMEM does.
-- **Data byte order.** Vertices, matrices, the viewport, 16-bit texels and TLUT entries are read big-endian when
-  `pc_mem_is_be(ptr)` is true, and native otherwise.
+  so a host pointer, a K0 address or a physical address all work. The table resets at every task, as the microcode's
+  DMEM does. The game sets none but segment 0 (to 0).
+- **Vertices** are always the host's byte order: the game's, and a model's, which the WAD converter swaps when the file
+  loads. A model's are registered as model data (`pc_mem_register_model_data`, `port/ultra/memory.c`): data that stays
+  put while its file is loaded, which the high frame rate's recorder asks about ("High frame rate" below).
+- **Data byte order.** Matrices, the viewport, 16-bit texels and TLUT entries are read big-endian when
+  `pc_mem_is_be(ptr)` is true (a file's: its texels and TLUTs stay in the N64's formats, and so would a matrix its list
+  loads), and native otherwise.
   - Native matrices are read as 32-bit words, as `guMtxF2L` writes them.
   - Native 32-bit texels are `0xRRGGBBAA` words.
   - Lights, 4-bit and 8-bit texels are bytes.
@@ -676,7 +683,9 @@ times a second, vt in retraces, and it shows the frame for that moment. Added 20
     MP changed (`pcgfx.xf_gen`), or the viewport or fog: its modelview, projection and MP, whether it is perspective,
     whether MP is modelview x projection (not after G_MV_MATRIX or G_MW_MATRIX), the view (projection loads so far),
     its parent (the transform one level up with the modelview this one was pushed from), the bounds of its vertices
-    and a signature: the view and each load's source address and size;
+    and a signature: the view and each load's source address and size. Each load is a model's (its vertices are model
+    data, `pc_mem_is_model_data`: they stay put while the file is loaded) or the game's own, made each frame (until
+    [NATIVE.md](NATIVE.md) step 10 a model's were told by their big-endian range);
   - a triangle: its three vertices, the draw state and texture units it was drawn with, and its `GfxTriCtx` (the
     viewport, culling, smooth shading, depth source, where the viewport lands in widescreen). Triangles the frame
     rejects (outside, behind, back faces) are recorded too when the draw state in effect is still theirs
@@ -883,19 +892,23 @@ by w in double for every triangle that uses it; computing that once a vertex at 
   `pc_gfx_present(fb)`, with fb as the game holds it (K0 or host). The colour and depth images are set as the
   buffers' pointers (`StartGraphics`, `ClearScreen`), the same values, so they resolve to the same target. Until
   [NATIVE.md](NATIVE.md) step 4 they were the physical addresses `osVirtualToPhysical` made of them, as on the N64;
-  the renderer resolved those to the same pointers, and still takes a physical address from a ROM list.
+  the renderer resolved those to the same pointers. The physical rule is left for code that makes such an address
+  itself (the ROM's lists had them, relocated, until step 10).
 - **Data structures.** Build Mtx with `guMtxF2L` (32-bit words) and write Vtx, Vp and Light by field.
   - A `memcpy` of big-endian ROM fields into a native `Vtx` leaves them big-endian. particle_context.c:1372 copies tc
     and colors from `poly` this way, so it needs a swap if `poly` comes from ROM data.
   - Lights written as raw words need the byte layout `col[3], pad, colc[3], pad, dir[3], pad`.
-- **ROM lists.** ROM display lists, vertices, matrices, texels and TLUTs stay big-endian in registered BE ranges
-  (ASSETS.md). The game's walkers over them need big-endian accessors: `relocate_model_dl` (relocation, LOD markers),
-  `display_list_traverse`, the mirror winding flip (`flip_triangle_winding`) and the vertex flag pass (`mirror_vertex_texcoords`).
+- **The files' lists.** The WAD converter builds them, and the vertices they load, in the PC's form
+  ([NATIVE.md](NATIVE.md) step 10; [ASSETS.md](ASSETS.md) 3.2); texels and TLUTs stay big-endian in the file's
+  registered range. The game's
+  walkers over the lists read and write `Gfx` and `Vtx` as they are: `relocate_model_dl` (the race's LOD markers),
+  `display_list_traverse`, the mirror winding flip (`flip_triangle_winding`), the vertex flag pass
+  (`mirror_vertex_texcoords`) and the texture animation's `displaylist_*` helpers.
 
 ## The game's commands and modes, and their status
 
-From a source survey (2026-10-26). "Code" = built by game C. "ROM" = only in ROM lists, as seen through the game's
-walkers. **T** = covered by `gfx_test`.
+From a source survey (2026-10-26). "Code" = built by game C. "ROM" = only in the files' lists (the WAD converter's
+since NATIVE.md step 10), as seen through the game's walkers. **T** = covered by `gfx_test`.
 
 | Op | Command | Game | Status |
 |---|---|---|---|
@@ -911,7 +924,7 @@ walkers. **T** = covered by `gfx_test`.
 | DB | MOVEWORD: SEGMENT, NUMLIGHT, FOG, PERSPNORM | code | done, T (PERSPNORM has no effect) |
 | DB | MOVEWORD: LIGHTCOL, MATRIX, CLIP, FORCEMTX | not emitted | LIGHTCOL/MATRIX done, untested |
 | DC | MOVEMEM: VIEWPORT, LIGHT (lookat 0/24, lights 48/72/96) | code | done, T |
-| DD | LOAD_UCODE | only in a walker's relocation list | ignored |
+| DD | LOAD_UCODE | only in the relocation's list of address commands (relocate_model_dl's, then the WAD converter's) | ignored |
 | DE / DF | DL / ENDDL | code, ROM | done, T |
 | E0 | SPNOOP (LOD marker) | ROM | no-op, T |
 | E1 / F1 | RDPHALF_1/2 | code (texrect), ROM (BRANCH_Z) | done, T |
@@ -992,8 +1005,8 @@ build/gfx/gfx_test texrect --png /tmp/out
   ([TEXTURES.md](TEXTURES.md) "Tests").
 - **How the test works.** `gfx_test` builds display lists with its own encoders (`tests/test_gbi.h`, written from
   the SDK formats and not from the renderer's decoder). It renders them headless and checks pixels against values
-  worked out from the N64 rules. It provides its own `pc_mem_is_be`, `pc_n64_ptr` and `pc_n64_addr`, with an 8 MB
-  RDRAM array.
+  worked out from the N64 rules. It provides its own `pc_mem_is_be`, `pc_mem_is_model_data`, `pc_n64_ptr` and
+  `pc_n64_addr`, with an 8 MB RDRAM array.
 - **Cases.** 27, one CTest each:
 
 | Case | Checks |
@@ -1009,7 +1022,7 @@ build/gfx/gfx_test texrect --png /tmp/out
 | `twocycle` | a TEXEL0/TEXEL1 lerp, then a lerp toward env by the primitive LOD fraction |
 | `lod` | G_TL_LOD with four mip levels (level 1 striped a texel wide, to check its coordinates), point sampled, quads with their corners on whole N64 pixels (a projection exact in fixed point) at steps of 0.5-16 texels an N64 pixel: the first level magnified, level 1 and 2 exactly, halfway between levels, the last level from its power on, 3 across and 0.5 down and the other way round (each axis at its own scale); without G_TL_LOD, tile 0. Every internal pixel inside a quad against the N64's levels and fraction for its step and the texels at its own centre (those within 1/16 texel of a stripe's side left out) |
 | `dualtile` | CI8 read as CI4 |
-| `belist` | N64-form lists through a host segment, a K0 address, a physical address and a segment set from a BE list; native K0 texture |
+| `bedata` | the frame list calling a list in a host buffer through a host segment, inside a big-endian range (a kept LOD marker, a big-endian matrix and texels, native vertices), and a list in RDRAM at a K0 address (a big-endian matrix, native vertices at a physical address and through a segment set from that list); a K0 texture in the frame list. Since [NATIVE.md](NATIVE.md) step 10 every list is the PC's form (until then `belist`, with N64-form lists) |
 | `matrix` | push/mul/pop |
 | `cull` | front/back, mirrored modelview, CULLDL |
 | `branchz` | BRANCH_Z |

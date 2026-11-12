@@ -65,10 +65,6 @@ typedef struct {
 #define SP_STATUS_YIELD 0x80
 #define OS_TASK_YIELDED 1
 #define OS_TASK_DP_WAIT 2
-#define IS_KSEG0(x) ((u32)(x) >= 0x80000000U && (u32)(x) < 0xA0000000U)
-#define IS_KSEG1(x) ((u32)(x) >= 0xA0000000U && (u32)(x) < 0xC0000000U)
-#define K0_TO_PHYS(x) ((u32)(x) & 0x1FFFFFFF)
-#define K1_TO_PHYS(x) ((u32)(x) & 0x1FFFFFFF)
 /* OS_MESG_NOBLOCK and OS_MESG_BLOCK already available from PR/os_message.h.
  * C1 already supplies __osSiInitialized, __osSiMesg, osSiInit as needed.
  * __osSiDmaBuffer, __osViContext already provided in m2c_types.h. */

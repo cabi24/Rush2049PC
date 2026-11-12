@@ -10,27 +10,18 @@
 typedef __UINTPTR_TYPE__ uintptr_t;
 typedef __INTPTR_TYPE__ intptr_t;
 
-/* Words of N64-form data that stays big-endian on PC (display lists, vertices and other payloads loaded
- * from the ROM; see pc_mem_register_be in pc_port.h). */
-static __inline__ unsigned int pc_be32_get(const void *p) {
-    const unsigned char *b = (const unsigned char *)p;
-    return ((unsigned int)b[0] << 24) | ((unsigned int)b[1] << 16) | ((unsigned int)b[2] << 8) | b[3];
-}
-static __inline__ void pc_be32_set(void *p, unsigned int v) {
-    unsigned char *b = (unsigned char *)p;
-    b[0] = (unsigned char)(v >> 24);
-    b[1] = (unsigned char)(v >> 16);
-    b[2] = (unsigned char)(v >> 8);
-    b[3] = (unsigned char)v;
-}
-static __inline__ unsigned short pc_be16_get(const void *p) {
-    const unsigned char *b = (const unsigned char *)p;
+/* A palette's colour (a TLUT entry, RGBA 5551) where a file holds it: the files' texels and TLUTs keep the N64's texel
+ * formats, which the renderer decodes, and a 16-bit texel there is high byte first (docs/port/NATIVE.md 4.4). The
+ * game reads and writes palette colours one at a time with these (the car paint's copy, the texture animation's
+ * lights); moving them as they are needs nothing. */
+static __inline__ unsigned short pc_tlut_get(const void *entry) {
+    const unsigned char *b = (const unsigned char *)entry;
     return (unsigned short)((b[0] << 8) | b[1]);
 }
-static __inline__ void pc_be16_set(void *p, unsigned short v) {
-    unsigned char *b = (unsigned char *)p;
-    b[0] = (unsigned char)(v >> 8);
-    b[1] = (unsigned char)v;
+static __inline__ void pc_tlut_set(void *entry, unsigned short colour) {
+    unsigned char *b = (unsigned char *)entry;
+    b[0] = (unsigned char)(colour >> 8);
+    b[1] = (unsigned char)colour;
 }
 
 /* A colour word as the N64 holds it in a register, 0xRRGGBBAA: the word whose bytes in host memory are R, G, B, A.
@@ -42,13 +33,6 @@ static __inline__ void pc_be16_set(void *p, unsigned short v) {
 /* N64 addresses (K0, K1 or physical) the game computes as integers, and back (port/ultra). */
 void *pc_n64_ptr(unsigned int n64_addr);
 unsigned int pc_n64_addr(const void *host);
-
-/* game.memory's window past 16 MiB (docs/port/MEMORY.md 3), where a physical address would read as a segmented one:
- * the display-list relocations (relocate_model_dl, relocate_texture_loads) give the K0 address there (pc_rcp_reloc: the
- * N64's `((w1 + base) & 0xFFFFFF) | segment` below), and display_list_traverse and the MusyX library's RAM test take
- * such a K0 address as the RAM address it is (pc_rdram_k0_high). At game.memory = original each is the N64's rule. */
-unsigned int pc_rcp_reloc(unsigned int w1, unsigned int base, int seg);
-int pc_rdram_k0_high(unsigned int addr);
 
 /* The game heap (port/ultra/heap.c, docs/port/MEMORY.md 4): pc_heap_memory is the memory the main heap manages on a
  * console with mem_size bytes of RDRAM (osMemSize), its size in *size (locate_main_heap). The allocator says when the

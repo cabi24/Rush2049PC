@@ -1,6 +1,6 @@
 /* port/gfx/tests/test_gbi.h: test-local F3DEX2 command encoders, written from the SDK's documented formats
- * (independent of the renderer's decoder). Commands go to the current emitter: a native PcGfxWords list, or an
- * N64-form big-endian byte list. */
+ * (independent of the renderer's decoder). Commands go to the current emitter, a list in the PC's form (PcGfxWords):
+ * the only form the renderer reads since the files' lists are built native (docs/port/NATIVE.md step 10). */
 #ifndef TEST_GBI_H
 #define TEST_GBI_H
 
@@ -13,21 +13,12 @@
 
 /* ---------------------------------------------------------------- emitter */
 
-static PcGfxWords *gp;   /* native */
-static uint8_t *bp;      /* N64 form */
-static int g_be_mode;
+static PcGfxWords *gp;
 
 static void cmd(uint32_t w0, uintptr_t w1) {
-    if (g_be_mode) {
-        uint32_t a = (uint32_t)w1;
-        bp[0] = w0 >> 24; bp[1] = w0 >> 16; bp[2] = w0 >> 8; bp[3] = w0;
-        bp[4] = a >> 24; bp[5] = a >> 16; bp[6] = a >> 8; bp[7] = a;
-        bp += 8;
-    } else {
-        gp->w0 = w0;
-        gp->w1 = w1;
-        gp++;
-    }
+    gp->w0 = w0;
+    gp->w1 = w1;
+    gp++;
 }
 
 /* ---------------------------------------------------------------- constants */
