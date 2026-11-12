@@ -30,7 +30,7 @@ extern "C" {
 
 #define PC_HASH_REGIONS 16
 typedef struct {
-    const char *name;        /* "models", "cars", ...; "window", "own", "decoupled", "arenas" for the full hash's */
+    const char *name;        /* "models", "cars", ...; "heap", "own", "decoupled", "arenas" for the full hash's */
     uint64_t hash;           /* xxHash64 of its bytes, with host pointers normalised */
     uint32_t bytes;          /* its size */
     uint32_t pointers;       /* host pointers normalised in it */
@@ -41,15 +41,15 @@ typedef struct {
 typedef struct {
     uint32_t retrace;
     uint64_t state;          /* the curated regions' hash (pc_hash_enable): every retrace */
-    int full;                /* 1: the RDRAM window and the game's other data were hashed at this retrace too */
+    int full;                /* 1: the game heap and the game's other data were hashed at this retrace too */
     uint64_t full_hash;      /* ... their hash; 0 when not */
     int n;                   /* regions, the curated ones first */
     PcHashRegion region[PC_HASH_REGIONS];
 } PcStateHash;
 
-/* Hashing on, from the next retrace: the curated regions every retrace, the window, own storage, the decoupled data
- * and the arenas every full_every retraces (0: never). Main thread. --log-hash N[,W] turns it on and prints every Nth
- * retrace's. */
+/* Hashing on, from the next retrace: the curated regions every retrace, the game heap's block, own storage, the
+ * decoupled data and the arenas every full_every retraces (0: never). Main thread. --log-hash N[,W] turns it on and
+ * prints every Nth retrace's. */
 void pc_hash_enable(uint32_t full_every);
 int pc_hash_enabled(void);
 void pc_hash_log(uint32_t every, uint32_t full_every);   /* --log-hash N[,W]: hashing on, a line every N retraces */
@@ -62,9 +62,10 @@ const PcStateHash *pc_hash_last(void);   /* the last retrace's hash, NULL before
 void pc_hash_keep(uint32_t retraces);
 /* The desync report (docs/port/LOCKSTEP.md 5): retrace n's hashes, region by region, then each curated region's bytes
  * as hashed (hex, host pointers normalised): n's when kept, else the last retrace's (the file says which). With the
- * full hash taken at n and still the last, the window's (with the arenas at their N64 places), own storage's and the
- * decoupled data's normalised bytes go to PATH.window, PATH.own and PATH.decoupled. For the session to call on a
- * mismatch; --hash-report N writes it at retrace N. 0 on success. */
+ * full hash taken at n and still the last, the heap's, the arenas', own storage's and the decoupled data's normalised
+ * bytes go to PATH.heap, PATH.arenas, PATH.own and PATH.decoupled, and the report lists where each arena, own-storage
+ * symbol and decoupled item is in them. For the session to call on a mismatch; --hash-report N writes it at retrace N.
+ * 0 on success. */
 int pc_hash_report(const char *path, uint32_t n);
 /* --hash-report N:PATH (offline: replay to the retrace two PCs first differ at, on each). */
 void pc_hash_report_at(uint32_t n, const char *path);
@@ -78,10 +79,11 @@ typedef struct {
 void pc_xxh64_init(PcXxh64 *s, uint64_t seed);
 void pc_xxh64_update(PcXxh64 *s, const void *data, size_t size);
 uint64_t pc_xxh64_digest(const PcXxh64 *s);
-/* A host pointer into the executable's image, as the hash takes it: what it points to, the same in every process and
- * on every OS where it can be (an own-storage symbol's N64 address and N64 offset, a game function's N64 address, a
- * decoupled item and offset; elsewhere in the image only a tag); 0 for a value outside the image. Which values in the
- * game's data are taken for pointers depends on the bytes (port/ultra/statehash.c, docs/port/LOCKSTEP.md 5.2). */
+/* A host pointer into the game heap's block or the executable's image, as the hash takes it: what it points to, the
+ * same in every process and on every OS where it can be (the heap and the offset in it; an own-storage symbol's N64
+ * address and N64 offset, a game function's N64 address, a decoupled item and offset; elsewhere in the image only a
+ * tag); 0 for a value outside both. Which values in the game's data are taken for pointers depends on the bytes
+ * (port/ultra/statehash.c, docs/port/LOCKSTEP.md 5.2). */
 uint64_t pc_hash_pointer(uint64_t v);
 void pc_hash_image(uintptr_t *start, uintptr_t *end);   /* the executable's image as the hash sees it */
 

@@ -175,7 +175,7 @@ void CheckFlip(s32 idx) {
         if (stunt_chW0 != 0 || stunt_j >= 3) {
             p->active = fl & ~0x40;
         } else {
-            c = (PCar *)(uintptr_t)PC_CAR(idx);
+            c = (PCar *)PC_CAR(idx);
             p->stuntW[1][0] += c->vx;
             p->stuntW[1][1] += c->vy;
             p->stuntW[1][2] += c->vz;
@@ -187,7 +187,7 @@ void CheckFlip(s32 idx) {
             p->active &= ~0x40;
             return;
         }
-        if ((flip_window_min < v[0] && v[0] < flip_window_max) || ((stunt_chW0 != 0 || stunt_j > 0 || ((c = (PCar *)(uintptr_t)PC_CAR(idx))->appearance & 0x100000)) && flip_landing_min < v[0])) {
+        if ((flip_window_min < v[0] && v[0] < flip_window_max) || ((stunt_chW0 != 0 || stunt_j > 0 || ((c = (PCar *)PC_CAR(idx))->appearance & 0x100000)) && flip_landing_min < v[0])) {
             p->active &= ~0x80;
             if (p->stuntW[1][0] > 0.0f) {
                 AddStunt(idx, 0);
@@ -201,7 +201,7 @@ void CheckFlip(s32 idx) {
         }
     } else if (stunt_okToStart != 0 && stunt_GCabsW[1] < stunt_GCabsW[0] && stunt_GCabsW[2] < stunt_GCabsW[0]) {
         p->active = fl | 0x40;
-        c = (PCar *)(uintptr_t)PC_CAR(idx);
+        c = (PCar *)PC_CAR(idx);
         p->stuntW[1][0] = c->vx;
         p->stuntW[1][1] = c->vy;
         p->stuntW[1][2] = c->vz;
@@ -222,7 +222,7 @@ void CheckSpin(s32 idx) {
         if (stunt_chW1 != 0 || stunt_j >= 3) {
             p->active = fl & ~0x10;
         } else {
-            c = (PCar *)(uintptr_t)PC_CAR(idx);
+            c = (PCar *)PC_CAR(idx);
             p->stuntW[2][0] += c->vx;
             p->stuntW[2][1] += c->vy;
             p->stuntW[2][2] += c->vz;
@@ -234,7 +234,7 @@ void CheckSpin(s32 idx) {
             p->active &= ~0x10;
             return;
         }
-        if ((spin_window_min < v[1] && v[1] < spin_window_max) || ((stunt_chW1 != 0 || stunt_j > 0 || ((c = (PCar *)(uintptr_t)PC_CAR(idx))->appearance & 0x100000)) && spin_landing_min < v[1])) {
+        if ((spin_window_min < v[1] && v[1] < spin_window_max) || ((stunt_chW1 != 0 || stunt_j > 0 || ((c = (PCar *)PC_CAR(idx))->appearance & 0x100000)) && spin_landing_min < v[1])) {
             p->active &= ~0x80;
             AddStunt(idx, 4);
             d = (p->stuntW[2][1] > 0.0f) ? spin_unwind_negative : spin_unwind_positive;
@@ -244,7 +244,7 @@ void CheckSpin(s32 idx) {
         }
     } else if (stunt_okToStart != 0 && stunt_GCabsW[0] < stunt_GCabsW[1] && stunt_GCabsW[2] < stunt_GCabsW[1]) {
         p->active = fl | 0x10;
-        c = (PCar *)(uintptr_t)PC_CAR(idx);
+        c = (PCar *)PC_CAR(idx);
         p->stuntW[2][0] = c->vx;
         p->stuntW[2][1] = c->vy;
         p->stuntW[2][2] = c->vz;
@@ -264,7 +264,7 @@ void CheckRoll(s32 idx) {
         if (stunt_chW2 != 0 || stunt_j >= 3) {
             p->active = fl & ~0x20;
         } else {
-            c = (PCar *)(uintptr_t)PC_CAR(idx);
+            c = (PCar *)PC_CAR(idx);
             p->stuntW[0][0] += c->vx;
             p->stuntW[0][1] += c->vy;
             p->stuntW[0][2] += c->vz;
@@ -290,7 +290,7 @@ void CheckRoll(s32 idx) {
         }
     } else if (stunt_okToStart != 0 && stunt_GCabsW[1] < stunt_GCabsW[2] && stunt_GCabsW[0] < stunt_GCabsW[2]) {
         p->active = fl | 0x20;
-        c = (PCar *)(uintptr_t)PC_CAR(idx);
+        c = (PCar *)PC_CAR(idx);
         p->stuntW[0][0] = c->vx;
         p->stuntW[0][1] = c->vy;
         p->stuntW[0][2] = c->vz;
@@ -493,7 +493,7 @@ void CheckForStunt(void) {
             }
         }
         if (ok != 0) {
-            *(f32 *)(uintptr_t)&stunt_eTime += *pdt;
+            stunt_eTime += *pdt;
             if (2.69f <= stunt_eTime) {
                 gStuntsDone = 1;
             }

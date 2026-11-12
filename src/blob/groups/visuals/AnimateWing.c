@@ -64,7 +64,7 @@ void AnimateWing(Visual *v, s16 op)
         v->object = -1;
         return;
     }
-    model = (Model2056 *)(uintptr_t)PC_MODEL(slot);
+    model = (Model2056 *)PC_MODEL(slot);
     reverse = (v->flags & 1) ? 1 : 0;
     sign = reverse ? 1.0f : -1.0f;
     position[0] = wingOffsets[model->type][0] * (0, sign);

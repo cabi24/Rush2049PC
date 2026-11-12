@@ -8,14 +8,15 @@
  * The game's own fallbacks when it finds the heap short (LoadCars sharing a car type, a car's paint) and an allocation
  * no block can hold (which the N64 game takes as a null block) are logged the first time each happens, and counted.
  *
- * RUSH2049_TEST_HEAP_FLOOR=MiB (tests): the heap's room below that place in RDRAM is taken at its creation, by the
- * game's own allocate-at-address (allocate_memory_at), in three blocks around the runtime images' block (taken too, as
- * the image loads take it), each with a lock count of 1 as PurgeableMemory gives the images' block, so ClearMemory
- * keeps them; everything the game allocates afterwards lands above them: data past 16 MiB, through every path, at
- * game.memory 32 or more.
+ * RUSH2049_TEST_HEAP_FLOOR=MiB (tests): the heap's room below that place in the console's RDRAM (counted as the N64
+ * counted it, the heap's header PC_HEAP_OFFSET bytes in) is taken at its creation, by the game's own
+ * allocate-at-address (allocate_memory_at), in three blocks around the runtime images' block (taken too, as the image
+ * loads take it), each with a lock count of 1 as PurgeableMemory gives the images' block, so ClearMemory keeps them;
+ * everything the game allocates afterwards lands above them: data past 16 MiB, through every path, at game.memory 32
+ * or more.
  *
- * The heap's memory is the N64's place for it in the RDRAM window until docs/port/NATIVE.md step 12 makes it a block
- * of PC memory: the exit line and pc_heap_stats give its window addresses, as they always have. */
+ * The exit line and pc_heap_stats give sizes and offsets, never where the block lies in the process (which differs from
+ * one run to the next once the block is ordinary PC memory, docs/port/NATIVE.md step 12). */
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -63,21 +64,44 @@ static struct {
     int walking;                  /* the floor's own allocations aren't counted */
 } H;
 
-/* A place in the heap's memory as the N64 addressed it: its KSEG0 address in the RDRAM window. */
-static uint32_t window_address(const void *p)
+/* The game heap's block: the memory the main heap manages, osMemSize less what lay below the heap on the N64
+ * (PC_HEAP_OFFSET), its first byte returned and its size in *size; NULL before there is one. Until docs/port/NATIVE.md
+ * step 12 it is the RDRAM window's bytes from the N64 heap's place to osMemSize. */
+uint8_t *pc_heap_block(uint32_t *size)
 {
-    return p ? PC_RDRAM_BASE + (uint32_t)((const uint8_t *)p - pc_rdram()) : 0;
+    uint32_t mem_size = pc_os_mem_size();
+    *size = mem_size > PC_HEAP_OFFSET ? mem_size - PC_HEAP_OFFSET : 0;
+    return pc_rdram() ? pc_rdram() + PC_HEAP_OFFSET : NULL;
 }
 
-/* The memory the game's main heap manages on a console with mem_size bytes of RDRAM (locate_main_heap): its first
- * byte, and its size in *size. The N64 game's heap ran from the end of its image's BSS (N64_HEAP_BASE) to the end of
- * RDRAM; until NATIVE.md step 12 it is that part of the window, so every block the heap hands out is where the N64's
- * was. */
+/* The memory the game's main heap manages on a console with mem_size bytes of RDRAM (locate_main_heap, which passes
+ * osMemSize): the heap's block, its first byte returned and in *size the N64's room for the heap, mem_size less what
+ * lay below the heap (no more than the block holds). */
 void *pc_heap_memory(uint32_t mem_size, uint32_t *size)
 {
-    const uint32_t below = N64_HEAP_BASE - PC_RDRAM_BASE;   /* the game image's code, data and BSS, low memory */
-    *size = mem_size > below ? mem_size - below : 0;
-    return pc_rdram() + below;
+    uint32_t block_size;
+    uint8_t *block = pc_heap_block(&block_size);
+    *size = mem_size > PC_HEAP_OFFSET ? mem_size - PC_HEAP_OFFSET : 0;
+    if (*size > block_size)
+        *size = block_size;
+    return block;
+}
+
+/* Where p is as the N64 counted RDRAM: its offset in the heap's block plus PC_HEAP_OFFSET, the bytes below the heap.
+ * For the logs and RUSH2049_TEST_HEAP_FLOOR. */
+static uint32_t rdram_offset(const void *p)
+{
+    uint32_t size;
+    return (uint32_t)((const uint8_t *)p - pc_heap_block(&size)) + PC_HEAP_OFFSET;
+}
+
+/* The bytes from p to the heap's end: an inflated file's room (port/ultra/pi.c); 0 when p isn't in the heap. */
+uint32_t pc_heap_room(const void *p)
+{
+    uint32_t size;
+    const uint8_t *block = pc_heap_block(&size);
+    return block && (const uint8_t *)p >= block && (const uint8_t *)p < block + size ?
+        (uint32_t)(block + size - (const uint8_t *)p) : 0;
 }
 
 /* Free bytes (as heap_total_free sums them) and the largest free block; -1 when the list isn't a heap's: a chunk
@@ -130,15 +154,15 @@ static void apply_floor(const HeapHeader *h)
     const char *e = getenv("RUSH2049_TEST_HEAP_FLOOR");
     if (!e || !*e)
         return;
-    uint32_t mb = (uint32_t)strtoul(e, NULL, 10);
-    uint8_t *floor = pc_rdram() + ((size_t)mb << 20), *first = NULL;
+    uint32_t mb = (uint32_t)strtoul(e, NULL, 10), size;
+    uint8_t *floor = pc_heap_block(&size) + ((size_t)mb << 20) - PC_HEAP_OFFSET, *first = NULL;
     uint8_t *images = (uint8_t *)h + PC_RUNTIME_IMAGE_OFFSET, *images_end = images + PC_RUNTIME_IMAGE_SIZE;
     for (const HeapChunk *b = h->chunks; b && !first; b = b->next)   /* the free block after the handles */
         if (b->used == 0)
             first = (uint8_t *)b + CHUNK_HEADER;
     if (mb < 5 || mb > 4095 || floor + (1u << 20) > h->end || !first || first + 64 >= images - CHUNK_HEADER) {
-        pc_log("heap: RUSH2049_TEST_HEAP_FLOOR=%s: the heap (to 0x%08X) has no room above %u MiB; not applied", e,
-               window_address(h->end), mb);
+        pc_log("heap: RUSH2049_TEST_HEAP_FLOOR=%s: the heap (to %u MiB) has no room above %u MiB; not applied", e,
+               rdram_offset(h->end) >> 20, mb);
         return;
     }
     H.walking = 1;
@@ -147,8 +171,8 @@ static void apply_floor(const HeapHeader *h)
     take(images_end + CHUNK_HEADER, (uint32_t)(floor - CHUNK_HEADER - (images_end + CHUNK_HEADER)));
     H.walking = 0;
     H.floor = floor;
-    pc_log("heap: test: RUSH2049_TEST_HEAP_FLOOR=%u: the heap below 0x%08X is taken; the game's blocks start there",
-           mb, window_address(floor));
+    pc_log("heap: test: RUSH2049_TEST_HEAP_FLOOR=%u: the heap below %u MiB is taken; the game's blocks start there",
+           mb, mb);
 }
 
 void pc_heap_created(void *heap)
@@ -162,8 +186,8 @@ void pc_heap_created(void *heap)
     apply_floor(h);
     sample();
     if (pc_verbose)
-        pc_log("heap: 0x%08X-0x%08X, %u bytes (osMemSize %u MiB)", window_address(h), window_address(h->end),
-               (uint32_t)(h->end - (const uint8_t *)h), pc_os_mem_size() >> 20);
+        pc_log("heap: %u bytes from %#x bytes into RDRAM (osMemSize %u MiB)", (uint32_t)(h->end - (const uint8_t *)h),
+               rdram_offset(h), pc_os_mem_size() >> 20);
 }
 
 /* Whether p lies in the main heap's memory, from its header to its end (the audio heap and the others are blocks of
@@ -212,12 +236,10 @@ void pc_heap_short(const char *what, uint32_t need)
 int pc_heap_stats(PcHeapStats *s)
 {
     memset(s, 0, sizeof *s);
-    s->memory = pc_rdram_size();
     s->mem_size = pc_os_mem_size();
     if (!H.heap)
         return -1;
-    s->base = window_address(H.heap);
-    s->end = window_address(H.heap->end);
+    s->base = rdram_offset(H.heap);
     s->size = (uint32_t)(H.heap->end - (const uint8_t *)H.heap);
     s->free_low = H.free_low == ~0u ? 0 : H.free_low;
     s->peak = s->size - s->free_low;
@@ -225,7 +247,7 @@ int pc_heap_stats(PcHeapStats *s)
     s->allocations = H.allocations;
     s->shorts = H.shorts;
     s->nones = H.nones;
-    s->floor = window_address(H.floor);
+    s->floor = H.floor ? rdram_offset(H.floor) : 0;
     return 0;
 }
 
@@ -233,14 +255,14 @@ void pc_heap_report(void)
 {
     PcHeapStats s;
     if (pc_heap_stats(&s) != 0) {
-        fprintf(stderr, "rush2049pc: heap: not made (the game didn't start); window %u MiB\n", s.memory >> 20);
+        fprintf(stderr, "rush2049pc: heap: not made (the game didn't start); osMemSize %u MiB\n", s.mem_size >> 20);
         return;
     }
     char floor[48] = "";
     if (s.floor)
-        snprintf(floor, sizeof floor, " (test floor at 0x%08X)", s.floor);
-    fprintf(stderr, "rush2049pc: heap: peak %u of %u bytes, free-low %u (largest block %u), at 0x%08X-0x%08X, "
-                    "osMemSize %u MiB, window %u MiB; %u allocations, short %u, none %u%s\n",
-            s.peak, s.size, s.free_low, s.largest_low, s.base, s.end, s.mem_size >> 20, s.memory >> 20,
-            s.allocations, s.shorts, s.nones, floor);
+        snprintf(floor, sizeof floor, " (test floor at %u MiB)", s.floor >> 20);
+    fprintf(stderr, "rush2049pc: heap: peak %u of %u bytes, free-low %u (largest block %u), osMemSize %u MiB, "
+                    "the heap from %u bytes in; %u allocations, short %u, none %u%s\n",
+            s.peak, s.size, s.free_low, s.largest_low, s.mem_size >> 20, s.base, s.allocations, s.shorts, s.nones,
+            floor);
 }

@@ -5,8 +5,7 @@
  * frame hook sound_hw_service_frame calls after it starts a new list. A blocking read then waits for the frame after
  * that, when the list has completed. MusyX is the N64's sound library: no MAT3 counterpart.
  *
- * Still N64-shaped: the sources are 32-bit cartridge addresses, and the list's cache-line bookkeeping counts the
- * N64's 12-byte entries. */
+ * Still N64-shaped: the sources are 32-bit cartridge addresses, which the speech code carries in pointers. */
 #include "../rom_tu.h"
 #include "musyx.h"
 
@@ -26,11 +25,8 @@ extern volatile unsigned char sound_dma_request_count;
 extern unsigned char sound_dma_waiting;
 extern unsigned char sound_dma_done_queue[];
 extern void *sound_dma_list;
-extern unsigned int sound_dma_list_end;
-extern unsigned int sound_dma_list_cache_cursor;
 extern unsigned short sound_dma_list_count;
 extern int osSendMesg(OSMesgQueue *, void *, int);
-extern unsigned int dcache_create_dirty_lines(unsigned int, unsigned int);
 extern void osCreateMesgQueue(OSMesgQueue *, OSMesg *, int);
 extern OSMesg sound_dma_done_message[];
 extern void (*sound_dma_flush_hook)(void);
@@ -53,8 +49,6 @@ void sound_dma_flush_requests(void)
     }
     if (sound_dma_request_count != 0) {
         for (i = 0; i < sound_dma_request_count; i++) {
-            sound_dma_list_end += DMA_ENTRY_N64_BYTES;
-            sound_dma_list_cache_cursor = dcache_create_dirty_lines(sound_dma_list_cache_cursor, sound_dma_list_end);
             ((SoundDmaEntry *)sound_dma_list)[sound_dma_list_count].source = DMA_SOURCE(sound_dma_requests[i].source);
             ((SoundDmaEntry *)sound_dma_list)[sound_dma_list_count].length = sound_dma_requests[i].size;
             ((SoundDmaEntry *)sound_dma_list)[sound_dma_list_count].destination = sound_dma_requests[i].destination;

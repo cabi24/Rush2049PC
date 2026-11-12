@@ -113,7 +113,7 @@ extern s8 gFontIndex;
 extern s32 gBufLen;
 extern u8 gBuffer[EXTENT(800)];
 extern Gfx *last_frame_dl_end;
-extern s32 last_frame_text_dl_end;
+extern Gfx *last_frame_text_dl_end;
 extern TextTables gText;
 extern f32 gColorCycle;
 

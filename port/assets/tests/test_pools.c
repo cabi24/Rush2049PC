@@ -36,8 +36,8 @@ void *ZOID_NewMatrix(void);
 /* EndGraphics's */
 uint8_t frame_records[2][0xD0] __attribute__((aligned(16)));   /* the frame records (its PC Frame, 0xD0 bytes) */
 volatile int8_t frame_record_index;
-void *frame_dl, *last_frame_dl_end, *frame_dynamic, *frame_matrix_cursor;
-int32_t last_frame_text_dl_end, gfx_tasks_pending;
+void *frame_dl, *last_frame_dl_end, *last_frame_text_dl_end, *frame_dynamic, *frame_matrix_cursor;
+int32_t gfx_tasks_pending;
 intptr_t blit_dl;
 uint64_t rspbootTextStart[2], rspbootTextEnd[2], gspF3DEX2_NoN_fifoTextStart[2], gspF3DEX2_NoN_fifoDataStart[2], rsp_dram_stack[2], rsp_yield_buffer[2], rdp_fifo_buffer[2],
     rdp_fifo_buffer_end[2];

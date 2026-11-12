@@ -72,9 +72,6 @@
 #define FADER_UNUSED         4
 #define SFX_DEFAULT_VOLUME_GROUP 31 /* the volume group an effect has until sound_set_sfx_volume_group */
 
-/* A DMA list entry on the N64, which the cache-line bookkeeping counts (dma_queue.c, hardware.c). */
-#define DMA_ENTRY_N64_BYTES  12
-
 /* ---- The synth voice (sound_synth_voices[i], pc_mx_voice on the PC: pc_game_types.h)
  * Each file reads a voice through views of its own (macros.c has the whole map). Every view starts with the voice's
  * head, the same in all of them: where its macro is (the steps in the pool, wave 7), where a GOSUB returns to and a

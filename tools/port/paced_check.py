@@ -155,7 +155,7 @@ def main():
     ap.add_argument("--fifo-slack-ms", type=float, default=15, help="the tap's mean level within this of its target")
     ap.add_argument("--max-tail", type=int, default=32, help="subframes one WAV may have past the other's end")
     ap.add_argument("--hash", metavar="N[,W]", help="--log-hash for both runs: the state hash compared at every Nth "
-                    "retrace too (the RDRAM window and own storage every W)")
+                    "retrace too (the full hash, the heap and own storage among it, every W)")
     ap.add_argument("--logs", default=str(ROOT / "build/synth/paced"))
     ap.add_argument("--timeout", type=float, default=1200)
     args = ap.parse_args()
@@ -227,9 +227,9 @@ def main():
         first, regions, common, only = hash_compare.compare(ha, hb)
         good = bool(common) and first is None and not only
         ok &= good
-        full = sum(1 for n in common if "window" in ha[n])
+        full = sum(1 for n in common if "heap" in ha[n])
         print(f"paced_check: the state hash: " + (f"the same at all {len(common)} retraces hashed ({full} with the "
-              f"window)" if first is None else f"DIFFERS from --fast's at retrace {first} ({', '.join(regions)})") +
+              f"full hash)" if first is None else f"DIFFERS from --fast's at retrace {first} ({', '.join(regions)})") +
               (f"; {len(only)} retraces hashed by one run only" if only else "") + f": {'ok' if good else 'FAIL'}")
 
     # the sound the game pushed

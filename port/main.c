@@ -570,7 +570,7 @@ static void about_fill(PcAbout *a)
     snprintf(a->log, sizeof a->log, "%s", pc_app_log_path() ? pc_app_log_path() : "none");
     snprintf(a->data, sizeof a->data, "%s", g_about.data);
     pc_mods_summary(&g_mods, a->mods, sizeof a->mods);   /* docs/port/MODS.md */
-    /* game.memory (docs/port/MEMORY.md 4): the window, and the heap's high-water mark so far */
+    /* game.memory (docs/port/MEMORY.md 4): osMemSize, and the heap's high-water mark so far */
     PcHeapStats hs;
     if (pc_heap_stats(&hs) == 0)
         snprintf(a->memory, sizeof a->memory, "%u MiB; heap %.1f of %.1f MiB at most in use", hs.mem_size >> 20,

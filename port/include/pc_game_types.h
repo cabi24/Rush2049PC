@@ -938,4 +938,12 @@ int pc_snd_over_budget(unsigned int tag, int rank, float budget, int audible);
 #define PC_RUNTIME_IMAGE_OFFSET 0x20FDC0   /* 0x8038A400 - 0x8017A640 */
 #define PC_RUNTIME_IMAGE_SIZE 0x30F80      /* 0x803BB380 - 0x8038A400 */
 
+/* ---- The main heap's share of the console's memory (docs/port/MEMORY.md 1, NATIVE.md step 12).
+ * The N64 game's main heap ran from the end of its image's BSS to the end of RDRAM (osMemSize): its header was
+ * PC_HEAP_OFFSET bytes into RDRAM (0x8017A640), above libultra's low memory and the game image's code, data and BSS.
+ * The PC gives the heap a block of osMemSize less those bytes (port/ultra/heap.c, pc_heap_memory), so the game's
+ * allocator has the N64's room at every game.memory, and RUSH2049_TEST_HEAP_FLOOR counts its MiB from RDRAM's start
+ * as before. */
+#define PC_HEAP_OFFSET 0x17A640            /* 0x8017A640 - 0x80000000 */
+
 #endif

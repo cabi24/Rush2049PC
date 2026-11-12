@@ -7,14 +7,16 @@
 
 Two logs: each run's `--log-hash` lines (`rush2049pc: hash vi=N: STATE region HASH [ptrs=K] [unnamed=K] ...`) by
 retrace. It names the first retrace whose hashes differ and the regions that differ there (the curated ones every
-retrace; window, own and decoupled at the retraces the full hash was taken), or says how many retraces agree. Exit 0
+retrace; heap, own, decoupled and arenas at the retraces the full hash was taken), or says how many retraces agree.
+Exit 0
 when every retrace both logs hashed agrees (and they hashed the same retraces), else 1. --expect-from N (the mutation
 check, RUSH_SIM_DESYNC): exit 0 when instead the first difference is at retrace N, every hashed retrace from N on
 differs (the state hash, or with --expect-region R that region where it was taken), and none before.
 
---reports A B: two --hash-report files of one retrace (A, A.window, A.own, A.decoupled and B's): the curated regions'
-bytes, the window's words (each named by data_symbols.txt's nearest symbol), own storage's and the decoupled data's
-that differ. The tool for "which word made the hashes differ" across processes or OSes.
+--reports A B: two --hash-report files of one retrace (A, A.heap, A.arenas, A.own, A.decoupled and B's): the curated
+regions' bytes, the heap's words (by their offset in the game heap's block), the arenas' (each named by
+data_symbols.txt's nearest symbol), own storage's and the decoupled data's that differ. The tool for "which word made
+the hashes differ" across processes or OSes.
 
 --check-decoupled: port/ultra/statehash.c's DECOUPLED list names every item of port/data/decoupled.txt, in order
 (ctest hash_decoupled_list): a decoupled item the hash leaves out would be game state no full hash sees.
@@ -26,8 +28,6 @@ import bisect
 import re
 import sys
 from pathlib import Path
-
-import n64syms   # KSEG0: the window's N64 address (port/include/pc_n64_map.h)
 
 ROOT = Path(__file__).resolve().parents[2]
 _HASH = re.compile(r"^rush2049pc: hash vi=(\d+): ([0-9a-f]{16})((?: \S+ [0-9a-f]{16}(?: ptrs=\d+)?(?: unnamed=\d+)?)*)\s*$")
@@ -79,7 +79,7 @@ def logs_main(a, b, expect_from, expect_region):
     first, regions, common, only = compare(ha, hb)
     if expect_from is None:
         if first is None and not only:
-            full = sum(1 for n in common if "window" in ha[n])
+            full = sum(1 for n in common if "heap" in ha[n])
             print(f"hash_compare: same: {len(common)} retraces ({common[0]}-{common[-1]}), the full hash at {full} of them")
             return 0
         if first is None:
@@ -173,14 +173,26 @@ def reports_main(a, b, symbols):
         for o in offs:
             print(f"  {region}+0x{o:X}: {ca[region][o:o + 4].hex()} against {cb[region][o:o + 4].hex()}")
         total += len(offs) + size
-    wa, wb = Path(a + ".window"), Path(b + ".window")
-    if wa.exists() and wb.exists():
-        A, B = wa.read_bytes(), wb.read_bytes()
+    ha, hb = Path(a + ".heap"), Path(b + ".heap")
+    if ha.exists() and hb.exists():
+        A, B = ha.read_bytes(), hb.read_bytes()
         offs, size = words_differ(A, B, limit=200)
         for o in offs:
-            print(f"  window 0x{n64syms.KSEG0 + o:08X} {name_of(rows, n64syms.KSEG0 + o)}: {A[o:o + 4].hex()} against "
-                  f"{B[o:o + 4].hex()}")
+            print(f"  heap+0x{o:X}: {A[o:o + 4].hex()} against {B[o:o + 4].hex()}")
         total += len(offs) + size
+    fa, fb = Path(a + ".arenas"), Path(b + ".arenas")
+    if fa.exists() and fb.exists():
+        A, B = fa.read_bytes(), fb.read_bytes()
+        for line in Path(a).read_text().splitlines():   # arena NAME N64 OFFSET SIZE
+            f = line.split()
+            if not f or f[0] != "arena":
+                continue
+            n64, off, size = int(f[2], 16), int(f[3]), int(f[4])
+            offs, _ = words_differ(A[off:off + size], B[off:off + size], limit=200)
+            for o in offs:
+                print(f"  arena 0x{n64 + o:08X} {name_of(rows, n64 + o)}: {A[off + o:off + o + 4].hex()} against "
+                      f"{B[off + o:off + o + 4].hex()}")
+            total += len(offs)
     for kind in ("own", "decoupled"):
         fa, fb = Path(f"{a}.{kind}"), Path(f"{b}.{kind}")
         if not (fa.exists() and fb.exists()):

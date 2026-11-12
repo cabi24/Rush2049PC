@@ -6,10 +6,11 @@
 
 rush2049pc ends a run with
 
-    rush2049pc: heap: peak N of M bytes, free-low F (largest block L), at 0xBASE-0xEND, osMemSize S MiB,
-                window W MiB; A allocations, short K, none Z[ (test floor at 0xFLOOR)]
+    rush2049pc: heap: peak N of M bytes, free-low F (largest block L), osMemSize S MiB, the heap from B bytes in;
+                A allocations, short K, none Z[ (test floor at FLOOR MiB)]
 
---memory: the window and osMemSize are MIB and the heap ends at KSEG0 + MIB MiB (the heap really grew);
+(B: where the heap's header is in RDRAM as the N64 counted it, docs/port/MEMORY.md 4.)
+--memory: osMemSize is MIB and the heap runs to its end, B + M bytes (the heap really grew);
 --peak-above: the heap held more than BYTES at its peak (sizes take K and M); --floor: RUSH2049_TEST_HEAP_FLOOR was
 applied and the game's own blocks reached past the floor (the peak is more than the heap up to it);
 --short/--short-min: the game fell back for a short heap exactly N or at least N times; --none: allocations nothing
@@ -19,11 +20,9 @@ import argparse
 import re
 import sys
 
-import n64syms   # KSEG0: the window's N64 address (port/include/pc_n64_map.h)
-
 LINE = re.compile(r"rush2049pc: heap: peak (\d+) of (\d+) bytes, free-low (\d+) \(largest block (\d+)\), "
-                  r"at 0x([0-9A-F]{8})-0x([0-9A-F]{8}), osMemSize (\d+) MiB, window (\d+) MiB; (\d+) allocations, "
-                  r"short (\d+), none (\d+)(?: \(test floor at 0x([0-9A-F]{8})\))?")
+                  r"osMemSize (\d+) MiB, the heap from (\d+) bytes in; (\d+) allocations, short (\d+), none (\d+)"
+                  r"(?: \(test floor at (\d+) MiB\))?")
 
 
 def size(text):
@@ -48,24 +47,24 @@ def main():
         print(f"heap_check: {a.log} has no heap line")
         sys.exit(1)
     m = lines[-1]
-    peak, total, free_low, largest = (int(m.group(i)) for i in range(1, 5))
-    base, end = int(m.group(5), 16), int(m.group(6), 16)
-    mem, window, allocs, short, none = (int(m.group(i)) for i in range(7, 12))
-    floor = int(m.group(12), 16) if m.group(12) else 0
-    print(f"heap_check: peak {peak} of {total} bytes (0x{base:08X}-0x{end:08X}), free-low {free_low}, largest "
-          f"{largest}; osMemSize {mem} MiB, window {window} MiB; {allocs} allocations, short {short}, none {none}"
-          f"{f', test floor at 0x{floor:08X}' if floor else ''}")
+    peak, total, free_low, largest, mem, base = (int(m.group(i)) for i in range(1, 7))
+    allocs, short, none = (int(m.group(i)) for i in range(7, 10))
+    floor = int(m.group(10)) << 20 if m.group(10) else 0
+    print(f"heap_check: peak {peak} of {total} bytes (from {base} bytes into RDRAM), free-low {free_low}, largest "
+          f"{largest}; osMemSize {mem} MiB; {allocs} allocations, short {short}, none {none}"
+          f"{f', test floor at {floor >> 20} MiB' if floor else ''}")
     bad = []
-    if a.memory is not None and (mem != a.memory or window != a.memory or end != n64syms.KSEG0 + (a.memory << 20)):
+    if a.memory is not None and (mem != a.memory or base + total != a.memory << 20):
         bad.append(f"not {a.memory} MiB")
-    if peak + free_low != total or end - base != total:
+    if peak + free_low != total or base + total > mem << 20:
         bad.append("the numbers don't add up")
     if a.peak_above is not None and peak <= a.peak_above:
         bad.append(f"peak {peak} not above {a.peak_above}")
     if a.floor and not floor:
         bad.append("no test floor")
     elif a.floor and peak <= floor - base:
-        bad.append(f"the peak {peak} doesn't reach past the floor (0x{floor:08X}, {floor - base} bytes in)")
+        bad.append(f"the peak {peak} doesn't reach past the floor ({floor >> 20} MiB, {floor - base} bytes into the "
+                   f"heap)")
     if a.short is not None and short != a.short:
         bad.append(f"short {short}, not {a.short}")
     if a.short_min is not None and short < a.short_min:

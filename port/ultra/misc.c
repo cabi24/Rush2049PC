@@ -97,9 +97,6 @@ void osInvalDCache(void *p, int32_t n) { (void)p, (void)n; }
 void osInvalICache(void *p, int32_t n) { (void)p, (void)n; }
 void osWritebackDCache(void *p, int32_t n) { (void)p, (void)n; }
 void osWritebackDCacheAll(void) {}
-/* boot-data D-cache loop (cache 0xD): returns start advanced in 16-byte lines to at least end, which
- * sound_dma_flush_requests keeps as its audio DMA cursor (a hand-written routine of the boot segment's tail) */
-uint32_t dcache_create_dirty_lines(uint32_t s, uint32_t e) { do s += 16; while (s < e); return s; }
 void osUnmapTLBAll(void) {}
 void osMapTLBRdb(void) {}
 uint32_t __osTLBLookup(void *vaddr) { return N64_TO_PHYS((uint32_t)(uintptr_t)vaddr); }

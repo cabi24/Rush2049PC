@@ -148,7 +148,7 @@ void AnimateTire(tVisual *v, s16 op)
         } else {
             index = (!expansion_pak_present && gTrackNum >= 0 && gTrackNum < 6) ? 16 : index + 3;
         }
-        ZOID_SetTexture(v->objnum, (void *) (intptr_t)gWheelTextures[index], -1);
+        ZOID_SetTexture(v->objnum, gWheelTextures[index], -1);
     }
     CreateYPRMatrix(mat, rpy);
     if (tire >= 2) {

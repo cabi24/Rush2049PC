@@ -13,9 +13,9 @@
  * AI, the RSP task, the D-cache calls and the cartridge DMA under this code are port/ultra's. The records here are in host
  * layout; an SFD grows past 32 voice records when more voices are asked for ([audio] voices, pc_sfd_layout). A
  * voice's sample is in the cartridge, named by its 32-bit cartridge address (the caches are keyed by those), or in
- * RAM (a stream's buffer), named by its pointer (include/sound_sample_record.h). Still N64-shaped: the cache-line
- * bookkeeping (dcache_create_dirty_lines, the *_cache_cursor and *_end words) counts the N64's record sizes from the
- * low 32 bits of the records' addresses, which nothing reads memory by. */
+ * RAM (a stream's buffer), named by its pointer (include/sound_sample_record.h). The N64 also counted the cache lines
+ * its writes to the DMA list and the SFDs dirtied (a CPU cache trick with no effect on what plays); the PC has no such
+ * cache, and that bookkeeping went with docs/port/NATIVE.md step 12 (it kept the low 32 bits of heap addresses). */
 #include "../rom_tu.h"
 #include "musyx.h"
 #include "sound_hw_voice.h"
@@ -70,10 +70,8 @@ enum { ENVELOPE_ATTACK, ENVELOPE_DECAY, ENVELOPE_SUSTAIN, ENVELOPE_RELEASE };
 /* sound_hw_init's flags: half-rate output (the sample-cache classes are sound_hw_cache_mode_from_flags') */
 #define SOUND_INIT_HALF_RATE 0x100000
 
-/* The N64's record sizes, which the D-cache bookkeeping and writebacks still count by */
+/* The N64's record sizes, which the D-cache writebacks (nothing on the PC) still count by */
 #define SFD_N64_BYTES 2576              /* an SFD: a 16-byte header and 32 voice records */
-#define SFD_HEADER_N64_BYTES 16
-#define SFD_VOICE_N64_BYTES 0x50
 #define DELAY_STATE_N64_BYTES 72
 #define AUDIO_UCODE_TEXT_BYTES 4096
 
@@ -173,8 +171,6 @@ extern unsigned short *sound_sfd_sets[2];
 extern unsigned short sound_sfd_counts[2];
 extern unsigned short *sound_sfd_current;
 extern unsigned short *sound_sfd_count;
-extern unsigned int sound_sfd_cache_cursor;
-extern unsigned int sound_sfd_write_end;
 extern void *sound_mix_state;
 extern unsigned short sound_render_index;
 extern volatile short sound_drain_count;
@@ -190,8 +186,6 @@ extern unsigned char sound_dma_queue[];
 extern OSMesg sound_dma_message;
 extern volatile unsigned char sound_dma_busy;
 extern unsigned short sound_sample_blocks_per_voice[];
-extern unsigned int sound_dma_list_end;
-extern unsigned int sound_dma_list_cache_cursor;
 extern unsigned short sound_dma_list_count;
 extern AudioNode *sound_codebook_used;
 extern AudioNode *sound_codebook_nodes;
@@ -278,7 +272,6 @@ extern void sound_hw_set_delay(SoundDelayConfig *config);
 extern void bzero(void *, int);
 extern void osWritebackDCache(void *, int);
 extern void osInvalDCache(void *, int);
-extern unsigned int dcache_create_dirty_lines(unsigned int, unsigned int);
 extern int osAiSetNextBuffer(void *, unsigned int);
 extern int osAiSetFrequency(unsigned int);
 extern int osRecvMesg(OSMesgQueue *, void **, int);
@@ -525,13 +518,9 @@ void sound_hw_free_dma(void)
     sound_service_free(sound_dma_list);
 }
 
-/* Empties the DMA list for a new frame (and resets its cache-line bookkeeping). */
+/* Empties the DMA list for a new frame. */
 void sound_hw_reset_dma_list(void)
 {
-    unsigned int value;
-    value = (unsigned int)sound_dma_list;
-    sound_dma_list_cache_cursor = value & ~15U;
-    sound_dma_list_end = value;
     sound_dma_list_count = 0;
 }
 
@@ -554,7 +543,7 @@ void sound_hw_submit_task(void *sfds, unsigned short sfd_count)
         task->t.type = M_AUDTASK;
         task->t.flags = 0;
         task->t.ucode_boot = (u64 *) rspbootTextStart;
-        task->t.ucode_boot_size = (unsigned int) rspbootTextEnd - (unsigned int) rspbootTextStart;
+        task->t.ucode_boot_size = (unsigned int)(rspbootTextEnd - rspbootTextStart);
         task->t.ucode = (u64 *) audio_ucode_text;
         task->t.ucode_size = AUDIO_UCODE_TEXT_BYTES;
         task->t.ucode_data = (u64 *) audio_ucode_data;
@@ -786,8 +775,6 @@ unsigned char *sound_hw_fetch_codebook(unsigned int source)
     }
     node->countdown = CODEBOOK_KEEP_FRAMES;
     node->source = source;
-    sound_dma_list_end += DMA_ENTRY_N64_BYTES;
-    sound_dma_list_cache_cursor = dcache_create_dirty_lines(sound_dma_list_cache_cursor, sound_dma_list_end);
     ((SoundDmaEntryCodebook *)sound_dma_list)[sound_dma_list_count].source = source;
     ((SoundDmaEntryCodebook *)sound_dma_list)[sound_dma_list_count].length = ADPCM_CODEBOOK_BYTES;
     ((SoundDmaEntryCodebook *)sound_dma_list)[sound_dma_list_count].destination = node->buffer;
@@ -891,8 +878,6 @@ void sound_hw_fetch_sample_range(SfdSampleRange *fetch, unsigned int addr, unsig
             } else {
                 size = (addr + length - node->address - node->loaded + 0xFF) & ~0xFF;
             }
-            sound_dma_list_end += DMA_ENTRY_N64_BYTES;
-            sound_dma_list_cache_cursor = dcache_create_dirty_lines(sound_dma_list_cache_cursor, sound_dma_list_end);
             ((SoundDmaEntrySamples *)sound_dma_list)[sound_dma_list_count].source = node->address + node->loaded;
             ((SoundDmaEntrySamples *)sound_dma_list)[sound_dma_list_count].length = size;
             ((SoundDmaEntrySamples *)sound_dma_list)[sound_dma_list_count].destination = node->buffer + node->loaded;
@@ -943,8 +928,6 @@ void sound_hw_fetch_sample_range(SfdSampleRange *fetch, unsigned int addr, unsig
             node->address = addr - offset;
             if (length + offset > SAMPLE_BLOCK_BYTES) {
                 node->loaded = SAMPLE_BLOCK_BYTES;
-                sound_dma_list_end += DMA_ENTRY_N64_BYTES;
-                sound_dma_list_cache_cursor = dcache_create_dirty_lines(sound_dma_list_cache_cursor, sound_dma_list_end);
                 addr = addr - offset + SAMPLE_BLOCK_BYTES;
                 ((SoundDmaEntrySamples *)sound_dma_list)[sound_dma_list_count].source = node->address;
                 ((SoundDmaEntrySamples *)sound_dma_list)[sound_dma_list_count].length = SAMPLE_BLOCK_BYTES;
@@ -957,8 +940,6 @@ void sound_hw_fetch_sample_range(SfdSampleRange *fetch, unsigned int addr, unsig
                 range_count++;
             } else {
                 node->loaded = (length + offset + 0xFF) & ~0xFF;
-                sound_dma_list_end += DMA_ENTRY_N64_BYTES;
-                sound_dma_list_cache_cursor = dcache_create_dirty_lines(sound_dma_list_cache_cursor, sound_dma_list_end);
                 ((SoundDmaEntrySamples *)sound_dma_list)[sound_dma_list_count].source = node->address;
                 ((SoundDmaEntrySamples *)sound_dma_list)[sound_dma_list_count].length = node->loaded;
                 ((SoundDmaEntrySamples *)sound_dma_list)[sound_dma_list_count].destination = node->buffer;
@@ -1037,8 +1018,6 @@ void sound_hw_build_voice_command(SoundHwVoice *audio, unsigned short frame_offs
     unsigned short probe;
 
     cmd = &PC_SFD(SfdBlock, sound_sfd_current, *sound_sfd_count).commands[PC_SFD(SfdBlock, sound_sfd_current, *sound_sfd_count).count];
-    sound_sfd_write_end += SFD_VOICE_N64_BYTES;
-    sound_sfd_cache_cursor = dcache_create_dirty_lines(sound_sfd_cache_cursor, sound_sfd_write_end);
     /* the input samples one subframe reads at this rate, and 6 more for the resampler's history */
     frames = (unsigned int)(audio->rate * SUBFRAME_FRAMES + 0xFFF) >> 12;
     frames += 6;
@@ -1229,12 +1208,8 @@ void sound_hw_build_voice_command(SoundHwVoice *audio, unsigned short frame_offs
 /* Starts building into SFD set sound_sfd_set: no SFDs yet, the first one with no voices. */
 void sound_hw_begin_sfd_set(void)
 {
-    unsigned int cursor;
     sound_sfd_count = &sound_sfd_counts[sound_sfd_set];
     sound_sfd_current = sound_sfd_sets[sound_sfd_set];
-    cursor = (unsigned int)sound_sfd_current + SFD_HEADER_N64_BYTES;
-    sound_sfd_cache_cursor = cursor & ~15U;
-    sound_sfd_write_end = cursor;
     *sound_sfd_count = 0;
     *sound_sfd_current = 0;
 }
@@ -1304,8 +1279,6 @@ void sound_hw_build_subframe(void *output, unsigned short frame_offset)
     }
     (*sound_sfd_count)++;
     if (*sound_sfd_count < sound_sfds_per_task) {
-        sound_sfd_cache_cursor = (unsigned int)PC_SFD(AudioBlock, sound_sfd_current, *sound_sfd_count).commands & ~15U;
-        sound_sfd_write_end = (unsigned int)PC_SFD(AudioBlock, sound_sfd_current, *sound_sfd_count).commands;
         PC_SFD(AudioBlock, sound_sfd_current, *sound_sfd_count).count = 0;
     }
 }

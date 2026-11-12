@@ -73,7 +73,7 @@ void EndGraphics(void)
 
     f = &frame_records[frame_record_index];
     last_frame_dl_end = frame_dl;
-    last_frame_text_dl_end = (intptr_t) blit_dl;
+    last_frame_text_dl_end = (void *)blit_dl;
     HAL_FinishText(1);
     dl = BlitFinish();
     gSPDisplayList(frame_dl++, dl);

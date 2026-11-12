@@ -16,7 +16,7 @@ recording's header must match the settings it is replayed with).
 Each run is the path as synth_paths.py runs it (tools/port/synth/PATH.press, its until, seconds, args and env), on the
 virtual clock, in a folder of its own, with exact floats (RUSH_STATE_EXACT), a status line each second, the cars'
 physics every retrace (--log-physics 1), the game's pads at each change (--log-pads) and the state hash every retrace
-(--log-hash 1,W: the window and own storage every W). Its trace: those lines and the state log's, compared exactly
+(--log-hash 1,W: the full hash, the heap and own storage among it, every W). Its trace: those lines and the state log's, compared exactly
 (each exact float by its value, as synth_compare.py's exact_floats reads them).
 
 same: a run that records its pads (--record-inputs), then a run that replays them (--replay-inputs): the same trace and
@@ -29,8 +29,9 @@ delay: the path recorded with no delay (A), with --input-delay D (B) and with a 
   line (a press's effects come exactly D retraces later); C's recording replays to C's trace.
 gate: the path without the gate, and with RUSH_SIM_GATE (its pads held back at random retraces for random real
   times, released by a thread of its own): the same trace and hashes.
-mutation: the path, and the path with RUSH_SIM_DESYNC flipping the random seed at --at (then a window word nothing
-  uses): hash_compare.py names that retrace as the first difference, and the hashes differ from it on.
+mutation: the path, and the path with RUSH_SIM_DESYNC flipping the random seed at --at (then a word of the game
+  heap's block nothing uses, --heap-word): hash_compare.py names that retrace as the first difference, and the hashes
+  differ from it on.
 aslr: two runs with the full hash at every --full retraces: the same hashes, with the images apart.
 file: the file cut short replays what it has, then says so; a damaged header and a recording of other settings are
   refused (the latter with what differs), and --replay-force replays it.
@@ -151,8 +152,8 @@ def mode_same(a, name):
         print(f"replay_check: {name}: no hash lines")
         bad = 1
     if not bad:
-        full = sum(1 for d in ha.values() if "window" in d)
-        print(f"replay_check: {name:10} same: {len(ta)} lines, {len(ha)} retraces hashed ({full} with the window), "
+        full = sum(1 for d in ha.values() if "heap" in d)
+        print(f"replay_check: {name:10} same: {len(ta)} lines, {len(ha)} retraces hashed ({full} with the full hash), "
               f"{pads.stat().st_size} bytes of pads; {aslr_note([ra, rb])} ({sa:.1f} s, {sb:.1f} s)")
     return bad
 
@@ -291,15 +292,15 @@ def mode_mutation(a, name):
     rb, _ = run(a.exe, a.rom, a.logs, name, "mutated", env={"RUSH_SIM_DESYNC": f"{a.at}:{a.address}:{a.xor}"}, full=1)
     print(f"replay_check: {name}: the random seed (0x{a.address}) changed at retrace {a.at}:")
     bad |= hash_compare.logs_main(str(pa), str(pb), a.at, None)
-    # a window word the game never uses: only the window's hash can see it
-    pc = Path(a.logs) / f"{name}.mutated_window.log"
-    run(a.exe, a.rom, a.logs, name, "mutated_window", env={"RUSH_SIM_DESYNC": f"{a.at}:{a.window_address}:1"}, full=1)
-    print(f"replay_check: {name}: a window word nothing uses (0x{a.window_address}) changed at retrace {a.at}:")
-    bad |= hash_compare.logs_main(str(pa), str(pc), a.at, "window")
+    # a word of the game heap's block the game never uses: only the heap's hash can see it
+    pc = Path(a.logs) / f"{name}.mutated_heap.log"
+    run(a.exe, a.rom, a.logs, name, "mutated_heap", env={"RUSH_SIM_DESYNC": f"{a.at}:heap+{a.heap_word}:1"}, full=1)
+    print(f"replay_check: {name}: a heap word nothing uses (heap+0x{a.heap_word}) changed at retrace {a.at}:")
+    bad |= hash_compare.logs_main(str(pa), str(pc), a.at, "heap")
     hc = hash_compare.hashes(pc.read_text())
     ha = hash_compare.hashes(ra)
     if any(ha[n]["state"] != hc[n]["state"] for n in ha if n in hc):
-        print("replay_check: the window word changed the curated hash too")
+        print("replay_check: the heap word changed the curated hash too")
         bad = 1
     return bad
 
@@ -412,7 +413,8 @@ def main():
     ap.add_argument("--at", type=int, default=1000)
     ap.add_argument("--address", default="8011735C", help="the curated word to change (the random seed)")
     ap.add_argument("--xor", default="1")
-    ap.add_argument("--window-address", default="807FFFF0", help="a window word nothing uses")
+    ap.add_argument("--heap-word", default="6859B0", help="a word of the game heap's block nothing uses: its "
+                    "offset (hex; the default is 16 bytes before the end of the N64's 8 MiB heap)")
     ap.add_argument("--from", dest="source", help="replay-dir: the folder of PATH.pads and PATH.replay.log")
     ap.add_argument("--replay-force", action="store_true", help="replay-dir: replay a recording whose header differs "
                     "(a build of the same tree whose commit it couldn't tell, without .git)")

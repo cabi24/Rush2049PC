@@ -10,8 +10,8 @@
  * blocks, a fallback's count, and at game.memory 32 RUSH2049_TEST_HEAP_FLOOR, whose blocks the game's own
  * allocate-at-address takes, so that the game's next blocks start at the floor and the runtime images' block is
  * where the image loads find it: the N64's place, PC_RUNTIME_IMAGE_OFFSET past the main heap's header. heap.c's
- * reports number the heap's places as the N64's RDRAM is numbered (KSEG0 from its first byte), until
- * docs/port/NATIVE.md step 12.
+ * reports give the heap's places as offsets in RDRAM as the N64 counted it (the heap's header PC_HEAP_OFFSET bytes
+ * in).
  * game: src/blob/groups/memsys/group.c src/blob/groups/heap_release/group.c src/blob/FindChunk.c
  * game: src/blob/FindHeap.c src/blob/groups/heap_release/alloc_at.c
  */
@@ -124,10 +124,10 @@ int main(void)
     CHECK(hc->size == 384 && hc->next == hm && hm->prev == hc && hm->size == 512 - 384 + rest);
     CHECK(hm->magic == CHUNK_MAGIC && hm->used == 0 && hc->used == 1);
 
-    /* port/ultra/heap.c's numbers: the heap from its header to osMemSize | K0, the least free as the game sums it */
+    /* port/ultra/heap.c's numbers: the heap from its header to osMemSize, the least free as the game sums it */
     PcHeapStats st;
-    CHECK(pc_heap_stats(&st) == 0 && st.base == N64_HEAP_BASE && st.end == N64_KSEG0 + 0x400000u);
-    CHECK(st.size == st.end - st.base && st.peak + st.free_low == st.size && st.allocations == 6);
+    CHECK(pc_heap_stats(&st) == 0 && st.base == PC_HEAP_OFFSET && st.base + st.size == 0x400000u);
+    CHECK(st.peak + st.free_low == st.size && st.allocations == 6);
     CHECK(st.free_low < free_total() && st.shorts == 0 && st.nones == 0 && st.floor == 0);   /* before the shrinks */
     AllocateMemoryHeap(NULL, 1000);
     pc_heap_stats(&st);
@@ -145,8 +145,7 @@ int main(void)
     pc_heap_stats(&st);
     const uint32_t heap_end = 32u << 20, heap_floor = 17u << 20;   /* offsets in RDRAM */
     uint8_t *images = (uint8_t *)gMainHeap + PC_RUNTIME_IMAGE_OFFSET;
-    CHECK(st.end == N64_KSEG0 + heap_end && st.floor == N64_KSEG0 + heap_floor && st.allocations == 0 &&
-          expansion_pak_present);
+    CHECK(st.base + st.size == heap_end && st.floor == heap_floor && st.allocations == 0 && expansion_pak_present);
     a = AllocateMemoryHeap(NULL, 256);
     b = AllocateMemoryHeap(NULL, 0x200000);
     CHECK(a == AT(heap_floor) && b == AT(heap_floor + 256 + 32));   /* the game's blocks from the floor */

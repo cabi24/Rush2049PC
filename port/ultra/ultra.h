@@ -296,15 +296,20 @@ void pc_fault_thread_init(void);   /* per host thread: an alternate signal stack
 
 /* ---------------------------------------------------------------- heap.c: the game heap (docs/port/MEMORY.md 4) */
 typedef struct {
-    uint32_t memory, mem_size;      /* the window's size, osMemSize */
-    uint32_t base, end, size;       /* the default heap's header, its end (window addresses) and the bytes between */
+    uint32_t mem_size;              /* osMemSize */
+    uint32_t base, size;            /* the default heap's header, as an offset in RDRAM as the N64 counted it (from
+                                     * RDRAM's first byte: PC_HEAP_OFFSET), and the heap's bytes to its end */
     uint32_t peak, free_low;        /* the most in use (size - free_low), the least free */
     uint32_t largest_low;           /* the largest free block when the least was free */
     uint32_t allocations, shorts, nones;   /* blocks taken; the game's fallbacks; allocations nothing could hold */
-    uint32_t floor;                 /* RUSH2049_TEST_HEAP_FLOOR's address, 0 without */
+    uint32_t floor;                 /* RUSH2049_TEST_HEAP_FLOOR's place, as base counts, 0 without */
 } PcHeapStats;
-int pc_heap_stats(PcHeapStats *s);  /* 0 once the game has made its heap (s->memory and s->mem_size always) */
+int pc_heap_stats(PcHeapStats *s);  /* 0 once the game has made its heap (s->mem_size always) */
 void pc_heap_report(void);          /* the exit line */
+/* The game heap's block (the memory the main heap manages): its first byte, and its size in *size; NULL when there is
+ * none. Its size is osMemSize less PC_HEAP_OFFSET, what lay below the heap on the N64. */
+uint8_t *pc_heap_block(uint32_t *size);
+uint32_t pc_heap_room(const void *p);   /* the bytes from p to the heap's end, 0 outside it */
 /* The game's allocator's calls (pc_prelude.h): */
 void *pc_heap_memory(uint32_t mem_size, uint32_t *size);   /* the main heap's memory (locate_main_heap) */
 void pc_heap_created(void *heap);
