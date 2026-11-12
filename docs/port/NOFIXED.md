@@ -1,5 +1,15 @@
 # Running with no fixed address (item 8)
 
+**History.** This page is the record of how the fixed address went: the inventory, the guard mode and the moved build
+of 2026-11-04 (phases A and B), which wave 3 of [PCONLY.md](PCONLY.md) then finished another way. Since
+[NATIVE.md](NATIVE.md) step 12 (section 17 there) nothing is mapped at a fixed address: the game's data are host
+storage, its heap a block of PC memory wherever the OS puts it, its display lists hold host pointers. The RDRAM window,
+the GOT fix-up (`absfix.c`), the moved build (`RUSH_NOFIXED`, its CI job), the translations (`PC_N64P`, `PC_N64A`,
+`PC_N64W`), `RUSH2049_NOFIXED=guard` and the x86-64 `-fPIC`/no-relaxation flags are gone; AddressSanitizer runs on
+x86-64 (a CI job). What took their places: the N64 guard (`RUSH2049_N64_GUARD=1`, `tools/port/n64_guard.py`), which
+reserves 0x80000000-0xBFFFFFFF with no access, and `tools/port/n64_audit.py` (this page's `nofixed_audit.py`, renamed),
+the ratchet CI keeps on what is left of N64 addresses in the code. Everything below describes the tree as it was then.
+
 Today the game's RDRAM window is mapped at host 0x80000000 (KSEG0) and 0xA0000000 (KSEG1), and a 32-bit N64 address
 of game data is its host address ([ULTRA.md](ULTRA.md) 2, [DATA.md](DATA.md) 3). That costs: AddressSanitizer can't
 run on x86-64 (its shadow starts at 0x7FFF8000, [SANITIZE.md](SANITIZE.md) 1.1), macOS arm64 can't map anything

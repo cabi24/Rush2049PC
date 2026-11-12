@@ -129,7 +129,7 @@ descriptor's block is then native, which port/gfx reads natively because it isn'
   - a world WAD keeps its WAD's records beside its world's; a missing chunk gives NULL and 0, as `MBGetFromWad` did;
   - non-WADs, oversized chunks, a trigger that is no record and a model with 7 levels.
 - **`assets_wad_game`** (`tests/wad_game.c`). The game's own code, built with the game flags, over the same WAD in
-  an RDRAM window the test maps at 0x80000000. It exits 77 (skipped) if it can't map it. The test:
+  host memory (until [NATIVE.md](NATIVE.md) step 10 an RDRAM window the test mapped at 0x80000000). The test:
   - loads the WAD through `_ReadWave` (a PI DMA from a synthetic cartridge, then the conversion and
     `SetupWaveModel`);
   - checks the tables (the WAD's native records since NATIVE.md step 7), the TXLD rebase, the display-list relocation

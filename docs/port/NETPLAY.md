@@ -493,8 +493,8 @@ ini):
 
 | Part | Size, where |
 |---|---|
-| The RDRAM window | 8 MiB at `original`, 16-256 MiB with `game.memory` (MEMORY.md 1). Holds the game's data and BSS at their N64 addresses (boot 0x800277D0-0x80086A50, game 0x8010FD7C-0x8017A640) and the heap from 0x8017A640 (ULTRA.md 2) |
-| Game data with host pointers | outside the window (port/data's arenas, DATA.md 3) |
+| The game heap's block | 6.5 MiB at `original`, osMemSize less 0x17A640 bytes with `game.memory` (MEMORY.md 1), wherever the OS maps it (since [NATIVE.md](NATIVE.md) step 12; until then the RDRAM window, 8-256 MiB at 0x80000000, held the heap from 0x8017A640 and, until step 5, the game's data and BSS at their N64 addresses) |
+| The game's data and BSS | port/data's arenas, blocks in the N64's layout; data with host pointers in own storage and the decoupled records (DATA.md 3) |
 | libultra's state | `sched.c`'s side tables of threads, queues (host-side message buffers) and timers, keyed by the game's objects (ULTRA.md 1); `timer.c`'s timers |
 | Each N64 thread's execution | a host thread with a 2 MiB stack, stopped inside a libultra call. Its stack and registers are part of the game state |
 | The SI | pads, paks, motors (`si.c`) |
@@ -574,7 +574,7 @@ less (Tailscale's MTU is 1280).
 | READY | handshake | the hash of everything agreed |
 | START | host to guest | the input delay D; start at host time T (clock offset from PING) |
 | INPUT | every retrace | the first retrace F, a count n, n × 4 bytes for each port the sender owns. Every input not yet acknowledged is resent (redundancy: one lost packet loses nothing). Also: the last retrace received from the peer (the ack), and the sender's current retrace (time sync) |
-| HASH | every retrace, or every 30 | the retrace, the curated hash, and once a second the window's |
+| HASH | every retrace, or every 30 | the retrace, the curated hash, and once a second the full hash's (the heap, own storage, the decoupled data, the arenas; "the window hash" in the protocol's names) |
 | PING / PONG | throughout | timestamps: RTT and clock offset (NTP-style) |
 | BYE | leaving | the reason |
 
@@ -1006,8 +1006,9 @@ retrace a press is assigned to is that PC's own business; the other PC only need
 
 - **Prevent:** 11.1.
 - **Detect within a round trip:** every INPUT packet carries the sender's hash of the curated state at each retrace
-  it has run (4 bytes a retrace), and every 60 retraces the hash of the whole RDRAM window with its host pointers
-  normalised (1.6). Each side compares as they arrive. The first mismatch names the retrace.
+  it has run (4 bytes a retrace), and every 60 retraces the full hash (the game heap's block, own storage, the
+  decoupled data and the arenas; the whole RDRAM window until [NATIVE.md](NATIVE.md) step 12) with its host pointers
+  normalised (1.6, [LOCKSTEP.md](LOCKSTEP.md) 5). Each side compares as they arrive. The first mismatch names the retrace.
 - **Explain:** on a mismatch, both sides write a desync report (the retrace, each region's hash, the curated regions'
   dump) and the session's input log. The log replays the whole session on either OS (`--replay-inputs`), so the
   first differing retrace and region can be found offline. This is the tool that turns "it desynced once" into a
@@ -1060,7 +1061,7 @@ path, the paks, the audio and the clock are as before (12.7, `synth_compare.py -
 
 The flow, in the boot's order (`netplay.h`):
 
-1. **Connect**, right after the ROM and `mods_prepare`, before `game.memory` maps the window. Each side sends a
+1. **Connect**, right after the ROM and `mods_prepare`, before the game heap's block is mapped at `game.memory`'s size. Each side sends a
    settings text and its controller 1's pak. The guest waits here for the host's (it adopts them before its memory is
    mapped); the host only opens its port, sets up as usual, opens its window and waits with the waiting screen up
    (`pc_net_wait_guest`, 12.10), then checks the guest's pak. The text: `build=` (the commit, `-dirty` when it had changes),
@@ -1385,8 +1386,8 @@ runs the program again:
   a console or its output went to a file or a pipe (a launcher's `.bat`, a script, a test, CI), the new program gets
   the same standard handles and this one waits for it and exits with its exit code: the launcher's `if errorlevel 1
   pause`, a console that stays until the game ends, and a test's pipe keep working, as with exec. Started from Explorer
-  (nobody sees the output) this one exits at once. A waiting run keeps its memory (the RDRAM window: 8 MiB, more with
-  `game.memory`) while the new one plays; each restart from the page nests one more.
+  (nobody sees the output) this one exits at once. A waiting run keeps its memory (the game heap's block: 6.5 MiB,
+  more with `game.memory`) while the new one plays; each restart from the page nests one more.
 
 **The command line** (`pc_online_args`, `port/config/online.c`): this run's own, without what a restart replaces,
 wherever it is: a session's options (`--net-host [PORT]`, `--net-join`, `--net-code`), a replay's and a record's

@@ -9,8 +9,8 @@ without a network:
 - **record and replay**: `--record-inputs FILE` writes each retrace's pads as the game gets them, `--replay-inputs
   FILE` plays them (section 3);
 - **the input delay**: `--input-delay D`, or a schedule, with NETPLAY.md 11.2's rule (section 4);
-- **the state hash**: the curated state every retrace, the RDRAM window, own storage and the decoupled data every N,
-  with host pointers normalised, `--log-hash`, the desync report and the mutation check (section 5);
+- **the state hash**: the curated state every retrace, the game heap's block, own storage, the decoupled data and the
+  arenas every N, with host pointers normalised, `--log-hash`, the desync report and the mutation check (section 5);
 - **render values in the game C**: `pc_gfx_hud_dx` held at 0 in a session (`--session-rules`), and a check that no new
   one comes in (section 6);
 - **which settings change the game**, measured (section 7), and the host's `powf` at 60 replaced (section 9).
@@ -25,11 +25,11 @@ Everything is off by default: a run without these options takes the main loop's 
 | `--replay-force` | replay it anyway |
 | `--input-delay D` | this PC's pads D retraces later; `D:FROM,D:FROM,...` a schedule (`2:0,4:600,1:1200`) |
 | `--log-pads` | each change of the game's pads, with its retrace (`pads vi=N: 1 8000 +0 +0 c; 2 ...`) |
-| `--log-hash N[,W]` | the state hash's line every N retraces; the window, own storage and the decoupled data every W (60) |
-| `--hash-report N:PATH` | retrace N's desync report to PATH (and PATH.window, .own, .decoupled) |
+| `--log-hash N[,W]` | the state hash's line every N retraces; the full hash (the heap, own storage, the decoupled data, the arenas) every W (60) |
+| `--hash-report N:PATH` | retrace N's desync report to PATH (and PATH.heap, .arenas, .own, .decoupled) |
 | `--session-rules` | an online session's rules without the network: `pc_gfx_hud_dx` gives the game 0 |
 | `RUSH_SIM_GATE=SEED,P,MS` | test: at each retrace with probability P the pads are held back up to MS ms of real time |
-| `RUSH_SIM_DESYNC=N:ADDR[:XOR]` | test: the window's word at ADDR (hex) changes at retrace N, before its hash |
+| `RUSH_SIM_DESYNC=N:WORD[:XOR]` | test: a word changes at retrace N, before its hash: a game datum's by its N64 address (hex), or `heap+OFFSET`, a word of the game heap's block |
 | `RUSH_HASH_UNNAMED=1` | diagnosis: each image pointer no table names, at the first full hash |
 | `RUSH_ZERO_LOCALS` (CMake) | the game C's unset locals start as zero (section 5.4); off by default |
 
@@ -108,7 +108,7 @@ where they should be. 20 bytes a retrace is 72 KB a minute.
   (the cartridge as the game reads it, NETPLAY.md 1.5), or `none`;
 - the settings the game reads: `game.frame_rate`, `cars`, `memory`, `expansion_pak`, `pc_setup`, `ghost_prompt`,
   `cheats_menu`, `cheats_unlock`; `audio.voices`, `engines`, `latency` (section 7); `video.draw_distance`, `detail`,
-  `fog`; `game.pak` to `pak4`; and the window's and osMemSize's sizes;
+  `fog`; `game.pak` to `pak4`; and osMemSize (`memory.os`: the heap's size follows from it);
 - `pakN.image`: a hash of each port's controller pak image as the game will find it, or `none`;
 - `session.rules`, and the test models that change the game when set (`RUSH2049_TEST_*`, `RUSH_SIM_GFX_MS`).
 
@@ -157,54 +157,74 @@ places among them), `links` (`pc_links`), `rng` (the seed `rand_seed`), `words` 
 `tick` (`gModelIteration`), `time` (`gModelTime`), `pads` (`gControllerData`), `camera` (`gCamera`, four windows). `state`
 is the hash of their hashes: what a session sends every retrace.
 
-**Every W retraces, the full hash:** `window` (the RDRAM window, 8-256 MiB), `own` (each own-storage symbol of
-port/data's tables, the game data kept outside the window because it holds pointers, in N64 order) and `decoupled`
-(every item of `port/data/decoupled.txt`: the roster, the model and car records, the blasts, skids, sounds, MusyX
-voices and sound messages; `hash_decoupled_list` checks the list is complete).
+**Every W retraces, the full hash:** `heap` (the game heap's block, 6.5-254 MiB: everything the game allocates and
+the heap's own headers; until [NATIVE.md](NATIVE.md) step 12 this region was `window`, the whole RDRAM window), `own`
+(each own-storage symbol of port/data's tables, the game data that holds pointers, in N64 order), `decoupled` (every
+item of `port/data/decoupled.txt`: the roster, the model and car records, the blasts, skids, sounds, MusyX voices and
+sound messages; `hash_decoupled_list` checks the list is complete) and `arenas` (the game's data and BSS in the N64
+layout, port/data's blocks).
 
 The hash is xxHash64, written from its specification (no code taken). `--log-hash N[,W]` prints:
 
 ```
-rush2049pc: hash vi=1500: 254faf59b7ec9d19 models 6a02e558245cffe6 cars bb7fa9ec95d2339d ptrs=84 links e57e83b1a33ce2b5
-  rng 8ec8f516bb054801 words 2e6a0b58767cf03d tick 5c381e329638eaa7 time 09a29cfa071ec12d pads 4f9a8b2d55f8976a camera
-  16d80f43676e95d0 window e15cc0a957b8a9c7 ptrs=80 own 76b1b4bf885bf083 ptrs=1361 unnamed=214 decoupled
-  a7e880d13e8d50ed ptrs=156
+rush2049pc: hash vi=1500: 8725348cca1e62a7 models 88e13f1f64133cca ptrs=42 cars 37ee9178989e329d ptrs=84 links
+  e57e83b1a33ce2b5 rng 8ec8f516bb054801 words 2e6a0b58767cf03d tick 5c381e329638eaa7 time 09a29cfa071ec12d pads
+  4f9a8b2d55f8976a camera 16d80f43676e95d0 heap 30c4560a07071ec6 ptrs=1263 own e007bb169cf1dacf ptrs=2329 unnamed=215
+  decoupled 39ff74806c2b875d ptrs=350 arenas c6e64b96d53b8e4b
 ```
 
-(one line). Cost on the build host, Debug (the hash itself compiled -O2): the curated regions every retrace add 6% to a
-race2p run, the full hash 1.8 ms each (an 8 MiB window).
+(one line; `replay_same_race2p`'s recording run, synthetic cartridge, 2026-11-12. `ptrs=` counts the host pointers a
+region's hash named, `unnamed=` the pointers into the program no table names, section 5.2.) The first hash of a run
+also prints where the program's image and the heap's block lie (`rush2049pc: hash: the game heap's block at
+0x7faf273ea640, 6838720 bytes`), which `hash_aslr` reads to check that its two processes had them apart. Cost on the build host, Debug (the hash itself compiled -O2): the curated regions every retrace add 6% to a
+race2p run, the full hash 1.8 ms each (measured over the 8 MiB window before [NATIVE.md](NATIVE.md) step 12; the heap's
+6.5 MiB and the arenas' 0.9 MiB are less).
 
 ### 5.2 Host pointers
 
-The window is mapped at 0x80000000 in every process, so the window's N64 addresses are the same everywhere. A host
-pointer isn't: ASLR moves the executable, its heap and stacks in each process, and Windows lays the image out
-otherwise. Experiment E6 found the window's host pointers: the audio manager's effect tags' `list` (a pointer to the
-own-storage list head `gFreeFxTags`) and `last_frame_text_dl_end`, a display-list pointer's low half. A host pointer is hashed as
-what it points to, from what port/data's tables know: an own-storage symbol's N64 address and the N64 offset in it
-(through the loader's runs, so a layout with 8-byte pointers or longs gives the same id on every OS); a game function's
-N64 address; a decoupled item's index and offset; a runtime image's C data. Which values are host pointers depends on
-what the bytes are:
+A host pointer's value differs in each process: ASLR moves the executable, the game heap's block, the C heap and the
+stacks, and Windows lays the image out otherwise. (Until [NATIVE.md](NATIVE.md) step 12 the game's heap was the RDRAM
+window, mapped at 0x80000000 in every process, so a pointer into it was the same number everywhere; experiment E6
+found the window's other host pointers: the audio manager's effect tags' `list`, a pointer to the own-storage list head
+`gFreeFxTags`, and `last_frame_text_dl_end`, a display-list pointer's low half, a `Gfx *` since step 12.) A host pointer
+is hashed as what it points to: into the game heap's block, "the heap" and the offset in it (the heap's accounting is
+the N64's, so the same allocations give the same offsets in every process); into the image, what port/data's tables
+know: an own-storage symbol's N64 address and the N64 offset in it (through the loader's runs, so a layout with 8-byte
+pointers or longs gives the same id on every OS); a game function's N64 address; a decoupled item's index and offset; a
+runtime image's C data. Which values are host pointers depends on what the bytes are:
 
 | Bytes | A host pointer is | Taken as |
 |---|---|---|
-| N64-layout data: the window, the curated regions in it, own storage's bytes not typed as pointers | a u64 at a 4-byte offset equal to a named target's first byte or a function's address | the target's id |
-| own storage's elements the tables type as pointers, or as the N64's longs (8 bytes on the PC, an `intptr_t` that may hold one: `highscore_blit`, a blit) | any value but a 32-bit one (0, a window address, a number, sign-extended) | the target's id; into the image elsewhere, "a pointer into the program"; else "a heap pointer" (a table the loader copied, a converted file: `TextureSwapLists`, `gTargetGroupList`, `gText`) |
-| the PC's own C structs: `pc_models`, `pc_cars`, `pc_links` and the decoupled items | a u64 at an 8-byte offset pointing into a named target | the target's id |
-| the game C's sites that keep a pointer's low half (`TRUNCATED`: `last_frame_text_dl_end`) | the word | left out (zero): it holds an N64 address at the boot and a low half later, and a low half completed with the image's high half can't be told from an N64 address the image's low range covers in one process (seen: two runs of race2p hashed it otherwise at retrace 0) |
+| the game heap's block and the PC's own C structs (`pc_models`, `pc_cars`, `pc_links`, the decoupled items but those of plain numbers) | a u64 at an 8-byte-aligned address whose value is in the game heap's block (or one past it: a heap's `endRam`) | "the heap" and the offset |
+| own storage's elements the tables type as pointers or longs (below) | the same | the same |
+| the arenas (no pointers), own storage's other bytes, the decoupled items of plain numbers (`DECOUPLED_PLAIN` in statehash.c: floats, bytes, shorts, the sound's link bytes and controllers) | nothing is a pointer into the heap | |
+| N64-layout data: the heap's blocks, the arenas, own storage's bytes not typed as pointers | a u64 at a 4-byte offset equal to a named target's first byte or a function's address | the target's id |
+| own storage's elements the tables type as pointers, or as the N64's longs (8 bytes on the PC, an `intptr_t` that may hold one: `highscore_blit`, a blit) | any value but a 32-bit one (0, a number, sign-extended) | the target's id; into the image elsewhere, "a pointer into the program"; else "a host pointer" (a table the loader copied, a converted file: `TextureSwapLists`, `gTargetGroupList`, `gText`) |
+| the PC's own C structs: `pc_models`, `pc_cars`, `pc_links` and the decoupled items but those of plain numbers | a u64 at an 8-byte offset pointing into a named target | the target's id |
 
 N64-layout data holds numbers and texels, and two words of them can make a value in the image's range in one process
 and not in another (where the image's high half is a small number, 16-bit texel data can be it), so a looser rule
-than "a named target's first byte" there can find a pointer in one process only. Every pointer the window held on the
-synthetic paths was a list head's first byte. "A pointer into the program" (the PC's buffers in game
-C: the frame's command lists, the blits) keeps no offset, which no two OSes share (`unnamed=` counts them,
-`RUSH_HASH_UNNAMED=1` lists them).
+than "a named target's first byte" there can find a pointer in one process only. The heap's rule is the loose one: its
+blocks hold the PC's records with pointers anywhere inside other blocks (the sound library's lists and SFDs, the DMA
+list's destinations, the heap's own headers and master slots), so no "first byte" rule fits them. So it is used only
+where a pointer into the heap can be: the heap's block, the PC's C structs that hold pointers, and own storage's typed
+elements. Elsewhere two words of numbers can make a value inside the block in one process and not in another: the
+step-12 gate found one, `pc_smoke_shade`'s eight greys (bytes 0x58-0x7F: the word 0x00007F70_67645B58) inside a 64 MiB
+heap at 0x7F7064E3A640, so `replay_same_membig`'s recording took it for a pointer and its replay didn't. In the heap's
+block itself the chance remains, small: its high 32 bits are a number the heap's data has at an 8-byte-aligned odd
+word only rarely, and then the low word must fall inside the block too (measured along the synthetic paths before
+step 12: values 0x7F00-0x7FFF there, x86-64's mmap range, 766 times in 145 million slots of heap data; at retrace 3300
+of `membig` six such words, each with a low half of 0, inside a block only where one crosses that 4 GiB boundary).
+"A pointer into the program" (the PC's buffers in game C: the frame's command lists, the blits) keeps no offset, which
+no two OSes share (`unnamed=` counts them, `RUSH_HASH_UNNAMED=1` lists them).
 
 ### 5.3 Completeness: two processes, every path
 
-`replay_same_<path>` compares two processes' hashes at every retrace, the full one every 30, on all 62 paths, and
-`hash_aslr` two processes with the full hash at every retrace (race2p, battle2p, drive). Before they agreed, the
-reports (`--hash-report`, compared by `hash_compare.py --reports`, which names each differing window word by
-`data_symbols.txt`) found three more things, none a host pointer of the kind above:
+`replay_same_<path>` compares two processes' hashes at every retrace, the full one every 30, on all 64 paths, and
+`hash_aslr` two processes with the full hash at every retrace (race2p, battle2p, drive), with their images and their
+heaps' blocks apart. Before they agreed, the reports (`--hash-report`, compared by `hash_compare.py --reports`, which
+names each differing arena word by `data_symbols.txt` and each heap word by its offset) found three more things, none a
+host pointer of the kind above:
 
 1. **The profile's id was its handle's host address.** `CreatePlayer` (`save/group.c`) keeps
    `(N64A(player) << 3) | pak` in the profile's record and its save file. The handles (`player_profile_handles`) are own storage,
@@ -245,15 +265,17 @@ found on the way:
 
 `pc_hash_report(path, n)` writes retrace n's hashes, region by region, and each curated region's bytes as hashed (hex,
 host pointers normalised): n's own when the session keeps them (`pc_hash_keep(K)`: the last K retraces' curated bytes,
-40 KB each), else the last retrace's (the file says which). When the full hash was taken at n, PATH.window, PATH.own
-and PATH.decoupled hold those bytes, and the report lists own storage's and the decoupled items' places in them.
+40 KB each), else the last retrace's (the file says which). When the full hash was taken at n, PATH.heap,
+PATH.arenas, PATH.own and PATH.decoupled hold those bytes, and the report lists the arenas', own storage's and the
+decoupled items' places in them.
 `--hash-report N:PATH` writes it at retrace N: replay a session's input log on each OS to the first retrace the hashes
 differ at (`hash_compare.py A.log B.log`), then `hash_compare.py --reports A B` names the words.
 
 `hash_mutation` (`replay_check.py mutation`): `RUSH_SIM_DESYNC=1000:8011735C:1` flips the random seed's low bit at
 retrace 1000; `hash_compare.py --expect-from 1000` finds every hash equal to retrace 999 and the state hash differing
-at every retrace from 1000 on (rng, the state, the window at 1000). A window word nothing uses (0x807FFFF0) changed at
-1000 is caught by the window's hash from 1000 on, and the curated hash never moves.
+at every retrace from 1000 on (rng, the state, the heap at 1000). A heap word nothing uses (`heap+6859B0`, 16 bytes
+before the end of the N64's 8 MiB heap) changed at 1000 is caught by the heap's hash from 1000 on, and the curated hash
+never moves.
 
 ## 6. Render values in the game C
 
@@ -275,7 +297,8 @@ one fails until it is read and listed.
 
 Each path recorded once, then replayed unchanged and once with each candidate of NETPLAY.md 1.5's tables changed
 (`--replay-force`); the first retrace whose hashes differ from the unchanged replay's, and the regions there (curated
-every retrace, the full hash every 30). Synthetic cartridge, Debug, the build host, 2026-11-06:
+every retrace, the full hash every 30). Synthetic cartridge, Debug, the build host, 2026-11-06 (before
+[NATIVE.md](NATIVE.md) step 12: `window` is the region the full hash's `heap` was then):
 
 | Table | Setting | race2p | drive | stunt | battle2p |
 |---|---|---|---|---|---|

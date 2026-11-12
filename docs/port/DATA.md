@@ -6,7 +6,8 @@ storage with a correct host layout, and fills the initialized ones from the play
 pointers sits in its image's arena, a block of host memory laid out as the N64's data and BSS were (so a walk from
 one datum into the next works as on the N64); data with pointers has storage of its own in the executable. No datum
 is at its N64 address (since 2026-11-09, [NATIVE.md](NATIVE.md) step 5: until then the arenas were at their N64
-addresses in the RDRAM window). Neither the executable nor the repository holds ROM bytes: the
+addresses in the RDRAM window, which step 12 took away with the heap's place in it). Neither the executable nor the
+repository holds ROM bytes: the
 build knows only addresses, sizes and layouts, and every value is read from the ROM at run time. An overlay "load"
 is the same fill run again for one image.
 
@@ -128,8 +129,8 @@ its N64 address in the RDRAM window, where the arenas were until 2026-11-09 ([NA
 with no pointers whose two layouts agree is a name in its arena's block at its N64 offset, an assembler `.set`
 relative to the block in `data.c` (`.set gWaveSizes, pc_arena_boot + 0x7580`). Code that indexes from one symbol into
 its neighbor still works (the block keeps the N64 layout) and 8-byte data keeps the N64 alignment. Its address is a
-host pointer above 4 GB, as any other datum's: a 32-bit field can't hold it (steps 2-4 of NATIVE.md made every such
-field the game had a pointer), and the renderer and the audio interpreter take it for a host pointer.
+host pointer, as any other datum's: a 32-bit field can't hold it (steps 2-4 of NATIVE.md made every such field the
+game had a pointer), and the renderer and the audio interpreter take it for a host pointer.
 
 A symbol whose type has pointers, a `long`, or a host layout that differs gets its **own storage** in the executable
 (host size, aligned 16, or 32 from 32 bytes as x86-64 aligns such a common), and every symbol whose address lies
@@ -152,25 +153,24 @@ and step 5 removed the rules and the file: nothing needs a place in the window.
 
 **How the names reach their blocks.**
 - Every name `data.c` defines is relocatable: a symbol in its block's section, which the executable's own relocations
-  place wherever the executable loads (ELF RELATIVE relocations, PE base relocations). Code reaches it through the GOT
-  as it reached the absolute names (aarch64 PIE code loads every extern and common from a GOT slot; on x86-64
-  everything is compiled `-fPIC` without GOT relaxation, which `aliases.ld`'s absolute names still need), so the game's
-  objects are the same either way: `objsame.py` gives `same` for every unit against a build with the arenas in the
-  window. The GOT fix-up `pc_mem_fix_absolute` ([ULTRA.md](ULTRA.md) 2) is left with `aliases.ld`'s names (the
-  low-memory globals, the heap's start, the runtime images' base, cartridge offsets): on aarch64 with binutils 2.40
-  it put back 1,802 slots, now a handful. Its rule (an addend at 0x80000000 or above is an absolute symbol) needs
-  nothing linked that high, which `gen_data.py --check` verifies.
+  place wherever the executable loads (ELF RELATIVE relocations, PE base relocations), and the game's code reaches it
+  as it reaches any extern. No name is absolute since [NATIVE.md](NATIVE.md) step 12: the GOT fix-up
+  (`pc_mem_fix_absolute`, port/ultra/absfix.c, which put back aarch64's RELATIVE slots of absolute symbols: 1,802 with
+  the arenas' names, 6 at the end) and x86-64's `-fPIC`/no-GOT-relaxation flags it needed went with `aliases.ld`'s last
+  absolute names (low memory's globals, now port/ultra's variables). `gen_data.py --check` verifies that nothing is
+  at an N64 address ("nothing at an N64 address").
 - PE (Windows, [WINDOWS.md](WINDOWS.md) 3): a `.set` relative to a block is a section-relative symbol in `.bss`, as the
   names inside own storage always were there. Code reaches it through a `.refptr` slot, which now gets a base
   relocation as any relocatable symbol's does, or PC-relatively from the file that defines it (the six tentative
   definitions WINDOWS.md 3 made declarations could be definitions again). gen_data's `--check --pe` checks that
-  nothing is linked in the window.
-- The order. `main` fixes the GOT slots, maps the window (the heap, low memory), loads the ROM and then calls
-  `pc_data_init`. Nothing touches game data before that (there are no constructors). The arenas need no window.
+  nothing is at an N64 address.
+- The order. `main` loads the ROM, maps the game heap's block (`pc_mem_map_heap`), gives the loader its place
+  (`pc_data_set_heap`) and then calls `pc_data_init`. Nothing touches game data before that (there are no
+  constructors).
 - The runtime images' arenas are blocks too. The first load fills them, for the report and the startup snapshot of
   game-C data, and then clears them: on the N64 an image's arena lies in the heap block `load_overlay` reserves for
   the images (0x8038A400–0x803BB380), which is heap memory until the game loads the image, and so the arena starts out
-  zero as it did in the window. The game's own load of an image (`load_overlay`, after it has reserved the block)
+  zero as it did on the N64. The game's own load of an image (`load_overlay`, after it has reserved the block)
   fills that image's arena again. As on the N64, an image's data is valid only while the image is loaded; its
   own-storage symbols keep their values in the executable. The heap block is still reserved, for the heap's accounting
   (NATIVE.md step 6), but nothing is copied into it.
@@ -238,15 +238,17 @@ Pointer values are turned into host pointers in this order:
 | inside an arena | its block + the offset (an undescribed byte too: the block keeps the N64 layout) | arena |
 | anything else | the value, logged once | unresolved |
 
-The heap rule follows `docs/port/ASSETS.md`: the game heap is the RDRAM window at host 0x80000000
-(`PC_RDRAM_BASE`), so heap addresses are already valid host addresses, and the renderer reads values below 4 GB
-as N64 addresses. The runtime images are the exception inside the heap: on the PC their code is linked in, so
-nothing is inflated into the window at 0x8038A400. Addresses in their code resolve to host functions, addresses in
-their data or BSS to their own storage or their arenas' blocks; the rest of the reserved block
-(0x803BAE20–0x803BB380) is kept. Own storage must sit above 4 GB, so the executable must be PIE: `pc_data_init`
-fails and says so otherwise. The arenas' blocks too: until [NATIVE.md](NATIVE.md) step 5 they were below 4 GB on
-purpose, at their N64 addresses in the window, where an N64 address and a host address were the same. (The loader
-takes an arena's host address from the tables, so the unit test keeps its arenas in blocks of its own.)
+The heap rule: a pointer at or above the heap's N64 start (`heap_lo`, 0x8017A640) is that place in the game heap's
+block, which `main` gives the loader (`pc_data_set_heap`; the block's first byte is the N64 heap's, [MEMORY.md](MEMORY.md)
+1), as `heap (kept)` in the summary; with no block (a test of the loader alone), or past its end, the value stays as
+it is, where nothing is on the PC (`RUSH2049_N64_GUARD` names such an address if it is used, [ULTRA.md](ULTRA.md) 2).
+Until [NATIVE.md](NATIVE.md) step 12 the heap was the RDRAM window at host 0x80000000, so the value was kept as it
+was. The runtime images are the exception inside the heap: on the PC their code is linked in, so nothing is
+inflated into the heap's block for them. Addresses in their code resolve to host functions, addresses in their data
+or BSS to their own storage or their arenas' blocks; the rest of the reserved block (0x803BAE20–0x803BB380) is the
+heap's. Host storage may be anywhere: until step 12 the renderer read a value below 4 GB as an N64 address, so own
+storage and the arenas' blocks had to sit above it (a PIE executable), which `pc_data_init` checked. (The loader takes
+an arena's host address from the tables, so the unit test keeps its arenas in blocks of its own.)
 Function pointers come from a table of 2,134 functions by address (`layout/*.json`, `manifest/static.json`, the
 symbol file's boot functions), held through weak references. 2,000 have game C (1,977 before the last 23 got theirs,
 2026-10-27): every function of the game and both runtime images. The 134 without are the boot segment's: the
@@ -277,10 +279,10 @@ turns it off):
 - `unresolved <symbol>+<offset> <value>`: a pointer below the heap that is in no symbol;
 - `no-code <symbol>+<offset> <value> <function>`: a pointer to a function with no C yet;
 - `addr-word <symbol>+<offset> <value> -> <target> [<class>]`: a word in a non-pointer (u32) field whose value
-  looks like an N64 address (0x80000000–0x80800000), and what it points at. `[heap]` and `[low memory]` are what
-  the window still holds, which the word reaches as it is; `[arena]` is a block of host memory since NATIVE.md step 5,
-  which it can't reach (until then, with the arenas in the window, the word reached it as it was). `[own]`,
-  `[C data]`, `[function]` and `[code]` it can't reach either. Those are likely mistyped declarations (agent D's work
+  looks like an N64 address (0x80000000–0x80800000), and what it points at. A u32 reaches none of them: `[arena]`
+  is a block of host memory since NATIVE.md step 5, `[heap]` since step 12, and `[low memory]` is nothing on the PC
+  (until step 12 the word reached the heap and low memory as it was). `[own]`, `[C data]`, `[function]` and `[code]`
+  it can't reach either. Those are likely mistyped declarations (agent D's work
   list), or words nothing reads as an address (`rsp_init_dl`'s past its end: `include/game/text.h`), and the summary
   counts them apart ("to host storage or code").
 
@@ -657,7 +659,8 @@ From `data_layout.txt`:
 
 - **Agent A (main, libultra, RDRAM):** link `pcdata_rt` (`port/data/pc_data.c`) and zlib into the real
   executable, and call `pc_data_init(pc_rom_bytes(), pc_rom_size())` before the game's main, after
-  `pc_mem_fix_absolute` and the window (both done in `port/main.c`). `data.c` reaches the
+  `pc_mem_fix_absolute` and the window (both done in `port/main.c`; since [NATIVE.md](NATIVE.md) step 12 the heap's
+  block and `pc_data_set_heap` instead). `data.c` reaches the
   loader through weak references, so the link test still links without it (`pc_data_init` returns -1). Keep the
   executable PIE. The game heap must start at the end of the game's BSS, 0x8017A640 in the window: `game_bss_end`
   and `game_bss_end` are left undefined for that, along with the low-memory boot parameters (`osTvType`...), the ROM

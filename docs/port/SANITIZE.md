@@ -6,7 +6,7 @@ optimizing GCC exploited, and from records laid out differently than the code re
 run under a sanitizer. This is the build that does that, what it found, and what it doesn't check.
 
 ```
-cmake -S . -B build/asan -G Ninja -DRUSH_SANITIZE=address,undefined     # aarch64 only (section 1.1)
+cmake -S . -B build/asan -G Ninja -DRUSH_SANITIZE=address,undefined     # x86-64 and aarch64 (section 1.1)
 cmake -S . -B build/ubsan -G Ninja -DRUSH_SANITIZE=undefined            # any Linux
 cmake -S . -B build/tsan -G Ninja -DRUSH_SANITIZE=thread                # x86-64 (section 1.1)
 cmake --build build/asan && ctest --test-dir build/asan
@@ -49,29 +49,35 @@ probe's symbols), so those stay as in every other build: a sanitizer build compi
 and `data_symbols.txt` are the same files as a normal build's. data.c's own storage has to stay in N64 address
 order with nothing between (OPTIMIZED.md 2.2), so it gets no redzones.
 
-### 1.1 The RDRAM window and the runtimes' memory
+### 1.1 The game's memory and the runtimes' memory
 
-The window is an 8 MiB memfd mapped at 0x80000000 and again at 0xA0000000 ([ULTRA.md](ULTRA.md) 2). The runtimes'
-layouts, from `ASAN_OPTIONS=verbosity=1` (GCC 12 on the Pi 5, Clang 21's and GCC 14's runtimes on the x86-64 build
-host):
+Since [NATIVE.md](NATIVE.md) step 12 (2026-11-12) nothing of the game is at a fixed address: its heap is a block of
+PC memory wherever the OS puts it ([ULTRA.md](ULTRA.md) 2), so it never meets a runtime's shadow, and **ASan runs on
+x86-64** as on aarch64 (CI's `sanitize` job has both, section 5). Until then the game's RDRAM was a window, an 8 MiB
+memfd mapped at 0x80000000 and again at 0xA0000000, and what follows is why ASan couldn't run on x86-64 then. The
+runtimes' layouts, from `ASAN_OPTIONS=verbosity=1` (GCC 12 on the Pi 5, Clang 21's and GCC 14's runtimes on the x86-64
+build host):
 
 | Runtime | x86-64 | aarch64 (Pi 5: 47-bit, 16 KiB pages) |
 |---|---|---|
 | ASan | LowMem 0-0x7FFF7FFF, LowShadow 0x7FFF8000-0x8FFF6FFF, ShadowGap 0x8FFF7000-0x2008FFF6FFF | LowMem 0-0xFFFFFFFFF, shadow from 0x1000000000 |
 | TSan | low application memory from 0x1000: the window is the program's | refuses to start: "unsupported VMA range, found 47, supported 39, 42 and 48" |
 
-- **ASan on aarch64**: the window is in LowMem and the runtime maps nothing there. It works unchanged.
-- **ASan on x86-64**: not possible. 0x80000000 is inside the low shadow and 0xA0000000 inside the shadow gap, and the
+- **ASan on aarch64**: the window was in LowMem and the runtime maps nothing there. It worked unchanged.
+- **ASan on x86-64** (until step 12): not possible. 0x80000000 is inside the low shadow and 0xA0000000 inside the shadow gap, and the
   shadow offset is a constant compiled into the runtime and into every check: no `ASAN_OPTIONS` moves it
   (`protect_shadow_gap=0` only maps the gap's own shadow, which covers 0xA0000000 too). Mapping the window over the
   runtime's reservations with `MAP_FIXED`, and zero pages for the window's own shadow (0x8FFF8000, 0x93FF8000),
   makes plain loads and stores work: tried, and it does. But every range check treats an address outside the
   runtime's memory as bad, so a `memcpy` of more than 64 bytes into the window, and a GCC-instrumented access of an
   odd size (`__asan_storeN`), reports "unknown-crash ... in the low shadow area": PI DMA, the data loader, zlib's
-  inflate, every struct copy in game data. `cmake/sanitize.cmake` refuses `address` on x86-64; the x86-64 runs are
-  UBSan and TSan.
-- **TSan on x86-64** works unchanged: its `mmap` interceptor maps shadow for the window. The Pi 5's kernel has a
-  47-bit address space, which TSan doesn't support.
+  inflate, every struct copy in game data. `cmake/sanitize.cmake` refused `address` on x86-64 until step 12; the
+  x86-64 runs were UBSan and TSan.
+- **TSan on x86-64** works unchanged (it mapped shadow for the window too). The Pi 5's kernel has a 47-bit address
+  space, which TSan doesn't support.
+- **The N64 guard** (`RUSH2049_N64_GUARD=1`) reserves 0x80000000-0xBFFFFFFF with no access, inside x86-64 ASan's
+  shadow: so `n64_guard_paths` isn't a test of an ASan build (cmake/pconly_tests.cmake), and the guard is for the
+  plain builds.
 
 ### 1.2 The fault handler
 
@@ -97,9 +103,9 @@ unwinder, which allocates, and addr2line runs through `popen`, neither safe in a
   stacks are enough with ASan's redzones (no stack overflow in any run).
 - **Weak symbols.** port/ultra/defaults.c's weak no-ops (and, until 2026-11-08, gen_weak's `#pragma weak` copies)
   link as before. Strong and weak definitions are both instrumented; nothing about them changes.
-- **Absolute symbols** (gen_stubs' `aliases.ld`, data.c's arenas) are not globals the compiler emits, so ASan
-  registers nothing for them and their shadow is the window's, all addressable. The GOT fix-up
-  (`pc_mem_fix_absolute`) runs as before; the runtimes' own relocations aren't at 0x80000000 or above.
+- **Absolute symbols**: none since [NATIVE.md](NATIVE.md) step 12 (gen_stubs' `aliases.ld` has aliases only, and
+  data.c's names are relative to their blocks since step 5). Until then low memory's globals were absolute, their
+  shadow the window's, all addressable, and the GOT fix-up (`pc_mem_fix_absolute`) ran as in every build.
 - **gen_stubs** would have stubbed the runtimes' entry points (`__asan_*`, `__ubsan_*`, `__tsan_*`...), which the
   instrumented game objects reference: `n64syms.SANITIZER_PREFIXES` leaves them to the linker, and the census
   skips them.
@@ -109,13 +115,29 @@ unwinder, which allocates, and addr2line runs through `popen`, neither safe in a
   N64's layout allows it (OPTIMIZED.md 2.2). So the game C's globals get no redzones (`--param asan-globals=0`);
   their accesses, and the heap and stacks, are still checked. UBSan's `bounds` still sees reads past a game table
   (section 3).
-- **LeakSanitizer** doesn't scan mappings it didn't make, so a host allocation the game keeps only in RDRAM would
-  look leaked: port/ultra/memory.c registers the window as a root region.
+- **LeakSanitizer** doesn't scan mappings it didn't make, so a host allocation the game keeps only in its heap
+  would look leaked: port/ultra/memory.c registers the heap's block as a root region (the window until step 12).
+- **The heap's blocks get no redzones**: the game's allocator manages its block itself, so ASan sees one addressable
+  mapping, as it saw the window (section 6).
 
 ### 1.4 The x86-64 build host
 
 Rocky Linux 10's GCC 14 has the sanitizer libraries' link scripts but not the runtimes (`libasan`, `libubsan`,
-`libtsan` aren't installed). They were taken, without installing anything, from the distribution's own packages
+`libtsan` aren't installed). Clang 21's runtimes are (`clang -print-resource-dir`), and GCC's instrumented objects
+link against them: a directory of links named as GCC's link line asks (`libubsan.so` to
+`libclang_rt.ubsan_standalone.so` for UBSan; for ASan with UBSan `libasan.so` and `libubsan.so` both to
+`libclang_rt.asan.so`, which has UBSan's handlers too) and the runtimes' own directory as the run path, as step 12's
+runs did:
+
+```
+RES=$(clang -print-resource-dir)/lib/x86_64-redhat-linux-gnu
+mkdir -p build/rt-asan && ln -sf $RES/libclang_rt.asan.so build/rt-asan/libasan.so && \
+    ln -sf $RES/libclang_rt.asan.so build/rt-asan/libubsan.so
+cmake -S . -B build/asan -G Ninja -DRUSH_SANITIZE=address,undefined \
+    "-DCMAKE_EXE_LINKER_FLAGS=-L$PWD/build/rt-asan -Wl,-rpath,$RES"
+```
+
+Before that, GCC's own runtimes were taken, without installing anything, from the distribution's own packages
 (`dnf download libubsan libtsan libasan liblsan`, unpacked with `rpm2cpio` into `~/rush2049pc/sanitize-rt`), and
 linked from there:
 
@@ -153,6 +175,8 @@ What was run, all Debug:
 | TSan (port/ instrumented) | x86-64 (GCC 14) | the whole ctest | after the fixes (and main's HUD fix), races only inside Mesa and SDL (section 4) |
 | UBSan, the game C under all of `undefined` (`-DRUSH_SANITIZE_GAME_UB=undefined,float-cast-overflow`, `halt_on_error=0`) | x86-64 (GCC 14) | the whole ctest, 208 tests, the 19 synthetic paths among them | 152 object-size sites in 133 lines of 52 files and one alignment site, no other check; after the fixes of 3.1 and 3.2, 116 object-size sites in 107 lines of 46 files, each judged, and none of alignment; every test passes |
 | the same, with the fixes | Pi 5 (GCC 12) | 7 retail paths with `--fast` (section 3.3) | 35 object-size sites the synthetic paths don't reach, all loads, judged; one alignment site, harmless; no other check |
+| UBSan, [NATIVE.md](NATIVE.md) step 12's tree (2026-11-12) | x86-64 (GCC 14's objects, Clang 21's runtime: 1.4) | CI's x86-64 UBSan set: every test but `-L realtime` and the job's skip list | 546 of 546 pass, no runtime error (`UBSAN_OPTIONS=print_stacktrace=1:halt_on_error=1:...`); 14 minutes at -j6 |
+| ASan + UBSan, the same tree, the first x86-64 ASan run | x86-64 (the same) | the arm job's set (its skip list, section 5) | 399 of 399 pass, no ASan, LSan or UBSan report (`sanitize_fault_chain` gets ASan's report after the port's); 4.4 minutes at -j6 |
 
 The retail paths ran on the Pi only, with the ROM by its path there, one at a time, with the press scripts the QA
 sweep wrote ([QA.md](QA.md)), copied to the ignored `build/scratch/`: the attract demo, a drive and a single race on
@@ -344,8 +368,10 @@ frontend menu tests on the Pi's V3D driver).
 
 ## 5. CI
 
-`.github/workflows/pc.yml`'s `sanitize` job: UBSan on `ubuntu-24.04` (x86-64) and ASan with UBSan on
-`ubuntu-24.04-arm`, Debug, every test but `audio_realtime`, `input_live_drive` and the `hfr_paced` ones, which measure
+`.github/workflows/pc.yml`'s `sanitize` job: UBSan on `ubuntu-24.04` (x86-64), and ASan with UBSan on
+`ubuntu-24.04-arm` and, since [NATIVE.md](NATIVE.md) step 12, on `ubuntu-24.04` too (with the arm job's skip list:
+the same tests, on the x86-64 runner; its ccache and its logs' artifact are keyed by the sanitizers as well as the
+runner). Debug, every test but `audio_realtime`, `input_live_drive` and the `hfr_paced` ones, which measure
 real time, and on the arm runner `synth_boot_race` too: the one synthetic path on the host's clock, which under ASan on 4 cores didn't
 reach its state in its 75 s (every other path runs on the virtual clock, where the slowdown costs only time, and
 `drive`, `race2p` and the others race there); and `pak_realtime`, whose control and run both drop thousands of
@@ -376,11 +402,13 @@ thread at a time) leaves it little to find. Run it after changing the threads, t
 - **MemorySanitizer** (uninitialized reads) is Clang-only and needs every library instrumented. ASan's stack and
   heap layout differ from Debug's, which is how an uninitialized read could show, as a run that diverges: the one
   retail path compared with Debug (`race4p`) gave the same states and car positions.
-- **Inside the window** ASan sees one 8 MiB addressable block: the game's own heap and its arenas get no redzones,
+- **Inside the game's heap and arenas** ASan sees one addressable block each (the heap's block, each arena's; until
+  [NATIVE.md](NATIVE.md) step 12 one 8 MiB window): the game's own allocator and the N64's layout get no redzones,
   so an overflow from one game object into the next there is invisible to it (UBSan's `bounds` sees those it can
-  from the declarations). That is the N64's memory model, which the port keeps on purpose.
-- **x86-64 ASan** (section 1.1). The aarch64 runs cover the same C; what differs between the hosts is code under
-  `#ifdef __x86_64__` (the fault handler's register, absfix's relocation type) and the C library.
+  from the declarations). That is the N64's memory model, which the port keeps on purpose; step 13 (one object per
+  datum) takes the arenas' share of it.
+- **x86-64 ASan** runs since [NATIVE.md](NATIVE.md) step 12 (section 1.1), on the build host with Clang's runtime
+  (1.4) and in CI with GCC 13's; until then the aarch64 runs covered the same C.
 - **Game C checks left out** (section 1): object-size, alignment, signed overflow. A UBSan build with
   `-DRUSH_SANITIZE_GAME_UB=undefined` turns them on; section 3.1 is the reading of what they find on the synthetic
   paths, and a new object-size site is read the same way (its symbol, the function's other places of it, whether

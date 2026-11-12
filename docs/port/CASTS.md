@@ -1,7 +1,10 @@
 # Pointer/integer casts in the game C
 
 Every `-Wpointer-to-int-cast` and `-Wint-to-pointer-cast` the census counts in the game C (`src/`, `nonmatching/`),
-classified, and what was fixed. 2026-10-27. Related: [POINTERS.md](POINTERS.md) (the techniques, section 4 the
+classified, and what was fixed. 2026-10-27. Since [NATIVE.md](NATIVE.md) (wave 3, ended by step 12 on 2026-11-12) the
+game keeps no 32-bit address: the RDRAM window, `PC_N64W` and `RUSH_CHECK_CASTS` (section 4) are gone, and GCC's
+pointer/integer warnings in the game C are 0 (`n64_audit.py`'s `cc.*` classes). This page is the record of the
+classification. Related: [POINTERS.md](POINTERS.md) (the techniques, section 4 the
 earlier list), [DATA.md](DATA.md) (where data lives on the PC), [CARS.md](CARS.md) (the visual record).
 
 ## 1. Summary
@@ -109,6 +112,11 @@ storage is) and on window data in a mapped RDRAM window:
 The test passes on aarch64 (gcc 12) and x86-64 (gcc 14), and the old `ClearPlayerRecords` fails it on x86-64.
 
 ## 4. RUSH_CHECK_CASTS
+
+Gone with [NATIVE.md](NATIVE.md) step 12 (the option, `port/ultra/castcheck.c`, `PC_N64W` and `test_casts.c`'s check of
+it): no game file stored a pointer in 32 bits any more. Its successor for what the synthetic paths never reach is the
+N64 guard (`RUSH2049_N64_GUARD=1`, [ULTRA.md](ULTRA.md) 2), which faults on an N64 address used as a pointer and on a
+heap pointer cut to 32 bits. How it was:
 
 The N64-world casts are harmless only while what reaches them is window data, which the ROM decides. The records
 that keep their N64 layout on the PC (the heap headers, the model record, the visuals' `data`, WAD records, the

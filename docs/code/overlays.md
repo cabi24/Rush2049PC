@@ -28,7 +28,7 @@ calls into whichever image is loaded by plain function calls and reads some of i
 right image is loaded, the state machine just never calls the other one's code.
 
 **On the PC** both images' code is linked into the executable like the rest of the game, and their data and BSS are
-arenas at their N64 addresses in the RDRAM window (their data ranges don't overlap, only their code did). Loading
+arenas, blocks of host memory in the N64's layout (their data ranges don't overlap, only their code did). Loading
 an image refills its arena from the cached inflated image, zeroes its BSS and puts back the data its C defines
 (`pc_data_overlay_load`, docs/port/DATA.md section 5); the other image's data is left alone. The flags and the
 heap reservation still work as on the N64, so the game's behaviour is unchanged. Wave 3 makes the images ordinary

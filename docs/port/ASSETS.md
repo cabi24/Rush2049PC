@@ -3,6 +3,11 @@
 Survey of 2026-10-26, from code and documentation only (no ROM bytes were read). It is the work list for the
 converting loaders of [PORT_PLAN.md](../PORT_PLAN.md) Phase 4.
 
+Its recommendation, a 32-bit asset world with the heap in an RDRAM window at host 0x80000000, held until wave 3 of the
+PC-only work: the files' records and display lists became native (NATIVE.md steps 7-10), and since step 12
+(2026-11-12) the heap is a block of PC memory anywhere ([NATIVE.md](NATIVE.md) 17). What this page says of window
+addresses describes the PC build before then.
+
 Tags:
 - **[C]** verified in this repository's C or disassembly (file:line given).
 - **[M]** from the MAT3 (GameCube) decompilation. Its `waves.c`, `HAL_text.c`, `text.c`, `world.c`, `tracks.c`,

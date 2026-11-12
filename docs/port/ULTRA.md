@@ -3,7 +3,7 @@
 Phase 2 of [PORT_PLAN.md](../PORT_PLAN.md). Written 2026-10-26. No ROM was present: everything below was checked
 with `rush2049pc --selftest` and with the game's own boot running on a blank cartridge (`--no-rom`).
 
-`port/ultra` replaces libultra's dispatch and device layer, loads and checks the ROM, maps the RDRAM window, and
+`port/ultra` replaces libultra's dispatch and device layer, loads and checks the ROM, maps the game heap's block, and
 runs the host main loop that stands in for the RCP and the interrupts. `port/input` feeds the pads. `port/main.c`
 owns `main()`. About 3,300 lines of C11.
 
@@ -16,7 +16,7 @@ owns `main()`. About 3,300 lines of C11.
 | `pi.c` | ROM loading and SHA-1, PI DMA, `osPiReadIo`, inflate (zlib) and the boot LZSS |
 | `si.c` | the PIF: controller status and buttons, each controller's accessory: a controller pak (`.mpk`), a rumble pak, hot swaps |
 | `pakfile.c`, `pakwrite.c` | the controller pak's file: a blank image, what an image is, the atomic write; the thread that writes the paks |
-| `memory.c` | the RDRAM window (its size: `game.memory`), `pc_n64_ptr`/`pc_n64_addr`, the big-endian ranges and the models' vertices' ranges (model data), the absolute-symbol fix-up |
+| `memory.c` | the game heap's block (its size: `game.memory`), the N64 guard (`RUSH2049_N64_GUARD`), the big-endian ranges and the models' vertices' ranges (model data); until [NATIVE.md](NATIVE.md) step 12 the RDRAM window, `pc_n64_ptr`/`pc_n64_addr` and the absolute-symbol fix-up |
 | `heap.c` | the game heap's high-water marks and fallbacks, the exit line ([MEMORY.md](MEMORY.md) 4) |
 | `crossings.c` | only in the counting build (`cmake -DRUSH_COUNT_CROSSINGS=ON`): every crossing between an N64 address and a host pointer counted by site, and the arena guard (`RUSH2049_WINDOW_GUARD=arenas`) ([NATIVE.md](NATIVE.md) 9) |
 | `misc.c` | `osInitialize` and the low-memory globals, cache/TLB/interrupt no-ops, faults, stubs |
@@ -91,50 +91,50 @@ zero (SIGFPE, reported with a backtrace like any fault): where a NaN or an infin
 
 ## 2. Memory
 
-**The RDRAM window is load-bearing.** The game addresses RDRAM outside its symbols with 32-bit arithmetic. It does
-this in the heap (`align32(0x8017A640)` to `osMemSize | K0BASE`, where every loaded file is relocated in place,
-[ASSETS.md](ASSETS.md)), the low-memory globals at 0x80000300 and the runtime images' region at 0x8038A400. The
-game's pointer-free data and BSS are not in it: port/data's arenas are blocks of host memory in the executable, laid
-out as on the N64 ([DATA.md](DATA.md) §3; they were at their N64 addresses in the window until [NATIVE.md](NATIVE.md)
-step 5), so the window holds the heap and low memory only, and nothing is at the arenas' N64 ranges. An 8 MiB memfd
-(with `game.memory`, 16-256 MiB: [MEMORY.md](MEMORY.md)) is mapped at host 0x80000000 (KSEG0) and again at
-0xA0000000 (KSEG1), with `MAP_FIXED_NOREPLACE`, before the data is loaded. On Linux the mapping is required and the
-program stops if it fails, and on Windows too, where a file mapping is viewed at both addresses
-([WINDOWS.md](WINDOWS.md)). Elsewhere it falls back to a translated window (`pc_n64_ptr`), and the game's literal
-addresses fault.
+**Nothing is at an N64 address** (since [NATIVE.md](NATIVE.md) step 12, 2026-11-12). The game's memory is three kinds
+of host memory, each where the OS puts it:
 
-**Host addresses are above 4 GiB**, except the window's. The executable is PIE, and its heap and the N64 threads'
-stacks are mapped high. So the renderer tells host pointers (≥ 4 GiB) from N64 addresses (K0/K1, physical,
-segmented), and game data in the window is simply RDRAM to it. The game gives the renderer its colour and depth
-images as the buffers' pointers; there is no `osVirtualToPhysical` (until [NATIVE.md](NATIVE.md) step 4 it made
-their physical addresses). Pointers to the game's data in the arenas are host pointers like any other's (until step
-5 the renderer saw `default_lights` and the cull vertices in native lists as window addresses). In a window of more
-than 16 MiB the display lists' relocations keep the K0 address past 16 MiB, where a physical one would read to the
-RSP as a segmented one ([MEMORY.md](MEMORY.md) 3).
+- **the heap**: one block of PC memory (`pc_mem_map_heap`, port/ultra/memory.c: an anonymous mapping, `MAP_NORESERVE`,
+  on Windows `VirtualAlloc`), osMemSize less `PC_HEAP_OFFSET` bytes (0x17A640, what lay below the heap in the N64's
+  RDRAM), which the game's own allocator manages with native pointers ([NATIVE.md](NATIVE.md) step 6). Its first byte
+  is as far past a 64 KiB boundary as the N64 heap's (0xA640 past 0x80170000), so what the game rounds comes out as on
+  the N64. Every loaded file, the frame buffers, the runtime images' block and the sound library's memory are in it;
+- **the game's data**: port/data's arenas (the pointer-free data and BSS in the N64's layout), own storage and the
+  decoupled records, blocks and objects of the executable ([DATA.md](DATA.md) 3);
+- **the PC's own**: the C heap, the threads' stacks, the renderer's and the audio's buffers.
 
-**Data at absolute N64 addresses.** Some names the game uses are addresses, not storage: the low-memory globals
-(`osTvType`, `osTvType`, `osMemSize` for osMemSize), `gDecompressedDataStart`, and the ROM offset `sample_bank_rom` (the
-heap start `game_bss_end` and the images' base `overlay_base` were until [NATIVE.md](NATIVE.md) step 6: the heap's
-memory is `pc_heap_memory`'s now, the images' block an offset in it). gen_stubs makes them absolute symbols
-(`aliases.ld`): window addresses, and ROM offsets as cartridge addresses (`0xB0000000 | offset`, which the game's PI and
-MusyX address callbacks accept). port/data's arena names were absolute symbols too until NATIVE.md step 5 (`data.c`,
-about 1,800); they are relative to their arenas' blocks now, which the executable's own relocations place. The game
-reaches all of them through the GOT. binutils 2.40 on aarch64 gives the GOT slot of an absolute symbol in a PIE a
-RELATIVE relocation, so at run time the slot holds load address + value. `pc_mem_fix_absolute`, called in `main` before
-anything else runs, puts the values back (1,802 slots with the arenas' names, a handful now: `aliases.ld`'s). It only
-touches RELATIVE relocations whose addend is at 0x80000000 or above, where nothing the linker places can be
-(`gen_data.py --check` verifies that), and whose slot holds exactly base + addend. Initialized pointers to them are
-resolved at link time. On x86-64 with binutils 2.41 only the `aliases.ld` names' slots carry such a relocation (6
-slots fixed; game_bss_end's and overlay_base's went with step 6); data.c's absolute names got slots that held the bare
-value with no relocation, and its block-relative ones get RELATIVE relocations as any relocatable symbol's do. The
-plan for a window at any address, and the guard mode that moves it now (`RUSH2049_NOFIXED=guard`), are in
-[NOFIXED.md](NOFIXED.md).
+Until step 12 the heap lay in the **RDRAM window**, an 8 MiB memfd (16-256 MiB with `game.memory`) mapped at host
+0x80000000 and again at 0xA0000000 with libultra's low memory at its start, and the game kept 32-bit addresses into
+it; steps 2-11 made each holder a pointer, and step 12 took the window away. libultra's boot globals (`osTvType`,
+`osMemSize`) are ordinary variables of port/ultra/misc.c, set by `pc_os_initialize`. The game's heap is no N64
+address, so the state hash, the logs and the exit line give a place in it as an offset (the heap's report: "the heap
+from 1549888 bytes in"), never as a host address.
+
+**The renderer and the audio take host pointers.** The game gives the renderer its colour and depth images, its lists,
+vertices, matrices and textures as host pointers (display lists native since [NATIVE.md](NATIVE.md) step 10); the
+renderer keeps the microcode's segment table, so an address below 256 MiB (`N64_SEGMENT_SPAN`) whose segment a list
+gave a base is that base plus the offset, and any other value is a pointer (`pcgfx_resolve`, port/gfx/gfx_rsp.c). The
+4 GiB rule (a value below 4 GiB read as an N64 address), the physical and K0/K1 forms and `pc_n64_ptr` went with the
+window.
+
+**The cartridge** stays an N64 bus: the game reads it through libultra's PI by its KSEG1 addresses
+(`0xB0000000 | offset`, osRomBase), and the MusyX library names its samples by them; port/ultra's PI takes them
+(`pc_n64_map.h`'s cartridge names). **The data loader** reads the N64 addresses in the cartridge images' data (the
+pointers in the ROM's data, the overlay's relocations) and decodes them itself (`port/data/pc_data.h`'s loader
+constants). Neither is memory the game holds.
+
+**The N64 guard** (`RUSH2049_N64_GUARD=1`; [NOFIXED.md](NOFIXED.md) 0, `tools/port/n64_guard.py`): at start
+port/ultra reserves the N64's whole range, 0x80000000-0xBFFFFFFF (KSEG0 and KSEG1, where RDRAM and the cartridge were),
+with no access, and maps the heap's block above 4 GiB, so a 32-bit N64 address used as a pointer, or a heap pointer
+cut to 32 bits, faults with a note that names it: the datum the loader knows at that N64 address, or the heap offset
+the cut pointer kept. The synthetic paths run clean in it (`n64_guard_paths`); the lead's retail scripts are its
+other net.
 
 **osMemSize is 8 MiB** (the Expansion Pak) by default, as N64ModernRuntime and v5 report: the game sets its
 Expansion Pak flag (`expansion_pak_present`) and loads overlay B and the extra waves in races, which give it its sixth race
 track, the tracks' animated objects and the front end's song (docs/port/QA.md). `game.expansion_pak = off` reports
-4 MiB, a console without one, where the game skips them; the window is 8 MiB either way. `game.memory` (16-256 MiB)
-sizes the window and osMemSize together, and so the game's heap ([MEMORY.md](MEMORY.md)); the heap's peak and least
+4 MiB, a console without one, where the game skips them; the heap's block is sized by it (6.5 MiB, or 2.5).
+`game.memory` (16-256 MiB) sets osMemSize, and so the game's heap ([MEMORY.md](MEMORY.md)); the heap's peak and least
 free are the exit line's `heap:`.
 
 **Big-endian ranges** (`pc_mem_register_be`): sorted, disjoint. A range that overlaps existing ones merges with
@@ -307,13 +307,15 @@ the game saves only to the controller pak.
 (returns 1), `__osSetFpcCsr`/`__setfpcsr` (the game's FPU traps stay masked). `osSetIntMask` returns the previous
 mask.
 
-**Low memory.** `osInitialize` (the game's `__osInitialize_common`) writes NTSC, ROM base 0xB0000000, a cold reset,
-CIC 6102 and `osMemSize` into the window at 0x80000300 and clears the NMI buffer.
+**Low memory.** `osInitialize` (the game's `__osInitialize_common`) sets `osTvType` (NTSC) and `osMemSize`, ordinary
+variables (port/ultra/misc.c); until [NATIVE.md](NATIVE.md) step 12 it wrote them, the ROM base, a cold reset and CIC
+6102 into the window's low memory at 0x80000300.
 
 ## 4. The main loop and options
 
 `main` resolves the settings (`rush2049pc.ini`, the environment and the options: [FRONTEND.md](FRONTEND.md)),
-fixes the absolute symbols, maps the window, loads and checks the ROM and runs `osInitialize`. It then calls
+reserves the N64 guard's range if asked, loads and checks the ROM, runs `osInitialize`, maps the heap's block and
+hands the data loader its place (`pc_data_set_heap`). It then calls
 `pc_data_init(rom, size)`, `pc_gfx_init(headless, 640, 480)` (the window size is a setting; the game draws
 320 × 220), `pc_input_init`, `pc_si_init` and `pc_audio_init`. It starts `n64_main` on an N64 thread and runs the
 loop on the host main thread.
@@ -476,28 +478,33 @@ references (libc, zlib, pthreads) are left to the linker. It also writes:
   - `PROVIDE` aliases for names differing only in the case of their address digits (`func_8001fe58`);
   - aliases for address names of a defined symbol (`AnimateBSpark` = `AnimateBSpark`;
     `AnimateBrakeLights` = `AnimateBrakeLights`, a callback's address);
-  - the absolute symbols of section 2.
+  - (until [NATIVE.md](NATIVE.md) step 12) the absolute symbols: low memory's globals at their window addresses.
+    gen_stubs now refuses a data name the symbol file puts in RDRAM or at a ROM offset that nothing defines
+    (`placed_data`): nothing may be left at an N64 address.
 - `stubs.c`: whatever is still missing calls `pc_stub_hit`. It prints the name, the N64 thread and a backtrace
   symbolized with addr2line (PIE offsets), then aborts. Faults print the same report.
 - `stubs_standalone.c` (`--standalone`) for programs that link the game without the PC layer
   (`rush2049pc_datacheck`).
 
-Now: 0 function stubs, 1 data placeholder (`ShowCull`), 75 aliases, 6 absolute symbols. The last function stubs were
+Now: 0 function stubs, 1 data placeholder (`ShowCull`), 1 alias (`gDecompressedDataStart`, the game image's first
+function's name), no absolute symbol (6 until step 12). The last function stubs were
 the libgsm kernels, now `gsm.c` (§8).
 
 ## 8. Verification
 
-- `rush2049pc --selftest` (also CTest `ultra_selftest`) passes 31 of 31 in about 1.5 s; `--selftest --fast`
-  (`ultra_selftest_fast`) runs the same on the virtual clock, with the clock's own check in place of the
-  device-paced AI's and without the yield (real time only): 30 of 30 in under 0.1 s. It covers:
+- `rush2049pc --selftest` (also CTest `ultra_selftest`) passes 37 of 37 (2026-11-12; 31 when this was written);
+  `--selftest --fast` (`ultra_selftest_fast`) runs the same on the virtual clock, with the clock's own check in place
+  of the device-paced AI's and without the yield (real time only): 36 of 36, and 37 with `RUSH2049_N64_GUARD=1` (the
+  guard's note). It covers:
   - threads: preemption on start, priorities, FIFO among equals and yield, `osSetThreadPri` both ways,
     `osStopThread` on a waiting thread;
   - queues: FIFO, jam, full and empty, a blocking send;
   - events: `osSetEventMesg`; the VI retrace at 60 Hz (12 in about 200 ms);
   - time: one-shot and periodic timers and `osStopTimer`; `osGetTime`'s rate;
   - busy-waits: both yield paths;
-  - memory: the window and its KSEG1 alias, the absolute symbols, game data in its arena's block (at the N64
-    address's offset in a page, above 4 GiB), host addresses above 4 GiB, big-endian ranges;
+  - memory: the heap's block (osMemSize less the N64's room below the heap, its first byte at the N64 heap's place
+    modulo 64 KiB, its last byte writable), with the guard (`RUSH2049_N64_GUARD=1`) the reserved range and a fault's
+    note, game data in its arena's block (at the N64 address's offset in a page), big-endian ranges;
   - RSP tasks and DP buffers, a queued graphics task yielding (real time only), and the AI rate and event;
   - in real time, the AI paced by a device: 30 pulls of 512 frames from a host thread, 10 ms apart, answered by
     88 buffers, only the first pull short;
@@ -550,15 +557,15 @@ the libgsm kernels, now `gsm.c` (§8).
 - **Preemption.** Events never take the baton from a computing thread. A busy-wait not in the list above would hang.
   `--trace-os` and Ctrl-\ show it, and the fix is one more `pc_os_spin_yield`.
 - **Controller pak interop** with N64-order images (v5, emulators) needs a converter that knows the save formats.
-- **census.py** counts the names gen_stubs satisfies through `aliases.ld` (aliases and absolute symbols) as
+- **census.py** counts the names gen_stubs satisfies through `aliases.ld` (aliases) as
   undefined. It also sees port/audio's test programs in `compile_commands.json`, which shows up as duplicate
   `main`/`ref_*`.
 - **Untested:**
   - anything with the ROM, speech included (the GSM kernels have only decoded test frames);
   - the graphics task path end to end (`pc_gfx_run_dl` from a game task);
   - a live window and live input (only scripted input);
-  - x86-64 and macOS. On macOS a 64-bit process's 4 GiB `__PAGEZERO` covers 0x80000000, so the window needs
-    `-pagezero_size` there.
+  - macOS. Until [NATIVE.md](NATIVE.md) step 12 a 64-bit process's 4 GiB `__PAGEZERO` covered the window's
+    0x80000000 there; nothing is at a fixed address now.
 
 ## 10. Paced mode: the virtual clock in real time (online play's clock)
 

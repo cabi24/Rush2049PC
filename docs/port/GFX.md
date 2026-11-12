@@ -42,19 +42,20 @@ Every external symbol except the `pc_gfx_*` API is `pcgfx`/`pcgfx_*`. The game h
   pointer in the commands that carry an address (VTX, G_DL, G_RDPHALF_1 before G_BRANCH_Z, MTX, MOVEMEM, SETxIMG)
   and the value in the rest. Until then the renderer read the ROM's lists in their N64 form, told apart by
   `pc_mem_is_be(list)` at every list it entered.
-- **Address values** (w1, segment bases, `pc_gfx_present`'s argument):
+- **Address values** (w1, segment bases, `pc_gfx_present`'s argument; `pcgfx_resolve`, port/gfx/gfx_rsp.c):
 
 | Value | Meaning | Host address |
 |---|---|---|
-| ≥ 4 GB | host pointer (the build is PIE; its data with pointers lives high) | as is |
-| 0x80000000–0xBFFFFFFF | K0/K1: the heap's blocks (frame buffers, a file's texels), while the heap is the RDRAM window (until [NATIVE.md](NATIVE.md) step 12) | `pc_n64_ptr(v)` (identity through the RDRAM window) |
-| 0x0S000000 + off, segment S has a base | segmented | `base[S] + off` |
-| anything else below 0x80000000 | physical (segment 0, or no base) | `pc_n64_ptr(0x80000000 \| (v & 0xFFFFFF))` |
+| 0x0S000000 + off (below 0x10000000), segment S has a base | segmented | `base[S] + off` |
 | 0 | null | none (the command is skipped) |
+| anything else | host pointer | as is |
 
-- The segment table holds host bases (`uintptr_t`). A base set by MOVEWORD G_MW_SEGMENT goes through the same rules,
-  so a host pointer, a K0 address or a physical address all work. The table resets at every task, as the microcode's
-  DMEM does. The game sets none but segment 0 (to 0).
+- The segment table holds host bases (`uintptr_t`). A base set by MOVEWORD G_MW_SEGMENT goes through the same rule.
+  The table resets at every task, as the microcode's DMEM does. The game sets none but segment 0 (to 0), so every
+  address it gives is a host pointer. Until [NATIVE.md](NATIVE.md) step 12 a value below 4 GB was an N64 address: K0
+  and K1 (0x80000000-0xBFFFFFFF) the RDRAM window, where the heap was (`pc_n64_ptr`), and a value below 0x80000000
+  with no segment base physical (`pc_n64_ptr(0x80000000 | (v & 0xFFFFFF))`). A host pointer below 256 MiB would be
+  read as a segment's only where that segment has a base, which the game never gives one.
 - **Vertices** are always the host's byte order: the game's, and a model's, which the WAD converter swaps when the file
   loads. A model's are registered as model data (`pc_mem_register_model_data`, `port/ultra/memory.c`): data that stays
   put while its file is loaded, which the high frame rate's recorder asks about ("High frame rate" below).
@@ -886,14 +887,15 @@ by w in double for every triangle that uses it; computing that once a vertex at 
   - Every pointer stored in w1 must be the full pointer: macros, raw `words.w1 =` writes, and the 32-bit pointer
     store that patches the inline CULLDL branch (particle_context.c:1116).
   - List arithmetic must count in `Gfx` units, never in bytes or `<< 3`.
-- **Masked addresses.** A masked address (`& 0xFFFFFF`, `| 0x80000000`) is fine for memory inside the RDRAM window,
-  because it stays an N64 address. Host pointers above 4 GB must never be masked.
+- **No masked addresses.** A pointer must never be masked (`& 0xFFFFFF`, `| 0x80000000`): since
+  [NATIVE.md](NATIVE.md) step 12 nothing the game draws is in an RDRAM window, where a masked address stayed an N64
+  address.
 - **Tasks and present.** `osSpTaskStart` → `pc_gfx_run_dl(task->t.data_ptr)`. `osViSwapBuffer(fb)` →
   `pc_gfx_present(fb)`, with fb as the game holds it (K0 or host). The colour and depth images are set as the
   buffers' pointers (`StartGraphics`, `ClearScreen`), the same values, so they resolve to the same target. Until
   [NATIVE.md](NATIVE.md) step 4 they were the physical addresses `osVirtualToPhysical` made of them, as on the N64;
-  the renderer resolved those to the same pointers. The physical rule is left for code that makes such an address
-  itself (the ROM's lists had them, relocated, until step 10).
+  the renderer resolved those to the same pointers. The physical rule went with step 12 (the ROM's lists had such
+  addresses, relocated, until step 10).
 - **Data structures.** Build Mtx with `guMtxF2L` (32-bit words) and write Vtx, Vp and Light by field.
   - A `memcpy` of big-endian ROM fields into a native `Vtx` leaves them big-endian. particle_context.c:1372 copies tc
     and colors from `poly` this way, so it needs a swap if `poly` comes from ROM data.
@@ -1005,8 +1007,8 @@ build/gfx/gfx_test texrect --png /tmp/out
   ([TEXTURES.md](TEXTURES.md) "Tests").
 - **How the test works.** `gfx_test` builds display lists with its own encoders (`tests/test_gbi.h`, written from
   the SDK formats and not from the renderer's decoder). It renders them headless and checks pixels against values
-  worked out from the N64 rules. It provides its own `pc_mem_is_be`, `pc_mem_is_model_data`, `pc_n64_ptr` and
-  `pc_n64_addr`, with an 8 MB RDRAM array.
+  worked out from the N64 rules. It provides its own `pc_mem_is_be` and `pc_mem_is_model_data`, and keeps its data
+  in host buffers (until [NATIVE.md](NATIVE.md) step 12 an 8 MB RDRAM array behind its own `pc_n64_ptr`).
 - **Cases.** 27, one CTest each:
 
 | Case | Checks |

@@ -1,43 +1,45 @@
 # The game's memory: game.memory (port/ultra, the renderer, the game C)
 
-Written 2026-11-03. The N64 game has 8 MiB of RDRAM with the Expansion Pak, 4 without. On the PC the game's RDRAM is a
-window mapped at host 0x80000000 and again at 0xA0000000 ([ULTRA.md](ULTRA.md) 2), and its heap runs from the end of its
-BSS to `osMemSize | K0BASE` (`pc_heap_memory` gives it those bytes, [NATIVE.md](NATIVE.md) step 6). `[game] memory`
-gives that window, osMemSize and so the heap any size from 16 to 256 MiB; at `original`, the default, nothing is
-different from before. This document says what the setting does, why 256 MiB is its limit, which addresses had to change
-for memory past 16 MiB and where, how the heap's use is shown, what the game does with the room, what a later "mods"
-feature can rely on, and how it was tested.
+Written 2026-11-03; since [NATIVE.md](NATIVE.md) step 12 (2026-11-12) the heap is a block of PC memory. The N64 game
+has 8 MiB of RDRAM with the Expansion Pak, 4 without. On the PC the game's heap is one mapping of PC memory, wherever the
+OS puts it (`port/ultra/memory.c`, `pc_mem_map_heap`): osMemSize less what lay below the heap on the N64 (libultra's
+low memory, the boot segment, the game image and its BSS: `PC_HEAP_OFFSET`, 0x17A640 bytes), which `pc_heap_memory` gives the game
+([NATIVE.md](NATIVE.md) steps 6 and 12). `[game] memory` gives osMemSize and so the heap any size from 16 to 256 MiB; at
+`original`, the default, nothing is different from before. This document says what the setting does, why 256 MiB is its
+limit, which addresses had to change for memory past 16 MiB (until step 12) and where, how the heap's use is shown, what
+the game does with the room, what a later "mods" feature can rely on, and how it was tested. Until step 12 the game's
+RDRAM was a window mapped at host 0x80000000 and again at 0xA0000000, the heap that window's bytes from the end of the
+game's BSS to `osMemSize | K0BASE`; sections 2, 3 and 7 keep what that took.
 
 | Piece | Where |
 |---|---|
-| The window's size, its views, `pc_n64_ptr` | `port/ultra/memory.c` (`pc_mem_set_size`, `pc_rdram_size`) |
-| The rule past 16 MiB | `port/gfx/gfx_rsp.c` (`pcgfx_resolve`); the display lists' relocation (`port/ultra/rcpaddr.c`: `pc_rdram_k0_high`, `pc_rcp_reloc`) went with [NATIVE.md](NATIVE.md) step 10, which builds the files' lists with host pointers |
-| osMemSize | `port/ultra/misc.c` (`pc_os_set_mem_size`) |
+| The heap's block | `port/ultra/memory.c` (`pc_mem_map_heap`, `pc_mem_heap`); `port/ultra/heap.c` (`pc_heap_block`, `pc_heap_memory`) |
+| osMemSize | `port/ultra/misc.c` (`pc_os_set_mem_size`, the variable `osMemSize`) |
 | The heap's high-water marks, the exit line, the test floor | `port/ultra/heap.c` |
-| The setting, its warning | `port/config/config.c` (`game.memory`, `pc_settings_memory_conflict`), `port/main.c` |
+| The setting, its warning, its range | `port/config/config.c` (`game.memory`, `pc_settings_memory_conflict`), `port/include/pc_port.h` (`PC_MEMORY_MIN_MIB`, `PC_MEMORY_MAX_MIB`), `port/main.c` |
 | The overlay | `port/input/menu.c`: Game > Memory, About > Memory |
-| The renderer's physical rule | `port/gfx/gfx_rsp.c:79-90` (`pcgfx_resolve`) |
-| The game C | `prepare_model_dl.c`, `relocate_texture_loads.c`, `display_list_traverse.c`, `src/rom/sound/hardware.c`; the heap's reports in `memsys/group.c`, `heap_release/alloc_at.c`, `heap_release/group.c`, `loadcars/LoadCars.c`, `car_palette_init.c` |
+| The game C | the heap's set-up `memsys/group.c` (`locate_main_heap`); its reports in `memsys/group.c`, `heap_release/alloc_at.c`, `heap_release/group.c`, `loadcars/LoadCars.c`, `car_palette_init.c` |
 
 ## 1. The setting
 
 `[game] memory` in rush2049pc.ini, `--set game.memory=N`, or F1 > Game > Memory. Like the other `[game]` keys it has
 no environment variable.
 
-| Value | The window | osMemSize | The heap | The Expansion Pak flag (`expansion_pak_present`) |
-|---|---|---|---|---|
-| `original` (the default) | 8 MiB, as before | 8 MiB; with `expansion_pak = off` 4 MiB | 0x8017A640-0x80800000 (6.5 MiB), or to 0x80400000 | set; clear with `expansion_pak = off` |
-| 16-256 (whole MiB) | N MiB at 0x80000000 and 0xA0000000 | N MiB | 0x8017A640 to 0x80000000 + N MiB | set |
+| Value | osMemSize | The heap | The Expansion Pak flag (`expansion_pak_present`) |
+|---|---|---|---|
+| `original` (the default) | 8 MiB; with `expansion_pak = off` 4 MiB | 6.5 MiB (6,838,720 bytes; on the N64 0x8017A640-0x80800000), or 2.5 MiB | set; clear with `expansion_pak = off` |
+| 16-256 (whole MiB) | N MiB | N MiB less 0x17A640 bytes | set |
 
-- **It applies at the next start.** The window is mapped before the ROM is read (main: `pc_mem_set_size`, then
-  `pc_mem_init`) and can't grow while the game holds addresses in it. The overlay's item is marked `*` ("applies
-  after a restart") and its change is saved like the others.
+- **It applies at the next start.** The heap's block is mapped once, after the ROM is read (main: `pc_os_set_mem_size`,
+  then `pc_mem_map_heap`), and can't grow while the game holds pointers into it. The overlay's item is marked `*`
+  ("applies after a restart") and its change is saved like the others.
 - **What the game sees.** It reads its memory from osMemSize in one place, the heap's set-up
-  (`locate_main_heap`, `memsys/group.c:198-216`): the heap's memory is what `pc_heap_memory(osMemSize)` gives
-  (`port/ultra/heap.c`: the window from the end of the game's BSS to osMemSize, so its end is `osMemSize |
-  0x80000000` as on the N64), and the Expansion Pak flag is set when osMemSize is past 4 MiB (the N64 tested the
-  heap's end past 0x80400000: the same thing). Nothing else in the game reads the size (every `osMemSize` in the
-  game C is an `extern` but that one).
+  (`locate_main_heap`, `memsys/group.c`): the heap's memory is what `pc_heap_memory(osMemSize)` gives
+  (`port/ultra/heap.c`: the block, osMemSize less `PC_HEAP_OFFSET` bytes, the N64's room for the heap), and the
+  Expansion Pak flag is set when osMemSize is past 4 MiB (the N64 tested the heap's end past 0x80400000: the same
+  thing). Nothing else in the game reads the size (every `osMemSize` in the game C is an `extern` but that one). The
+  block's first byte is as far past a 64 KiB boundary as the N64 heap's was (0xA640), so every address the game rounds
+  (the heap's 32-byte chunks, the frame buffers' 64 bytes) comes out as on the N64.
 - **`expansion_pak = off` with a size.** The game decides the Expansion Pak flag from its memory, as a console with
   that much memory would, so with `memory = 64` it uses its Expansion Pak features (the sixth race track, the tracks'
   animated objects, the front end's song: [QA.md](QA.md)) and `expansion_pak = off` does nothing. That combination is
@@ -45,23 +47,21 @@ no environment variable.
   game.memory = 64 ..."; `pc_settings_memory_conflict`, `config.c`), on every run and with `--print-config`. A
   console without the pak is `memory = original` with `expansion_pak = off`. Keeping the flag clear with a large heap
   would take a change to the game's own set-up for a combination no N64 had.
-- **The cost.** On Linux the window is a memfd, which is sparse: a page takes memory once the game first writes it,
-  so 256 MiB costs what the heap uses (the synthetic race's peak: 0.9 MiB). The KSEG1 view shares its pages. On
-  Windows it is a pagefile-backed section: its size is committed when it is made (the commit charge, not RAM; pages
-  are made as they are touched), so a system that can't commit 256 MiB more fails at start with the error's number
-  (`memory.c:88-99`). Under LeakSanitizer the window is a root region, which LSan reads whole at exit: there every
-  page becomes resident then.
-- **The translated fallback** (a host other than Linux and Windows, where 0x80000000 can't be mapped): the window is
-  an anonymous mapping of the same size anywhere (`memory.c:150-157`), and `pc_n64_ptr` translates; the game's data
-  can't run there at any size ([DATA.md](DATA.md) 3).
-- **The sanitizers.** On aarch64, AddressSanitizer's shadow covers everything below 64 GiB (its shadow is at
-  2^36), so the window is covered at any size; on x86-64 its shadow starts at 0x7FFF8000, under the window, so the
-  game can't run under ASan there at any size, as before ([SANITIZE.md](SANITIZE.md)).
+- **The cost.** On Linux the block is an anonymous mapping with `MAP_NORESERVE`, which is sparse: a page takes memory
+  once the game first writes it, so 256 MiB costs what the heap uses (the synthetic race's peak: 0.9 MiB). On Windows
+  it is committed when it is made (`VirtualAlloc`, top-down: the commit charge, not RAM; pages are made as they are
+  touched), so a system that can't commit 256 MiB more fails at start with the error's number. Under LeakSanitizer the
+  block is a root region, which LSan reads whole at exit: there every page becomes resident then.
+- **Any host.** Nothing is at a fixed address, so the block maps wherever the OS allows, on every OS.
+- **The sanitizers.** AddressSanitizer runs on x86-64 and aarch64 at any size ([SANITIZE.md](SANITIZE.md)): nothing
+  sits in its shadow's range any more.
 
 ## 2. Why 256 MiB
 
-The hard ceiling is 512 MiB: the KSEG0 view at 0x80000000 must end before the KSEG1 view at 0xA0000000. Two things
-make 256 MiB the limit below it:
+Since [NATIVE.md](NATIVE.md) step 12 nothing ties the heap's size to the N64's address space: 256 MiB is the setting's
+range (`PC_MEMORY_MAX_MIB`), which nothing in this game needs to pass (the whole cartridge is 32 MiB). Until then the
+hard ceiling was 512 MiB: the window's KSEG0 view at 0x80000000 had to end before its KSEG1 view at 0xA0000000. Two
+things made 256 MiB the limit below it (the history):
 
 - **K0 addresses from 0x90000000.** The MusyX library tests RAM by the address's top nibble: its voice set-up
   (`sound_hw_set_voice_sample`, `hardware.c:1735`: `(data & 0xF0000000) != 0x80000000` marks a sample as in the cartridge) and
@@ -76,6 +76,10 @@ in this game needs more than 256 MiB: the whole cartridge is 32 MiB. Each size f
 rules, and 64 and 256 are the ones tested (section 6).
 
 ## 3. Addresses past 16 MiB
+
+History: since [NATIVE.md](NATIVE.md) step 12 the game gives the renderer host pointers only, and its heap is no N64
+address, so none of this applies; the renderer keeps the microcode's segments, an address below 256 MiB naming a
+segment a list gave a base. Before:
 
 The RSP reads an address below 0x80000000 as a segmented one: the segment's number in bits 24-27, an offset in the
 low 24 bits. On the N64 every physical address fits the offset (RDRAM is at most 8 MiB), so a physical address is
@@ -103,15 +107,16 @@ for code that strips K0 itself: none was found (section 7), so it is there in ca
 
 **The exit line.** At the end of every run, beside the pools' line:
 
-    rush2049pc: heap: peak 916704 of 6838720 bytes, free-low 5922016 (largest block 4194272), at 0x8017A640-0x80800000,
-    osMemSize 8 MiB, window 8 MiB; 416 allocations, short 0, none 0
+    rush2049pc: heap: peak 920896 of 6838720 bytes, free-low 5917824 (largest block 4194272), osMemSize 8 MiB, the
+    heap from 1549888 bytes in; 416 allocations, short 0, none 0
 
-(the synthetic race, `original`). `peak` is the most the heap held, `size - free-low`: everything not in a free
+(the synthetic race, `original`, 2026-11-12; "from 1549888 bytes in" is `PC_HEAP_OFFSET`, where the N64 had the heap's header in
+RDRAM: the line gives sizes and offsets, never where the block lies in this process). `peak` is the most the heap held, `size - free-low`: everything not in a free
 block, so the heap's own header, the handle tables and the blocks' 32-byte headers count. `free-low` is the least the
 heap had free, as the game sums it (`heap_total_free`), and `largest block` the largest free block at that
 moment: the allocator is first-fit, and a block is what one load needs. `allocations` counts the blocks taken,
 `short` the game's fallbacks below, `none` the allocations no free block could hold. With RUSH2049_TEST_HEAP_FLOOR
-the line ends `(test floor at 0x81100000)`.
+the line ends `(test floor at 17 MiB)`, counted as the N64 counted RDRAM.
 
 **How.** `port/ultra/heap.c`. The game's allocator calls it under the heap's lock: when the heap is made
 (`pc_heap_created`, `InitMemory`, `memsys/group.c:230`) and after each block it takes (`pc_heap_allocated`:
@@ -171,16 +176,16 @@ it (`InitWaves.c:92`), not when the heap is short. So at the N64's 8 MiB:
   `gWaveSizes[wave]` before the load; the block, the read and the conversion follow it. RUSH2049_TEST_WAVE_GROW
   (port/main.c) does exactly that for tests: `membig` loads six car files 3 MB larger than the cartridge's through
   this path at `memory = 64`.
-- **No 8 MiB limit is left on the way.** PI DMA copies any size into any window address (`pi.c:170-176`); inflate's
-  room is the window's end from its destination (`pi.c:237`; 8 MiB for a host destination); LZSS has no limit; the
-  big-endian registry takes any range; the converters take the block's size; the renderer and the audio interpreter
-  reach every window address; a file past 16 MiB is relocated to K0 addresses (section 3).
+- **No 8 MiB limit is left on the way.** PI DMA copies any size anywhere (`pi.c`); inflate's room is the heap's end
+  from its destination (`pc_heap_room`; 8 MiB for a destination outside the heap); LZSS has no limit; the big-endian
+  registry takes any range; the converters take the block's size; the renderer and the audio interpreter take host
+  pointers.
 - **The room.** At `memory = 64` the heap has 62.5 MiB, 56 more than the N64's. The exit line's `free-low` and
   `largest block` say what a run left; About shows the peak while playing. A file must fit one free block (the
-  finding above): with a large window the free space is one block past the runtime images'.
+  finding above): with a large heap the free space is one block past the runtime images'.
 - **What it must still do itself.** Read its files (a mods loader stands in for the ROM read of that wave, e.g. in
   `pc_rom_copy`'s caller for the wave's offset, or with its own read in `_ReadWave`'s PC side) and set the size;
-  `gWaveSizes` is the N64's u32 table, so a file is at most 4 GiB in principle and the window's room in practice.
+  `gWaveSizes` is the N64's u32 table, so a file is at most 4 GiB in principle and the heap's room in practice.
   LoadCars' checks see the larger sizes and fall back as they do; at `original` a larger file can trip the free-total
   finding above.
 
@@ -192,23 +197,24 @@ it (`InitWaves.c:92`), not when the heap is short. So at the N64's 8 MiB:
 |---|---|
 | `frontend.memory` | `game.memory`: the default `original`, 16-256 each set and read back (16, 17, 32, 64, 100, 128, 255, 256), 15, 8, 4, 0, -1, 257, 512, 1024, `64M`, words and an empty value refused with the range in the message, any case, `--set`, the file written and read back, a bad line skipped, the warning only for `expansion_pak = off` with a size |
 | `frontend.menu.live`, `frontend.menu.pages` | the Game page's Memory: original to 64 and 256, wrapping, Defaults; About's Memory row |
-| `ultra_selftest_memory64`, `_memory256` | the self-test at 64 and 256 MiB: the window's last byte through K0, K1 and physical, nothing one past it, osMemSize (and `pc_rcp_reloc` below and past 16 MiB until [NATIVE.md](NATIVE.md) step 10, `osVirtualToPhysical` until step 4) (and at 8 MiB, `ultra_selftest`: the N64's rules) |
-| `gfx.window.highmem` | gfx_test built on port/ultra's own window (`memory.c`, 64 MiB): a scene (a list with N64 addresses, a big-endian matrix, vertices, a segment's base and a 32 x 32 big-endian texture; until [NATIVE.md](NATIVE.md) step 10 the list in N64 form) at 1 MiB, 18 MiB and in the window's last MiB, reached at K0 addresses and at physical ones, drawn into a colour image there set as its pointer, as the game sets it (through `osVirtualToPhysical` until [NATIVE.md](NATIVE.md) step 4); each of the six pictures byte for byte the first's, whose colours are checked. `gfx.window.bedata` (`belist` until step 10) and `.textures` check the harness on the window |
+| `ultra_selftest_memory64`, `_memory256` | the self-test at 64 and 256 MiB: the heap's block osMemSize less `PC_HEAP_OFFSET`, its first byte at the N64 heap's place modulo 64 KiB, its last byte writable, osMemSize (and at 8 MiB, `ultra_selftest`). Until [NATIVE.md](NATIVE.md) step 12: the window's last byte through K0, K1 and physical |
+| (`gfx.window.highmem`) | until [NATIVE.md](NATIVE.md) step 12, gfx_test on port/ultra's own window: a scene at 1, 18 and 63 MiB at K0 and physical addresses, each picture byte for byte the first's. Gone with the window: the renderer takes host pointers |
 | `audio_window` | (until [NATIVE.md](NATIVE.md) step 9, which took the interpreter's N64-form records away) test_forms' scene (PCM16 big-endian, ADPCM with a big-endian book, native PCM16, the delay effect) as N64-form records and samples in that window, at the same three places and both kinds of address: every render, the state and the delay line the first's; the scene is loud enough to prove it |
 | `assets_wad_game` | (until [NATIVE.md](NATIVE.md) step 10) the game's own WAD loader with the WAD at 0x81200000 too, its relocated words K0 addresses there; since step 10 the lists hold host pointers wherever the file lies, and the test runs in ordinary host memory |
 | `assets_heap` | `port/ultra/heap.c` on the game's own heap: its size, the least free as the game sums it, the allocations counted, a fallback counted; at 32 MiB with the floor at 17 MiB, the game's next blocks at 17 MiB (heap.c's report: 0x81100000), the runtime images' block taken and locked where `allocate_memory_at` finds it. The heap is in the tests' memory, a host block at no fixed place, at the N64's offsets ([NATIVE.md](NATIVE.md) step 11) |
-| `synth_boot_mem64` | drive.press at `memory = 64`: the heap to 0x84000000 (`tools/port/heap_check.py --memory 64`) |
+| `synth_boot_mem64` | drive.press at `memory = 64`: the heap to the end of the 64 MiB (`tools/port/heap_check.py --memory 64`) |
 | `synth_boot_memhigh`, `memhigh2p` | drive and race2p at 64 with everything the game allocates above 17 MiB (RUSH2049_TEST_HEAP_FLOOR=17): its files, their lists, textures and vertices, the frame and depth buffers, the sound's buffers |
 | `synth_boot_membig`, `membig8` | the car files 3 MB larger at 64 (no car refused; the peak 18.9 MiB, files past 16 MiB), 1 MB larger at `original` (LoadCars falls back once, logged; the race runs) |
 | `synth_shot_same_mem64`, `_memhigh`, `_membig`, `_memhigh2p` | their screenshots byte for byte drive's and race2p's |
 | `synth_memory_same_<path>` | 11 paths (drive, race2p, race4p, demo, battle2p, stunt, circuit, pause, raceend, race12, race2p12), a test each, at `original` against `memory = 64` with the floor at 17 MiB: the same trace (`synth_compare.py --set-b ... --env-b ...`); an ASan or TSan build runs drive, race2p and race12 (all 22 runs under ASan on CI's arm runner took more than the job's 90 minutes) |
 
-**Each fails without its fix** (build host, each fix taken out alone in a copy of the branch):
+**Each fails without its fix** (build host, each fix taken out alone in a copy of the branch; 2026-11-03: the fixes and
+the tests of the window are gone with it since [NATIVE.md](NATIVE.md) step 12):
 
 | Fix taken out | Fails |
 |---|---|
-| `pc_n64_ptr` at 8 MiB | `gfx.window.highmem` (no RAM at 0x81200000), `audio_window` |
-| the renderer's physical rule | `gfx.window.highmem` (the renderer runs off into the wrong RAM and faults) |
+| `pc_n64_ptr` at 8 MiB (until step 12) | `gfx.window.highmem` (no RAM at 0x81200000), `audio_window` |
+| the renderer's physical rule (until step 12) | `gfx.window.highmem` (the renderer runs off into the wrong RAM and faults) |
 | `pc_rcp_reloc` with the N64's 24 bits | `assets_wad_game`: the relocated VTX, G_DL and SETTIMG words 16 MiB low |
 | `display_list_traverse`'s N64 segment test | `assets_wad_game`: the called list's and the branch's windings not flipped |
 | `sound_hw_translate_address`'s test of a K0 address past 16 MiB | nothing: on the retail cartridge, `drive` at 64 MiB with the floor gives the original's sound byte for byte without it too. The game hands that function its sample banks' cartridge addresses (the samples stay in the cartridge and stream through the MusyX DMA caches, which are in the heap and reached through the interpreter), so the test is a guard for a bank loaded into RAM, which this game doesn't do |
@@ -247,7 +253,9 @@ set the two players' unlock bytes (`gUnlockedTracks`) as the track select first 
 
 ## 7. The address inventory
 
-Every place that holds, masks or compares an address or a size against the N64's 4 or 8 MiB or its 24-bit offsets,
+History (the tree of 2026-11-03): most of these places went with [NATIVE.md](NATIVE.md) steps 4, 10 and 12, the window,
+`pc_n64_ptr` and the renderer's rule among them. Every place that holds, masks or compares an address or a size against
+the N64's 4 or 8 MiB or its 24-bit offsets,
 found by searching port/ and the game C (every file the PC compiles: src/blob, src/ovl_a, src/ovl_b and the src/rom
 units the PC doesn't replace) for 0x7FFFFF, 0x3FFFFF, 0xFFFFFF, 0x00FFFFFF, 0x1FFFFFFF, 0x0FFFFFFF, 0x0F000000,
 0xF0000000, 0xFF000000, 0x80400000, 0x80800000, 0x00800000, 0x00400000, `PC_RDRAM_SIZE`, `osVirtualToPhysical`,
@@ -295,11 +303,11 @@ units the PC doesn't replace) for 0x7FFFFF, 0x3FFFFF, 0xFFFFFF, 0x00FFFFFF, 0x1F
 
 - Sizes past 256 MiB (section 2): the two MusyX tests and the KSEG1 overlap would need changes, for no use in this
   game.
-- Windows: the cross build compiles (section 6), but nothing ran on Windows: the section's commit at 256 MiB, the views
-  at 0xA0000000 of more than 8 MiB, and the new tests there (CI's windows jobs run them).
+- Windows: the cross build compiles (section 6), but nothing ran on Windows: the heap's block committed at 256 MiB
+  (`VirtualAlloc`, top-down), and the new tests there (CI's windows jobs run them).
 - UBSan on x86-64 (CI's other sanitize job): the build host has no UBSan runtime, so it ran only on aarch64, with ASan.
-- The translated-window fallback (a host other than Linux and Windows): not built; its code follows the size as the
-  mapped window's does.
+- A host other than Linux and Windows: not built; the heap's block maps anywhere, so nothing in the memory model
+  stands in the way since step 12.
 - Finishing a race at `memory = 64` on the retail cartridge: the 12-car races ran 60 s each, and `raceend` retires a
   race to the results; MORECARS.md 10.4's races to the finish line were at `original`.
 - `expansion_pak = off` with a large heap and the pak's features off: not offered (section 1).

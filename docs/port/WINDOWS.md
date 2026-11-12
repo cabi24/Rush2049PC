@@ -53,19 +53,30 @@ PowerShell it prints into their window (section 10). It takes the same options a
   `x86_64-w64-mingw32-addr2line -f -e rush2049pc.exe` names that offset plus 0x140000000, the link-time image
   base.
 
-## 2. The RDRAM window
+## 2. The game heap's block (the RDRAM window until NATIVE.md step 12)
 
-As on Linux ([ULTRA.md](ULTRA.md) §2), 8 MiB at host 0x80000000 (KSEG0) and the same memory at 0xA0000000 (KSEG1):
+Since [NATIVE.md](NATIVE.md) step 12 (2026-11-12) nothing is at a fixed address, on Windows as on Linux
+([ULTRA.md](ULTRA.md) §2): the game heap is one block, `VirtualAlloc(NULL, ..., MEM_RESERVE | MEM_COMMIT |
+MEM_TOP_DOWN)` (`port/ultra/memory.c`, `pc_mem_map_heap`), committed when it is made (the commit charge, not RAM:
+pages are made as they are touched), so a `game.memory` the system can't commit fails at start with the error's
+number. The N64 guard (`RUSH2049_N64_GUARD=1`) reserves 0x80000000-0xBFFFFFFF with `VirtualAlloc(MEM_RESERVE,
+PAGE_NOACCESS)` and places the heap above 4 GiB with low 32 bits in a reserved trap; win32.c's exception filter prints
+the guard's note (`pc_mem_fault_note`) after the fault's first line.
 
-- `CreateFileMappingW(INVALID_HANDLE_VALUE, ...)` makes a pagefile-backed section, and two `MapViewOfFileEx` calls
-  view it at the fixed addresses (`port/ultra/memory.c`). A fixed-address view fails rather than moving when the
-  range is taken.
-- The window is required, as on Linux: the game's data lives there.
-- The test programs that map a window of their own use anonymous mappings. `port/include/win/sys/mman.h` gives
-  them `mmap`/`munmap`/`mprotect` on `VirtualAlloc`, with `MAP_FIXED_NOREPLACE`'s meaning. It is on the include path
-  of Windows builds only.
+Until then the window was 8 MiB at host 0x80000000 (KSEG0) and the same memory at 0xA0000000 (KSEG1): a pagefile-backed
+section (`CreateFileMappingW(INVALID_HANDLE_VALUE, ...)`) viewed at the fixed addresses by two `MapViewOfFileEx`
+calls, required as on Linux.
+
+The test programs that map memory of their own use anonymous mappings. `port/include/win/sys/mman.h` gives them
+`mmap`/`munmap`/`mprotect` on `VirtualAlloc`, with `MAP_FIXED_NOREPLACE`'s meaning. It is on the include path of
+Windows builds only.
 
 ## 3. Absolute symbols in a PE image
+
+History: since [NATIVE.md](NATIVE.md) step 12 no name is absolute (`aliases.ld`'s last ones, low memory's globals,
+are port/ultra's variables), no value below 4 GiB is read as an N64 address, and `pc_mem_init`'s reservation of the
+free ranges below 4 GiB went with them: the image keeps mingw-w64's default base and ASLR, but nothing depends on
+where anything lies. What follows is how it was.
 
 The game and port/data used about 1,800 names at absolute N64 addresses: port/data's arenas and `aliases.ld`'s
 low-memory globals and cartridge offsets ([DATA.md](DATA.md) §3). On Linux, code reaches them through the GOT, and
@@ -172,7 +183,7 @@ details differ:
   the same `data_symbols.txt`.
 - *Thunks.* The thunks are naked functions, since COFF has no `.previous`.
 - *Checks.* `gen_data.py --check --pe` skips symbol sizes, which COFF doesn't have, and checks that nothing is
-  linked inside the window or its KSEG1 alias.
+  at an N64 address (until [NATIVE.md](NATIVE.md) step 12: nothing linked inside the window or its KSEG1 alias).
 - *zcfree.* The game's deflate code defines `zcfree`. On Linux the shared zlib's is hidden, but a static zlib's is
   global, so on Windows the game's is compiled as `n64_zcfree`.
 
@@ -504,10 +515,11 @@ file, say) is tried again a second later. Backups and a damaged pak set aside: R
 - Anything with the ROM, as on Linux.
 - Windows on arm64, and 32-bit Windows (the port needs a 64-bit host).
 - MSVC and clang-cl (the build relies on GCC's attributes, `-fcommon`, `#pragma weak` and binutils).
-- A heap that starts below 4 GiB, as under gdb. Small allocations keep coming from it, so a host pointer the
-  converters malloc could read as an N64 address there; `memory.c` warns.
-- Third-party DLLs that need low addresses, which the reservation below 4 GiB would refuse (none showed up with
-  Mesa, SDL2 or the CRT).
+- The N64 guard on Windows (`RUSH2049_N64_GUARD=1`): built, never run there (the guarded synthetic paths are
+  Linux's `n64_guard_paths`).
+- (Until [NATIVE.md](NATIVE.md) step 12: a heap that starts below 4 GiB, as under gdb, and third-party DLLs that need
+  low addresses, which the reservation below 4 GiB would have refused. Nothing reads a low value as an N64 address
+  now.)
 
 ## 12. The same game as Linux's
 
@@ -554,7 +566,7 @@ the live-input runs compare to the bit; CI now does the rest (below).
   unit only where the last bit of the length decides a rounding tie.
 - *`long`.* 32 bits on Windows, 64 on Linux (section 4); the traces show no game code whose result depends on it on
   these paths.
-- *Windows-only code.* The `_WIN32` blocks in port/ are the window, threads' timed waits, the memory reservation,
+- *Windows-only code.* The `_WIN32` blocks in port/ are the heap's block and the guard's reservation, threads' timed waits,
   paths and the console; none is in the game's arithmetic. `RUSH_TRAP_FP` (port/ultra/misc.c:257) is glibc's only,
   and off by default.
 

@@ -20,8 +20,10 @@ inventory, what depends on what, the steps, and the measuring tool that shows ea
 | Piece | Where |
 |---|---|
 | The census: what is still tied to the window, by kind | `tools/port/window_census.py` (section 1), its test `tools/port/tests/test_window_census.py` |
-| The crossing counter and the arena guard: what still crosses, by site, along every path | `cmake -DRUSH_COUNT_CROSSINGS=ON`, `tools/port/crossings.py` (section 9) |
-| The window today | [ULTRA.md](ULTRA.md) 2, [DATA.md](DATA.md) 3, [MEMORY.md](MEMORY.md), [NOFIXED.md](NOFIXED.md) |
+| The crossing counter and the arena guard: what still crossed, by site, along every path (steps 1-11; gone with step 12, which took the crossings to 0) | section 9 |
+| The N64 guard: the N64's address range reserved with no access, every synthetic path run in it (since step 12) | `RUSH2049_N64_GUARD=1`, `tools/port/n64_guard.py` (section 17) |
+| What is left of N64 addresses in the code, by class, held by CI | `tools/port/n64_audit.py`, `tools/port/n64_audit_baseline.json` (section 17) |
+| The memory today | [ULTRA.md](ULTRA.md) 2, [DATA.md](DATA.md) 3, [MEMORY.md](MEMORY.md); the window's history: [NOFIXED.md](NOFIXED.md) |
 | The experiments behind this plan | section 2; scratch code on Rocky in `~/rush2049pc/w3-plan-exp` (not in the repository) |
 
 ## 1. The census
@@ -34,9 +36,9 @@ python3 tools/port/window_census.py [--build build/pc] [--no-compile] [--report 
 One line per kind, always the same kinds in the same order, so two runs compare line by line; `-` where the source
 isn't there. The docstring says where each count comes from: the generated data tables (`data_layout.json`,
 `aliases.ld`), `nm` over the objects, the sources with comments and strings told from code, the compiler pass of
-`nofixed_audit.py` (casts and implicit conversions between pointers and integers), and the loader's report.
-`--sites KIND` lists every site; `--baseline` fails when a kind grows (CI can hold the line as it does with
-`nofixed_audit.py`). ctest runs it on a made-up tree (`window_census_tool`) and over the build without the compiler
+`n64_audit.py` (casts and implicit conversions between pointers and integers; `nofixed_audit.py` until step 12),
+and the loader's report. `--sites KIND` lists every site; `--baseline` fails when a kind grows (CI can hold the line
+as it does with `n64_audit.py`). ctest runs it on a made-up tree (`window_census_tool`) and over the build without the compiler
 pass (`window_census`). The goal is every count at 0 but the `context.` ones.
 
 The counts on 254c4b01 (Rocky, Debug, with the compiler pass; the `runtime.` lines from the synthetic cartridge's
@@ -194,7 +196,8 @@ macros that converted (`N64P`, `N64W`) deleted. The gate shows the result is the
 
 ### 4.3 The heap: native pointers, the same accounting
 
-Done in step 6 as written here, but for the block itself, which stays where it is until step 12 (section 12).
+Done in step 6 as written here, but for the block itself, which stayed where it was until step 12 (section 12);
+step 12 made it PC memory as written here (section 17).
 
 The game's allocator decides what fits, and so what the game loads and when: its arithmetic must stay what it is at
 default settings (the N64's, but for the handle slots, 8 bytes on the PC since POINTERS.md 9.10). It does if each
@@ -213,8 +216,8 @@ allocator's choices are unchanged. The API (`DeallocateMemory`, `PurgeableMemory
 compare or subtract block addresses (the compaction's moves, `FindChunk`'s range test, the free's merge with its
 neighbours): with one block of PC memory, pointer comparisons there mean what the N64 addresses meant.
 
-The heap's block stays where it is (in the window, at 0x8017A640) until step 12: a pointer into it is a window
-address below 4 GiB, so every 32-bit holder not converted yet keeps working while the heap's own code goes native.
+The heap's block stayed where it was (in the window, at 0x8017A640) until step 12: a pointer into it was a window
+address below 4 GiB, so every 32-bit holder not converted yet kept working while the heap's own code went native.
 
 ### 4.4 Files from the ROM: native records and native display lists
 
@@ -273,7 +276,9 @@ the loader reserves (an offset in the heap since step 6). `RUNTIME_IMAGE_START` 
 ### 4.7 Low memory
 
 `osTvType`, `osMemSize` and the other boot parameters become ordinary variables port/ultra defines and sets
-(`pc_os_initialize`); `game_bss_end` and `overlay_base` went with the heap's code (step 6).
+(`pc_os_initialize`); `game_bss_end` and `overlay_base` went with the heap's code (step 6). Done in step 12: the two
+the game reads are variables of port/ultra/misc.c, the rest (the ROM base, the reset type, the CIC, the NMI buffer)
+nothing on the PC read.
 
 ### 4.8 New checks
 
@@ -281,13 +286,13 @@ the loader reserves (an offset in the heap since step 6). `RUNTIME_IMAGE_START` 
 |---|---|---|
 | `window_census.py` | the counts by kind; `--baseline` in CI holds the line, each step lowers it | this commit |
 | **A crossing counter** (`RUSH_COUNT_CROSSINGS`, a build option) | the probe of section 2 made a tool: every `PC_N64P/A/W/SLOT` crossing and the renderer's and audio's N64 addresses counted by site and target at exit; a step's proof includes "these sites cross 0 times along every path". The scratch probe (`w3probe.c`, `apply_probe.py` in the scratch tree) is the design: a weak hook from the prelude's macros, a table by site, a dump at exit, `addr2line` for the PC layer's callers | step 1: built (section 9) |
-| **The arena guard** (`RUSH2049_WINDOW_GUARD=arenas`) | after step 5 the window's arena ranges hold nothing: mapped with no access, any use faults with a note naming the datum and the instruction; after step 12 the whole range 0x80000000-0xBFFFFFFF is reserved with no access in this mode, so a stray N64 address faults wherever it comes from | step 1 (arenas): built in the counting build (section 9); step 12 (all) |
-| AddressSanitizer on x86-64 | a CI job (ASan and UBSan, every test, the synthetic paths); its redzones are step 13's proof | step 12 |
+| **The arena guard** (`RUSH2049_WINDOW_GUARD=arenas`) | after step 5 the window's arena ranges hold nothing: mapped with no access, any use faults with a note naming the datum and the instruction; after step 12 the whole range 0x80000000-0xBFFFFFFF is reserved with no access in this mode, so a stray N64 address faults wherever it comes from | step 1 (arenas): built in the counting build (section 9); step 12 (all): built as the N64 guard (`RUSH2049_N64_GUARD=1`, any build), section 17 |
+| AddressSanitizer on x86-64 | a CI job (ASan and UBSan, every test, the synthetic paths); its redzones are step 13's proof | step 12: built (section 17) |
 | The gate | objsame, synth_compare 64 of 64 `same` (shots, audio; 63 until step 8 added `language`), ctest and the realtime tests, the retail scripts on the Pi | every step |
 
 The moved build (`RUSH_NOFIXED`) and its CI job stay as they are during wave 3: every crossing still translates
 there, so a step that removes crossings must keep it building and its paths `same`. Step 12 retires it with the
-window it moves.
+window it moves: done (section 17).
 
 ## 5. The steps
 
@@ -627,7 +632,12 @@ palettes (`StartCar`, `car_palette_init.c`, `SetupCarColor`, `AnimateBrakeLights
 memory. Proof: the gate (the ghost and pak paths); every test. Depends on: 6. Can run with 10. Risk: the ghosts and
 the saves run on few synthetic paths (`ghost`, `pak`, `profile`); the retail pak scripts are the check.
 
-### Step 12. The window gone (medium-large)
+### Step 12. The window gone (medium-large): done
+
+Done 2026-11-12 (wave 3.5): what changed, the crossings, the guard and the proof are section 17. In short: the heap
+is a block of PC memory anywhere, with the N64's accounting and its alignment modulo 64 KiB; the state hash names a
+heap pointer by its offset; the window, the GOT fix-up, the translations, the moved build and the counter are gone;
+the N64 guard reserves 0x80000000-0xBFFFFFFF; ASan runs on x86-64. The plan was:
 
 The heap's block becomes PC memory (a mapping anywhere, sized by `game.memory`); `port/ultra/memory.c`'s window
 (the memfd, the views at 0x80000000 and 0xA0000000, Windows' sections), `absfix.c`, aliases.ld's absolute names,
@@ -711,6 +721,11 @@ merging").
   pointers to the work, not proofs of its end; the crossing counter and the guard mode are.
 
 ## 9. The crossing counter and the arena guard
+
+Retired with step 12 (2026-11-12, section 17): every kind counted 0 sites and 0 crossings along every path, the
+window it counted crossings into went, and with it the option, `port/ultra/crossings.c`, `pc_crossings.h`, the
+prelude's hooks, `crossings.py` and its tests; the N64 guard (`RUSH2049_N64_GUARD=1`) took the arena guard's place.
+This section is how it was.
 
 Built 2026-11-09 (step 1, wave 3.0) from the probe of section 2. The census (section 1) reads the sources; this runs
 the game and says which crossings happen, where, how often and into what. It is every later step's proof: "these
@@ -1700,3 +1715,256 @@ gone; left: step 10's `FRAME_IMAGE_IN_LIST` and `DL_AT`), `conv.pc_n64_ptr.port`
   entry's status and reserved bytes, which the game's `osPfsAllocateFile` leaves as they lay on its stack (as the N64
   did), differ. The guarded count: `PC_N64P`, `PC_N64W` at 0; `pc_n64_addr`'s one retail site is the decompressor's
   (step 12: section 5's step 12).
+
+## 17. Step 12: the window gone (done 2026-11-12)
+
+Wave 3.5's step 12, one agent, on 392a1aa3. Five commits, each passing ctest and the 64 synthetic paths `same`
+against the base:
+
+| Stage | What |
+|---|---|
+| 1 | the state hash, the logs and the last 32-bit holders made address-independent while the window still stood: the hash names a heap pointer by its offset, the logs give offsets and sizes, the sound library's D-cache bookkeeping (the N64's record sizes counted from the low 32 bits of the lists' addresses) deleted, `last_frame_text_dl_end` a `Gfx *`, rspboot's size a pointer difference |
+| 2 | the game heap off the window: a block of PC memory (`pc_mem_map_heap`), the loader's heap pointers into it (`pc_data_set_heap`), inflate's room `pc_heap_room`, libultra's `osTvType` and `osMemSize` variables |
+| 3 | the window's machinery deleted (below), the N64 guard built (`RUSH2049_N64_GUARD=1`, `n64_guard.py`, ctest `n64_guard_tool`, `n64_guard_paths`) |
+| 4 | the build: the x86-64 `-fPIC`/no-relaxation flags gone, ASan allowed on x86-64 and in CI, `RUSH_NOFIXED`'s job gone, `nofixed_audit.py` renamed `n64_audit.py` with its baseline, the loader's "below 4 GB" refusal and datacheck's check gone, the hash's heap rule kept to where a heap pointer can be (17.2: the gate's find), the comments the step made untrue |
+| 5 | the documents |
+
+### 17.1 The heap's new home
+
+`pc_mem_map_heap(osMemSize)` (port/ultra/memory.c), called by main after `pc_os_set_mem_size` and before the data
+loader runs:
+
+- **Where**: one mapping wherever the OS puts it. Linux: `mmap(NULL, ..., MAP_PRIVATE | MAP_ANONYMOUS |
+  MAP_NORESERVE)`, sparse (a page costs memory once written). Windows: `VirtualAlloc(NULL, ..., MEM_RESERVE |
+  MEM_COMMIT | MEM_TOP_DOWN)`, committed (the commit charge, not RAM). Under LSan the block is a root region.
+- **Size**: osMemSize less `PC_HEAP_OFFSET` (0x17A640, the bytes below the heap in the N64's RDRAM: libultra's low
+  memory, the boot segment, the game image and its BSS), so 6,838,720 bytes at the default 8 MiB, 2.5 MiB with
+  `expansion_pak = off`, N MiB less 0x17A640 with `game.memory`: the N64's room, at every setting.
+- **Alignment**: the block's first byte is as far past a 64 KiB boundary as the N64 heap's (0x8017A640: 0xA640). The
+  game rounds what it computes from heap addresses (the heap header at the first 32-byte boundary, the frame buffers
+  at 64 bytes, the chunks' 32-byte data), so every rounding comes out as on the N64 and the allocator lays out the
+  same chunks at the same offsets. `ultra_selftest` checks the place modulo 64 KiB, the size and the last byte.
+- **Accounting**: unchanged. `pc_heap_memory` (port/ultra/heap.c) gives `locate_main_heap` the block and its size,
+  as it gave the window's bytes from the end of the BSS; `expansion_pak_present` still tests osMemSize. The runtime
+  images' block is reserved at the same offset (`PC_RUNTIME_IMAGE_OFFSET`). The exit line's numbers are the same as
+  before, with offsets where it gave window addresses:
+
+      rush2049pc: heap: peak 920896 of 6838720 bytes, free-low 5917824 (largest block 4194272), osMemSize 8 MiB, the
+      heap from 1549888 bytes in; 416 allocations, short 0, none 0
+
+  ("from 1549888 bytes in" is `PC_HEAP_OFFSET`; `heap_check.py` reads the line, its test floor is given in MiB).
+- **The loader**: the ROM's pointers at or above the heap's N64 start (the tables' `heap_lo`) resolve into the block
+  (`pc_data_set_heap`, "heap (kept)" in its summary, the same count as before); the report's address-like words into
+  the heap or low memory reach nothing now (`[heap]`, `[low memory]`: counted with the host storage).
+
+### 17.2 The hash and ASLR
+
+The window was at 0x80000000 in every process, so a pointer into the heap was the same number everywhere. The block
+moves with ASLR, so the hash ([LOCKSTEP.md](LOCKSTEP.md) 5) names it:
+
+- **The rule**: an 8-byte-aligned u64 whose value lies in the block (or one past its end, a heap's `endRam`) is "the
+  heap" and its offset, `TAG(K_HEAP) << 32 | offset`, where a pointer into the heap can be: in the heap's block, in the
+  PC's C structs that hold pointers (the curated records, the decoupled items but the 24 of plain numbers,
+  `DECOUPLED_PLAIN`), and at own storage's typed pointers and longs. The heap's records hold pointers anywhere inside
+  other blocks (the sound library's lists and SFDs, the DMA list's destinations, the heap's own headers and master
+  slots), so the first-byte rule of the arenas doesn't fit them. Not in the arenas (no pointers), own storage's other
+  bytes or the plain decoupled items: the gate's first run found why. `pc_smoke_shade`'s eight greys make the word
+  0x00007F70_67645B58, which lay inside `replay_same_membig`'s recording's 64 MiB heap at 0x7F7064E3A640 and not inside
+  its replay's, so the two runs' decoupled hashes differed at retrace 3300 (the rule then applied everywhere). In the
+  heap's block itself a chance match needs a data word pair equal to the block's high 32 bits and inside it: before
+  the step, high words 0x7F00-0x7FFF (x86-64's mmap range) appeared 766 times in 145 million slots of heap data; at
+  `membig`'s retrace 3300, six, all with a low half of 0. Other host pointers outside every named target are "a host
+  pointer" (`K_HOST`), as before.
+- **The full hash's regions**: `heap` (the block, every byte), `own`, `decoupled` and `arenas` (the game's data and
+  BSS, until now part of `window`). The first hash prints the block's address once (`rush2049pc: hash: the game heap's
+  block at 0x..., N bytes`), the one line of a hashed run's log that names it.
+- **What went**: the `TRUNCATED` list (`last_frame_text_dl_end`, a display-list pointer's low half, is a `Gfx *`), the
+  window's region, `n64_identity`'s window branch (a profile's id is the tables' N64 address or the value's low half).
+- **The desync report**: `PATH.heap` and `PATH.arenas` (with `arena NAME N64 OFFSET SIZE` lines) for `PATH.window`;
+  `hash_compare.py --reports` names a heap word by its offset; `RUSH_SIM_DESYNC=N:heap+OFFSET[:XOR]` changes a heap
+  word (`replay_check.py`'s mutation is `heap+6859B0`, 16 bytes before the 8 MiB heap's end, as 0x807FFFF0 was).
+- **The proof**: `hash_aslr` (race2p, battle2p, drive, full hash at every retrace) checks that its two processes'
+  images and heaps lie apart (`replay_check.py`'s `_HEAP` lines; e.g. 0x7f9e4108a640 and 0x7fbcbab4a640) and agree;
+  `replay_same_*` on all 64 paths, `net_session_*` and `paced_*` agree as before.
+
+### 17.3 Truncations and 32-bit holders
+
+What still cut a pointer to 32 bits or kept one in a u32, found by the census (`conv.silent.*`, `conv.cc.*`), the
+audit's compiler pass and the guard, and what each became:
+
+| Site | Was | Now |
+|---|---|---|
+| the sound library's D-cache bookkeeping (src/rom/sound/hardware.c `sound_dma_list_end`, `sound_dma_list_cache_cursor`, `sound_sfd_write_end`, `sound_sfd_cache_cursor`; misc.c `dcache_create_dirty_lines`; dma_queue.c; musyx.h) | the N64's DMA list and SFD sizes counted from the low 32 bits of the lists' addresses, for a cache write-back the PC doesn't have | deleted: nothing read the counts |
+| rspboot's size (hardware.c, `sound_hw_submit_task`) | a 32-bit difference of two addresses | a pointer difference |
+| `last_frame_text_dl_end` (EndGraphics.c, text.h, test_pools.c) | a display-list pointer's low half (`u32`), which the hash had to leave out | `Gfx *` |
+| the census's silent zero-extensions (UpdateSmoke.c, stunt/group.c `stunt_eTime += *pdt`, AnimateTire.c, AnimateWing.c) | a pointer cast through `uintptr_t` back to a pointer (the census's `conv.silent.zext`) | the pointer, the arithmetic as it was (no reordering, the same types) |
+| `pc_os_initialize` (misc.c) | libultra's boot parameters written into the window's low memory (`BootParams` at 0x80000300, `pc_n64_ptr`: the counter's `low_memory`, 128 crossings) | `osTvType` and `osMemSize` are variables; the rest nothing read |
+| inflate's room (pi.c `inflate_buffer`) | the window's end from the destination (`pc_n64_addr`, 500 crossings on the retail scripts, none on the synthetic ones) | the heap's end from the destination (`pc_heap_room`), else 8 MiB |
+| the renderer (`pcgfx_resolve`, gfx_rsp.c) | a value below 4 GB an N64 address (K0/K1 through the window, physical, segmented) | a segment's base plus offset where the segment has a base, else the pointer |
+| the audio capture (`cap_region`, musyx.c) | regions in the window | the heap's (`pc_heap_holds`) |
+
+Left on purpose: the speech streams' and the DMA queue's cartridge addresses (`streams.c` 455, 471,
+`dma_queue.c`'s `DMA_SOURCE`: a pointer-typed field that holds a cartridge bus address, cut to 32 bits on purpose;
+`conv.silent.trunc` 3, `zext` 2) and `sound_hw_fetch_sample_range`'s `u32 addr` (a cartridge address,
+`api.u32_address` 1). None is memory.
+
+### 17.4 What was deleted
+
+| Piece | Where |
+|---|---|
+| the RDRAM window: the memfd, its views at 0x80000000 and 0xA0000000, Windows' section and views, the translated fallback, `pc_mem_set_size`/`pc_rdram_size`, `pc_n64_ptr`, `pc_n64_addr` | port/ultra/memory.c (rewritten: the heap's block, the guard, the ranges) |
+| the GOT fix-up of absolute symbols and its test | port/ultra/absfix.c, port/ultra/tests/test_absfix.c (`ultra_absfix`) |
+| `aliases.ld`'s absolute names (`osTvType`, `osMemSize` and the others in low memory) | tools/port/gen_stubs.py (now refuses one: `placed_data`) |
+| the prelude's `PC_N64P`, `PC_N64A`, `PC_N64W`, `PC_SLOT_*`, the counter's hooks; `RUSH_CHECK_CASTS` | port/include/pc_prelude.h, port/ultra/castcheck.c |
+| the crossing counter and the arena guard (`RUSH_COUNT_CROSSINGS`, `RUSH2049_WINDOW_GUARD`) | port/ultra/crossings.c, port/include/pc_crossings.h, tools/port/crossings.py, its test |
+| the moved build (`RUSH_NOFIXED`, `RUSH2049_NOFIXED=guard`) and its CI job | CMakeLists.txt, gen_data.py `--nofixed`, .github/workflows/pc.yml |
+| x86-64's `-fPIC -fno-semantic-interposition -mrelax-relocations=no` and `--no-relax` | CMakeLists.txt |
+| the renderer's 4 GiB rule, physical and K0/K1 addresses, `pcgfx_segment_value`; the renderer tests' RDRAM (`gfx.window.highmem`, the highmem scene, interp_test's and tex_test's arrays) | port/gfx/gfx_rsp.c, port/gfx/tests |
+| `pc_n64_map.h`'s RDRAM, KSEG, boot-parameter and overlay names, `PC_RDRAM_*` (the setting's range is `PC_MEMORY_MIN_MIB`/`MAX_MIB`) | port/include/pc_n64_map.h (now the cartridge and the segments), pc_port.h; the loader's N64 constants in port/data/pc_data.h |
+| `__osTLBLookup`, rom_tu.h's unused RCP registers and `K0BASE` | port/ultra/misc.c, src/rom/rom_tu.h |
+| the loader's "game data below 4 GB" refusal, datacheck's "above 4 GB" check, the self-test's "host addresses above 4 GiB" | port/data/pc_data.c, datacheck.c, port/ultra/selftest.c |
+| the window constants of the tools | tools/port/n64syms.py (its own constants), gen_data.py |
+
+86 files, 1,139 lines added and 3,529 removed outside docs/ (the five commits).
+
+### 17.5 The crossings, before and after
+
+The lead's count on 392a1aa3 (`crossings.py --guard`, the 64 synthetic paths, and the retail scripts on the Pi):
+
+| Kind | Sites before | Crossings before | After |
+|---|---:|---:|---|
+| `pc_n64_ptr` | 2 | 978,693: `pcgfx_resolve` (gfx_rsp.c:93) 978,565, `pc_os_initialize`'s low memory (misc.c:73) 128 | 0 (gone) |
+| `gfx.native_list` (a list in the window) | 4 | about 978,565 (gfx_api.c:689, gfx_rdp.c:1440, 1448, 1453) | 0 (gone) |
+| `pc_n64_addr` (retail only) | 1 | 500 (`inflate_buffer`) | 0 (gone) |
+| total | 7 (6 on the synthetic paths) | about 1.96 million | 0 |
+
+After stage 2 the counter (still built) gave every kind 0 sites and 0 crossings along all 64 paths, the arena guard 0
+faults, and `--check --no-faults` passed; `RUSH2049_NOFIXED=guard` (0x80000000-0xBFFFFFFF reserved) ran all 64 paths
+`same` with no fault. Stage 3 then deleted the counter with what it counted.
+
+### 17.6 The N64 guard
+
+`RUSH2049_N64_GUARD=1` (any build; off by default; not under x86-64 ASan, whose shadow covers the range):
+`pc_mem_guard_init` reserves 0x80000000-0xBFFFFFFF (KSEG0 and KSEG1: RDRAM, the RCP's registers, the cartridge) with
+no access before anything else maps; `pc_mem_map_heap` then puts the heap's block above 4 GiB at an address whose low
+32 bits are 0x40000000 and reserves 0x40000000 plus the block's size with no access too. So an N64 address used as a
+pointer faults, and so does a heap pointer cut to 32 bits; the fault handler (misc.c, win32.c) prints a note after the
+fault's first line:
+
+rush2049pc: N64 guard: 0x8014A128, an N64 address (KSEG0: RDRAM), the N64's gPlayers+0x10, used as a host pointer:
+nothing is there on the PC (RUSH2049_N64_GUARD, docs/port/NATIVE.md 17) rush2049pc: N64 guard: 0x40012340, a pointer
+into the game heap cut to 32 bits (heap+0x12340) (RUSH2049_N64_GUARD, ...)
+
+(the datum by the loader's tables, `pc_data_describe_loaded`; the addresses here are examples).
+`tools/port/n64_guard.py` runs every synthetic path with the guard against the same build without it
+(`synth_compare.py --env-b RUSH2049_N64_GUARD=1 --same --runs 1`), checks every guarded log for the guard's line and
+for no note, and runs a press script for the retail check (`--script`); ctest `n64_guard_tool` tests it on made-up
+logs and `n64_guard_paths` runs six paths (menu, race2p, battle2p, stunt, ghost, pak; not on Windows, not under
+ASan); the whole 64 are a run of the tool. The self-test checks the reservation and a note
+(`RUSH2049_N64_GUARD=1 rush2049pc --selftest --fast`, by hand: 37 of 37).
+
+### 17.7 The census and the audit
+
+`window_census.py` (Debug, the compiler pass) on 392a1aa3 and after:
+
+| Kind | 392a1aa3 | After |
+|---|---:|---:|
+| `data.inside_own` | 12 | 12 |
+| `data.window_aliases` | 2 | 0 |
+| `data.by_name.game` | 5 | 0 |
+| `data.by_name.port` | 1 | 0 |
+| `conv.pc_n64_ptr.port` | 17 | 0 |
+| `conv.silent.trunc` | 3 | 3 |
+| `conv.silent.zext` | 15 | 2 |
+| `conv.cc.ptr_to_int` | 6 | 0 |
+| `api.u32_address` | 1 | 1 |
+| `lit.address.game` | 1 | 0 |
+| `lit.hw_register.game` | 8 | 0 |
+| `lit.window.port` | 4 | 4 |
+| `n64map.uses.port` | 105 | 7 |
+| `heap.window_symbols` | 2 | 2 |
+| `heap.allocate_at` | 1 | 1 |
+| `port.below_4g` | 11 | 0 |
+| `port.n64_reads` | 3 | 0 |
+| `port.mapping` | 19 | 7 |
+| `port.rdram_base` | 44 | 0 |
+| `tests.window` | 22 | 3 |
+| `be.ranges` | 35 | 35 |
+| `be.rgba.game` | 10 | 10 |
+| `text.window.game` | 53 | 51 |
+| `context.own` | 404 | 405 |
+| `context.decoupled` | 39 | 39 |
+| `context.lit_bit.game` | 17 | 16 |
+| `context.n64map.defs` | 26 | 8 |
+
+What is left but `context.`, and why: `data.inside_own` 12 (interior labels: step 13); `be.ranges` and `be.rgba.game`
+(step 14); `conv.silent.trunc` 3, `conv.silent.zext` 2 and `api.u32_address` 1 (the cartridge's bus addresses the speech
+streams, the DMA queue and the sample fetch keep, 17.3); `n64map.uses.port` 7 (the cartridge's and the display lists'
+segments, what `pc_n64_map.h` keeps); `port.mapping` 7 (the guard's reservation and trap, the Windows `mman.h` shim);
+`heap.window_symbols` 2 (boot.c's inflate of the game image to `gDecompressedDataStart`, which the PC's
+`unzipdata_from_rom` answers without writing, and the I-cache call before it, a no-op); `heap.allocate_at` 1 (the
+overlay loader's reservation of the runtime images' block in the heap, the N64's accounting); `lit.window.port` 4
+(SHA-1's constants in romcheck.c and datacheck.c, not addresses) and `tests.window` 3 (test patterns: 0x9ABCDEF0 twice,
+0xAABBCCDD); `text.window.game` 51 (comment lines; what they say is true: "with no N64 address", "until wave 3",
+libultra's own words in `os_pi.h`).
+
+`n64_audit.py` (`nofixed_audit.py` until now: the same classes, renamed for what it guards) and its baseline
+`n64_audit_baseline.json`, measured on Rocky (GCC 14, Debug): against 392a1aa3's `nofixed_baseline.json`, the compiler's
+classes all went to 0 (`cc.ptr_to_int` 28, `cc.int_to_ptr` 8, `cc.implicit.ptr_to_int` 8, `cc.implicit.int_to_ptr` 5;
+the warnings' context 39, 8 and 13), and `port.rdram_base` 46, `port.translate` 22, `src.lit.code.hw_register` 8,
+`symbols.by_name.game_objects` 5, `symbols.aliases.rdram` 2, `symbols.names_reached.*` 2 and 2, `src.lit.code.address` 1
+and the tests' `port.rdram_base.tests` 11, `port.translate.tests` 20 went to 0 too; `src.zext` 15 to 2, `port.host_test`
+19 to 7, `port.mapping` 24 to 7, `port.trunc` 13 to 9, `port.zext` 17 to 11, `src.lit.code.bit` 16 to 15; `symbols.own`
+404 to 405 (`last_frame_text_dl_end`, a pointer now, is own storage); `context.game_files_compiled` 966 to 961 (the
+deleted test programs' game C). What is left, by class: `src.trunc` 3 and `src.zext` 2 (the speech streams' and the DMA
+queue's cartridge addresses), `port.trunc` 9 and `port.zext` 11 (the loader's decoding of the ROM's 32-bit values, the
+cartridge's PI addresses), `port.mapping` 7 (the guard's reservation, the Windows mman shim), `port.host_test` 7 (`>>
+32` on values that are not addresses: the hash's tags, the network's words, the guard's trap), `port.lit` 4 (SHA-1's
+constants), `src.lit.code.bit` 15 (0x80000000 as a flag), `src.lit.comment` 10, `symbols.inside_own` 12 (step 13). CI's
+linux job runs it with GCC 13 as before.
+
+### 17.8 The proof
+
+Rocky (x86-64, GCC 14), against wave 3.4's end (`~/rush2049pc/w3e-ref`, 392a1aa3's builds):
+
+| Check | Result |
+|---|---|
+| each stage: ctest (Debug) and `synth_compare.py --same --shots --audio --data-moved` against the base | stage 1: 575 of 575, 64 of 64 `same`; stage 2: 575 of 575, 64 of 64; stage 3: 572 of 572 (gone with what they tested: `ultra_absfix`, `crossings_tool`, `gfx.window.highmem`, `.bedata`, `.textures`; new: `n64_guard_tool`, `n64_guard_paths`), 64 of 64, and the guard 64 of 64 clean |
+| `pconly_gate.sh --base ~/rush2049pc/w3e-ref --skip realtime --data-moved` (the final tree) | PASS: ctest 572 of 572 (`assets_rom` skipped: no ROM on Rocky), synth_compare 64 of 64 `same` (shots, audio) |
+| the first gate run (before the hash fix, 17.2) | compare 64 of 64 `same`; ctest 571 of 572: `replay_same_membig`'s recording and replay differed in the decoupled hash at retrace 3300 (`pc_smoke_shade`, 17.2); six replays of it with `--hash-report 3300` then agreed, each heap elsewhere |
+| RelWithDebInfo against the base's RelWithDebInfo (`synth_compare.py --same --shots --audio --data-moved -j8`) | 64 of 64 `same`, before the hash fix and after it (after: `mods_fuzz_quarter` and `mods_fuzz_short` varied between the step's own two runs at the exit's last audio subframe, PCONLY.md 2's known variation; alone, `same`) |
+| the audible cartridge (`rush2049_synth_snd.z64`), Debug against the base's Debug, the same options | 64 of 64 `same` |
+| `ctest --test-dir build/opt -LE realtime` | 572 of 572 (`assets_rom` skipped: no ROM on Rocky); after the hash fix, its hash tests again (`replay`, `hash`, `net_session`, `paced`, `desync`): 208 of 209 (the selection took realtime-labelled ones too, run beside the rest: `paced_audio`, which measures the host's clock, failed there; alone under the lock it passes) |
+| the realtime tests (`ctest -L realtime`, Debug, under `flock ~/rush2049pc/.realtime.lock`) | 61 of 61 |
+| the N64 guard over every path (`n64_guard.py -j8`) | 64 of 64 guarded runs clean, each `same` as the run without |
+| `hash_aslr` | its two processes' images and heaps apart, the hashes the same (in every ctest above) |
+| UBSan over CI's x86-64 set (`-LE realtime`, the job's skip list; `UBSAN_OPTIONS=print_stacktrace=1:halt_on_error=1:...:suppressions=tools/port/sanitize/ubsan.supp`), GCC 14's objects with Clang 21's runtime | 546 of 546 pass (`assets_rom` skipped: no ROM), no `runtime error` in any test's output, 14.4 minutes at -j6 |
+| ASan with UBSan on x86-64 (the arm job's skip list), the same runtime | 399 of 399 pass (`assets_rom` skipped), no ASan, LSan or UBSan report; `sanitize_fault_chain` sees ASan's report after the port's, so the runtime reports through the fault handler; 4.4 minutes at -j6 |
+| CI's linux checks: `offset_check.py --strict` (Debug), `alias_check.py`, `bounds_check.py` (RelWithDebInfo), `census.py`, `n64_audit.py --baseline` | all pass: `offset_check.py --strict` 961 units, 59,724 accesses, open findings 0 (3 reviewed, 8 unconfirmed, as before); `alias_check.py` none open; `bounds_check.py` none new (21 + 11 + 2 reached-outside pairs, all reviewed); `census.py` 1,063 of 1,063 compile, 0 pointer warnings, 0 undefined; `n64_audit.py --baseline` no class grew (19 classes); the CI step that boots without a ROM still reaches "wave 0 loaded" (and stops as the base does) |
+| the self-test | `--selftest` 37 of 37 (real time), `--selftest --fast` 36 of 36, with `RUSH2049_N64_GUARD=1` 37 of 37; `ultra_selftest_memory64`, `_memory256` pass (ctest) |
+| the Windows paths (memory.c, win32.c, misc.c, heap.c, statehash.c, main.c, pc_data.c, the renderer's and the audio's) | `x86_64-w64-mingw32-gcc -fsyntax-only -Wall` on the Pi: no error or warning; not linked or run (the lead's mingw build and CI's windows jobs) |
+| `.github/workflows/pc.yml` | parses (PyYAML on Rocky): jobs linux, optimized, sanitize, windows-cross, optimized-windows, windows-run, windows-same, windows-replay, windows, windows-native-same |
+
+### 17.9 What this changes for later steps
+
+- **ASan on x86-64 is there for step 13.** CI's `sanitize` job runs ASan with UBSan on both runners; on Rocky, GCC's
+  objects link Clang 21's runtime ([SANITIZE.md](SANITIZE.md) 1.4). Its redzones see the C heap, the stacks, own
+  storage and the decoupled records; not the game heap's block (the game's allocator manages it, with the N64's
+  accounting, which has no room for redzones) nor an arena's inside (the N64's layout). Step 13's objects per datum
+  are what give the arenas' data redzones; the heap's blocks stay the static tools' and UBSan's `bounds`.
+- **The hash's heap rule** (17.2) holds for whatever the heap's blocks hold; a datum step 13 moves from an arena to
+  storage of its own is named by the tables as own storage is now. A new kind of host memory that holds game
+  pointers (not the heap, not the image) needs a rule in statehash.c, or its pointers hash as "a host pointer" and
+  differ from process to process: `hash_aslr` and `replay_same_*` are the check.
+- **What is left of N64 addresses** is the ROM's format and the cartridge: the loader's constants (`pc_data.h`,
+  `n64syms.py`), the cartridge's bus addresses (`pc_n64_map.h`; the speech streams' and the DMA queue's 32-bit
+  cartridge addresses, `sound_hw_fetch_sample_range`'s), the display lists' segments, the heap's offsets
+  (`PC_HEAP_OFFSET`, `PC_RUNTIME_IMAGE_OFFSET`: the accounting), and the guard's range. A file interface for the ROM
+  in place of the PI (section 7) would take the cartridge's; nothing in steps 13 and 14 needs it.
+- **Step 14** is unchanged: `be.ranges` and `be.rgba.game` (the census's 35 and 10) are its. **Step 13**: the
+  census's `data.inside_own` 12.
+- **The guard is the net for what the synthetic paths never reach**: the lead's retail scripts with
+  `RUSH2049_N64_GUARD=1` (`n64_guard.py --script`), and the loader's report on the retail cartridge (its unresolved
+  pointers and the 28 into low memory, section 11: nothing is there on the PC now, so a use faults in the guard).
+- **macOS**: nothing in the memory model stands in the way (no fixed address, no 4 GiB rule, no `__PAGEZERO`
+  problem); its first build is still to be made.

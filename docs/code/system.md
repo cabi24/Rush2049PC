@@ -32,7 +32,7 @@ heap's own headers, for the heap's files only), and these sections of
 `main` (the N64's entry) starts libultra and the idle thread. `main_thread_entry` sets the FPU mode
 (`FPCSR_GAME`), makes the queues (`rom_dma_queue`, `unzip_dma_queue`, `main_thread_queue`, `game_thread_queue`),
 the scheduler (`osCreateScheduler`: the video mode from `video_mode_base_index`), inflates the game image from the
-cartridge (`unzipdata_from_rom`; on the PC port/ultra fills the RDRAM window), subscribes to the scheduler, starts
+cartridge (`unzipdata_from_rom`; on the PC the data loader fills the image's blocks), subscribes to the scheduler, starts
 the background loader and the model thread, runs **`InitSystem`** (heap_release/initsystem.c), shows the boot
 screen (`BlitInit`), starts the game thread, waits for its first end of frame and then serves the scheduler
 forever.
@@ -187,8 +187,9 @@ same input.
 ## 8. What is still N64-shaped (for wave 3)
 
 - **The heap** is native since [NATIVE.md](../port/NATIVE.md) step 6 (its headers, its interface and the image block),
-  but its memory is still the N64's place in the RDRAM window (`pc_heap_memory`) until step 12, and what the game
-  keeps in its blocks may still hold 32-bit addresses (a ghost header's start: step 11). The WAD's records and the
+  and its memory a block of PC memory since step 12 (`pc_heap_memory`: osMemSize less the N64's room below the heap,
+  its first byte as far past a 64 KiB boundary as on the N64), with the N64's accounting; nothing kept in its blocks
+  holds a 32-bit address since step 11. The WAD's records and the
   font's letters are native beside the file since step 7, its display lists since step 10. Every heap file still
   declares its own `osRecvMesg`/`osSendMesg` and views `heap_lock_queue` its own way.
 - **The WADs' display lists and texture loads** are native beside the file since NATIVE.md step 10: the WAD converter
@@ -197,7 +198,7 @@ same input.
   `display_list_traverse`, `mirror_vertex_texcoords` and the texture animation read and write them as they are. The
   texels and the palettes' colours stay in the file in the N64's formats.
 - **The frame**: `frame_records`' tasks are `PcScTaskShape`, the N64 OSScTask in host form; the frame buffers and
-  the z-buffer are pointers into the heap (`framebuffer_a`, `zbuffer`), still in the window; `frame_color_buffers`
+  the z-buffer are pointers into the heap (`framebuffer_a`, `zbuffer`); `frame_color_buffers`
   is a label 0xC8 bytes into `frame_records`.
 - **The scheduler's** queues and thread keep N64-sized storage at their N64 offsets in `PcSched`, because the game
   takes their addresses (`scheduler_task_queue` ...) and reads the retrace count at 0x27C.

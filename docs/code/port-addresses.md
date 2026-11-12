@@ -21,6 +21,30 @@ next to a KSEG0 one.
 The sections after "Wave 2: done" are that inventory as it was made, before wave 2 (its line numbers are that tree's);
 "Wave 2: done" says what became of each group, and what is left.
 
+## Wave 3: done (2026-11-12, [NATIVE.md](../port/NATIVE.md) step 12)
+
+Nothing of the game is at an N64 address any more: its data are host storage, its heap a block of PC memory
+wherever the OS puts it, its display lists hold host pointers, libultra's boot globals are variables. What is left of
+the N64's memory map in port/ is the two formats the PC still reads:
+
+| Where | Names | What | Why it stays |
+|---|---|---|---|
+| `port/include/pc_n64_map.h` | `N64_CART_PHYS`, `N64_PIF_ROM_PHYS`, `N64_CART_KSEG1`, `N64_CART_SPAN`, `N64_TO_PHYS(a)` | the cartridge on the PI bus (PI_DOM1_ADDR2, PIF_ROM_START, osRomBase, K0_TO_PHYS) | the game reads its cartridge through libultra's PI by its KSEG1 addresses, and MusyX names its samples by them |
+| `port/include/pc_n64_map.h` | `N64_SEGMENT_ID_MASK`, `N64_SEGMENT_OFFSET_MASK`, `N64_SEGMENT_SPAN` | a display list's segmented address (SEGMENT_NUMBER, SEGMENT_OFFSET; 16 segments of 16 MiB) | the renderer keeps the microcode's segment table (`pcgfx_resolve`) |
+| `port/data/pc_data.h` | `N64_KSEG0`, `N64_KSEG1`, `N64_KSEG2`, `N64_RDRAM_END`, `N64_LOW_MEMORY_END`, `N64_OVERLAY_BASE`, `N64_IS_KSEG0_OR_1`, `N64_IS_KSEG1`, `N64_KSEG1_TO_KSEG0` | the cartridge images' link addresses, as the loader decodes the pointers in the ROM's data and the overlay's relocations | the ROM's format, read once at load time (the data loader and its tools only) |
+| `port/ultra/memory.c` | `GUARD_LO`, `GUARD_HI`, `GUARD_KSEG1`, `GUARD_TRAP` | the range the N64 guard (`RUSH2049_N64_GUARD=1`) reserves with no access, and the trap for a heap pointer cut to 32 bits | a debugging mode that makes any N64 address used as a pointer fault |
+| `port/include/pc_game_types.h` | `PC_HEAP_OFFSET` (0x17A640), `PC_RUNTIME_IMAGE_OFFSET`, `PC_RUNTIME_IMAGE_SIZE` | the heap's offset in the N64's RDRAM and the runtime images' block in the heap, as offsets | the heap's accounting is the N64's: its size (osMemSize less PC_HEAP_OFFSET), its alignment modulo 64 KiB and the images' block at the same offset |
+| `tools/port/n64syms.py` | `KSEG0`, `KSEG1`, `KSEG2`, `RDRAM_END`, `LOW_MEMORY_END`, `OVERLAY_BASE` | the same numbers for the tools (gen_data, gen_stubs, the checks), its own constants now (it read `pc_n64_map.h` until step 12) | the tools read the ROM's format and the symbol files |
+
+Gone from `pc_n64_map.h` with step 12 (26 names before, 8 after): `N64_PHYS_MASK` (`N64_TO_PHYS` keeps the mask),
+the KSEG names (to pc_data.h, the loader's), `N64_RDRAM_SIZE`, `N64_RDRAM_SIZE_NO_PAK` (misc.c's
+`MEM_SIZE_PAK`/`MEM_SIZE_NO_PAK` now), `N64_BOOT_PARAMS`, `N64_HEAP_BASE`, `N64_OVERLAY_BLOCK_END`, `PC_RDRAM_BASE`, `PC_RDRAM_SIZE`,
+`PC_RDRAM_MAX` (`PC_MEMORY_MIN_MIB`/`PC_MEMORY_MAX_MIB` in pc_port.h, the setting's range), `PC_RCP_SEGMENT_SPAN`;
+`pc_n64_ptr`/`pc_n64_addr`; the prelude's `PC_N64P`, `PC_N64A`, `PC_N64W`, `PC_SLOT_*`; `aliases.ld`'s absolute names
+(gen_stubs refuses a data name the symbol file puts in RDRAM: "nothing may be left at an N64 address"); src/rom/rom_tu.h's
+`K0BASE` and RCP register names the PC never used; `__osTLBLookup`. The census's `n64map.uses.port` went from 105 to 7
+(the cartridge's and the segments' uses), `port.rdram_base` from 44 to 0.
+
 ## Wave 2: done (2026-11-08)
 
 In port/ (C, headers, the data rule files, its CMake), 8-digit literals in the N64's address families (0x80000000 to

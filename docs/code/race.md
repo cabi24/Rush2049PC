@@ -141,9 +141,9 @@ the N64 draws by (`n64`) and updates the sky.
 - **Targets** (`tTarget`) are PC data in the host layout since wave 3's step 3 (docs/port/NATIVE.md): their link
   and their kind's record are pointers, and so are the visuals' data words and the target groups' list that hold
   them. **Their records** keep the N64's layout (heap blocks the game's heap accounts): a path target's record
-  (`tTargetStructPath`) holds its path, a PTHD record (`tBasicTargetPath`, its points `TargetPathPt`; its `pts`,
-  `trigPtr` and `parent` are 32-bit window addresses too), as a window address read through `PC_N64P`; a bounding
-  box model (`tMiniModelData`) keeps its box as its row of `BBoxCollInfo`.
+  (`tTargetStructPath`) holds its path, a PTHD record (`tBasicTargetPath`, its points `TargetPathPt`), as its index
+  in `gTargetPaths.paths` (`pathIdx`, MAT3's `pathData`; `TARGET_PATH`); a bounding box model (`tMiniModelData`)
+  keeps its box as its row of `BBoxCollInfo`.
 - **The model record** (`tModelData`, 0x808 bytes on the N64) has host pointers on the PC (0x830 bytes,
   [CARS.md](../port/CARS.md) 4); each file reads it through a view of the fields it needs (MAT3's names), which
   declares the pointers too.

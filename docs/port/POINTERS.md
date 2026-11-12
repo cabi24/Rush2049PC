@@ -10,12 +10,20 @@ the original tokens, and no line moved inside a function. With the N64 build gon
 branch of every conditional is simply the code (`tools/port/flatten_pc.py`), and where this page says "under
 `TARGET_PC`" it describes how a change was first made.
 
+**Since 2026-11-12 ([NATIVE.md](NATIVE.md) step 12) the 32-bit world this page works around is gone.** Wave 3 made
+every record that kept a 32-bit address hold a pointer (steps 2-11), and step 12 took the RDRAM window away: the
+game's heap is a block of PC memory anywhere, low memory's globals are variables, and nothing is at an N64 address.
+`pc_n64_ptr`/`pc_n64_addr`, the prelude's `PC_N64P`, `PC_N64A`, `PC_N64W` and `PC_SLOT_*`, the file macros
+(`N64P`, `N64W`, `PACKET` ...), `RUSH_CHECK_CASTS` and the renderer's rule for values below 4 GB went with it. What this
+page says about window addresses, masked addresses and `(u32)` of a heap pointer being exact describes the code
+before wave 3: read [NATIVE.md](NATIVE.md) for what each became. The rule now: a pointer is a pointer, everywhere.
+
 ## 1. Mechanism
 
 - **Prelude.** `port/include/pc_prelude.h` is force-included first into every game file (`CMakeLists.txt`,
   `game_flags`). It defines `uintptr_t`/`intptr_t` from `__UINTPTR_TYPE__`/`__INTPTR_TYPE__` (no system headers),
-  big-endian accessors `pc_be32_get/set`, `pc_be16_get/set` for N64-form ROM data, and declares
-  `pc_n64_ptr`/`pc_n64_addr` (port/ultra).
+  big-endian accessors `pc_be32_get/set`, `pc_be16_get/set` for N64-form ROM data, and (until [NATIVE.md](NATIVE.md)
+  step 12) declared `pc_n64_ptr`/`pc_n64_addr` (port/ultra) and the `PC_N64*` macros.
 - **Pointer-sized integers.** `(u32)p` -> `(uintptr_t)p`, `s32 x` -> `intptr_t x` where an integer carries a pointer.
   (The 427 m2c-context files' own `typedef u32 uintptr_t;` were the N64's and are gone.)
 - **PC types and macros.** Records that hold pointers have their PC layout; file-scope macros (`DLW(w)`, `TEXT_DL`,

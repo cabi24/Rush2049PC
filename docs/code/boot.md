@@ -99,7 +99,7 @@ codes in the bit stream); its three inner kernels (`gsm_rpe_decode`, `gsm_long_t
 
 | Range | What |
 |---|---|
-| 0x80000000-0x80000400 | exception vectors and libultra's boot globals (`osTvType`, `osMemSize`, ...) |
+| 0x80000000-0x80000400 | exception vectors and libultra's boot globals (`osTvType`, `osMemSize`, ...; on the PC ordinary variables of port/ultra/misc.c) |
 | 0x80000400-0x800277D0 | the boot segment's code |
 | 0x800277D0-0x8002AFA0 | the GSM kernels and the RSP microcode: `rspbootTextStart`, `gspF3DEX2_NoN_fifoTextStart`, `audio_ucode_text` (MusyX, not the SDK's aspMain) |
 | 0x8002AFA0-0x8002E8E0 | initialized data: the timer's `gRetraceRate`/`gRetraceTime`, `screen_width`/`screen_height`, the video tables, the unzip tables, libultra's tables, the sound library's curves and ratio tables, `gWaveSizes`, two static display lists, the microcode data segments, the build-info record |
@@ -115,8 +115,9 @@ section.
 queues, events, timers, interrupts, the VI/PI/SI/AI/SP managers and raw device access, cache and TLB operations,
 the inflater and LZSS reader (zlib and C in `port/ultra/pi.c`), and the IDO libc (the host's is used). Compiled
 natively: the timer, the scheduler, the video-mode code (its VI writes go to port/ultra), the `gu*` helpers and libm,
-the Controller Pak file system and controller packing, and the whole sound library. The data stays at its N64
-addresses in the RDRAM window for now ([DATA.md](../port/DATA.md)); wave 3 moves it into ordinary PC storage.
+the Controller Pak file system and controller packing, and the whole sound library. The data is host storage, in
+the N64's layout in the data loader's blocks ([DATA.md](../port/DATA.md)); nothing is at an N64 address since wave 3
+([NATIVE.md](../port/NATIVE.md) step 12).
 
 Things a reader may trip on:
 

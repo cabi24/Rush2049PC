@@ -309,4 +309,5 @@ is always true.
 Two port bugs found here are fixed (2026-11-08): `SetResurrectionData`'s attract-mode branch read the drone path
 point at the N64 offset 0x338 of the PC car record (visual 17's `index`) instead of `mpctl.idx`, so the demo's cars
 started from another point of the drone path; and `StartHeadLights` took `car_palettes`' window address as the
-palette's pointer without `PC_N64P` (the same pointer in the default builds, not under RUSH_NOFIXED).
+palette's pointer without `PC_N64P` (the same pointer in the default builds, not under RUSH_NOFIXED, the moved
+build [NATIVE.md](../port/NATIVE.md) step 12 retired with the window).

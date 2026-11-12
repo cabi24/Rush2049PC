@@ -198,9 +198,9 @@ because the library is the same.
 
 ## 8. Still N64-shaped (for wave 3)
 
-- **The targets keep their N64 layout.** A target, its per-kind data (`CoinData`, `MineData`, `VelRot`, a path's
-  records) and the visual's `data` are 32-bit window addresses read through `PC_N64P`/`PC_N64W` (the `N64P(x)`
-  `_Generic` macros dispatch on the enum type of the field). `struct Target` is defined by each file that reads it
+- **The targets** were in their N64 layout here, a target, its per-kind data (`CoinData`, `MineData`, `VelRot`, a
+  path's records) and the visual's `data` 32-bit window addresses read through `PC_N64P`/`PC_N64W`; they are PC data
+  with pointers since [NATIVE.md](../port/NATIVE.md) step 3, and the macros went with step 12. `struct Target` is defined by each file that reads it
   (fourteen files here, three in nonmatching/game), each with its own subset of fields: one shared definition in
   types.h, once every file agrees, is the next step. `TargInfo` (track area) still has guessed field names; MAT3's
   are `mboxname`, `startFunc`, `animFunc`, `collFuncIdx`, `Flags`, `objListIdx`, `structureID`, `structureIdx`,
@@ -220,8 +220,9 @@ because the library is the same.
   window, which the PC's DMA emulation reads.
 - **`gNumModels[0]`**: the model count is an array of 4 bytes in include/game (the data loader's layout: the gap to the
   next datum), so the screens read `gNumModels[0]`; MAT3's `unsigned char gNumModels` is for wave 3.
-- **The track maps** (trackscr.c): `MapLod.displayList` and `verts` are 32-bit fields given host pointers to the
-  display lists `buildTrackMaps` makes; that holds only while the heap is in the fixed window.
+- **The track maps** (trackscr.c): `MapLod.displayList` and `verts` were 32-bit fields given host pointers to the
+  display lists `buildTrackMaps` makes, which held only while the heap was in the fixed window; they are pointers
+  since [NATIVE.md](../port/NATIVE.md) step 10.
 - **Labels into objects**: `flashColors_at_1` is `flashColors[1]`, `gPlayers_save` is `gPlayers[0].profile` (no
   longer used here), the trophy sheen's scale is `ObjInstanceList[node].w` (until wave 2c circuitscr.c wrote it
   through `object_list_scale_view`, a label 0x10 before `ObjInstanceList` read as 0x44-byte records: the window's
