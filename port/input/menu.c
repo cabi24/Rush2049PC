@@ -14,7 +14,7 @@
  *   sticks, rumble). The graphics API, the audio backend and the sound's voices (MusyX is set up once a run:
  *   docs/port/AUDIO.md 10) apply after a restart; they are marked so. The cars a race holds (game.cars) apply from the next race: the game latches
  *   them where a race's roster is filled (port/config/race_cars.c). The game's memory (game.memory) applies after a
- *   restart too: the RDRAM window is mapped at start (docs/port/MEMORY.md). The game's own frame rate
+ *   restart too: the game heap's block is mapped at start (docs/port/MEMORY.md). The game's own frame rate
  *   (game.frame_rate) applies from the next screen: the game latches it where its state changes
  *   (port/config/game_fps.c).
  * - Save writes the settings changed here (and different from the file) into rush2049pc.ini in place

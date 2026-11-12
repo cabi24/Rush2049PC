@@ -43,7 +43,7 @@ Where each count comes from:
   byte order (pc_be16/32 accessors, the big-endian ranges, PC_RGBA, byte swaps in game C); comments in the game C
   that still speak of window, K0 or physical addresses.
 - The compiler (--build, unless --no-compile): every game C file of compile_commands.json compiled again with
-  -fsyntax-only and the warnings the build turns off, as tools/port/nofixed_audit.py does (its helpers are reused):
+  -fsyntax-only and the warnings the build turns off, as tools/port/n64_audit.py does (its helpers are reused):
   casts between a pointer and an integer of another size, and implicit conversions between them.
 - The loader's report (--report FILE, or the build's data_report.txt when it exists, which the first run of the
   program writes): its `addr-word` lines (a u32 word of ROM data that holds an N64 address), `unresolved` and
@@ -67,7 +67,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-import nofixed_audit  # noqa: E402  split_code, the compiler pass
+import n64_audit  # noqa: E402  split_code, the compiler pass
 
 GAME_DIRS = ("src", "nonmatching", "include")
 PORT_DIRS = ("port",)
@@ -190,7 +190,7 @@ BE_ACCESS = re.compile(r"\bpc_be(?:16|32)_(?:get|set)\s*\(")
 BE_RANGE = re.compile(r"\bpc_mem_(?:register_be|unregister_be|is_be)\s*\(|\bpcgfx_is_be\s*\(")
 RGBA = re.compile(r"\bPC_RGBA\s*\(|__builtin_bswap(?:16|32|64)\s*\(")
 WINDOW_WORDS = re.compile(r"window address|N64 address|\bRDRAM\b|\bKSEG[01]\b|\bK0 address|physical address", re.I)
-LIT = nofixed_audit.LIT   # 0x8xxxxxxx..0xBxxxxxxx
+LIT = n64_audit.LIT   # 0x8xxxxxxx..0xBxxxxxxx
 
 
 # --------------------------------------------------------------------------- the census
@@ -245,8 +245,8 @@ def n64map_names(root):
 
 
 def lit_class(value, code_line):
-    """nofixed_audit's classes of a literal in the window's range: address, region, k1, hw_register or bit."""
-    cls = nofixed_audit.lit_code_class(value, code_line)
+    """n64_audit's classes of a literal in the window's range: address, region, k1, hw_register or bit."""
+    cls = n64_audit.lit_code_class(value, code_line)
     return cls.rsplit(".", 1)[-1]
 
 
@@ -263,7 +263,7 @@ class Source:
         self.posix = rel.as_posix()   # the tree path with /, on Windows too, for the comparisons by prefix and name
         text = path.read_text(errors="replace")
         self.lines = text.split("\n")
-        code, comm = nofixed_audit.split_code(text)
+        code, comm = n64_audit.split_code(text)
         self.code, self.comm = code.split("\n"), comm.split("\n")
         # macro[k]: the name of the #define line k is part of (its first line or a continuation), else None
         self.macro, name = [], None
@@ -342,9 +342,9 @@ def scan_game(cen, root, n64map):
                     cen.add("conv.pc_n64_ptr.game", s.rel, ln, line)
                 if VIRT_TO_PHYS.search(c) and not declares(c, "osVirtualToPhysical"):
                     cen.add("conv.virt_to_phys.game", s.rel, ln, line)
-                if nofixed_audit.TRUNC.search(c):
+                if n64_audit.TRUNC.search(c):
                     cen.add("conv.silent.trunc", s.rel, ln, line)
-                if nofixed_audit.ZEXT.search(c) and defines not in own:
+                if n64_audit.ZEXT.search(c) and defines not in own:
                     cen.add("conv.silent.zext", s.rel, ln, line)
                 if field_re and field_re.search(c):
                     cen.add("fields.link_enum", s.rel, ln, line)
@@ -500,8 +500,8 @@ def scan_tables(cen, build, jobs):
 def scan_compiler(cen, build, jobs):
     if not (build / "compile_commands.json").exists():
         return
-    inv = nofixed_audit.Inventory()
-    nofixed_audit.compiler_pass(inv, build, jobs)
+    inv = n64_audit.Inventory()
+    n64_audit.compiler_pass(inv, build, jobs)
     cen.touch("conv.cc.ptr_to_int", "conv.cc.int_to_ptr", "conv.cc.implicit")
     for cls, sites in inv.sites.items():
         if cls.endswith(".weak"):

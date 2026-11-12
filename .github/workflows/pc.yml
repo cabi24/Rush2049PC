@@ -113,15 +113,16 @@ jobs:
       - name: Census
         if: matrix.build == 'Debug'
         run: python3 tools/port/census.py --build build/pc --jobs 4 | tail -20
-      - name: No new fixed-address site
-        # Every place that relies on the RDRAM window at host 0x80000000, by class (tools/port/nofixed_audit.py,
-        # docs/port/NOFIXED.md 3): fails when a class's count grows past tools/port/nofixed_baseline.json, so no new
-        # site comes in unnoticed while phase C shrinks them (lower the file's counts as they fall). The compiler
-        # classes are GCC's warnings: the baseline was made with GCC 14 on x86-64, which warns as this runner's 13.
+      - name: No new N64-address site
+        # What is left of N64 addresses in the code, by class (tools/port/n64_audit.py, docs/port/NATIVE.md 17): fails
+        # when a class's count grows past tools/port/n64_audit_baseline.json, so no new place that keeps a pointer in 32
+        # bits or names memory by an N64 address comes in unnoticed (lower the file's counts as they fall). The
+        # compiler classes are GCC's warnings: the baseline was made with GCC 14 on x86-64, which warns as this
+        # runner's 13.
         if: matrix.build == 'Debug' && matrix.os == 'ubuntu-24.04'
         run: |
-          python3 tools/port/nofixed_audit.py --build build/pc --jobs 4 --out nofixed_audit.txt \
-            --baseline tools/port/nofixed_baseline.json
+          python3 tools/port/n64_audit.py --build build/pc --jobs 4 --out n64_audit.txt \
+            --baseline tools/port/n64_audit_baseline.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -132,7 +133,7 @@ jobs:
           name: logs-${{ matrix.os }}-${{ matrix.build }}
           path: |
             boot.log
-            nofixed_audit.txt
+            n64_audit.txt
             build/pc/synth/paths/
             build/pc/synth/hfr/
             build/pc/synth/input/
@@ -201,71 +202,12 @@ jobs:
           path: synth/compare/*.log
           if-no-files-found: ignore
 
-  nofixed:
-    # The moved build (cmake -DRUSH_NOFIXED=ON, docs/port/NOFIXED.md): the RDRAM window a section of the executable,
-    # the names relative to it, no fixed mapping and no GOT fix-up; not the default until phase D, so it must not rot
-    # meanwhile. Its self-test and synthetic paths, the loader's check of the moved tables, and the moved program
-    # against the fixed Debug one along every synthetic path: the same states at the same retraces and the first car
-    # at the same place to the bit (tools/port/synth_compare.py --same).
-    needs: linux
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v4
-      - name: Dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends cmake ninja-build pkg-config python3 ccache \
-            zlib1g-dev libegl-dev libgles-dev libsdl2-dev libasound2-dev
-          echo "CCACHE_DIR=$HOME/.ccache" >> "$GITHUB_ENV"
-      - name: Compiler cache
-        uses: actions/cache@v4
-        with:
-          path: ~/.ccache
-          key: ccache-nofixed-${{ github.sha }}
-          restore-keys: ccache-nofixed-
-      - name: Configure
-        run: |
-          cmake -S . -B build/moved -G Ninja -DCMAKE_BUILD_TYPE=Debug -DRUSH_NOFIXED=ON \
-            -DCMAKE_C_COMPILER_LAUNCHER=ccache
-      - name: Build
-        run: |
-          set -o pipefail
-          ccache -z -M 1G > /dev/null
-          cmake --build build/moved -j4 2>&1 | cut -c1-2000
-          ccache -s | grep -iE "hits|misses|cache size" || true
-      - name: Tests
-        # The self-test (its window and names checks, the controller and pak ones too), the loader's checks of the
-        # moved tables, and every synthetic path but the one on the host's clock (synth_boot_race, which the fixed
-        # jobs run): the test programs that map their own window at 0x80000000 are phase C's.
-        run: |
-          ctest --test-dir build/moved -j4 --output-on-failure -LE realtime \
-            -R '^(ultra_selftest.*|pc_data_rom|pc_data_synthetic|synth_.*)$'
-      - uses: actions/download-artifact@v4
-        with:
-          name: build-ubuntu-24.04-Debug
-          path: fixed
-      - name: Fixed against moved along the synthetic paths
-        env:
-          PC_DATA_REPORT: ""
-        run: |
-          chmod +x fixed/rush2049pc
-          python3 tools/port/synth_compare.py --exe fixed/rush2049pc --exe build/moved/rush2049pc \
-            --rom build/moved/synth/rush2049_synth.z64 --runs 1 --same --logs synth/compare -j 4
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: logs-nofixed
-          path: |
-            build/moved/synth/paths/
-            synth/compare/*.log
-            build/moved/Testing/Temporary/LastTest.log
-          if-no-files-found: ignore
-
   sanitize:
     # The sanitizer builds (docs/port/SANITIZE.md): UndefinedBehaviorSanitizer on x86-64, every check on port/ code and a
-    # curated set on the game C; AddressSanitizer with it on aarch64 (its x86-64 shadow memory covers the RDRAM window
-    # at 0x80000000). Every test but the two that measure real time, the synthetic paths among them; a finding not in
-    # tools/port/sanitize/*.supp fails its test (halt_on_error, set by the build's ctest environment).
+    # curated set on the game C; AddressSanitizer with it on x86-64 and on aarch64 (since docs/port/NATIVE.md step 12
+    # nothing of the game is at a fixed address, so x86-64's shadow memory is free to sit low). Every test but the ones
+    # that measure real time, the synthetic paths among them; a finding not in tools/port/sanitize/*.supp fails its test
+    # (halt_on_error, set by the build's ctest environment).
     strategy:
       fail-fast: false
       matrix:
@@ -273,6 +215,11 @@ jobs:
           - os: ubuntu-24.04
             sanitize: undefined
             skip_tests: '^(audio_realtime|input_live_drive|hfr_paced|hfr_paced_queue|hfr_paced_60|hfr_paced_game60|hfr_paced_busy|paced_vsync|audio_realtime_game60|realtime_game60_v60|realtime_auto_even)$'
+          # AddressSanitizer on x86-64: the arm job's set (its skip list, below, and why), on the x86-64 runner.
+          - os: ubuntu-24.04
+            sanitize: address,undefined
+            skip_tests: >-
+              ^(audio_realtime|input_live_drive|hfr_paced|hfr_paced_queue|hfr_paced_60|hfr_paced_game60|hfr_paced_busy|paced_vsync|audio_realtime_game60|realtime_game60_v60|realtime_auto_even|synth_boot_race|synth_boot_pcsetup|pak_realtime|saves_files_swap|replay_same_.*|paced_same_.*|paced_model_.*|replay_same60_.*|net_session_(sim_.*|battle2p|battlequit|memhigh2p|race2p12|adopt|pause|raceend|menu|auto|paced|fuzz|view|fps60|paced60|rumble|router|rejoin_host|rejoin_paced|recover_repeat|recover_page|outage)|paced_(realtime|audio|hold|coarse|desktop|gate|latency|stop|load))$
           - os: ubuntu-24.04-arm
             sanitize: address,undefined
             # and the race and PC SETUP's path on the host's clock, which under ASan on 4 cores don't reach their
@@ -313,8 +260,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.ccache
-          key: ccache-sanitize-${{ matrix.os }}-${{ github.sha }}
-          restore-keys: ccache-sanitize-${{ matrix.os }}-
+          # by runner and by sanitizers: two jobs run on ubuntu-24.04 (UBSan, and ASan with UBSan)
+          key: ccache-sanitize-${{ matrix.os }}-${{ matrix.sanitize }}-${{ github.sha }}
+          restore-keys: ccache-sanitize-${{ matrix.os }}-${{ matrix.sanitize }}-
       - name: Configure
         run: |
           cmake -S . -B build/san -G Ninja -DCMAKE_BUILD_TYPE=Debug -DRUSH_SANITIZE=${{ matrix.sanitize }} \
@@ -340,7 +288,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: logs-sanitize-${{ matrix.os }}
+          name: logs-sanitize-${{ matrix.os }}-${{ matrix.sanitize }}
           path: |
             build/san/synth/paths/
             build/san/Testing/Temporary/LastTest.log

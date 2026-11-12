@@ -2,7 +2,7 @@
  * libultra and the idle thread; the idle thread starts the PI manager and the main thread; the main thread makes
  * the scheduler, inflates the game image, starts the background loader and the car simulation, runs InitSystem,
  * starts the game thread, and then serves the scheduler's messages forever (process_scheduler_message). On the PC
- * the threads are host threads and the inflate fills the RDRAM window from the cartridge (port/ultra). The
+ * the threads are host threads and the game image's inflate does nothing (its data is port/data's). The
  * threads' ids and priorities are game/threads.h's THREAD_*. */
 #include "static_debug_context.h"
 #include "game/threads.h"

@@ -1,6 +1,6 @@
 /* port/include/pc_game_types.h: game data the PC owns outright, with no N64 address (docs/port/DECOUPLE.md).
  * pc_prelude.h includes it, so every game C file sees it. Each item has one declaration here, storage gen_data
- * defines in data.c (port/data/decoupled.txt: outside the RDRAM window, zero at startup, or filled from the image if
+ * defines in data.c (port/data/decoupled.txt: outside the arenas, zero at startup, or filled from the image if
  * the N64's was initialized data), and accessors the game C reaches it through. No system headers, as for
  * pc_prelude.h. */
 #ifndef PC_GAME_TYPES_H

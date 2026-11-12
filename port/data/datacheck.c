@@ -544,17 +544,13 @@ static int synthetic(void)
 int main(int argc, char **argv)
 {
     /* The arenas are blocks of host memory, each datum at its N64 address's offset in an ARENA_PAGE page, so as aligned
-     * as on the N64. The renderer reads every value below 4 GB as an N64 address, so all of the game's data must sit
-     * above it (PIE): own storage and game-C data here, the blocks too (pc_data_load_all refuses them below it). */
+     * as on the N64. */
     const PcDataTables *tab = &pc_data_tables;
-    int placed = 1, high = 1;
+    int placed = 1;
     for (uint32_t i = 0; i < tab->n_arenas; i++)
         placed &= ((uintptr_t)tab->arenas[i].host & (ARENA_PAGE - 1)) == (tab->arenas[i].n64_lo & (ARENA_PAGE - 1));
-    for (uint32_t i = 0; i < tab->n_syms; i++)
-        high &= sizeof(void *) < 8 || !tab->syms[i].host || (uintptr_t)tab->syms[i].host >> 16 >> 16 != 0;
     CHECK(placed, "%u arenas in their blocks, each datum at its N64 address's place in a page (game: %p)",
           tab->n_arenas, (void *)tab->arenas[1].host);
-    CHECK(high, "own storage and game-C data above 4 GB (%s at %p)", tab->syms[0].name, tab->syms[0].host);
     /* Both runtime images have a function at their load address, N64_OVERLAY_BASE (image A's updateWarningScreen,
      * image B's worlddam entry), under one N64 name: each image's data must reach its own (docs/port/SYNTH.md). */
     const PcDataFunc *f_a = NULL, *f_b = NULL;

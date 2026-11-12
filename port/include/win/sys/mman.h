@@ -1,11 +1,11 @@
 /* port/include/win/sys/mman.h: the part of <sys/mman.h> the PC layer and its tests use, on Windows, where
  * mingw-w64 has none (docs/port/WINDOWS.md). On the include path for Windows builds only (CMakeLists.txt).
  *
- * Anonymous private mappings only, which is what the tests' RDRAM windows and port/data use: mmap reserves and
+ * Anonymous private mappings only, which is what the tests and port/data use: mmap reserves and
  * commits with VirtualAlloc, at the address asked for when there is one, and fails rather than moving when
  * that range is taken, as MAP_FIXED_NOREPLACE does on Linux (MAP_FIXED is treated the same). munmap releases a
- * whole mapping (VirtualFree needs its start), and mprotect is VirtualProtect. port/ultra/memory.c maps the
- * game's own window, which needs two views of the same memory, with file mappings instead. */
+ * whole mapping (VirtualFree needs its start), and mprotect is VirtualProtect. port/ultra/memory.c makes the
+ * game heap's block and the N64 guard's reservation with VirtualAlloc itself. */
 #ifndef PC_WIN_SYS_MMAN_H
 #define PC_WIN_SYS_MMAN_H
 

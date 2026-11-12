@@ -17,17 +17,21 @@
  *     data, an arena's datum as its N64 address (the place the loader's tables give it); a pointer elsewhere in the
  *     image (the PC's buffers in game C) only as such;
  *   - anywhere else in host memory (a table the loader copied, a converted file's records): only as such.
- * Which values are pointers depends on the bytes (scan()):
- *   - every 8-byte-aligned u64 whose value lies in the heap's block (or one past its end, a heap's endRam), wherever it
- *     is: the PC's structs keep their pointers 8-byte aligned, and a pair of N64 data words that makes a value inside
- *     the block is rare;
+ * Which values are pointers depends on the bytes (scan()) and on what can hold a pointer:
+ *   - in the heap's block and the PC's own C structs (the curated and decoupled records), every 8-byte-aligned u64
+ *     whose value lies in the heap's block (or one past its end, a heap's endRam): the PC's structs keep their pointers
+ *     8-byte aligned, and the heap's records point anywhere inside other blocks. Not in the arenas, whose data has no
+ *     pointer, nor in own storage but where the tables type a pointer (below), nor in a decoupled item of plain numbers
+ *     (DECOUPLED_PLAIN): there two words of numbers or bytes can make a value inside the block in one process and not
+ *     in another (seen: pc_smoke_shade's eight greys, 0x00007F70_67645B58, inside a 64 MiB heap at 0x7F7064E3A640);
  *   - N64-layout data (the heap's blocks, the arenas, own storage's untyped bytes): into the image, a u64 equal to a
  *     named target's first byte (an arena's datum's among them, or a record's of a decoupled array the heap's blocks
  *     point into, g_record_arrays: the level-object nodes) or to a function, which no pair of numbers or texels hits
  *     by chance (the image's high 32 bits are small numbers that 16-bit texels can make);
  *   - own storage's elements the tables type as pointers or as the N64's longs (8 bytes on the PC: intptr_t): any value
  *     but a 32-bit one (0, a number, sign-extended or not);
- *   - the PC's own C structs (the curated and decoupled records): an 8-byte-aligned u64 into a named target.
+ *   - the PC's own C structs (the curated and decoupled records): an 8-byte-aligned u64 into a named target; a
+ *     decoupled item of plain numbers (DECOUPLED_PLAIN) has none.
  * libultra's SI scratch buffers, which hold the host stack's bytes, are taken as zeros (SCRATCH), and the default NaN
  * as the positive one (x86 and ARM make it with other signs). The ctests replay_same_* and hash_aslr compare two
  * processes' hashes, ASLR on, on every synthetic path; hash_aslr checks that the two had their images and heaps apart.
@@ -219,6 +223,24 @@ static const struct {
     uint32_t size;
 } g_decoupled[] = {DECOUPLED(DECOUPLED_ROW)};
 #define N_DECOUPLED ((int)(sizeof g_decoupled / sizeof g_decoupled[0]))
+/* The decoupled items of plain numbers and bytes, whose C types (pc_game_types.h) hold no pointer: hashed as their bytes
+ * (the default NaN made positive), with no pointer rule, so no pair of their words is taken for a pointer by chance. A
+ * pointer kept in one would be hashed as its value, which differs from process to process: replay_same_* and hash_aslr
+ * would say so at once. pc_mx_voice is bytes holding the voices' records, whose head is host pointers: not plain. */
+#define DECOUPLED_PLAIN(X) X(pc_tire_fx) X(pc_smoke_shade) X(pc_trail_pts) X(pc_resurrect_mid) X(pc_car_sounds_on) \
+    X(pc_engine_phase) X(pc_cp_last_pos) X(pc_cp_plane) X(pc_finish_cam_time) X(pc_finish_cam) X(pc_drones) \
+    X(pc_our_drones) X(pc_mp_steer) X(pc_mp_brake) X(pc_mp_gas) X(pc_mp_dir) X(pc_mp_save_dir) X(pc_carsetup_flags) \
+    X(pc_mx_prio_links) X(pc_mx_free_links) X(pc_mx_fx_ctrl) X(pc_mx_fx_chan_a) X(pc_mx_fx_chan_b) X(pc_mx_fx_legato)
+#define DECOUPLED_PLAIN_ROW(name) (const void *)name,
+static const void *const g_decoupled_plain[] = {DECOUPLED_PLAIN(DECOUPLED_PLAIN_ROW)};
+
+static int decoupled_plain(const void *p)
+{
+    for (size_t i = 0; i < sizeof g_decoupled_plain / sizeof g_decoupled_plain[0]; i++)
+        if (g_decoupled_plain[i] == p)
+            return 1;
+    return 0;
+}
 /* Decoupled arrays whose records N64-layout data points to (the heap's blocks the game fills: the battle's
  * always-colliding list and power-up slots hold level-object nodes, pc_target_nodes): each record's first byte is a
  * start too, so such a pointer to a record is taken as one (scan's SCAN_EXACT rule). */
@@ -578,12 +600,14 @@ static int is_start(uintptr_t v)
  * can make a value in the image's range in one process and not in another (where the image's high half is a small
  * number, 16-bit texel data can be it): there only a pointer to a named target's first byte, or to a function, is
  * one, which no pair of numbers hits by chance. The PC's own C structs (the curated and decoupled data) keep their
- * pointers at 8-byte offsets: there any 8-byte-aligned value pointing into a named target is one. A pointer into the
- * heap's block is the same in both: any 8-byte-aligned value in it (the file's comment says why). */
-enum { SCAN_EXACT, SCAN_STRUCT };
+ * pointers at 8-byte offsets: there any 8-byte-aligned value pointing into a named target is one. Plain numbers (a
+ * decoupled item of DECOUPLED_PLAIN) have no pointer. A pointer into the heap's block: any 8-byte-aligned value in it,
+ * where a pointer into the heap can be (heap_rule: the heap's block and the PC's C structs; the file's comment says
+ * why not elsewhere). */
+enum { SCAN_EXACT, SCAN_STRUCT, SCAN_PLAIN };
 
 /* The patches of the bytes [p, p + n), in order; n64 is p's N64 address in an arena (0 elsewhere). */
-static void scan(const uint8_t *p, size_t n, uint32_t n64, int mode)
+static void scan(const uint8_t *p, size_t n, uint32_t n64, int mode, int heap_rule)
 {
     const uintptr_t lo = P.img_lo, span = P.img_hi - P.img_lo;
     g_npatch = 0;
@@ -599,12 +623,13 @@ static void scan(const uint8_t *p, size_t n, uint32_t n64, int mode)
             continue;
         }
         memcpy(&v, p + o, 8);
-        if (((uintptr_t)(p + o) & 7) == 0 && in_heap(v)) {
+        if (heap_rule && ((uintptr_t)(p + o) & 7) == 0 && in_heap(v)) {
             patch_add((uint32_t)o, 8, heap_id(v), 0);
             o += 4;   /* its high half is no pointer's start */
             continue;
         }
-        if (v - lo < span && (mode == SCAN_EXACT ? is_start((uintptr_t)v) : ((uintptr_t)(p + o) & 7) == 0)) {
+        if (mode != SCAN_PLAIN && v - lo < span
+            && (mode == SCAN_EXACT ? is_start((uintptr_t)v) : ((uintptr_t)(p + o) & 7) == 0)) {
             uint64_t c = canonical((uintptr_t)v);
             if (mode == SCAN_EXACT || (uint32_t)(c >> 32) != TAG(K_IMAGE, 0)) {   /* else a number's bytes */
                 patch_add((uint32_t)o, 8, c, (uint32_t)(c >> 32) == TAG(K_IMAGE, 0));
@@ -694,12 +719,15 @@ static void typed_pointers(const uint8_t *p, size_t n, uint32_t k)
 }
 
 /* own: own storage's symbol index (typed pointers, the rest read as N64 data), -1 for the PC's C structs (curated,
- * decoupled), -2 for N64 data (the heap's block, an arena). */
+ * decoupled), -2 for N64 data (the heap's block, an arena: n64 its N64 address, 0 for the heap's block), -3 for plain
+ * numbers (DECOUPLED_PLAIN). The heap rule where a pointer into the heap can be: the heap's block and the C structs
+ * (own storage's typed elements take it in typed_pointers). */
 static uint64_t hash_region_typed(const void *p, size_t n, int own, uint32_t n64, uint32_t *pointers,
                                   uint32_t *image, uint8_t *out)
 {
     uint64_t h;
-    scan(p, n, n64, own == -1 ? SCAN_STRUCT : SCAN_EXACT);
+    scan(p, n, n64, own == -1 ? SCAN_STRUCT : own == -3 ? SCAN_PLAIN : SCAN_EXACT,
+         own == -1 || (own == -2 && n64 == 0));
     if (own >= 0)
         typed_pointers(p, n, (uint32_t)own);
     h = hash_patched(p, n, out);
@@ -710,10 +738,11 @@ static uint64_t hash_region_typed(const void *p, size_t n, int own, uint32_t n64
     return h;
 }
 
-/* A region in an arena (n64 its N64 address) is N64 data; elsewhere, the PC's own C structs. */
+/* A region in an arena (n64 its N64 address) is N64 data; elsewhere, the PC's own C structs, or a decoupled item of
+ * plain numbers. */
 static uint64_t hash_region(const void *p, size_t n, uint32_t n64, uint32_t *pointers, uint32_t *image, uint8_t *out)
 {
-    return hash_region_typed(p, n, n64 ? -2 : -1, n64, pointers, image, out);
+    return hash_region_typed(p, n, n64 ? -2 : decoupled_plain(p) ? -3 : -1, n64, pointers, image, out);
 }
 
 /* ---------------------------------------------------------------- the regions */

@@ -200,8 +200,8 @@ static void describe(const PcDataTables *t, uint32_t a, char *buf, size_t n)
 }
 
 /* The same for the tables the last pc_data_load_all filled, or before that the game's if they are linked in ("?"
- * without either): the guard mode's fault note (port/ultra/memory.c, docs/port/NOFIXED.md 5). */
-#ifndef _WIN32   /* PE's ld refuses an undefined weak reference (docs/port/WINDOWS.md 3); the guard is POSIX only */
+ * without either): the N64 guard's fault note (port/ultra/memory.c, docs/port/NATIVE.md 17). */
+#ifndef _WIN32   /* PE's ld refuses an undefined weak reference (docs/port/WINDOWS.md 3): there, the loaded tables only */
 extern const PcDataTables pc_data_tables __attribute__((weak));
 #endif
 void pc_data_describe_loaded(uint32_t n64, char *buf, size_t n)
@@ -868,21 +868,6 @@ int pc_data_load_all(const PcDataTables *t, const uint8_t *rom, size_t rom_size,
         size_t n = r->end > r->start ? (size_t)(r->end - r->start) : 0;
         if (n && !st->crange_snapshot[i] && (st->crange_snapshot[i] = malloc(n)) != NULL)
             memcpy(st->crange_snapshot[i], r->start, n);
-    }
-    /* Host storage must sit above 4 GB (a PIE build): the renderer reads values below it as N64 addresses. The arenas'
-     * blocks too: no arena is at its N64 address (docs/port/NATIVE.md step 5). */
-    if (sizeof(void *) == 8) {
-        uintptr_t low = 0;
-        for (uint32_t i = 0; i < t->n_arenas; i++)
-            if ((uintptr_t)t->arenas[i].host < ((uintptr_t)1 << 32))
-                low = (uintptr_t)t->arenas[i].host;
-        for (uint32_t i = 0; i < t->n_syms; i++)
-            if (t->syms[i].host && (uintptr_t)t->syms[i].host < ((uintptr_t)1 << 32))
-                low = (uintptr_t)t->syms[i].host;
-        if (low) {
-            fprintf(stderr, "pc_data: game data at host %p, below 4 GB: build the executable PIE\n", (void *)low);
-            rc = -1;
-        }
     }
     g_scan = 1;
     for (uint32_t i = 0; i < t->n_images; i++) {

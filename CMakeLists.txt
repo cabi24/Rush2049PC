@@ -134,23 +134,11 @@ endif()
 # -fwrapv and -fno-strict-aliasing say of theirs. Optimized, it changed the loops of 65 game objects; -O0 doesn't use
 # it (docs/port/OPTIMIZED.md).
 target_compile_options(game_flags INTERFACE -fno-aggressive-loop-optimizations)
-# Symbols at absolute N64 addresses (aliases.ld) are out of PC-relative reach of the executable's code, so code
-# that names them (the game, and parts of port/) must load every extern's address from the GOT. aarch64 PIE
-# code does that already. x86-64 PIE code reaches externs PC-relatively, so everything is compiled as PIC there,
-# without GOT relaxation (port/ultra/memory.c fixes the slots at startup). On Windows, GCC's default code model
-# loads every extern's address from a .refptr slot, which the linker fills with the absolute value
-# (docs/port/WINDOWS.md).
-if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64|amd64" AND NOT WIN32)
-    add_compile_options(-fPIC -fno-semantic-interposition -Wa,-mrelax-relocations=no)
-    add_link_options(-Wl,--no-relax)   # ld would still turn GOT loads of absolute symbols into PC32
-endif()
 include(cmake/sanitize.cmake)   # RUSH_SANITIZE (docs/port/SANITIZE.md)
 # ---------------------------------------------------------------- Windows (mingw-w64, docs/port/WINDOWS.md)
-# The image links above 4 GiB (0x140000000) and moves with high-entropy ASLR, which keeps the heap and the thread
-# stacks above 4 GiB too: the renderer and the audio interpreter read values below 4 GiB as N64 addresses.
-# Absolute symbols get no base relocations, so their .refptr slots keep the N64 addresses wherever the image
-# lands. Executables are static (no MinGW runtime DLLs next to them). port/include/win holds the part of
-# <sys/mman.h> the PC layer's tests use.
+# The image moves with high-entropy ASLR (the game heap's block is mapped top-down: port/ultra/memory.c).
+# Executables are static (no MinGW runtime DLLs next to them). port/include/win holds the part of <sys/mman.h> the
+# PC layer's tests use.
 if(WIN32)
     include_directories(BEFORE ${CMAKE_SOURCE_DIR}/port/include/win)
     add_link_options(-static -Wl,--dynamicbase,--high-entropy-va,--nxcompat)

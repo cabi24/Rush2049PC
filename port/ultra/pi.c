@@ -30,8 +30,8 @@
 #define OVERLAY_A_SIZE 194128u
 #define OVERLAY_B_ROM 0xB6FEC4u
 #define OVERLAY_B_SIZE 43888u
-/* What an inflate may write: up to the window's end when its destination is in the window (any game.memory), else
- * 8 MiB, the N64's whole RDRAM. */
+/* What an inflate may write when its destination is outside the game heap's block (inside, the block's end:
+ * pc_heap_room, at any game.memory): 8 MiB, the N64's whole RDRAM. */
 #define INFLATE_MAX (8u << 20)
 
 static uint8_t *g_rom;

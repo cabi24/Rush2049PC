@@ -11,9 +11,9 @@
 #     (gen_data's tables stay the same files), and data.c, whose own storage must stay in N64 order without redzones
 #     between.
 #
-# AddressSanitizer needs aarch64: on x86-64 its shadow memory starts at 0x7FFF8000 and covers the RDRAM window
-# (0x80000000, and 0xA0000000 is in its shadow gap), which the game needs at those addresses. ThreadSanitizer's
-# x86-64 layout leaves the window to the program; on aarch64 it needs a 39-, 42- or 48-bit address space.
+# AddressSanitizer runs on x86-64 and aarch64: nothing of the game is at a fixed address (docs/port/NATIVE.md 17), so
+# its shadow memory, which on x86-64 starts at 0x7FFF8000, has the low addresses to itself. ThreadSanitizer on aarch64
+# needs a 39-, 42- or 48-bit address space.
 # The ctest environment (sanitize_env.cmake, written here) points the runtimes at tools/port/sanitize/, stops at the
 # first finding, and leaves SIGSEGV and friends to port/ultra's fault handler, whose report and exit status the tests
 # check (a run outside ctest keeps the runtimes' handlers, which the fault handler chains to: misc.c).
@@ -46,11 +46,6 @@ if(PC_SANITIZE)
     endif()
     if(PC_SANITIZE_ADDRESS AND PC_SANITIZE_THREAD)
         message(FATAL_ERROR "RUSH_SANITIZE: address and thread can't be combined")
-    endif()
-    if(PC_SANITIZE_ADDRESS AND CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64|amd64")
-        message(FATAL_ERROR "RUSH_SANITIZE: AddressSanitizer's x86-64 shadow (0x7FFF8000-0x10007FFF7FFF) covers "
-                "the RDRAM window at 0x80000000 and 0xA0000000; build address on aarch64, and undefined or thread "
-                "here (docs/port/SANITIZE.md)")
     endif()
     set(pc_port "")
     set(pc_game "")

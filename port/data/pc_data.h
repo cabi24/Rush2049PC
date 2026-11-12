@@ -65,7 +65,7 @@ typedef struct {
 
 /* One image's data and BSS in N64 layout: [n64_lo, n64_init) is initialized from the image, [n64_init,
  * n64_hi) is zeroed. The runs byte-swap the known elements in place. host is the arena's first byte in host memory:
- * the game's are blocks data.c defines (pc_arena_<image>, docs/port/DATA.md 3), above 4 GiB, each datum at
+ * the game's are blocks data.c defines (pc_arena_<image>, docs/port/DATA.md 3), each datum at
  * host + (its N64 address - n64_lo). A runtime image's arena is cleared again after the first load: on the N64 it is
  * game-heap memory until the game loads the image. */
 typedef struct {
@@ -205,7 +205,7 @@ typedef struct {
 
 /* The loader (pc_data.c). load_all: inflate every image from the ROM and fill all of them, then write the
  * report (env PC_DATA_REPORT, else the build's data_report.txt; "" for none). 0 on success; -1 if an image can't be
- * read or host storage is below 4 GiB (not a PIE). load_image: fill one image again (an overlay load). report_path
+ * read. load_image: fill one image again (an overlay load). report_path
  * NULL means the default. */
 int pc_data_load_all(const PcDataTables *t, const uint8_t *rom, size_t rom_size, const char *report_path);
 int pc_data_load_image(const PcDataTables *t, int image);

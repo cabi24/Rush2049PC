@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
-"""The inventory for running the game with no fixed address (docs/port/NOFIXED.md 3).
+"""The ratchet of N64-address constructs: no new place that treats an N64 address as memory (docs/port/NATIVE.md 17).
 
-    python3 tools/port/nofixed_audit.py [--build build/pc] [--jobs N] [--no-compile | --warnings LOG]
+    python3 tools/port/n64_audit.py [--build build/pc] [--jobs N] [--no-compile | --warnings LOG]
         [--out FILE] [--json FILE] [--sites CLASS[,CLASS...]] [--baseline FILE] [--write-baseline FILE]
 
-Today the RDRAM window is at host 0x80000000 and a 32-bit N64 address of game data is its host address. This lists
-every place that relies on that, by file:line and class, so that moving the window (phase B) can be planned and
-checked. Three sources:
+Until docs/port/NATIVE.md step 12 the game's RDRAM window was at host 0x80000000 and a 32-bit N64 address of game
+data was its host address; this tool (then nofixed_audit.py, docs/port/NOFIXED.md 3) listed every place that relied
+on that, so that the window could go. It has gone. What the tool counts now, by file:line and class, is what is left
+of N64 addresses in the code, most of it at 0, and CI fails when a class grows past tools/port/n64_audit_baseline.json:
+a new place that keeps a pointer in 32 bits, converts between an N64 address and a pointer, names RDRAM by a literal
+N64 address or places a symbol at one comes in only on purpose. Three sources:
 
 1. The compiler (--build: its compile_commands.json). Every game C file (built with pc_prelude.h) is
    compiled again with -fsyntax-only and the warnings the build turns off: -Wint-conversion (an integer used as a
@@ -27,8 +30,8 @@ checked. Three sources:
 The report (--out, default stdout) has the counts by class, then every site of the classes --sites names
 (default: every class but the symbol lists; `all` for those too). --json writes the counts and sites.
 --baseline FILE (counts as --write-baseline writes them) fails, exit 1, if a class's count grew (a class the file
-doesn't have counts from 0): CI holds the line with tools/port/nofixed_baseline.json, made from a Debug build with
---build, while phase C shrinks them. Without --build only the source classes are counted.
+doesn't have counts from 0): CI holds the line with tools/port/n64_audit_baseline.json, made from a Debug build
+with --build (lower it when a count falls). Without --build only the source classes are counted.
 Stdlib only, Python 3.9+.
 """
 import argparse
@@ -434,11 +437,6 @@ def tables_pass(inv, build, jobs):
     for name, addr, size in lay.get("reserved", []):
         absolute[name] = addr
         inv.add("symbols.reserved", "data_layout.json", 0, f"{name} 0x{addr:08X} {size} B")
-    if lay.get("nofixed"):   # a RUSH_NOFIXED build: relative to the window section, nothing absolute (NOFIXED.md 2.2)
-        for name, addr in lay.get("window_names", []):
-            absolute[name] = addr
-            inv.add("symbols.window_names", "data_layout.json", 0, f"{name} 0x{addr:08X}")
-        inv.count("context.nofixed_build", 1)
     al = build / "pc-data" / "aliases.ld"
     if al.exists():
         for k, line in enumerate(al.read_text().splitlines()):
@@ -524,7 +522,7 @@ def class_files(inv, cls):
 def report(inv, out, site_classes):
     classes = sorted(set(inv.sites) | set(inv.counts))
     w = out.write
-    w("# nofixed_audit: every place that relies on the RDRAM window at host 0x80000000 (docs/port/NOFIXED.md 3)\n\n")
+    w("# n64_audit: what is left of N64 addresses in the code, by class (docs/port/NATIVE.md 17)\n\n")
     w(f"{'class':44} {'sites':>7} {'files':>6}\n")
     done = set()
     for prefix, title in ORDER:
@@ -596,10 +594,10 @@ def main():
         grew = [(c, base.get(c, 0), counts.get(c, 0)) for c in sorted(set(base) | set(counts))
                 if counts.get(c, 0) > base.get(c, 0)]   # a class the file doesn't have counts from 0
         for c, was, now in grew:
-            print(f"nofixed_audit: {c} grew from {was} to {now}", file=sys.stderr)
+            print(f"n64_audit: {c} grew from {was} to {now}", file=sys.stderr)
         if grew:
             return 1
-        print(f"nofixed_audit: no class grew past {a.baseline} ({len(base)} classes)", file=sys.stderr)
+        print(f"n64_audit: no class grew past {a.baseline} ({len(base)} classes)", file=sys.stderr)
     return 0
 
 
