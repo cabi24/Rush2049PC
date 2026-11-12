@@ -18,7 +18,9 @@
  * one that branches is followed; with DLT_REPLACE a G_DL whose target is match gets replace instead (the walk still
  * goes into match). A G_BRANCH_Z is entered or followed as flags say; a G_RDPHALF_1 without a G_BRANCH_Z after it is
  * stepped over with the command after it. Every other command goes to cb, which returns how many commands to step;
- * with no cb they are stepped over one at a time. */
+ * with no cb they are stepped over one at a time.
+ * PC: a G_DL or a branch that names no list (where the N64's word named no place in the file: the WAD converter said
+ * so) is not followed: a call is stepped over, a branch ends the walk, where the N64 went into whatever lay there. */
 void display_list_traverse(Gfx *dl, Gfx *match, Gfx *replace, s32 flags, s32 (*cb)(Gfx *)) {
     u32 w0;
     Gfx *target;
@@ -32,9 +34,11 @@ void display_list_traverse(Gfx *dl, Gfx *match, Gfx *replace, s32 flags, s32 (*c
             }
             dl++;
             if (!(w0 & 0x00FF0000)) {
-                if (!(flags & DLT_SKIP_CALLS)) {
+                if (!(flags & DLT_SKIP_CALLS) && target != NULL) {
                     display_list_traverse(target, match, replace, flags, cb);
                 }
+            } else if (target == NULL) {
+                return;
             } else {
                 dl = target;
             }
@@ -44,8 +48,11 @@ void display_list_traverse(Gfx *dl, Gfx *match, Gfx *replace, s32 flags, s32 (*c
             if ((dl->words.w0 & 0xFF000000) == G_BRANCH_Z_OP) {
                 dl++;
                 if (flags & DLT_FOLLOW_BRANCH) {
+                    if (target == NULL) {
+                        return;
+                    }
                     dl = target;
-                } else if (flags & DLT_ENTER_BRANCH) {
+                } else if ((flags & DLT_ENTER_BRANCH) && target != NULL) {
                     display_list_traverse(target, match, replace, flags, cb);
                 }
             } else {

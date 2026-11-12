@@ -887,6 +887,13 @@ TEX_FORMATS = {SYN_FOG: (1, 3), SYN_BAR: (1, 4)}
 # or empty name, which every name from initialized data is here; the rest are string literals in the code.
 CODE_MODELS = ["AAANULLOBJ", "MINEG1"]
 WAD_OBJS = 8                   # the OBJS chunk comes first in these WADs, right after the header
+# --lists (docs/port/NATIVE.md 15): the models' display lists use what the cartridge's do and the default ones don't, so
+# that two builds compared on that cartridge run the display lists' conversion and the race's set-up of them through
+# the game: a state list in a TXLD chunk (before OBJS) that every model's list calls (G_DL), with a texture load whose
+# G_SETTIMG the N64 rebased by IMAG's address; a G_BRANCH_Z; and LOD markers whose sections the race keeps or cuts.
+# The pictures differ from the default cartridge's (a backward race cuts every model's first quads), so the gate
+# doesn't use it, and no ctest picture counts on it.
+LISTS = False
 
 
 def obhd(name, dl, vtx, radius=100.0, lods=None):
@@ -947,24 +954,49 @@ def vtx(x, y, z, rgba, last):
     return b.b
 
 
+def state_list():
+    """--lists: the state every model's list sets (DL_STATE), then a 16 x 16 RGBA16 block of the WAD's grey image loaded
+    into TMEM (G_SETTIMG IMAG-relative, which relocate_texture_loads rebased; the models draw untextured, so nothing
+    samples it), then G_ENDDL. The WAD's TXLD chunk."""
+    words = TEX_W * 2 // 8                                         # 64-bit words a line
+    return (DL_STATE +
+            gfx(0xFD000000 | (2 << 19) | (TEX_W - 1), 0) +          # G_SETTIMG RGBA 16b, IMAG + 0
+            gfx(0xF5100000, 0x07000000) +                           # G_SETTILE the load tile
+            gfx(0xE6000000) +                                       # G_RDPLOADSYNC
+            gfx(0xF3000000, 0x07000000 | (TEX_W * TEX_H - 1) << 12 | (2048 + words - 1) // words) +   # G_LOADBLOCK
+            gfx(0xDF000000))
+
+
 def mesh(quads):
     """Vertices and a display list for quads [(four (x, y, z), rgba)], eight quads (32 vertices) a G_VTX: returns
-    (vertex bytes, a function of the vertices' file offset giving the list's bytes)."""
+    (vertex bytes, a function of the vertices' file offset giving the list's bytes; with --lists also of the list's
+    own offset and the TXLD state list's)."""
     verts = b""
     count = 4 * len(quads)
     for qi, (corners, rgba) in enumerate(quads):
         for k, (x, y, z) in enumerate(reversed(corners)):      # clockwise from outside (above)
             verts += vtx(x, y, z, rgba, 4 * qi + k == count - 1)
 
-    def dlist(vtx_off):
-        out = DL_STATE
+    def dlist(vtx_off, dl_off=0, state_off=0):
+        out = gfx(0xDE000000, state_off) if LISTS else DL_STATE        # --lists: G_DL, the shared state list
         for first in range(0, len(quads), 8):
             n = 4 * min(8, len(quads) - first)
             out += gfx((0x01 << 24) | (n << 12) | (n << 1), vtx_off + 16 * 4 * first)   # G_VTX n, v0 = 0
+            tris = b""
             for q in range(n // 4):
                 a = 4 * q
-                out += gfx((0x06 << 24) | (2 * a << 16) | (2 * (a + 1) << 8) | 2 * (a + 2),
-                           (2 * a << 16) | (2 * (a + 2) << 8) | 2 * (a + 3))           # G_TRI2: two halves
+                tris += gfx((0x06 << 24) | (2 * a << 16) | (2 * (a + 1) << 8) | 2 * (a + 2),
+                            (2 * a << 16) | (2 * (a + 2) << 8) | 2 * (a + 3))          # G_TRI2: two halves
+            if LISTS and first == 0:
+                # a G_BRANCH_Z on vertex 0, always taken (z at most 0x7FFFFFFF), to the G_NOOP after it, where the list
+                # goes on anyway (relocate_model_dl's walk goes on at the target's second command: the markers);
+                # then the first quads in a section a forward race keeps (marker bit 3, DL_KEEP_FORWARD), and an
+                # empty one only two players keep (bit 2)
+                out += gfx(0xE1000000, dl_off + len(out) + 16) + gfx(0x04000000, 0x7FFFFFFF) + gfx(0)
+                out += gfx(0xE0010003, dl_off + len(out) + 8 + len(tris)) + tris
+                out += gfx(0xE0010002, dl_off + len(out) + 8)
+            else:
+                out += tris
         return out + gfx(0xDF000000)                                                  # G_ENDDL
     return verts, dlist
 
@@ -1011,11 +1043,12 @@ def ground_quads():
 BOX = (4.5 * UNITS, 3.0 * UNITS, 2.5 * UNITS)
 
 
-def model_objs(models):
+def model_objs(models, at=WAD_OBJS, state_off=0):
     """OBJS for the models (names): each model's vertices and display list, in the chunk that starts at file offset
-    WAD_OBJS. Returns (the chunk, {name: (list offset, vertex offset, radius)}), offsets file-relative. Each model has
-    lists of its own: SetupWaveModel relocates every model's lists in place (relocate_model_dl adds the file's
-    address to each address), so a list two models shared would be relocated twice."""
+    at (WAD_OBJS; with --lists after TXLD, whose state list at state_off every list calls). Returns (the chunk,
+    {name: (list offset, vertex offset, radius)}), offsets file-relative. Each model has lists of its own: on the N64
+    SetupWaveModel relocated every model's lists in place (relocate_model_dl added the file's address to each
+    address), so a list two models shared would have been relocated twice (the WAD converter says so)."""
     out, where = b"", {}
     for m in models:
         ground = m == WORLD_NODE
@@ -1023,18 +1056,18 @@ def model_objs(models):
             lods = []
             for size, rgba, rad in DETAIL_MODELS[m]:
                 verts, dlist = mesh([(q, rgba) for q, _ in box_quads(*size)])
-                vtx_off = WAD_OBJS + len(out)
+                vtx_off = at + len(out)
                 out += verts
-                dl_off = WAD_OBJS + len(out)
-                out += dlist(vtx_off)
+                dl_off = at + len(out)
+                out += dlist(vtx_off, dl_off, state_off)
                 lods.append((dl_off, vtx_off, rad))
             where[m] = (lods[0][0], lods[0][1], 100.0, lods)
             continue
         verts, dlist = mesh(ground_quads() if ground else box_quads(*BOX))
-        vtx_off = WAD_OBJS + len(out)
+        vtx_off = at + len(out)
         out += verts
-        dl_off = WAD_OBJS + len(out)
-        out += dlist(vtx_off)
+        dl_off = at + len(out)
+        out += dlist(vtx_off, dl_off, state_off)
         where[m] = (dl_off, vtx_off, 3000.0 if ground else 10.0)
     if not out:                                   # no models: one list that ends at once
         out = gfx(0xDF000000)
@@ -1062,8 +1095,14 @@ def texture_wad(names, models=(), palettes=("",)):
     models = sorted(set(models), key=lambda n: n.encode())
     palettes = sorted(set(palettes), key=lambda n: n.encode())
     recs = b"".join(txhd(n, TEX_W, TEX_H, *TEX_FORMATS.get(n, (2, 0)), 0) for n in names)
-    objs, where = model_objs(models)
-    chunks = [("OBJS", objs, None)]
+    chunks = []
+    if LISTS and models:                          # --lists: TXLD first, its state list right after the header
+        state = state_list()
+        chunks.append(("TXLD", state, None))
+        objs, where = model_objs(models, (WAD_OBJS + len(state) + 7) & ~7, WAD_OBJS)
+    else:
+        objs, where = model_objs(models)
+    chunks.append(("OBJS", objs, None))
     if models:
         chunks.append(("OBHD", b"".join(obhd(m, *where[m][:3], lods=where[m][3] if len(where[m]) > 3 else None)
                                         for m in models), len(models)))
@@ -2123,7 +2162,13 @@ def main():
     ap.add_argument("--sounds", action="store_true",
                     help="a sound bank (an sfx for every sound index) and the engine table, for the voice tests "
                          "(docs/port/AUDIO.md 10); without it the project is empty and nothing plays")
+    ap.add_argument("--lists", action="store_true",
+                    help="models' display lists that call a TXLD state list and hold a G_BRANCH_Z and LOD markers, "
+                         "for comparing two builds' display lists (docs/port/NATIVE.md 15); other pictures than "
+                         "the default cartridge's")
     args = ap.parse_args()
+    global LISTS
+    LISTS = args.lists
     syms = Symbols(args.data_symbols)
     if not syms.checked:
         raise SystemExit(f"synth_rom: {args.data_symbols} not found: build the PC port first (its data report gives "

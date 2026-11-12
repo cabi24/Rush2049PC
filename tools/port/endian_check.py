@@ -1527,9 +1527,6 @@ REVIEWED = [
      "fixed: the PC view's index is the s32 handle's low half"),
     (r"src/blob/groups/pathcommon_sync/group\.c", r"TrackerLen",
      "not a conflict: LEN(k) is element k+1's word at +8, the counts read are element 0's"),
-    (r"src/blob/relocate_model_dl\.c", r"^relocate_model_dl$",
-     "not a conflict: `if (cmd[0] & 0x00FF0000) {}` reads a big-endian command word natively and discards it "
-     "(kept for matching); every other read goes through pc_be32_get"),
     (r"src/rom/libultra/(pfsfilestate|pfsdeletefile|pfsallocatefile|pfsreadwritefile|pfsfreeblocks|pfschecker|contpfs)\.c", r".",
      "by design: the controller pak image keeps native u16 links next to {bank, page} bytes (docs/port/ULTRA.md)"),
 ]

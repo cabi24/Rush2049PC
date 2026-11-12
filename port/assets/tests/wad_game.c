@@ -98,6 +98,7 @@ void TextureAnimation(void);         /* its per-frame update */
 /* ---------------------------------------------------------------- checks */
 
 #define BLOCK 0x1000
+static _Alignas(32) uint8_t g_blocks[2][BLOCK];
 static uint16_t b16(const uint8_t *p) { return pc_be16(p); }
 static int16_t ns16(const void *p) { int16_t v; memcpy(&v, p, 2); return v; }
 
@@ -159,14 +160,10 @@ static void check_tables(int slot, uint8_t *b)
 
 int main(void)
 {
-    uint8_t *block = aligned_alloc(32, BLOCK), *block2 = aligned_alloc(32, BLOCK);
+    uint8_t *block = g_blocks[0], *block2 = g_blocks[1];   /* two heap blocks, 32-byte aligned as the heap's are */
     size_t size = wad_build(g_rom + ROM_WAD);
     PcGfxWords *dl0;
 
-    if (!block || !block2)
-        return 1;
-    memset(block, 0, BLOCK);
-    memset(block2, 0, BLOCK);
     wave_rom_offsets[101] = ROM_WAD;
     gWaveSizes[101] = (int32_t)size;
 
@@ -251,7 +248,5 @@ int main(void)
     pc_heap_block_freed(block2, BLOCK);
     CHECK(!pc_mem_is_be(block + W_TLUT) && !pc_mem_is_be(block2 + W_TLUT));
     CHECK(test_be_range_count() == 0 && test_model_data_count() == 0);
-    free(block);
-    free(block2);
     return TEST_DONE();
 }

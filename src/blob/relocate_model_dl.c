@@ -36,7 +36,9 @@ void relocate_model_dl(Gfx *dl, s32 mirrored, u32 keep) {
             case G_VTX:
                 if (first) {
                     first = 0;
-                    mirror_vertex_texcoords((Vtx *)cmd->words.w1, mirrored);
+                    if (cmd->words.w1 != 0) {   /* PC: none where the converter found none (it said so) */
+                        mirror_vertex_texcoords((Vtx *)cmd->words.w1, mirrored);
+                    }
                 }
                 break;
             case G_RDPHALF_1:
