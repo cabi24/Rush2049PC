@@ -38,6 +38,7 @@
 #endif
 
 #include "pc_crossings.h"   /* the counting build's hooks (docs/port/NATIVE.md 9): nothing in the default build */
+#include "pc_game_types.h"   /* PC_HEAP_OFFSET: the heap's room */
 #include "ultra.h"
 
 #if defined(__SANITIZE_ADDRESS__)
@@ -353,6 +354,59 @@ int pc_mem_init(void)
 #endif
 
 int pc_mem_fixed(void) { return g_fixed; }
+
+/* ---------------------------------------------------------------- the game heap's block */
+
+/* The memory the game's main heap manages (port/ultra/heap.c, docs/port/MEMORY.md 1): one mapping of PC memory,
+ * wherever the OS puts it, of osMemSize less PC_HEAP_OFFSET bytes, the N64's room for the heap at every game.memory.
+ * The game rounds addresses it computes (the heap's 32-byte chunks, the frame buffers' 64 bytes), so the heap's first
+ * byte keeps the N64's place modulo HEAP_ALIGN: as far past a 64 KiB boundary as 0x8017A640 was. On Linux the mapping
+ * is sparse: a page takes memory once the game first writes it, so a large game.memory costs what the heap uses. On
+ * Windows the block is committed (the commit charge, not RAM: pages are made as they are first touched), so a
+ * game.memory the system can't commit fails here; top-down, as the OS places a thread's stack. */
+#define HEAP_ALIGN 0x10000u
+static uint8_t *g_heap;
+static uint32_t g_heap_size;
+
+int pc_mem_map_heap(uint32_t mem_size)
+{
+    uint32_t size = mem_size > PC_HEAP_OFFSET ? mem_size - PC_HEAP_OFFSET : 0;
+    size_t lead = PC_HEAP_OFFSET & (HEAP_ALIGN - 1), span = (size_t)size + lead + HEAP_ALIGN;
+    uint8_t *m;
+    if (g_heap)
+        return 0;
+#ifdef _WIN32
+    m = VirtualAlloc(NULL, span, MEM_RESERVE | MEM_COMMIT | MEM_TOP_DOWN, PAGE_READWRITE);
+    if (!m) {
+        fprintf(stderr, "rush2049pc: cannot make the game heap's %u MiB (error %lu)\n", size >> 20,
+                (unsigned long)GetLastError());
+        return -1;
+    }
+#else
+    void *p = mmap(NULL, span, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0);
+    if (p == MAP_FAILED) {
+        fprintf(stderr, "rush2049pc: cannot make the game heap's %u MiB (%s)\n", size >> 20, strerror(errno));
+        return -1;
+    }
+    m = p;
+#endif
+    g_heap = (uint8_t *)(((uintptr_t)m + HEAP_ALIGN - 1) & ~(uintptr_t)(HEAP_ALIGN - 1)) + lead;
+    g_heap_size = size;
+#ifdef PC_LSAN
+    /* Host allocations the game holds only in its heap are not leaks (docs/port/SANITIZE.md). LSan reads the whole
+     * block at exit, which makes every page of a large game.memory resident then. */
+    __lsan_register_root_region(g_heap, g_heap_size);
+#endif
+    if (pc_verbose)
+        pc_log("the game heap's block: %u bytes at %p", g_heap_size, (void *)g_heap);
+    return 0;
+}
+
+uint8_t *pc_mem_heap(uint32_t *size)
+{
+    *size = g_heap_size;
+    return g_heap;
+}
 
 /* ---------------------------------------------------------------- absolute symbols in the PIE */
 

@@ -44,43 +44,23 @@ void pc_fatal(const char *fmt, ...)
 
 /* ---------------------------------------------------------------- osInitialize and the boot globals */
 
-/* libultra's boot parameters, which the IPL leaves in low memory at N64_BOOT_PARAMS (pc_n64_map.h) and osInitialize
- * completes: the layout of os.h's osTvType through osAppNMIBuffer, as native words. The game reads the two it uses
- * by their names, osTvType and osMemSize, which the link puts at the same addresses in the RDRAM window
- * (gen_stubs.py's aliases.ld; data.c's window in a RUSH_NOFIXED build); pc_os_initialize writes them all here. */
-typedef struct {
-    uint32_t tv_type;            /* osTvType: 0 PAL, 1 NTSC, 2 MPAL */
-    uint32_t rom_type;           /* osRomType: 0 cartridge, 1 disk drive */
-    uint32_t rom_base;           /* osRomBase: the cartridge's KSEG1 address */
-    uint32_t reset_type;         /* osResetType: 0 cold, 1 NMI */
-    uint32_t cic_id;             /* osCicId: the cartridge's lockout chip */
-    uint32_t version;            /* osVersion */
-    uint32_t mem_size;           /* osMemSize: RDRAM's bytes */
-    uint8_t app_nmi_buffer[64];  /* osAppNMIBuffer: kept across an NMI reset */
-} BootParams;
-_Static_assert(offsetof(BootParams, mem_size) == 0x18 && offsetof(BootParams, app_nmi_buffer) == 0x1C,
-               "libultra's boot parameters: osMemSize is the seventh word, osAppNMIBuffer follows it");
+/* libultra's boot parameters the game reads, which the N64's boot code left in low memory for osInitialize: the TV
+ * type (0 PAL, 1 NTSC, 2 MPAL: the PC is an NTSC console) and RDRAM's size in bytes. Ordinary variables, set by
+ * pc_os_initialize; the game C declares them extern by their libultra names. */
+uint32_t osTvType;
+uint32_t osMemSize;
 
-/* osMemSize. 4 MiB until main sets it: no Expansion Pak, so the game leaves its Expansion Pak flag (expansion_pak_present)
- * clear and skips overlay B and the extra waves in races. game.expansion_pak (on by default) reports 8 MiB, as
- * N64ModernRuntime and v5 do, in the 8 MiB window. game.memory reports the window's size, whatever the pak setting:
- * the game's heap runs to osMemSize (locate_main_heap), and sets the Expansion Pak flag past 4 MiB, as a console with
- * that much memory would (docs/port/MEMORY.md 1). */
+/* osMemSize's value. 4 MiB until main sets it: no Expansion Pak, so the game leaves its Expansion Pak flag
+ * (expansion_pak_present) clear and skips overlay B and the extra waves in races. game.expansion_pak (on by default)
+ * reports 8 MiB. game.memory reports its size, whatever the pak setting: the game's heap runs to osMemSize
+ * (locate_main_heap: the heap's block, port/ultra/memory.c), and sets the Expansion Pak flag past 4 MiB, as a console
+ * with that much memory would (docs/port/MEMORY.md 1). */
 static uint32_t g_mem_size = N64_RDRAM_SIZE_NO_PAK;
 
 void pc_os_initialize(void)
 {
-    BootParams *boot = pc_n64_ptr(N64_BOOT_PARAMS);
-    if (!boot)
-        return;
-    boot->tv_type = 1;                   /* NTSC */
-    boot->rom_type = 0;
-    boot->rom_base = N64_CART_KSEG1;
-    boot->reset_type = 0;                /* cold: the NMI buffer starts zeroed */
-    boot->cic_id = 6102;
-    boot->version = 0;
-    boot->mem_size = g_mem_size;
-    memset(boot->app_nmi_buffer, 0, sizeof boot->app_nmi_buffer);
+    osTvType = 1;   /* NTSC */
+    osMemSize = g_mem_size;
 }
 
 uint32_t pc_os_mem_size(void) { return g_mem_size; }

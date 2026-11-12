@@ -18,6 +18,7 @@
 #include "pakfs.h"
 #include "pc_compat.h"
 #include "pc_data.h"      /* the data loader's tables: game symbols' N64 addresses by name */
+#include "pc_game_types.h"   /* PC_HEAP_OFFSET: the game heap's room */
 #include "pc_lockstep.h"
 #include "ultra.h"
 
@@ -64,23 +65,15 @@ int32_t osDpSetNextBuffer(void *buf, uint64_t size);
 int32_t osAiSetFrequency(uint32_t hz);
 int32_t osAiSetNextBuffer(void *buf, uint32_t len);
 
-/* The game's names at absolute N64 addresses (gen_stubs, aliases.ld: what the RDRAM window still holds), and data in
- * the arenas' blocks (port/data: boot data gWaveSizes, game data, runtime image A's BSS). Where each belongs: the data
- * loader's tables by name, and for osTvType the N64's memory map (pc_n64_map.h). The game's heap (pc_heap_memory) is where the
- * tables put it, from their heap start to osMemSize. */
+/* libultra's boot parameters the game reads (misc.c's variables), and data in the arenas' blocks (port/data: boot data
+ * gWaveSizes, game data, runtime image A's BSS), where the data loader's tables put each by name. */
 extern uint32_t osTvType, osMemSize;
 extern uint8_t gWaveSizes[], wave_rom_offsets[], gTrophyMat[];
 /* The page gen_data.py aligns the arenas' blocks to (its ARENA_PAGE): a datum keeps its N64 address's offset in it. */
 #define ARENA_PAGE 0x1000u
 #ifdef RUSH_NOFIXED
-/* RUSH_NOFIXED (docs/port/NOFIXED.md 2): those names are relative to the window, data.c's section pc_window: N64
- * address a at pc_window + (a - PC_RDRAM_BASE). The game C translates with pc_window_base (port/ultra/n64mem.c). */
+/* RUSH_NOFIXED (docs/port/NOFIXED.md 2): the window is data.c's section pc_window. */
 extern uint8_t pc_window[], *pc_window_base;
-#define AT_N64(p, a) ((const uint8_t *)(p) == pc_rdram() + ((a) - PC_RDRAM_BASE))
-#define AT_N64_WHAT "N64 symbols at pc_window + their offsets"
-#else
-#define AT_N64(p, a) ((uintptr_t)(p) == (a))
-#define AT_N64_WHAT "absolute N64 symbols"
 #endif
 
 #define MS(n) ((uint64_t)(n) * PC_COUNT_HZ / 1000)
@@ -378,21 +371,6 @@ static void t_spin(void)
     check("busy-wait, lower writer", ms > 150 && ms < 2000, d);
 }
 
-/* An absolute N64 name's word: through the name, or in the guard mode, where the name's address is in the old window's
- * reserved range, through the window (docs/port/NOFIXED.md 5). */
-static uint32_t abs_word(const uint32_t *name)
-{
-    uint32_t v = 0;
-#ifdef RUSH_NOFIXED
-    const void *p = name;   /* the name is in the window */
-#else
-    const void *p = pc_mem_guard() ? pc_n64_ptr((uint32_t)(uintptr_t)name) : (const void *)name;
-#endif
-    if (p)
-        memcpy(&v, p, 4);
-    return v;
-}
-
 /* A datum of an arena (port/data, docs/port/DATA.md 3): where the loader's tables put its N64 address (its arena's
  * block + the offset), at its N64 address's offset in a page, as aligned as on the N64. The block is the executable's
  * BSS, which "host addresses above 4 GiB" checks is high (g_log). */
@@ -424,19 +402,22 @@ static void t_memory(void)
     uint8_t *last = pc_n64_ptr(top);
     if (last)
         *last = 0xA5;
-    uint32_t mem_size = abs_word(&osMemSize), tv_type = abs_word(&osTvType);
+    uint32_t mem_size = osMemSize, tv_type = osTvType;
     snprintf(d, sizeof d, "%u MiB, last byte %p, osMemSize 0x%X", size >> 20, (void *)last, mem_size);
     check("RDRAM window's size", last && pc_n64_ptr(N64_KSEG1 | N64_TO_PHYS(top)) == last &&
                                      pc_n64_ptr(size - 1) == last &&
                                      *(volatile uint8_t *)pc_n64_ptr(size - 1) == 0xA5 && pc_n64_addr(last) == top &&
                                      pc_n64_ptr(top + 1) == NULL && pc_n64_ptr(size) == NULL &&
                                      (size == PC_RDRAM_SIZE || mem_size == size), d);
+    /* The game heap's block (memory.c): osMemSize less what lay below the N64's heap, its first byte as far past a
+     * 64 KiB boundary as the N64 heap's, so the game's rounding of addresses comes out as on the N64. */
     uint32_t heap_size;
     uint8_t *heap = pc_heap_memory(mem_size, &heap_size);
-    snprintf(d, sizeof d, "heap %p, %u bytes, osTvType %p = %u, osMemSize 0x%X", (void *)heap, heap_size,
-             (void *)&osTvType, tv_type, mem_size);
-    check(AT_N64_WHAT, AT_N64(heap, pc_data_tables.heap_lo) && heap + heap_size == pc_rdram() + mem_size &&
-                           AT_N64(&osTvType, N64_BOOT_PARAMS) && tv_type == 1 && mem_size == pc_os_mem_size(), d);
+    snprintf(d, sizeof d, "heap %p, %u bytes, osTvType %u, osMemSize 0x%X", (void *)heap, heap_size, tv_type,
+             mem_size);
+    check("the game heap's block", heap && heap_size == mem_size - PC_HEAP_OFFSET &&
+                                       ((uintptr_t)heap & 0xFFFF) == (PC_HEAP_OFFSET & 0xFFFF) && tv_type == 1 &&
+                                       mem_size == pc_os_mem_size(), d);
 #ifdef RUSH_NOFIXED
     snprintf(d, sizeof d, "window %p, pc_window %p, pc_window_base %p", (void *)pc_rdram(), (void *)pc_window,
              (void *)pc_window_base);
@@ -1024,7 +1005,7 @@ int pc_selftest(void)
     PcRunOptions run = {.seconds = 30};
     if (lockstep_checks())
         return 1;
-    pc_os_initialize();                /* the low-memory globals */
+    pc_os_initialize();                /* libultra's boot parameters: osTvType, osMemSize */
     pc_si_init(NULL, PC_PAK_MEMORY);   /* a formatted pak in memory */
     pc_os_boot(boot, NULL, "boot");
     int code = pc_ultra_run(&run);

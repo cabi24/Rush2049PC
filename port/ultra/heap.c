@@ -15,8 +15,9 @@
  * everything the game allocates afterwards lands above them: data past 16 MiB, through every path, at game.memory 32
  * or more.
  *
- * The exit line and pc_heap_stats give sizes and offsets, never where the block lies in the process (which differs from
- * one run to the next once the block is ordinary PC memory, docs/port/NATIVE.md step 12). */
+ * The heap's memory is a block of PC memory (port/ultra/memory.c maps it, docs/port/NATIVE.md step 12), wherever the OS
+ * puts it: the exit line and pc_heap_stats give sizes and offsets, never where it lies in the process, which differs
+ * from one run to the next. */
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -65,13 +66,11 @@ static struct {
 } H;
 
 /* The game heap's block: the memory the main heap manages, osMemSize less what lay below the heap on the N64
- * (PC_HEAP_OFFSET), its first byte returned and its size in *size; NULL before there is one. Until docs/port/NATIVE.md
- * step 12 it is the RDRAM window's bytes from the N64 heap's place to osMemSize. */
+ * (PC_HEAP_OFFSET), its first byte returned and its size in *size; NULL before there is one. memory.c maps it
+ * (pc_mem_map_heap, at startup); a test program gives memory of its own (port/assets/tests/support.c). */
 uint8_t *pc_heap_block(uint32_t *size)
 {
-    uint32_t mem_size = pc_os_mem_size();
-    *size = mem_size > PC_HEAP_OFFSET ? mem_size - PC_HEAP_OFFSET : 0;
-    return pc_rdram() ? pc_rdram() + PC_HEAP_OFFSET : NULL;
+    return pc_mem_heap(size);
 }
 
 /* The memory the game's main heap manages on a console with mem_size bytes of RDRAM (locate_main_heap, which passes

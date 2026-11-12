@@ -255,17 +255,20 @@ int32_t osEPiRawStartDma(void *handle, int32_t direction, uint32_t dev, void *dr
 /* main_thread_entry passes this symbol's address as the game image's ROM offset (0xB0CB10 on the N64). */
 uint8_t gRomCompressedData[16];
 
+/* Inflates a raw DEFLATE stream into dst, as far as the stream goes: the game's callers give no size (on the N64 the
+ * stream ended where the file did). The output's room is what is left of the game heap from dst (pc_heap_room: the
+ * game inflates its files into heap blocks), or INFLATE_MAX elsewhere. */
 static int32_t inflate_buffer(const uint8_t *src, size_t avail, void *dst, const char *what)
 {
     z_stream z;
-    uint32_t at = pc_n64_addr(dst);
+    uint32_t room = pc_heap_room(dst);
     memset(&z, 0, sizeof z);
     if (inflateInit2(&z, -15) != Z_OK)
         return 0;
     z.next_in = (Bytef *)src;
     z.avail_in = (uInt)avail;
     z.next_out = dst;
-    z.avail_out = at ? pc_rdram_size() - (at - PC_RDRAM_BASE) : INFLATE_MAX;
+    z.avail_out = room ? room : INFLATE_MAX;
     int r = inflate(&z, Z_FINISH);
     int32_t n = (int32_t)z.total_out;
     inflateEnd(&z);

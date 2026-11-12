@@ -272,6 +272,10 @@ int pc_pakw_fault_wait(uint64_t timeout_ns);
 /* ---------------------------------------------------------------- memory.c */
 int pc_mem_set_size(uint32_t bytes);   /* game.memory, before pc_mem_init: 0, or -1 for a size it can't map */
 int pc_mem_init(void);          /* map the RDRAM window; 0 on success */
+/* The game heap's block (docs/port/MEMORY.md 1): mapped at startup for mem_size bytes of the console's RDRAM
+ * (osMemSize), 0 on success; its first byte and size (NULL before). heap.c reads it as pc_heap_block. */
+int pc_mem_map_heap(uint32_t mem_size);
+uint8_t *pc_mem_heap(uint32_t *size);
 int pc_mem_fixed(void);         /* the window is at host PC_RDRAM_BASE */
 int pc_mem_guard(void);         /* RUSH2049_NOFIXED=guard: the window elsewhere, its old range reserved (NOFIXED.md 5) */
 /* In the guard mode, a line saying what a faulting address was (an N64 address taken as a host pointer, a window

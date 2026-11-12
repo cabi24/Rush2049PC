@@ -16,12 +16,12 @@
  * with an independent decoder, known_widths against the images, and an overlay reload is checked. It tests the
  * generated tables and the loader together.
  *
- * The game's arenas are blocks of host memory data.c defines (docs/port/DATA.md 3), so neither needs the RDRAM
- * window: the heap's addresses a pointer keeps are only compared, never followed. Every place checked is a game
- * symbol's, by its name (pc_data_addr_of), or one the symbol file names (symbol_file_addr). */
+ * The game's arenas are blocks of host memory data.c defines (docs/port/DATA.md 3), and a pointer into the N64 heap's
+ * memory resolves into a stand-in for the heap's block. Every place checked is a game symbol's, by its name
+ * (pc_data_addr_of), or one the symbol file names (symbol_file_addr). */
 #define _GNU_SOURCE
 #include "pc_data.h"
-#include "pc_n64_map.h"   /* the runtime images' load address, the heap's place in the window */
+#include "pc_n64_map.h"   /* the runtime images' load address */
 #include "pc_symbol_file.h"   /* the inflate tables' addresses, by name */
 
 #include <math.h>
@@ -255,6 +255,10 @@ static uint32_t esz(int kind, int host)
 
 typedef struct { void **field; void *want; } Expect;
 
+/* A stand-in for the game heap's block (port/ultra/memory.c), for the loader's heap pointers: the N64 heap's memory up
+ * to the runtime images' place (pc_data_set_heap). */
+static uint8_t *g_heap;
+
 /* A pointer target for data of image `img`: a value to plant and the host pointer the loader must produce. */
 static uint32_t pick_target(const PcDataTables *t, int img, void **want)
 {
@@ -264,9 +268,9 @@ static uint32_t pick_target(const PcDataTables *t, int img, void **want)
         case 0:
             *want = NULL;
             return 0;
-        case 5: {   /* the game heap (the RDRAM window): kept as the N64 address, or its place in the tables' window */
+        case 5: {   /* the game heap: its place in the heap's block */
             uint32_t a = t->heap_lo + rnd() % (N64_OVERLAY_BASE - t->heap_lo);
-            *want = t->window ? (void *)(t->window + N64_TO_PHYS(a)) : (void *)(uintptr_t)a;
+            *want = g_heap + (a - t->heap_lo);
             return a;
         }
         case 1:
@@ -402,6 +406,8 @@ static int synthetic(void)
 
     for (uint32_t i = 0; i < t->n_images; i++)
         img[i] = calloc(1, t->images[i].size);
+    g_heap = calloc(1, N64_OVERLAY_BASE - t->heap_lo);
+    pc_data_set_heap(g_heap, N64_OVERLAY_BASE - t->heap_lo);
     for (uint32_t i = 0; i < t->n_arenas; i++) {
         const PcDataArena *ar = &t->arenas[i];
         uint8_t *p = img[ar->image] + (ar->n64_lo - t->images[ar->image].n64_base);

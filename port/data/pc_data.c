@@ -8,22 +8,19 @@
  *      copy the initialized part, zero the BSS, and byte-swap the elements the runs describe in place (pointers stay
  *      N64 addresses there: the arenas hold the data without pointers, and the N64 form of the rest);
  *   3. each symbol with its own storage: convert from the image through its runs, turning N64 pointers into host
- *      pointers (functions, own storage, game-C data, an arena's block + the offset). Addresses in the game heap (at or
- *      above the tables' heap_lo, outside the runtime images) stay as they are: the heap is still the RDRAM window at
- *      host PC_RDRAM_BASE (pc_n64_map.h), so they are valid host addresses, and the renderer reads values below 4 GB
- *      as N64 addresses;
+ *      pointers (functions, own storage, game-C data, an arena's block + the offset, the game heap's block + the
+ *      offset: pc_data_set_heap);
  *   4. game-C data in an overlay: put back the bytes it had at startup (or zero it), the symbols the tables name and
  *      the image's C ranges, which hold the statics no table can name.
  *
- * No arena is at its N64 address (docs/port/NATIVE.md step 5): each is a block above 4 GiB, so a pointer into one is a
- * host pointer, and a 32-bit field can't hold it. With the window elsewhere (pc_data_set_window: the guard mode,
- * docs/port/NOFIXED.md 5) the RDRAM addresses a pointer keeps (the heap's) are translated to it; tables that name
- * their window (t->window: the RUSH_NOFIXED build's, docs/port/NOFIXED.md 2) put a kept RDRAM address at its place in
- * that window.
+ * Nothing is at its N64 address (docs/port/NATIVE.md steps 5 and 12): each arena and the heap is a block of host
+ * memory, so a pointer into one is a host pointer, and a 32-bit field can't hold it. An N64 address no table names is
+ * kept as its value (a use of it faults: nothing is mapped there). With the window elsewhere (pc_data_set_window: the
+ * guard mode, docs/port/NOFIXED.md 5) such an address is translated to it; tables that name their window (t->window:
+ * the RUSH_NOFIXED build's, docs/port/NOFIXED.md 2) put it at its place in that window.
  *
  * The first load writes a report: pointer counts, unresolved pointers, and non-pointer words that look like N64
- * addresses (likely mistyped declarations, unless they point at the heap or low memory, which the window still
- * holds). */
+ * addresses (likely mistyped declarations, or numbers that look like addresses: no u32 reaches the game's memory). */
 #include "pc_crossings.h"   /* the counting build's arena guard (docs/port/NATIVE.md 9): nothing in the default build */
 #include "pc_data.h"
 #include "pc_n64_map.h"   /* the N64's address space: KSEG0 and KSEG1, its 8 MiB of RDRAM, low memory */
@@ -40,12 +37,20 @@
 static PcDataStats g_stats;
 static FILE *g_report;
 static int g_scan;              /* first load: count and report */
-static void *(*g_window)(uint32_t n64);   /* the RDRAM window when it isn't at PC_RDRAM_BASE (the heap's), or NULL */
+static void *(*g_window)(uint32_t n64);   /* the RDRAM window when it isn't at PC_RDRAM_BASE, or NULL */
+static uint8_t *g_heap;                   /* the game heap's block (pc_data_set_heap), or NULL */
+static uint32_t g_heap_size;
 static const PcDataTables *g_loaded;      /* the tables the last pc_data_load_all filled */
 
 void pc_data_set_window(void *(*n64_to_host)(uint32_t n64))
 {
     g_window = n64_to_host;
+}
+
+void pc_data_set_heap(uint8_t *block, uint32_t size)
+{
+    g_heap = block;
+    g_heap_size = block ? size : 0;
 }
 
 /* Values already logged as unresolved (once each). */
@@ -222,20 +227,26 @@ void pc_data_describe_loaded(uint32_t n64, char *buf, size_t n)
         snprintf(buf, n, "?");
 }
 
-/* A pointer that keeps an RDRAM address (the heap's, or one no table resolves): the value as it is, or the window's
- * place for it when the window is elsewhere (the tables' window, or pc_data_set_window's). */
+/* A pointer to the game heap's memory on the N64 (at or above the tables' heap_lo): its place in the PC's heap block
+ * (pc_data_set_heap), whose first byte is the N64 heap's. Else, and for an RDRAM address no table resolves, the value as
+ * it is (no host memory is there: a use faults), or the window's place for it when the window is elsewhere (the
+ * tables' window, or pc_data_set_window's). */
 static void *kept(const PcDataTables *t, uint32_t v)
 {
     int rdram = N64_IS_KSEG0_OR_1(v);
+    uint32_t a = N64_IS_KSEG1(v) ? N64_KSEG1_TO_KSEG0(v) : v;
+    if (g_heap && a >= t->heap_lo && a - t->heap_lo < g_heap_size)
+        return g_heap + (a - t->heap_lo);
     if (t->window && rdram)
         return t->window + N64_TO_PHYS(v);
     void *p = g_window && rdram ? g_window(v) : NULL;
     return p ? p : (void *)(uintptr_t)v;
 }
 
-/* What an address-like word points at, for the report. What the window still holds (the heap, low memory) is
- * reachable through the 32-bit value as it is: *host = 0. Arenas (their blocks), own storage, game-C data and
- * functions are host memory, and code is not data: a u32 can't reach them. */
+/* What an address-like word points at, for the report. Nothing the game has is at an N64 address any more: the heap
+ * is a block of host memory (docs/port/NATIVE.md step 12), as the arenas, own storage, game-C data and functions are,
+ * and code is not data: a u32 reaches none of them (*host = 1). Low memory is nothing on the PC (libultra's boot
+ * parameters are port/ultra's variables). */
 static const char *addr_class(const PcDataTables *t, uint32_t v, int *host)
 {
     const PcDataSym *s = find_sym(t, v);
@@ -250,10 +261,8 @@ static const char *addr_class(const PcDataTables *t, uint32_t v, int *host)
     for (uint32_t i = 0; i < t->n_images; i++)
         if (v >= t->images[i].n64_base && v - t->images[i].n64_base < t->images[i].size)
             return "code";   /* an image's bytes outside its arena */
-    if (v >= t->heap_lo || v < N64_LOW_MEMORY_END) {
-        *host = 0;
+    if (v >= t->heap_lo || v < N64_LOW_MEMORY_END)
         return v >= t->heap_lo ? "heap" : "low memory";
-    }
     return "code";
 }
 
@@ -847,10 +856,10 @@ int pc_data_load_all(const PcDataTables *t, const uint8_t *rom, size_t rom_size,
     g_report = path[0] ? fopen(path, "w") : NULL;
     if (g_report)
         fprintf(g_report, "# pc_data report: unresolved pointers, pointers to functions with no C, and words in\n"
-                          "# non-pointer fields that look like N64 addresses. Their target in brackets: [heap] and\n"
-                          "# [low memory] are what the RDRAM window still holds, which the word reaches as it is;\n"
-                          "# [arena] (its block), [own], [C data], [function] and [code] it can't (likely mistyped\n"
-                          "# declarations, or words nothing reads as an address). An\n"
+                          "# non-pointer fields that look like N64 addresses. Their target in brackets: [heap],\n"
+                          "# [arena], [own], [C data], [function], [code] or [low memory]; a word reaches none of\n"
+                          "# them, all being host memory or nothing (likely mistyped declarations, or words nothing\n"
+                          "# reads as an address). An\n"
                           "# undescribed pointer's target is initialized data no declaration describes: its bytes\n"
                           "# keep the ROM's order, so a table of wider values there reads wrong. A text-in-words\n"
                           "# pointer's target reads as text but lies in an element wider than a byte, which swaps\n"

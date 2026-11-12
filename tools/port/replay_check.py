@@ -20,8 +20,8 @@ physics every retrace (--log-physics 1), the game's pads at each change (--log-p
 (each exact float by its value, as synth_compare.py's exact_floats reads them).
 
 same: a run that records its pads (--record-inputs), then a run that replays them (--replay-inputs): the same trace and
-  the same hashes. The two are processes of their own, so with ASLR their images are apart (said). The recording and
-  the replay's log stay in --logs (PATH.pads, PATH.replay.log) for replay-dir on another OS.
+  the same hashes. The two are processes of their own, so with ASLR their images and heaps are apart (said). The
+  recording and the replay's log stay in --logs (PATH.pads, PATH.replay.log) for replay-dir on another OS.
 delay: the path recorded with no delay (A), with --input-delay D (B) and with a schedule (C). B's pads are A's D
   retraces later, the first D idle, and C's are what the delay line's rule (NETPLAY.md 11.2: a slot skipped as the
   delay grows gets the last pads again, a sample whose slot is taken as it shrinks is dropped) makes of A's: the pads
@@ -32,7 +32,7 @@ gate: the path without the gate, and with RUSH_SIM_GATE (its pads held back at r
 mutation: the path, and the path with RUSH_SIM_DESYNC flipping the random seed at --at (then a word of the game
   heap's block nothing uses, --heap-word): hash_compare.py names that retrace as the first difference, and the hashes
   differ from it on.
-aslr: two runs with the full hash at every --full retraces: the same hashes, with the images apart.
+aslr: two runs with the full hash at every --full retraces: the same hashes, with the images and heaps apart.
 file: the file cut short replays what it has, then says so; a damaged header and a recording of other settings are
   refused (the latter with what differs), and --replay-force replays it.
 replay-dir: the recordings of another run of `same` (CI: Linux's), replayed here: the replay's trace and hashes are
@@ -62,6 +62,7 @@ SCRIPTS = synth_paths.PRESS_DIR   # --scripts: where PATH.press is (tools/port/r
 _KEEP = re.compile(r"^rush2049pc: (game state |status |state reached:|time reached:|frames reached:|physics vi=|hash vi=|"
                    r"pads vi=)")
 _IMAGE = re.compile(r"^rush2049pc: hash: the program's image at (0x[0-9a-f]+)")
+_HEAP = re.compile(r"^rush2049pc: hash: the game heap's block at (0x[0-9a-f]+)")
 
 
 _COUNTS = re.compile(r" gfx_tasks=\d+ audio_tasks=\d+|, after \d+ graphics tasks")
@@ -110,8 +111,8 @@ def run(exe, rom, logs, name, tag, extra=(), env=None, full=30, press=None, hash
     return text, took
 
 
-def image(text):
-    m = [_IMAGE.match(l) for l in text.splitlines()]
+def image(text, line=_IMAGE):
+    m = [line.match(l) for l in text.splitlines()]
     m = [x.group(1) for x in m if x]
     return m[0] if m else None
 
@@ -126,12 +127,15 @@ def judge(what, ta, tb, la, lb):
 
 
 def aslr_note(texts):
-    bases = [image(t) for t in texts]
-    if None in bases:
-        return "no image line"
-    if len(set(bases)) == len(bases):
-        return f"images apart ({', '.join(bases)})"
-    return f"images at the same address ({bases[0]}: no ASLR between these runs)"
+    """Whether the runs had their images and their game heaps' blocks at other addresses: "apart" in the note only
+    when both were, so that their hashes agreeing says something about the host pointers into each."""
+    bases, heaps = [image(t) for t in texts], [image(t, _HEAP) for t in texts]
+    if None in bases or None in heaps:
+        return "no image or heap line"
+    if len(set(bases)) == len(bases) and len(set(heaps)) == len(heaps):
+        return f"images and heaps apart ({', '.join(bases)}; {', '.join(heaps)})"
+    return (f"images or heaps at the same address ({', '.join(bases)}; {', '.join(heaps)}: no ASLR between these "
+            f"runs)")
 
 
 # ---------------------------------------------------------------- the modes

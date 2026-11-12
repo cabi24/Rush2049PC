@@ -211,9 +211,13 @@ void *pc_data_host_of(const PcDataTables *t, uint32_t n64_addr, int image);
  * source). Before or after the data is loaded; a linear search, for startup and checks, not for every frame. */
 uint32_t pc_data_addr_of(const PcDataTables *t, const char *name);
 /* The RDRAM window when it isn't at host PC_RDRAM_BASE (the guard mode, docs/port/NOFIXED.md 5): an RDRAM address a
- * pointer keeps (the heap's) becomes n64_to_host(it). NULL (the default) for the window at PC_RDRAM_BASE. Before
+ * pointer keeps becomes n64_to_host(it). NULL (the default) for the window at PC_RDRAM_BASE. Before
  * pc_data_load_all. */
 void pc_data_set_window(void *(*n64_to_host)(uint32_t n64));
+/* The game heap's block (port/ultra/memory.c), size bytes: a pointer in the ROM's data to the N64 heap's memory (at or
+ * above the tables' heap_lo, outside the runtime images) resolves to its place there, the block's first byte being the
+ * N64 heap's. NULL (the default): such a pointer keeps its N64 address. Before pc_data_load_all. */
+void pc_data_set_heap(uint8_t *block, uint32_t size);
 /* An N64 address by name (a function, own storage, an arena's symbol + offset), from the tables the last
  * pc_data_load_all filled; "?" if none. */
 void pc_data_describe_loaded(uint32_t n64, char *buf, size_t n);

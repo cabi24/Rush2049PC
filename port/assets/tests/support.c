@@ -192,6 +192,14 @@ uint32_t pc_n64_addr(const void *host)
     return p >= m && p < m + test_memory_bytes ? N64_KSEG0 + (uint32_t)(p - m) : 0;
 }
 
+/* port/ultra/memory.c's game heap block (which port/ultra/heap.c reads): the tests' memory past what lies below the
+ * heap on the N64, to its end. */
+uint8_t *pc_mem_heap(uint32_t *size)
+{
+    *size = test_memory_bytes - TEST_HEAP_OFFSET;
+    return test_memory() + TEST_HEAP_OFFSET;
+}
+
 /* The game heap's memory and reports; a test that links port/ultra/heap.c instead (assets_heap) is built with
  * TEST_HEAP_C. The memory is heap.c's: the tests' memory past what lies below the heap on the N64 (the game image,
  * low memory), to mem_size, so the heap has the N64's size and alignment. */

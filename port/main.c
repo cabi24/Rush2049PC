@@ -1555,6 +1555,15 @@ static int rush_main(int argc, char **argv)
     if (!pc_mem_fixed())
         pc_data_set_window(pc_n64_ptr);   /* the guard mode, or a host that can't map PC_RDRAM_BASE (NOFIXED.md 5) */
 #endif
+    /* The game heap's block, for osMemSize (game.memory, game.expansion_pak): the heap's memory, and where the data
+     * loader puts a ROM pointer into the N64 heap's memory (docs/port/MEMORY.md 1) */
+    if (pc_mem_map_heap(pc_os_mem_size()) != 0)
+        return 1;
+    {
+        uint32_t heap_size;
+        uint8_t *heap = pc_mem_heap(&heap_size);
+        pc_data_set_heap(heap, heap_size);
+    }
     if (selftest) {
         pc_time_set_virtual(fast);
         if (paced)
