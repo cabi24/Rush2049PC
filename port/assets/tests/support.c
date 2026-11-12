@@ -5,7 +5,6 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/mman.h>
 
 #include "pc_game_types.h"
 #include "support.h"
@@ -127,56 +126,52 @@ void pc_pool_overflow(const char *pool, int used, int capacity)
     abort();
 }
 
-#ifndef MAP_FIXED_NOREPLACE
-#define MAP_FIXED_NOREPLACE 0x100000
-#endif
+/* The tests' memory (support.h): one block, made the first time it is asked for. */
+uint32_t test_memory_bytes = N64_RDRAM_SIZE;
+static uint8_t *g_memory;
 
-uint32_t test_rdram_bytes = PC_RDRAM_SIZE;
-static uint8_t *g_window;
-
-uint8_t *test_rdram(void)
+uint8_t *test_memory(void)
 {
-    static int tried;
-    void *want = (void *)(uintptr_t)PC_RDRAM_BASE, *p;
-
-    if (tried)
-        return g_window;
-    tried = 1;
-    p = mmap(want, test_rdram_bytes, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED_NOREPLACE, -1, 0);
-    if (p == want)
-        g_window = (uint8_t *)p;
-    else if (p != MAP_FAILED)
-        munmap(p, test_rdram_bytes);
-    return g_window;
+    static uint8_t *block;
+    if (!g_memory) {
+        block = calloc(1, (size_t)test_memory_bytes + TEST_MEMORY_ALIGN);
+        if (!block) {
+            fprintf(stderr, "test: no %u bytes of memory\n", test_memory_bytes);
+            abort();
+        }
+        g_memory = (uint8_t *)(((uintptr_t)block + TEST_MEMORY_ALIGN - 1) & ~(uintptr_t)(TEST_MEMORY_ALIGN - 1));
+    }
+    return g_memory;
 }
 
-/* port/ultra's window functions over test_rdram's window (docs/port/MEMORY.md), for game C and port code a test
- * links; rcpaddr.c's rule reads pc_rdram_size. A test with a window of its own (wad_game) defines them instead and
- * is built with TEST_OWN_WINDOW. (Not weak definitions: mingw's linker doesn't take those for another object's
- * reference.) */
+/* port/ultra's RDRAM functions over the tests' memory (docs/port/MEMORY.md), for game C and port code a test links:
+ * rcpaddr.c's rule reads pc_rdram_size, and port/ultra/heap.c's reports give the heap's N64 addresses (until
+ * docs/port/NATIVE.md step 12), which pc_n64_addr makes of the block's offsets as the N64 would number RDRAM (KSEG0
+ * from its first byte). A test with a window of its own (wad_game) defines them instead and is built with
+ * TEST_OWN_WINDOW. (Not weak definitions: mingw's linker doesn't take those for another object's reference.) */
 #ifndef TEST_OWN_WINDOW
-uint8_t *pc_rdram(void) { return g_window; }
-uint32_t pc_rdram_size(void) { return test_rdram_bytes; }
+uint8_t *pc_rdram(void) { return test_memory(); }
+uint32_t pc_rdram_size(void) { return test_memory_bytes; }
 void *pc_n64_ptr(uint32_t addr)
 {
     uint32_t phys = N64_IS_KSEG0_OR_1(addr) ? N64_TO_PHYS(addr) : addr;
-    return g_window && phys < test_rdram_bytes ? g_window + phys : NULL;
+    return phys < test_memory_bytes ? test_memory() + phys : NULL;
 }
 uint32_t pc_n64_addr(const void *host)
 {
-    const uint8_t *p = host;
-    return g_window && p >= g_window && p < g_window + test_rdram_bytes ? PC_RDRAM_BASE + (uint32_t)(p - g_window) : 0;
+    const uint8_t *p = host, *m = test_memory();
+    return p >= m && p < m + test_memory_bytes ? N64_KSEG0 + (uint32_t)(p - m) : 0;
 }
 #endif
 
 /* The game heap's memory and reports; a test that links port/ultra/heap.c instead (assets_heap) is built with
- * TEST_HEAP_C. The memory is heap.c's: the window from the end of the game's BSS to mem_size. */
+ * TEST_HEAP_C. The memory is heap.c's: the tests' memory past what lies below the heap on the N64 (the game image,
+ * low memory), to mem_size, so the heap has the N64's size and alignment. */
 #ifndef TEST_HEAP_C
 void *pc_heap_memory(uint32_t mem_size, uint32_t *size)
 {
-    const uint32_t below = N64_HEAP_BASE - PC_RDRAM_BASE;
-    *size = mem_size > below ? mem_size - below : 0;
-    return g_window ? g_window + below : NULL;
+    *size = mem_size > TEST_HEAP_OFFSET ? mem_size - TEST_HEAP_OFFSET : 0;
+    return test_memory() + TEST_HEAP_OFFSET;
 }
 void pc_heap_created(void *heap) { (void)heap; }
 void pc_heap_allocated(void *heap) { (void)heap; }
@@ -199,6 +194,6 @@ void pc_log(const char *fmt, ...)
     fprintf(stderr, "\n");
     va_end(ap);
 }
-uint32_t pc_os_mem_size(void) { return test_rdram_bytes; }
+uint32_t pc_os_mem_size(void) { return test_memory_bytes; }
 /* video.detail (port/config/detail.c): SetupWaveModel's player count for its LOD markers, as the N64 has it. */
 int pc_detail_players(int players) { return players; }

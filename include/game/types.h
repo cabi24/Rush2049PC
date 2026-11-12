@@ -53,7 +53,6 @@ struct Entity;
 struct Entry;
 struct FiveParts;
 struct Ghost;
-struct GhostHeader;
 struct GsmState;
 struct GsmStream;
 struct H12;
@@ -125,7 +124,6 @@ struct MacroStateTrapKeyOff;
 struct MacroStateUntrapKeyOff;
 struct MacroStateVibrato;
 struct MapRecord;
-struct MenuData;
 struct MenuItem;
 struct MenuNode;
 struct MessageQueue;
@@ -701,7 +699,7 @@ typedef struct FrameRecord { /* 0xD0 bytes */
                              * display list from PC_GLIST_OFFSET */
     s16 doneMsgType;        /* 0xA8: the message the task sends the main thread when done: OS_SC_DONE_MSG */
     u8 doneMsgRest[30];     /* 0xAA */
-    uintptr_t colorBuffer;  /* 0xC8: the frame buffer it draws into (a window address) */
+    void *colorBuffer;      /* 0xC8: the frame buffer it draws into (framebuffer_a or framebuffer_b) */
 } FrameRecord;
 
 typedef struct SequenceSlotTrack { /* 0x18 bytes */
@@ -1648,26 +1646,37 @@ typedef struct tSaveData { /* 0x810 bytes */
 #define PROFILE_REVISION 16   /* tSaveData.revision (MAT3's is 19) */
 
 /* A ghost file's header (MAT3 save.c's tSaveHeader, the N64's 0x58 bytes): file data, so in the file's layout; the
- * compressed recording follows it. */
+ * compressed recording follows it. The race's recording headers (gRealNewGhostHeaders) have the same layout.
+ *
+ * Its last three words are the replay's, not the file's (0 in every file): MAT3's start, the samples' address, then
+ * the step and the number of steps. A host pointer doesn't fit the file's 4 bytes, so on the PC the header says only
+ * whether it has its samples (hasSamples), and the samples are found by what owns them: a ghost's decoded recording
+ * is its data block (tGhostFile.datah), a race being recorded is its player's block (ghost_recording, NewGhost.c). */
 typedef struct tGhostHeader { /* 0x58 bytes */
     u32 headerChecksum;     /* 0x0 over revision .. unzippedSize */
     u8 revision;            /* 0x4 GHOST_REVISION */
-    s8 flag;                /* 0x5 */
+    s8 flag;                /* 0x5 the replay: -1 recording, 1 playing back (DecodeGhost), 0 neither */
     s8 track;               /* 0x6 */
     u8 backward;            /* 0x7 */
-    u8 pad08[0x16 - 0x08];  /* 0x8 */
+    u8 car;                 /* 0x8 the car raced (MAT3 car) */
+    u8 carTrans;            /* 0x9 its transmission (MAT3 trans) */
+    s8 settings[12];        /* 0xA handling, engine, tires, frame, wings, the three colours, rims, horn, front and
+                             * rear tire size */
     u8 name[13];            /* 0x16 the driver's */
-    u8 pad23[0x28 - 0x23];  /* 0x23 */
+    u8 pad23;               /* 0x23 */
+    u16 tournamentKey;      /* 0x24 */
+    u8 pad26[2];            /* 0x26 */
     u32 playerId[2];        /* 0x28 the driver's profile id */
-    u8 pad30[0x38 - 0x30];  /* 0x30 */
+    u32 bestTime;           /* 0x30 the driver's best time on the track when recorded */
+    f32 frameTime;          /* 0x34 the model step it was recorded at (MAT3 retraceTime) */
     f32 finish;             /* 0x38 the race time */
     u32 zippedSize;         /* 0x3C */
     u32 unzippedSize;       /* 0x40 */
     u32 zippedChecksum;     /* 0x44 over the compressed recording */
     u32 unzippedChecksum;   /* 0x48 */
-    u32 start;              /* 0x4C the recording's heap block once read: a window address, 32 bits as in the file */
-    u32 offset;             /* 0x50 */
-    u32 size;               /* 0x54 */
+    u32 hasSamples;         /* 0x4C 1 while the replay's samples are in memory, else 0 (MAT3 start: above) */
+    u32 offset;             /* 0x50 the replay's step */
+    u32 size;               /* 0x54 its steps: each of the samples' three channels is size bytes long */
 } tGhostHeader;
 
 #define GHOST_REVISION 17
@@ -2171,7 +2180,7 @@ typedef struct GhostFile { /* 0x40 bytes */
     u32 playerId[2];             /* 0x20 */
     f32 finish;                  /* 0x28 */
     u8 **datah;                  /* 0x30 */
-    struct GhostHeader **header; /* 0x38 */
+    tGhostHeader **header;       /* 0x38 */
 } GhostFile;
 
 typedef struct GhostPlayer { /* 0x40 bytes */
@@ -2183,30 +2192,6 @@ typedef struct GhostPlayer { /* 0x40 bytes */
     u8 pad21[11];    /* 0x2D */
     u8 **datah;      /* 0x38 */
 } GhostPlayer;
-
-typedef struct GhostSaveHeader { /* 0x58 bytes */
-    u32 headerChecksum;   /* 0x0 */
-    u8 revision;          /* 0x4 */
-    s8 flag;              /* 0x5 */
-    s8 track;             /* 0x6 */
-    u8 backward;          /* 0x7 */
-    u8 car;               /* 0x8 */
-    u8 carTrans;          /* 0x9 */
-    s8 settings[12];      /* 0xA */
-    u8 name[13];          /* 0x16 */
-    u8 pad23[5];          /* 0x23 */
-    u32 playerId[2];      /* 0x28 */
-    u32 bestTime;         /* 0x30 */
-    f32 frameTime;        /* 0x34 */
-    f32 finish;           /* 0x38 */
-    u32 zippedSize;       /* 0x3C */
-    u32 unzippedSize;     /* 0x40 */
-    u32 zippedChecksum;   /* 0x44 */
-    u32 unzippedChecksum; /* 0x48 */
-    u32 start;            /* 0x4C */
-    u32 offset;           /* 0x50 */
-    s32 size;             /* 0x54 */
-} GhostSaveHeader;
 
 typedef struct MuzzleObj { /* 0x10C bytes */
     s32 mdls[5];       /* 0x0 */

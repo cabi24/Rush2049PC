@@ -166,6 +166,13 @@ void pc_heap_created(void *heap)
                (uint32_t)(h->end - (const uint8_t *)h), pc_os_mem_size() >> 20);
 }
 
+/* Whether p lies in the main heap's memory, from its header to its end (the audio heap and the others are blocks of
+ * it): the audio task capture copies a region's neighbours there, as the RSP's DMA reads whole 8-byte units. */
+int pc_heap_holds(const void *p)
+{
+    return H.heap && (const uint8_t *)p >= (const uint8_t *)H.heap && (const uint8_t *)p < H.heap->end;
+}
+
 void pc_heap_allocated(void *heap)
 {
     if (!H.heap || heap != H.heap || H.walking)

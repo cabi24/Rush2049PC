@@ -109,11 +109,11 @@ int osSendMesg(void *mq, void *msg, int block) { return 0; }
 int main(void)
 {
     static CoinNode node;
-    uint8_t *w = test_rdram();
+    uint8_t *w = test_memory();   /* the heap's blocks */
     int i;
 
-    if (w) {
-        Coin *coin = (Coin *)(w + 0x310000);        /* a heap record, in the window */
+    {
+        Coin *coin = (Coin *)(w + 0x310000);        /* a heap record */
         static struct tTarget target;               /* the coin's level-object node */
         struct tTarget *entity = &target;
 
@@ -139,8 +139,6 @@ int main(void)
         AnimateCoin(&node, 1);
         CHECK(memcmp(ObjInstanceList[12].prim, "\xC8\xE6\xFF\xFF", 4) == 0);
         CHECK(g_nspawned == 2 && g_spawned[0] == 9 && g_spawned[1] == 12);
-    } else {
-        fprintf(stderr, "no RDRAM window: the coin part is skipped\n");
     }
 
     /* A car's colour, a word copied whole: each part's node gets the bytes as they are. */
@@ -161,10 +159,6 @@ int main(void)
     }
 
     /* A car's paint job: the palette descriptor goes to the car's two model nodes, not to node 0. */
-    if (!w) {
-        fprintf(stderr, "no RDRAM window: the car palette part is skipped\n");
-        return TEST_DONE();
-    }
     for (i = 0; i < 256; i++)
         test_put16(w + 0x200000 + 2 * i, (uint16_t)(0x8000 | i));   /* the WAD's TLUT, big-endian */
     g_wad_palette.palBase = w + 0x200000;     /* the WAD's colours */

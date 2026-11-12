@@ -69,13 +69,6 @@ typedef union {
 }
 #define gSPSetGeometryMode(pkt, word) gSPGeometryMode((pkt), 0, word)
 
-typedef struct {
-    PcScTaskShape task;
-    u8 *commands;      /* 88 */
-    u8 pad5C[32];
-    void *colorBuffer; /* 124 */
-} FrameBuf;
-
 VIEW(u8 *, frame_dynamic);
 #define frame_dynamic frame_dynamic_view
 
@@ -97,7 +90,7 @@ void osViSetSpecialFeatures(u32);
  * filter and divot), then the blitter's and the text's frame (BlitInit, HAL_StartText). EndGraphics ends it. */
 void StartGraphics(void) {
     u32 color;
-    FrameBuf *frame;
+    FrameRecord *frame;
     frame=&frame_records[frame_record_index];
     frame_dynamic=frame->commands;
     frame_matrix_cursor=frame_dynamic+FRAME_MATRIX_OFFSET;

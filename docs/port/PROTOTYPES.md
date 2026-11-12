@@ -161,8 +161,9 @@ the real value first or an ignored extra (`sound_seq_stop(id, id)`, `osGetThread
   `WalkBSTInternal`, `PS_ErrorFunc` (two strings to `ShowPakError`), `steady_move_cam`, `fix_camera_in_space`,
   `UpdateCarObj` and the `point_at_car` views they call, `GetCircuitCode` → `GetPasswordString`.
 - `HAL_InstallOncePerFrameFunc` stores function pointers in its callback table `gOPPFuncs`, which `HAL_CallOncePerFrameFuncs` walks up
-  to `&yf`, the next N64 variable. The table is `intptr_t[10]`, and in those two files its end is
-  `&gOPPFuncs[10]` on the PC. `yf` itself stays a variable for its other users.
+  to `&yf`, the next N64 variable. The table is MAT3's `void (*[10])(void)` (an `intptr_t[10]` until
+  [NATIVE.md](NATIVE.md) step 11), and in those two files its end is `gOPPFuncs + 10` on the PC. `yf` itself stays a
+  variable for its other users.
 - InitPane stores a `PaneAnimation` from its sixth argument into the blit. Its struct view
   (`PadConfig`) gets the blit's two pointer-sized fields (`Info`, `AnimFunc`), so position, size and the animation
   function land where `Blit` has them. The title panes it returns (`audio_gTitlePane`, `options_gTitlePane`) are `intptr_t` in
@@ -213,7 +214,7 @@ table and reported as `reviewed`:
 
 | Functions | Why |
 |---|---|
-| `PurgeableMemory`, `FindChunk`, `FindHeap`, `DeallocateMemoryInternal`, `DeallocateMemory`, `ReallocateMemory`, `GetPtrSize`; `AllocateMemoryHeap`, `AllocateMemoryHeapHigh` in `initgfx.c`; `CalcChecksumInternal`, `unzipdata` in `DecodeGhost` | heap block addresses are RDRAM-window addresses below 4 GB (POINTERS.md 4.1) |
+| `PurgeableMemory`, `FindChunk`, `FindHeap`, `DeallocateMemoryInternal`, `DeallocateMemory`, `ReallocateMemory`, `GetPtrSize`; `AllocateMemoryHeap`, `AllocateMemoryHeapHigh` in `initgfx.c` (`CalcChecksumInternal`, `unzipdata` in `DecodeGhost` until [NATIVE.md](NATIVE.md) step 11, which gives them pointers) | heap block addresses are RDRAM-window addresses below 4 GB (POINTERS.md 4.1) |
 | `inflate_decompress`, `lzss_decompress` | the source is a ROM offset from the file table |
 | `relocate_texture_loads` in `waves.c`; `TB_DrawText` in `titlescr_animText.c` | WAD and text-bank records hold 32-bit window addresses (4.2) |
 | `displaylist_set_texture_image`, `displaylist_get_texture_image` | a word of a display list in N64 form (texture animation, POINTERS.md 2) |

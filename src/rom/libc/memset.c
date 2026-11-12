@@ -7,7 +7,7 @@ void* memset(register void* dest, register int c, register unsigned n) {
     int alignment;
     unsigned* words;
     if (c == 0) {
-        alignment = (unsigned)p & 3;
+        alignment = (uintptr_t)p & 3;
         while(n && alignment > 0 && alignment != 4) {
             *p++ = 0;
             alignment++;

@@ -9,8 +9,8 @@
  * (StartPathTarget, GetTargetVelocity, TargetCollTrigger: the path record, a heap record that names its path by its
  * index, and the PTHD record, the WAD's native one with pointers) and a bounding box model's collision (TargetCollBBox and its response
  * setMiniFBCollisionForce: the model keeps its box as a row of BBoxCollInfo). Records past the first are used
- * throughout, so an N64 stride or offset lands somewhere else. The heap records and the track records sit in an
- * RDRAM window the test maps (exit 77, skipped, if it can't).
+ * throughout, so an N64 stride or offset lands somewhere else. The heap records and the track records are the test's
+ * own memory.
  * game: src/blob/initTargetStructs.c src/blob/ClearStatLL.c src/blob/GetStatLLE.c
  * game: src/blob/FreeStatLLE.c src/blob/groups/targets/group.c src/blob/UpdateMiniModelStruct.c
  * game: src/blob/StartWindow.c src/blob/StartKnockdown.c src/blob/StartCone.c src/blob/StartFence.c
@@ -50,18 +50,17 @@ _Static_assert(sizeof(TInfo) == TINFO_OFS(0x30) && offsetof(TInfo, sound) == TIN
 typedef struct { uint8_t doubly; int32_t count, size; void *mem, *active, *free; } StatLL;
 
 #define NF(n, off, T) (*(T *)((uint8_t *)(n) + (off)))   /* a record's field at its offset (the N64-layout records) */
-#define W32(p) ((uint32_t)(uintptr_t)(p))
-#define WP(a) ((void *)(uintptr_t)(a))
 #define ALIAS(name, base, off) __asm__(".globl " #name "\n.set " #name ", " #base " + " #off)
 
 /* ---------------------------------------------------------------- the game's data */
 
 struct tTarget pc_target_nodes[PC_TARGET_NODES];   /* the nodes (pc_game_types.h), which data.c defines */
 #define NODE(i) (&pc_target_nodes[i])
-TEST_ABS(BBoxCollInfo);              /* the bounding boxes, a row of eight floats each (arena data) */
+float BBoxCollInfo[115];             /* the bounding boxes, a row of eight floats each (arena data) */
 struct pc_model pc_models[PC_MODEL_SLOTS];    /* model[] (pc_game_types.h), which data.c defines */
 #define MODEL(i) ((uint8_t *)&pc_models[i])
-#define HEAP TEST_SCRATCH             /* the game heap (AllocateMemoryHeap), the track's records */
+static uint8_t g_memory[0x40000] __attribute__((aligned(16)));
+#define HEAP g_memory                 /* the game heap (AllocateMemoryHeap, from +64 KiB), the track's records */
 
 TInfo targetInfo[122];
 StatLL gTargetList, gAlwaysColList;
@@ -98,10 +97,10 @@ struct pc_car pc_cars[PC_CAR_SLOTS];   /* the car records (pc_game_types.h), whi
 
 /* ---------------------------------------------------------------- what the code under test calls */
 
-static uint32_t g_heap = HEAP + 0x10000u;
+static uint8_t *g_heap = HEAP + 0x10000u;
 void *AllocateMemoryHeap(int32_t heap, int32_t size)
 {
-    void *p = WP(g_heap);
+    void *p = g_heap;
     memset(p, 0, (size_t)size);
     g_heap += ((uint32_t)size + 15u) & ~15u;
     return p;
@@ -241,7 +240,7 @@ static void setup_table(void)
 
 static void setup_track(void)
 {
-    uint8_t *k = WP(KEYS), *place = WP(PLACE);
+    uint8_t *k = KEYS, *place = PLACE;
 
     memset(g_paths, 0, sizeof g_paths);
     gTargetPaths.paths = g_paths;
@@ -263,8 +262,8 @@ static void setup_track(void)
     NF(place, 0x34, float) = 30.0f, NF(place, 0x38, float) = 0.0f, NF(place, 0x3C, float) = -20.0f;
     NF(place, 0x40, uint32_t) = 0;
     NF(place, 0x4C, int32_t) = 0x4242;        /* key */
-    memset(WP(STATIC), 0, 0x100);
-    gTargetStructInfoPtrs[2] = WP(STATIC);
+    memset(STATIC, 0, 0x100);
+    gTargetStructInfoPtrs[2] = STATIC;
 }
 
 /* ---------------------------------------------------------------- tests */
@@ -298,11 +297,11 @@ static void test_instantiate(void)
 
     expansion_pak_present = 1, gNumPlayers = 1, gGameState = 0, gTargetPaths.count = 0, numgTargetGroupList = 0, g_nvisual = 0, g_started = NULL;
     gObjList[3] = 0x1234;
-    CHECK(SetupTarget(WP(PLACE), -1, zero, WP(PLACE), 0, 1, 1) == 1);
-    strcpy((char *)WP(PLACE + 0x100), "NOTHING");
-    CHECK(SetupTarget(WP(PLACE + 0x100), -1, zero, NULL, 1, 1, 1) == 0);   /* no such kind */
-    strcpy((char *)WP(PLACE + 0x100), "CAMERA_1");
-    CHECK(SetupTarget(WP(PLACE + 0x100), -1, zero, NULL, 1, 1, 1) == 1);
+    CHECK(SetupTarget(PLACE, -1, zero, PLACE, 0, 1, 1) == 1);
+    strcpy((char *)(PLACE + 0x100), "NOTHING");
+    CHECK(SetupTarget(PLACE + 0x100, -1, zero, NULL, 1, 1, 1) == 0);   /* no such kind */
+    strcpy((char *)(PLACE + 0x100), "CAMERA_1");
+    CHECK(SetupTarget(PLACE + 0x100, -1, zero, NULL, 1, 1, 1) == 1);
     cone = NODE(0), cam = NODE(1);
     CHECK(pool->active == cam && cam->next == cone && cone->next == NULL);
     CHECK(pool->free == NODE(2) && NODE(2)->next == NODE(3));
@@ -314,10 +313,10 @@ static void test_instantiate(void)
 
     SetTargetDefs();
     ctl = cam->data;                                                 /* the camera's path record, a heap block */
-    CHECK(W32(gTargetStructPtrs[2]) >= HEAP && cone->data == gTargetStructPtrs[2]);
+    CHECK(gTargetStructPtrs[2] >= HEAP && cone->data == gTargetStructPtrs[2]);
     CHECK(gTargetOwnStructPtrs[2] == gTargetStructPtrs[2] + 24 && ctl == gTargetStructPtrs[4]);
     CHECK(ctl && NF(ctl, 0, int32_t) == 1);                         /* its path: gTargetPaths.paths[1], by index */
-    CHECK(W32(gBBoxModelStructs) >= HEAP && cam->owner == 0 && gBBoxModelUsed == 1);
+    CHECK((uint8_t *)gBBoxModelStructs >= HEAP && cam->owner == 0 && gBBoxModelUsed == 1);
     CHECK(NF(gBBoxModelStructs, 0, int32_t) == 2);                  /* its box: row 2 of BBoxCollInfo */
     CHECK(NF(gBBoxModelStructs, 4, float) == 1.0f && NF(gBBoxModelStructs, 0x14, float) == 1.0f);
     CHECK(NF(ObjInstanceList + 7 * 0x68, 0x18, uint16_t) == 0x1234);    /* the cone's texture (N64 +0x14) */
@@ -332,7 +331,7 @@ static void test_start(void)
     struct tTarget *t = NODE(0);
     uint8_t *car = CAR(1);
     struct pc_visual *v;
-    uint8_t *motion = WP(HEAP + 0x900u);
+    uint8_t *motion = HEAP + 0x900u;
 
     memset(car, 0, PC_CAR_SIZE);
     NF(car, 0x14, float) = 8.0f, NF(car, 0x18, float) = 16.0f, NF(car, 0x1C, float) = 24.0f;
@@ -378,7 +377,7 @@ static void test_start(void)
 static void test_hit(void)
 {
     struct tTarget *t = NODE(0);
-    uint8_t *state = WP(HEAP + 0xA00u);
+    uint8_t *state = HEAP + 0xA00u;
 
     memset(state, 0, 0x50);
     NF(state, 0x4A, uint16_t) = 9, NF(state, 0x48, uint16_t) = 1;   /* car 0's slot bit */
@@ -395,7 +394,7 @@ static void test_hit(void)
 static void test_visuals(void)
 {
     struct tTarget *t = NODE(2);
-    uint8_t *rate = WP(HEAP + 0xB00u);
+    uint8_t *rate = HEAP + 0xB00u;
     struct pc_visual v;
 
     memset(t, 0, sizeof *t);
@@ -428,7 +427,7 @@ static void test_debris(void)
 {
     StatLL *pool = &gTargetList;
     struct tTarget *t = NODE(1);
-    uint8_t *phys = WP(HEAP + 0xC00u);
+    uint8_t *phys = HEAP + 0xC00u;
     struct pc_visual v;
     void *free_before = pool->free;
 
@@ -450,7 +449,7 @@ static void test_debris(void)
  * the table's kind (its shape: +0x10) and hit function. */
 static void test_collision(void)
 {
-    uint8_t *tree = WP(HEAP + 0xD00u);
+    uint8_t *tree = HEAP + 0xD00u;
     struct tTarget *t = NODE(0);
     static struct pc_target_group side[4];
 
@@ -478,11 +477,11 @@ static void scene_cars(struct tTarget *cam, uint8_t *sc);
 static void test_camera(void)
 {
     struct tTarget *cam = NODE(1);
-    uint8_t *ctl = gTargetStructPtrs[4], *sc = (uint8_t *)&g_paths[1], *k = WP(KEYS);
+    uint8_t *ctl = gTargetStructPtrs[4], *sc = (uint8_t *)&g_paths[1], *k = KEYS;
     struct pc_visual *v;
     float out[3];
     int16_t player = 0;
-    uint8_t *polys = WP(HEAP + 0xE00u);
+    uint8_t *polys = HEAP + 0xE00u;
 
     /* the debris test freed node 1; give the camera back its fields */
     cam->infoIdx = CAMERA, cam->data = ctl, cam->Flags = 0;
@@ -572,7 +571,7 @@ static void scene_cars(struct tTarget *cam, uint8_t *sc)
 static void test_reckon(void)
 {
     struct tTarget *obj = NODE(1);
-    uint8_t *body = TEST_AT(BBoxCollInfo) + 2 * 32, *rec = gBBoxModelStructs, *m = MODEL(0);
+    uint8_t *body = (uint8_t *)BBoxCollInfo + 2 * 32, *rec = gBBoxModelStructs, *m = MODEL(0);
     int16_t index = 0;
     float dir[3] = {0, 0, 0}, pos[3] = {0, 0, 0};
 
@@ -604,11 +603,6 @@ static void test_reckon(void)
 
 int main(void)
 {
-    if (!test_rdram()) {
-        fprintf(stderr, "test_targets: the RDRAM window can't be mapped here: skipped\n");
-        return 77;
-    }
-    pc_fix_absolute_got();
     setup_table();
     setup_track();
     test_pool();

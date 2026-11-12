@@ -674,13 +674,13 @@ static void be32(uint8_t *p, uint32_t v)
 
 /* A region holding size bytes from src at a fresh address with src's alignment mod 8; returns the address of src's
  * first byte there. The region runs from the 8-byte boundary before src to the one after its end, plus 8 bytes, as
- * the RSP's DMA reads whole 8-byte units: inside the game's RDRAM (its heap, which holds the sample caches, the
+ * the RSP's DMA reads whole 8-byte units: inside the game's heap (pc_heap_holds: it holds the sample caches, the
  * codebooks and the outputs) those bytes are copied too, elsewhere they are zero. PCM16 (swap16) is stored big-endian,
  * whatever src's order; a NULL src gives zeros. */
 static uint32_t cap_region(const void *src, size_t size, int swap16)
 {
     unsigned lead = (unsigned)((uintptr_t)src & 7);
-    int window = src && pc_n64_addr(src);   /* in RDRAM (until docs/port/NATIVE.md step 12 takes the window away) */
+    int in_heap = src && pc_heap_holds(src);
     size_t n = ((lead + size + 7) & ~(size_t)7) + 8;
     uint32_t at = (cap.next + 15) & ~15u;
     if (at + n > CAP_ARENA_END)
@@ -696,7 +696,7 @@ static uint32_t cap_region(const void *src, size_t size, int swap16)
         return 0;
     if (src) {
         uint8_t *dst = cap.buf + start;
-        if (window)
+        if (in_heap)
             memcpy(dst, (const uint8_t *)src - lead, n);
         else
             memcpy(dst + lead, src, size);

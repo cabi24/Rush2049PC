@@ -31,8 +31,8 @@ static void build(Scene *sc)
         {pcm_native, 0, PCM_LEN, 0, 0, 5.0, 0x1000, {0}, 1},
     };
     sc->sfds = calloc(NSFD, sizeof *sc->sfds);
-    sc->state = rdram_alloc(MX_STATE_SIZE);
-    sc->line = rdram_alloc(LINE * 2);
+    sc->state = heap_alloc(MX_STATE_SIZE);
+    sc->line = heap_alloc(LINE * 2);
     sc->delay = calloc(1, sizeof *sc->delay);
     sc->delay->buffer = sc->line;
     sc->delay->length = LINE;
@@ -49,7 +49,7 @@ static void build(Scene *sc)
     for (int k = 0; k < NSFD; k++) {
         PcMusyxSfd *s = &sc->sfds[k];
         int n = 0;
-        sc->out[k] = rdram_alloc(2 * SUB * 2);
+        sc->out[k] = heap_alloc(2 * SUB * 2);
         s->state = sc->state;
         s->delay = sc->delay;
         s->delay_index = (uint16_t)(k % 6);
@@ -68,13 +68,13 @@ static void build(Scene *sc)
 
 int main(void)
 {
-    rdram_reset();
+    heap_reset();
 
     /* Sources. */
     {
-        uint8_t *p = rdram_alloc(PCM_LEN * 2 + 64);
-        int16_t *n = rdram_alloc(PCM_LEN * 2 + 64);
-        uint8_t *a = rdram_alloc(256 + ADPCM_LEN / 64 * 40);
+        uint8_t *p = heap_alloc(PCM_LEN * 2 + 64);
+        int16_t *n = heap_alloc(PCM_LEN * 2 + 64);
+        uint8_t *a = heap_alloc(256 + ADPCM_LEN / 64 * 40);
         int16_t *pcm = malloc(ADPCM_LEN * 2), book[128] = {0};
         unsigned seed = 64;
         for (int k = 0; k < PCM_LEN + 32; k++) {

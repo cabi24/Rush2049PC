@@ -474,9 +474,11 @@ profile's views put its file handle where the list keeps `prev`.
   functions, and the data handles are heap handles (window addresses). So the records are larger and everything
   after their first pointer moves, in N64 field order (9.1). The ghost header is the first 88 bytes of a ghost's
   file, written and read whole (`PS_ReadPartialFile(fileh, 0, 88)`, its checksum over +4..+0x44, the samples at
-  `header + 1`), so it keeps its N64 layout: its `start`, the samples' buffer, is a `u32` window address in every
-  view (`AllocateMemoryHeap` in GhostStart, the data handle's block in `_ReadGhostData`; `N64W` where it is stored,
-  a cast where CompressGhost and the replay read it). The save data has no pointers.
+  `header + 1`), so it keeps its N64 layout (`tGhostHeader`, one declaration). Its `start`, MAT3's address of the
+  replay's samples, was a `u32` window address until [NATIVE.md](NATIVE.md) step 11; the header now says only
+  whether it has its samples (`hasSamples`, 0 in every file, as `start` was), and the samples are found by their
+  owner: a ghost's decoded recording is its data block (`datah`), a race being recorded is its player's block
+  (`ghost_recording`, NewGhost.c). The save data has no pointers.
 - **`pc_prelude.h`**: `PSF_OFS(n)`, `PROFILE_OFS(n)`, `GHOST_OFS(n)` (the PC offset of N64 offset n; the N64 size
   gives the PC size, as `CAR_OFS` does) and `PC_PSFILE_SIZE`, `PC_PROFILE_SIZE`, `PC_GHOST_SIZE`. Game files that use
   one define the N64 side, `#define PSF_OFS(n) n`; `SLOT_DATA` is `PROFILE_OFS(0x2C)` in its eleven files.
@@ -485,11 +487,11 @@ profile's views put its file handle where the list keeps `prev`.
   PS_CreateFile and PS_PakServer clear them, PS_DeleteFile and `_RemovePak` (`RemovePak`) call `RemoveFile`.
   The raw stores at +8 and +12 wrote `RemovePlayerFile` over the record's `prev` link, and the upper half of
   `MovePlayerFile` into `RemoveFile`, which deleting the file then called. `RemovePlayerFile` compared the handle as
-  a `u32` with views at N64 offsets; it takes `uintptr_t` and finds a profile's handle at +16, a ghost's at +8.
-  `MovePlayerFile` (never called by the game) takes `intptr_t` and uses `PROFILE_OFS`/`GHOST_OFS`.
+  a `u32` with views at N64 offsets; it takes the handle (`tPakHandle *`) and compares the profiles' and ghosts'
+  `fileh`, as `MovePlayerFile` (never called by the game) does.
 - **Views made to agree.** The file record: pak_write_cluster's `C96File` (PS_WriteFile, PS_FlushFile, PS_FlushPak:
   its `channel`, `data_size` and `data` were 12, 12 and 8 bytes early), SaveFlush's `VisualBody`, ctx_slot's `Slot`
-  (and its ghost-header `f76`, now `HeaderStart`), paksys' `prev`, and 17 views of its first fields (the pak at
+  (and its ghost-header `f76`, then `HeaderStart`, now `tGhostHeader`), paksys' `prev`, and 17 views of its first fields (the pak at
   +0x10): controlscr's `PSFile`, `PS_LockFile`/`pak_file_unchanged`'s `Object`, `save_file_pak_ready`'s `Owner`,
   updateHighScoreScreen's `Q`, overlay A's `FileInfo` (4), `Item` (3), `Resource` (2), `Owner`, `ListOwner` and the file
   list's `Record`. The profile: save.c's `SaveSlot` and 28 more 48-byte views whose padding hid the links
@@ -528,7 +530,8 @@ profile's views put its file handle where the list keeps `prev`.
   `(player << 3) | pak` takes the low half of a host handle on the PC: it only tells profiles apart.
 - **Test:** `assets_save` (`test_save.c`) runs the game's pak and save code on a pak of its own (16 notes in place
   of the SI and the Pfs C, which the selftest's "controller pak" and "pak note round trip" cover), in port 1 so the
-  strides count, with the game's heap in a mapped RDRAM window: PS_InitPakSys and the defaults; PS_PakServer;
+  strides count, with the game's heap in the tests' memory (a host block, since NATIVE.md step 11; a mapped RDRAM
+  window before): PS_InitPakSys and the defaults; PS_PakServer;
   CreatePlayer (the profile, the file record and its function table, the save file on the pak); the pak taken out
   (`_RemovePak` through `RemoveFile`) and put back (SaveServer, `_ReadPlayer`, every block's check,
   PurgePlayerData); LoadPlayerData and a car setting written back by SaveFlush; MoveFile; CompressGhost in a ghost
@@ -548,8 +551,8 @@ profile's views put its file handle where the list keeps `prev`.
   the extensions; the test uses its own), the pak font `pak_charset`, profiles and ghosts made, loaded and deleted
   through overlay A's screens and a race (GhostStart, the recording, `GhostEnd`, CompressGhost's zip), the
   rumble request with a rumble pak, and a pak image with the game's saves on it (that needs the converter above).
-- **Left:** the weak context copies keep their N64 views. DecodeGhost passes the data buffer, a window address, to
-  `unzipdata` and `CalcChecksumInternal` as an `s32` (PROTOTYPES.md, reviewed).
+- **Left:** the weak context copies keep their N64 views. The ghost record's views (`Ghost`, `Obj`) are each file's
+  own, in the PC's layout (`tGhostFile`'s).
 
 ## 10. Race-time records (2026-10-27)
 

@@ -91,8 +91,6 @@ _SAME32 = "compared with 32-bit slots that hold the same truncation of the point
 _INDEX = "a model index carried in a void * variable"
 REVIEWED = {
     "AddStunt": "old-style definition; `hits` is a third parameter no caller passes, written before it is read",
-    "CalcChecksumInternal@src/blob/groups/save/ghost_files.c": "the buffer is a heap block: " + _HEAP,
-    "unzipdata@src/blob/groups/save/ghost_files.c": "the buffer is a heap block: " + _HEAP,
     "inflate_decompress": "the source is a ROM offset from the file table wave_rom_offsets, not a host pointer",
     "lzss_decompress": "the source is a ROM offset from the file table wave_rom_offsets, not a host pointer",
     "relocate_texture_loads@src/blob/groups/waves/waves.c":

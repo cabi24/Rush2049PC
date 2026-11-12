@@ -69,7 +69,7 @@ void updateHighScoreScreen(void)
         if (allNamed == 1) {
             if (gRace == kGhost && gGhostToSave != 0) {
                 UnloadWaveAll(gTrackNum + WAVE_TRACK_MUSIC_BASE);
-                gSavedGhost = CompressGhost((struct GhostHeader *) gGhostToSave, gBlocksNeeded);
+                gSavedGhost = CompressGhost(gGhostToSave, gBlocksNeeded);
                 gGhostToSave = 0;
                 if (PC_GHOST_PROMPT(gSaveGhostFiles) != 0) {
                     SetHighScoreState(kHighScoreGhost);

@@ -1,30 +1,6 @@
 /* GhostStart: a ghost race's ghosts, recorded and raced against (MAT3 ghost.c). */
 #include "game/game.h"
 
-typedef struct GhostHeader {      /* GC __anon_49776; N64 layout 0x58 */
-    u32 headerChecksum;           /* 0x00 */
-    u8 revision;                  /* 0x04 */
-    s8 flag;                      /* 0x05 */
-    s8 track;                     /* 0x06 */
-    u8 backward;                  /* 0x07 */
-    u8 car;                       /* 0x08 GC link car */
-    u8 carTrans;                  /* 0x09 */
-    s8 settings[12];              /* 0x0A handling, engine, tires, frame, wings, link 2/3/4, rims, horn, front, rear */
-    u8 name[13];                  /* 0x16 */
-    u8 pad23[0x28 - 0x23];
-    u32 playerId[2];              /* 0x28 */
-    u32 bestTime;                 /* 0x30 */
-    f32 frameTime;                /* 0x34 GC 0x30 gRetraceTime */
-    f32 finish;                   /* 0x38 */
-    u32 zippedSize;               /* 0x3C */
-    u32 unzippedSize;             /* 0x40 */
-    u32 zippedChecksum;           /* 0x44 */
-    u32 unzippedChecksum;         /* 0x48 */
-    u32 start;                    /* 0x4C: a heap block (the window), 32 bits as in the file */
-    u32 offset;                   /* 0x50 */
-    s32 size;                     /* 0x54 */
-} GhostHeader;
-
 typedef struct Ghost {            /* GC __anon_49a9c; N64 layout 0x2C */
     void *ll;                     /* 0x00 */
     void **fileh;                 /* 0x04 */
@@ -35,7 +11,7 @@ typedef struct Ghost {            /* GC __anon_49a9c; N64 layout 0x2C */
     u32 playerId[2];              /* 0x18 */
     f32 finish;                   /* 0x20 */
     u8 **datah;                   /* 0x24 */
-    GhostHeader **header;         /* 0x28 */
+    tGhostHeader **header;        /* 0x28 */
 } Ghost;
 
 typedef struct PlayerRec {        /* GC player record (0x4C); N64 0x30 */
@@ -73,7 +49,7 @@ extern Player gPlayers[];                                 /* GC gPlayers */
  * Expansion Pak) is read (ReadGhostData; one that can't be read drops out) and becomes a player driving its car
  * with its settings, colours and frame time, in a car slot after the humans. */
 void GhostStart(void) {
-    GhostHeader *g;
+    tGhostHeader *g;
     s32 i;
     s32 j;
     s32 np;
@@ -116,8 +92,10 @@ void GhostStart(void) {
         g->car = PC_LINK_CAR(i);
         g->frameTime = gRetraceTime;
         if (!gRestartGame) {
-            g->size = (f32)(ghostRaceTimes[gTrackNum] + 10.0) * gRetraceRate;
-            g->start = PC_N64W(AllocateMemoryHeap(NULL, g->size * 3));
+            /* the steps the recording has room for, converted as an s32 (the N64's) */
+            g->size = (s32)((f32)(ghostRaceTimes[gTrackNum] + 10.0) * gRetraceRate);
+            *ghost_recording(g) = AllocateMemoryHeap(NULL, g->size * 3);
+            g->hasSamples = 1;
         }
         g->offset = 0;
     }
@@ -132,7 +110,7 @@ void GhostStart(void) {
             continue;
         }
         ghost = *gGhosts[i];
-        (*ghost->header)->start = PC_N64W(*ghost->datah);
+        (*ghost->header)->hasSamples = 1;   /* the samples: its data, *ghost->datah (GhostUpdate) */
         g = *(*gGhosts[i])->header;
         g->offset = 0;
         car = g->car;

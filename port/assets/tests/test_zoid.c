@@ -2,8 +2,7 @@
  * PC layout (docs/port/POINTERS.md 9): MBOX_NewObject and its linking, the ZOID setters and getters, the
  * capture-the-flag palette lookup, unlinking, hiding and the collision walk. The table is defined here as the model
  * draw (particle_knot) reads it; each game file has its own view of it, which must put every field where that
- * view does. Host pointers (game data, overlay A's ComponentLights, a stack rectangle) must arrive whole, and RDRAM-window
- * addresses (WAD textures) zero-extended.
+ * view does. Pointers (game data, a WAD's texture, overlay A's ComponentLights, a stack rectangle) must arrive whole.
  * game: src/blob/ZOID_AddObject.c src/blob/ZOID_InsertObject.c src/blob/ZOID_LastSibling.c
  * game: src/blob/ZOID_ObjPrevObj.c src/blob/ZOID_ObjParent.c src/blob/MBOX_GetNext.c src/blob/MBOX_GetChild.c
  * game: src/blob/ZOID_SetTexture.c src/blob/ZOID_SetObjLights.c src/blob/zoid_set_obj_tile_size.c src/blob/zoid_set_obj_palette.c
@@ -88,8 +87,8 @@ typedef struct {
 int main(void)
 {
     static View views[4];
-    uint8_t *w = test_rdram();
-    void *wad_tex = w ? (void *)(w + 0x123450) : (void *)&views[3];   /* a WAD texture, in the window */
+    static uint8_t wad[0x200], world[0x20];   /* a WAD's texture record, a track WAD's world record */
+    void *wad_tex = wad + 0x150;
     uint32_t color = 0x11223344, env = 0xAABBCCDD;
     uint8_t light[40], rect[8];
     int16_t root, a, b, c;
@@ -118,7 +117,7 @@ int main(void)
     CHECK(ZOID_ObjPrevObj(b) == a && ZOID_ObjPrevObj(a) == -1);
     CHECK(ZOID_LastSibling(a) == b && MBOX_GetNext(a) == b && MBOX_GetChild(root) == a);
 
-    /* ZOID_SetTexture: every LOD, then one; a window address and a host pointer, whole. */
+    /* ZOID_SetTexture: every LOD, then one; each pointer whole. */
     ZOID_SetTexture(a, wad_tex, -1);
     for (lod = 0; lod < 4; lod++)
         CHECK(ObjInstanceList[a].tex[lod] == wad_tex);
@@ -147,10 +146,10 @@ int main(void)
     CHECK(g_math_src == &views[0] && g_math_dst == &views[3]);
 
     /* The capture-the-flag flag: its palette lookup lands whole in the palette slot. */
-    if (w) {
+    {
         static struct tTarget flag;             /* the flag's node */
         struct tTarget *m = &flag;
-        char *name = (char *)(w + 0x300100);    /* its world object (a track WAD record), in the window */
+        char *name = (char *)world;             /* its world object (a track WAD record) */
         struct pc_visual o;
         memset(m, 0, sizeof *m);
         memset(&o, 0, sizeof(o));

@@ -181,7 +181,7 @@ static void test_listeners(void)
         CHECK(gPlayers[p].listener == 0xFFFFFFFFu && gPlayers[p].profile == &gJustPlayers[p]);
 }
 
-/* The player's new record: through record 2's profile pointer to its save data, in the window. */
+/* The player's new record: through record 2's profile pointer to its save data, a heap block. */
 static void test_save_record(uint8_t *w)
 {
     static SaveSlot slot;
@@ -331,13 +331,8 @@ static void test_pause_choice(void)
 
 int main(void)
 {
-    uint8_t *w = test_rdram();   /* the save record's block (test_save_record) */
+    uint8_t *w = test_memory();   /* the save record's block (test_save_record) */
 
-    if (!w) {
-        fprintf(stderr, "test_input: the RDRAM window can't be mapped here: skipped\n");
-        return 77;
-    }
-    memset(w + 0x321000, 0, 0x100);
     test_fill_and_clear();
     test_hand_over();
     test_controls();

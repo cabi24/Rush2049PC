@@ -79,7 +79,7 @@ Comments: the addresses in port/'s comments became names (`game_bss_end`, `overl
 | Where | What | Why it stays |
 |---|---|---|
 | port/include/pc_n64_map.h | the N64's memory map (the table above) | the one place; wave 3 removes all but the cartridge's and the segment masks |
-| port/assets/tests/support.h | `TEST_N64_*`: 14 game symbols' N64 addresses that tests place in their window (`TEST_ABS`) | wave 3: the symbols become ordinary definitions and the placements go. Plain numbers because the assembler's `.set` takes them as written; the symbol file's values |
+| port/assets/tests/support.h | (gone in [NATIVE.md](../port/NATIVE.md) step 11) `TEST_N64_*`: game symbols' N64 addresses that tests placed in their window (`TEST_ABS`) | the symbols are ordinary definitions in each test, the tests' memory a host block (`test_memory`) |
 | port/data/reserved.txt | `pc_matrix_spill 0x8014A250`: PC data placed in the window where the decoupled model records were | wave 3 (the spill becomes PC data); the rule is the one place it is written |
 | port/data/asm_functions.txt | 43 rows `name address source` (and 5 addresses in their notes): the assembly routines the loader's function table lists | read by gen_data.py (another agent's area), which keys rows by name and address; the addresses could come from the symbol tables by name once gen_data reads them so |
 | port/data/decoupled.txt | 20 addresses in comments: where each decoupled record was on the N64 | documentation of the N64 layout the rules undo, in gen_data's input; left with gen_data |

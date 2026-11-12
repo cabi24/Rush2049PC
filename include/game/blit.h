@@ -107,7 +107,6 @@ s32 pak_removed(s32 pak);
 void RemoveBlit(tBlit *blit);
 void RemovePane(tBlitSet *pane);
 void RemovePanes(s32 permanent);
-void RemovePlayerFile(uintptr_t fileh);
 void RenameBlit(tBlit *blit, char *name, s32 preserve);
 void rumble_thread_entry(void *arg);
 void SaveRaceSetting(tProfile **player, u8 option, s8 value, u8 track);

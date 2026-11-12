@@ -30,30 +30,6 @@ void **NewGhost(void) {
     return NULL;
 }
 
-/* A ghost file's header (MAT3 tSaveHeader), the N64's layout (0x58 bytes, as in the file). */
-typedef struct GhostHeader {
-    u32 headerChecksum;           /* 0x00 */
-    u8 revision;                  /* 0x04 */
-    s8 flag;                      /* 0x05 */
-    s8 track;                     /* 0x06 */
-    u8 backward;                  /* 0x07 */
-    u8 pad08[0x16 - 0x08];
-    u8 name[13];                  /* 0x16 */
-    u8 pad23;
-    u16 tournamentKey;            /* 0x24 */
-    u8 pad26[2];
-    u32 playerId[2];              /* 0x28 */
-    u8 pad30[0x38 - 0x30];
-    f32 finish;                   /* 0x38 */
-    u32 zippedSize;               /* 0x3C */
-    u32 unzippedSize;             /* 0x40 */
-    u32 zippedChecksum;           /* 0x44 */
-    u32 unzippedChecksum;         /* 0x48 */
-    u32 start;                    /* 0x4C: a heap block (the window), 32 bits as in the file */
-    u32 offset;                   /* 0x50 */
-    u32 size;                     /* 0x54 */
-} GhostHeader;
-
 /* A ghost record (MAT3's): the N64's offsets below; 64 bytes on the PC, its pointers host-sized (GHOST_OFS). */
 typedef struct Ghost {
     void *ll;                     /* 0x00 */
@@ -65,27 +41,35 @@ typedef struct Ghost {
     u32 playerId[2];              /* 0x18 */
     f32 finish;                   /* 0x20 */
     u8 **datah;                   /* 0x24 */
-    GhostHeader **header;         /* 0x28 */
+    tGhostHeader **header;        /* 0x28 */
 } Ghost;
 
 void *memcpy(void *, const void *, u32);
 
-/* PC: the header keeps its N64 layout, file data (docs/port/POINTERS.md 9.10); a ghost is 64 bytes. The header's
- * start, the race's recording, is the block's 32-bit window address: START(x) is its pointer (pc_prelude.h). */
-#define START(x) ((u8 *)PC_N64P(x))
+/* The race's recordings: player i's ghost header, gRealNewGhostHeaders[i], records into a heap block GhostStart
+ * allocates, ghost_recordings[i], which CompressGhost makes a ghost of and frees. MAT3 kept the block's address in the
+ * header (start); the header is a ghost file's layout, whose 4 bytes can't hold a host pointer (tGhostHeader). */
+static u8 *ghost_recordings[4];
+_Static_assert(sizeof(tGhostHeader) == 0x58 && __builtin_offsetof(tGhostHeader, hasSamples) == 0x4C,
+               "a ghost header is the file's 88 bytes");
+
+/* The slot of the block that the recording header (one of gRealNewGhostHeaders) records into. */
+u8 **ghost_recording(tGhostHeader *header) {
+    return &ghost_recordings[header - gRealNewGhostHeaders];
+}
 
 /* The Controller Pak blocks (256 bytes) size bytes take (MAT3 PS_GetBlocks). */
 s32 ghost_blocks_from_size(s32 size) {
     return (size + 255) >> 8;
 }
 
-/* Makes a ghost from the race recording header describes: its three channels moved together (each header->size
- * long; the recording keeps room for the track's longest time), checksummed, compressed (zip, level 9) into a block
- * at the heap's top, the recording freed; then a ghost record (NewGhost) with a handle holding the header (revision
- * 17, its sizes and checksums) and the compressed data, the temporary block freed, and the record's track,
- * direction, name, player id and time from the header. *blocks gets the pak blocks it needs. Returns the ghost's
- * handle. */
-void **CompressGhost(GhostHeader *header, s8 *blocks) {
+/* Makes a ghost from the race recording header describes (ghost_recording): its three channels moved together (each
+ * header->size long; the recording keeps room for the track's longest time), checksummed, compressed (zip, level 9)
+ * into a block at the heap's top, the recording freed; then a ghost record (NewGhost) with a handle holding the
+ * header (revision 17, its sizes and checksums) and the compressed data, the temporary block freed, and the record's
+ * track, direction, name, player id and time from the header. *blocks gets the pak blocks it needs. Returns the
+ * ghost's handle. */
+void **CompressGhost(tGhostHeader *header, s8 *blocks) {
     Ghost *ghost;
     void **ghosth;
     s32 maxsize;
@@ -93,27 +77,27 @@ void **CompressGhost(GhostHeader *header, s8 *blocks) {
     u8 *gdata;
     u32 dataSize;
     u32 num;
-    GhostHeader **gh;
+    tGhostHeader **gh;
     u32 unzippedChecksum;
 
-    sorted = START(header->start);
+    sorted = *ghost_recording(header);
     maxsize = (f32)(ghostRaceTimes[gTrackNum] + 10.0) * gRetraceRate;
-    game_memmove(START(header->start) + header->size, START(header->start) + maxsize, header->size);
-    game_memmove(START(header->start) + header->size * 2, START(header->start) + maxsize * 2, header->size);
+    game_memmove(sorted + header->size, sorted + maxsize, header->size);
+    game_memmove(sorted + header->size * 2, sorted + maxsize * 2, header->size);
     num = header->size * 3;
     unzippedChecksum = CalcChecksumInternal(sorted, num);
     header->tournamentKey = 0;
     gdata = AllocateMemoryHeapHigh(NULL, num);
     dataSize = zip(sorted, num, gdata, num, 9, 10, 4);
     ghost_free_start(header);
-    header->start = NULL;
+    header->hasSamples = 0;
     ghosth = NewGhost();
     ghost = *ghosth;
     memset(ghost, 0, GHOST_OFS(44));
-    ghost->header = (GhostHeader **)AllocateHandleHeap(NULL, dataSize + 88);
+    ghost->header = (tGhostHeader **)AllocateHandleHeap(NULL, dataSize + 88);
     memcpy(*ghost->header, header, 88);
     (*ghost->header)->revision = 17;
-    (*ghost->header)->start = NULL;
+    (*ghost->header)->hasSamples = 0;
     (*ghost->header)->offset = 0;
     (*ghost->header)->size = 0;
     (*ghost->header)->zippedSize = dataSize;
@@ -138,5 +122,14 @@ void **CompressGhost(GhostHeader *header, s8 *blocks) {
     return ghosth;
 }
 
-/* Frees the race recording's block (header->start), under the heap lock (MAT3: DeallocateMemory(header->start)). */
-void ghost_free_start(GhostHeader *header) { u8 *p = START(header->start); osRecvMesg((OSMesgQueue *)&heap_lock_queue, NULL, 1); DeallocateMemoryInternal(p, 0); osSendMesg((OSMesgQueue *)&heap_lock_queue, NULL, 0); }
+/* Frees the block the recording header records into, under the heap lock, and forgets it (MAT3:
+ * DeallocateMemory(header->start)). */
+void ghost_free_start(tGhostHeader *header) {
+    u8 **recording = ghost_recording(header);
+    u8 *p = *recording;
+
+    osRecvMesg((OSMesgQueue *)&heap_lock_queue, NULL, 1);
+    DeallocateMemoryInternal(p, 0);
+    osSendMesg((OSMesgQueue *)&heap_lock_queue, NULL, 0);
+    *recording = NULL;
+}

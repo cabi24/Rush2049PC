@@ -32,6 +32,9 @@ size_t pc_rom_size(void);
 void *pc_n64_ptr(uint32_t n64_addr);      /* K0/K1/physical address -> host pointer (NULL if outside RDRAM) */
 uint32_t pc_n64_addr(const void *host);   /* host pointer into RDRAM -> K0 address (0 if outside) */
 uint32_t pc_rdram_size(void);             /* the window's size: PC_RDRAM_SIZE until pc_mem_set_size */
+/* port/ultra/heap.c: whether p lies in the game heap's memory (the main heap's, which holds the others), once the game
+ * has made it. */
+int pc_heap_holds(const void *p);
 /* port/ultra/rcpaddr.c (game C reaches them through pc_prelude.h): a K0 address in the window past 16 MiB, and the
  * display-list relocation's rule, the N64's `((w1 + base) & 0xFFFFFF) | segment` but for the K0 address there. */
 int pc_rdram_k0_high(uint32_t addr);

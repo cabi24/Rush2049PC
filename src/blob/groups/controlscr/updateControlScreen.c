@@ -72,11 +72,11 @@ void updateControlScreen(void) {
         }
         calcControlMenuMaxSize();
         if (gGameState & GS_FRONTEND_MASK)
-            controls_blit = (intptr_t)NewMultiBlit(0, 0, buttonsFrontEnd, 81);
+            controls_blit = NewMultiBlit(0, 0, buttonsFrontEnd, 81);
         else if (gNumWindows == 1)
-            controls_blit = (intptr_t)NewMultiBlit(0, 0, buttonsPauseSingle, 21);
+            controls_blit = NewMultiBlit(0, 0, buttonsPauseSingle, 21);
         else
-            controls_blit = (intptr_t)NewMultiBlit(0, 0, buttonsPauseMulti, 41);
+            controls_blit = NewMultiBlit(0, 0, buttonsPauseMulti, 41);
         if (gNumWindows == 1) {
             controls_gButtonZoom = 1.0f;
             controls_gButtonScale = 0.9f;
