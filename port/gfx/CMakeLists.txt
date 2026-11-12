@@ -133,22 +133,21 @@ target_link_libraries(gfx_test PRIVATE pcgfx)
 set_target_properties(gfx_test PROPERTIES EXPORT_COMPILE_COMMANDS OFF)
 set(PCGFX_TEST_OUT ${CMAKE_CURRENT_BINARY_DIR}/test-png)
 file(MAKE_DIRECTORY ${PCGFX_TEST_OUT})
-foreach(c fill shade zbuf textures texwrap texrect lit fog twocycle lod dualtile belist matrix cull branchz nearclip
+foreach(c fill shade zbuf textures texwrap texrect lit fog twocycle lod dualtile bedata matrix cull branchz nearclip
           eyeplane clip xlu widescreen autosize fillwindow seams ties screenshot hud detail view)
     add_test(NAME gfx.${c} COMMAND gfx_test ${c} --png ${PCGFX_TEST_OUT})
 endforeach()
 # The harness on port/ultra's own RDRAM window (memory.c) at game.memory 64, in place of an 8 MiB buffer of its own:
 # highmem draws a scene from 1 MiB, 18 MiB and the window's last MiB at K0 and physical addresses, its colour image
-# there too, and every picture must be the first's (docs/port/MEMORY.md 6); belist and textures check the harness.
+# there too, and every picture must be the first's (docs/port/MEMORY.md 6); bedata and textures check the harness.
 # Skipped (77) where the window can't be mapped at its fixed host address (PC_RDRAM_BASE).
-add_executable(gfx_window_test tests/gfx_test.c tests/clip_check.c ${CMAKE_CURRENT_SOURCE_DIR}/../ultra/memory.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/../ultra/rcpaddr.c)
+add_executable(gfx_window_test tests/gfx_test.c tests/clip_check.c ${CMAKE_CURRENT_SOURCE_DIR}/../ultra/memory.c)
 set_target_properties(gfx_window_test PROPERTIES C_STANDARD 11 C_STANDARD_REQUIRED ON C_EXTENSIONS OFF
     EXPORT_COMPILE_COMMANDS OFF)
 target_compile_definitions(gfx_window_test PRIVATE GFX_TEST_WINDOW)
 target_include_directories(gfx_window_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/../ultra)
 target_link_libraries(gfx_window_test PRIVATE pcgfx)   # with Threads (memory.c's lock)
-foreach(c highmem belist textures)
+foreach(c highmem bedata textures)
     add_test(NAME gfx.window.${c} COMMAND gfx_window_test ${c} --png ${PCGFX_TEST_OUT})
     set_tests_properties(gfx.window.${c} PROPERTIES SKIP_RETURN_CODE 77)
 endforeach()

@@ -30,22 +30,21 @@ s32 osRecvMesg(OSMesgQueue *mq, OSMesg *msg, s32 flags);
 
 /* Sets up wave instance idx once its file is in (MAT3 _SetupWaveModel): for a model WAD, points the instance's
  * entries of the model, texture and palette tables (and, for a track wave, the target paths) at the WAD's records,
- * relocates its texture loads and its display lists, keeping the sections for this race's player count and
- * direction (and mirroring them for a mirrored track). Then the instance is ready, and mirrored to the current
+ * and sets up its models' display lists for the race: the sections for this race's player count and direction kept,
+ * the texture coordinates mirrored for a mirrored track. Then the instance is ready, and mirrored to the current
  * direction. With first clear MAT3 set up a handle wave the heap had moved again; no caller asks for that (a model
  * WAD is never a handle: the font data is, which has no models).
- * PC: the records are the WAD's converter's, built beside the file when it loaded, with host pointers into it
- * (pc_wad_records, port/assets/wad.c). On the N64 this rebased the file's own records in place: the table of contents
- * (MBSetupWad), every record's offsets by the file's or the IMAG chunk's address (texBase, palBase, displayList,
- * vtxList, pts, trigPtr), and a moved handle wave's by how far it had moved (MBOffsetWad). The display lists and
- * texture loads keep the N64's form and are relocated in place by the N64 addresses of the file and of its IMAG chunk
- * (docs/port/NATIVE.md step 10). video.detail high keeps the one-player sections of the models' display lists in
- * split screen too (the LOD markers relocate_model_dl rewrites: docs/port/DETAIL.md 2.5); PC_DETAIL_PLAYERS is
- * pc_game_types.h's. */
+ * PC: the records and the display lists are the WAD's converter's, built beside the file when it loaded, with host
+ * pointers (pc_wad_records, port/assets/wad.c). On the N64 this rebased the file's own records in place: the table of
+ * contents (MBSetupWad), every record's offsets by the file's or the IMAG chunk's address (texBase, palBase,
+ * displayList, vtxList, pts, trigPtr), and a moved handle wave's by how far it had moved (MBOffsetWad); and it
+ * relocated the display lists and texture loads in place by those two addresses (relocate_model_dl,
+ * relocate_texture_loads; docs/port/NATIVE.md steps 7 and 10). video.detail high keeps the one-player sections of the
+ * models' display lists in split screen too (the LOD markers relocate_model_dl rewrites: docs/port/DETAIL.md 2.5);
+ * PC_DETAIL_PLAYERS is pc_game_types.h's. */
 void SetupWaveModel(s32 idx, s32 first) {
     struct pc_wad_records *wad;
     u8 *WADptr;
-    s32 n64File;
     s32 i;
     s32 j;
     s32 modelIdx;
@@ -86,14 +85,12 @@ void SetupWaveModel(s32 idx, s32 first) {
         gTargetPaths.paths = wad->paths;
         gTargetPaths.count = wad->numPaths;
     }
-    if (wad->textureLoads != NULL) {
-        relocate_texture_loads(wad->textureLoads, (struct N64Gfx *)((u8 *)wad->textureLoads + wad->textureLoadsSize),
-                               PC_N64A(wad->images));
-    }
-    n64File = PC_N64A(WADptr);
     for (i = 0; i < gRomObjDefPtrs[modelIdx].count; i++) {
         for (j = 0; j < gRomObjDefPtrs[modelIdx].romObjDefs[i].lodCount; j++) {
-            relocate_model_dl(gRomObjDefPtrs[modelIdx].romObjDefs[i].lod[j].displayList, n64File, -1, gMirrorWaves ? 1 : 0, flags);
+            /* PC: a level whose list the converter couldn't build (it said why) has none */
+            if (gRomObjDefPtrs[modelIdx].romObjDefs[i].lod[j].displayList != NULL) {
+                relocate_model_dl(gRomObjDefPtrs[modelIdx].romObjDefs[i].lod[j].displayList, gMirrorWaves ? 1 : 0, flags);
+            }
         }
     }
     gWaveInstance[idx].ready = 1;

@@ -403,14 +403,10 @@ static int in_block(const uint8_t *p, const char *name)
            ((uintptr_t)p & (ARENA_PAGE - 1)) == (a & (ARENA_PAGE - 1));
 }
 
-/* Window addresses for the checks: PROBE 4 KiB into RDRAM, through KSEG0 and KSEG1 and as a physical address; a
- * block's base below 16 MiB (RELOC_LOW), whose relocations keep its physical address, and one at 16 MiB (RELOC_HIGH),
- * whose relocations keep its KSEG0 address (docs/port/MEMORY.md 3). */
+/* Window addresses for the checks: PROBE 4 KiB into RDRAM, through KSEG0 and KSEG1 and as a physical address. */
 #define PROBE_PHYS 0x1000u
 #define PROBE_K0 (N64_KSEG0 + PROBE_PHYS)
 #define PROBE_K1 (N64_KSEG1 + PROBE_PHYS)
-#define RELOC_LOW (N64_KSEG0 + 0x300000u)
-#define RELOC_HIGH (N64_KSEG0 + PC_RCP_SEGMENT_SPAN)
 
 static void t_memory(void)
 {
@@ -423,8 +419,7 @@ static void t_memory(void)
                               (!fixed || (k0 == (uint8_t *)(uintptr_t)PROBE_K0 &&
                                           *(volatile uint8_t *)(uintptr_t)PROBE_K1 == 0x5A)),
           d);
-    /* game.memory (docs/port/MEMORY.md): the window's last byte through every view, the first past it through none;
-     * past 16 MiB the display lists' relocations keep K0 addresses, below it physical ones, as on the N64. */
+    /* game.memory (docs/port/MEMORY.md): the window's last byte through every view, the first past it through none. */
     uint32_t size = pc_rdram_size(), top = PC_RDRAM_BASE + size - 1;
     uint8_t *last = pc_n64_ptr(top);
     if (last)
@@ -436,19 +431,6 @@ static void t_memory(void)
                                      *(volatile uint8_t *)pc_n64_ptr(size - 1) == 0xA5 && pc_n64_addr(last) == top &&
                                      pc_n64_ptr(top + 1) == NULL && pc_n64_ptr(size) == NULL &&
                                      (size == PC_RDRAM_SIZE || mem_size == size), d);
-    uint32_t hi = RELOC_HIGH + 0x40, lo = RELOC_LOW + 0x40, lo_phys = N64_TO_PHYS(lo);
-    int big = size > PC_RCP_SEGMENT_SPAN;
-    snprintf(d, sizeof d, "relocation 0x%X, 0x%X", pc_rcp_reloc(0x40, RELOC_LOW, -1),
-             pc_rcp_reloc(0x40, RELOC_HIGH, -1));
-    check("RCP addresses", pc_rcp_reloc(0x40, RELOC_LOW, -1) == lo_phys &&
-                               pc_rcp_reloc(0x06000040, RELOC_LOW, -1) == (0x06000000u | lo_phys) &&
-                               pc_rcp_reloc(0x40, RELOC_LOW, 6) == (0x06000000u | lo_phys) &&
-                               (big ? pc_rcp_reloc(0x40, RELOC_HIGH, -1) == hi &&
-                                          pc_rcp_reloc(hi - PC_RCP_SEGMENT_SPAN, PC_RCP_SEGMENT_SPAN, -1) == hi &&
-                                          pc_rcp_reloc(0x40, RELOC_HIGH, 6) == 0x06000040 &&
-                                          pc_rdram_k0_high(hi) && !pc_rdram_k0_high(lo)
-                                    : pc_rcp_reloc(0x40, RELOC_HIGH, -1) == 0x40 && !pc_rdram_k0_high(hi)),
-          d);
     uint32_t heap_size;
     uint8_t *heap = pc_heap_memory(mem_size, &heap_size);
     snprintf(d, sizeof d, "heap %p, %u bytes, osTvType %p = %u, osMemSize 0x%X", (void *)heap, heap_size,

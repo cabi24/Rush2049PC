@@ -68,6 +68,10 @@ void pc_mem_unregister_be(const void *start) {
 int pc_mem_is_be(const void *p) {
     return s_be_p != NULL && (const uint8_t *)p >= s_be_p && (const uint8_t *)p < s_be_p + s_be_n;
 }
+int pc_mem_is_model_data(const void *p) {
+    (void)p;
+    return 0;
+}
 
 /* ---------------------------------------------------------------- frame and helpers */
 
@@ -145,7 +149,6 @@ static uint16_t rgba16(int r, int g, int b, int a) {
 static void frame_begin(int r, int g, int b) {
     uint16_t c = rgba16(r, g, b, 1);
     gp = s_list;
-    g_be_mode = 0;
     gsDPPipeSync();
     gsDPSetScissor(0, 0, FB_W, FB_H);
     gsDPSetCycleType(G_CYC_FILL);

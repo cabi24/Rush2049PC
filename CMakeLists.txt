@@ -1188,7 +1188,7 @@ foreach(t ${PC_ASSETS_TESTS})
     get_filename_component(n ${t} NAME_WE)
     string(REGEX REPLACE "^test_" "" n ${n})
     add_executable(test_assets_${n} ${t} port/assets/tests/support.c port/ultra/n64mem.c port/ultra/absfix.c
-        port/ultra/rcpaddr.c $<TARGET_OBJECTS:pcassets>)
+        $<TARGET_OBJECTS:pcassets>)
     target_include_directories(test_assets_${n} PRIVATE port/include port/assets port/assets/tests)
     target_compile_options(test_assets_${n} PRIVATE -std=gnu11 -Wall -Wextra -Wno-unused-parameter)
     target_link_libraries(test_assets_${n} PRIVATE m)
@@ -1270,9 +1270,9 @@ target_compile_options(test_musyx_game PRIVATE -w)
 target_sources(test_assets_musyx PRIVATE $<TARGET_OBJECTS:test_musyx_game>)
 set_target_properties(test_musyx_game PROPERTIES EXPORT_COMPILE_COMMANDS OFF)
 # The game's own WAD loader reading a converted synthetic WAD (port/assets/tests/wad_game.c): _ReadWave,
-# SetupWaveModel on the WAD's records, the display-list walkers, the texture lookups and the texture animation,
-# built with the game's flags, in an RDRAM window the test maps itself (exit 77, skipped, if it can't).
-add_library(test_wad_game OBJECT src/blob/groups/waves/waves.c src/blob/relocate_texture_loads.c
+# SetupWaveModel on the WAD's records and native display lists, the display-list walkers, the texture lookups and the
+# texture animation, built with the game's flags, in ordinary host memory.
+add_library(test_wad_game OBJECT src/blob/groups/waves/waves.c
     src/blob/relocate_model_dl.c src/blob/mirror_vertex_texcoords.c src/blob/groups/slot_sound/MirrorWaveInstance.c
     src/blob/display_list_traverse.c src/blob/flip_triangle_winding.c src/blob/ModelActive.c src/blob/MBOX_FindTexture_WORK.c
     src/blob/MBOX_FindPalette_WORK.c src/blob/InitTextureAnimation.c src/blob/TextureAnimation.c src/blob/displaylist_get_texture_image.c
@@ -1280,9 +1280,8 @@ add_library(test_wad_game OBJECT src/blob/groups/waves/waves.c src/blob/relocate
 target_link_libraries(test_wad_game PRIVATE game_flags)
 target_compile_options(test_wad_game PRIVATE -w)
 add_executable(test_assets_wad_game port/assets/tests/wad_game.c port/assets/tests/support.c port/ultra/n64mem.c
-    port/ultra/rcpaddr.c $<TARGET_OBJECTS:pcassets> $<TARGET_OBJECTS:test_wad_game>)
+    $<TARGET_OBJECTS:pcassets> $<TARGET_OBJECTS:test_wad_game>)
 target_include_directories(test_assets_wad_game PRIVATE port/include port/assets port/assets/tests)
-target_compile_definitions(test_assets_wad_game PRIVATE TEST_OWN_WINDOW)   # its own 64 MiB window's functions
 target_compile_options(test_assets_wad_game PRIVATE -std=gnu11 -Wall -Wextra -Wno-unused-parameter)
 set_target_properties(test_assets_wad_game test_wad_game PROPERTIES EXPORT_COMPILE_COMMANDS OFF)
 # rush2049pc_assetcheck: every wave of your ROM through the converters, checked as the game reads it

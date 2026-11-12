@@ -15,12 +15,8 @@ extern "C" {
 
 /* ---------------------------------------------------------------- memory access */
 
-/* A display list position: N64 form (8-byte big-endian commands) or native form (PcGfxWords, 16 bytes). */
-typedef struct {
-    const uint8_t *p;
-    int be;
-} GfxDlPtr;
-
+/* Data the renderer reads in either byte order: big-endian inside a pc_mem_register_be range (a file's matrices,
+ * viewports, texels and TLUTs), the host's elsewhere. */
 uint16_t pcgfx_rd16(const void *p, int be);
 uint32_t pcgfx_rd32(const void *p, int be);
 int pcgfx_is_be(const void *p);   /* pc_mem_is_be, tolerating NULL */
@@ -395,7 +391,9 @@ void pcgfx_view_scales(float *xs, float *ys);   /* gfx_rsp.c: the outcodes' wide
 extern void *pcgfx_rec;
 void pcgfx_rec_task_begin(void);
 void pcgfx_rec_task_end(void);
-void pcgfx_rec_load(const uint8_t *p, int be, int v0, int n);   /* after load_vertices filled pcgfx.vtx */
+/* After load_vertices filled pcgfx.vtx from p; model: p is a model's vertices, which stay put while its file is loaded
+ * (pc_mem_is_model_data), where the game's own are made each frame. */
+void pcgfx_rec_load(const uint8_t *p, int model, int v0, int n);
 void pcgfx_rec_modify(unsigned idx, int moved);   /* G_MODIFYVTX; moved: its screen position was set */
 /* A triangle of the vertex buffer's slots. st: the draw state it was drawn with, NULL when it was rejected (the
  * recorder then takes the state in effect if it is still current, since another frame may show the triangle). */

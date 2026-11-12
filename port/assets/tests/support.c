@@ -65,6 +65,37 @@ size_t test_be_range_count(void) { return g_nbe; }
 
 void test_be_reset(void) { g_nbe = 0; }
 
+/* The models' vertices the WAD converter registers (port/ultra/memory.c's model data): the ranges, unsorted. */
+static struct { uintptr_t start, end; } g_model_data[64];
+static size_t g_nmodel_data;
+
+void pc_mem_register_model_data(const void *start, size_t size)
+{
+    if (g_nmodel_data == sizeof g_model_data / sizeof g_model_data[0])
+        abort();
+    g_model_data[g_nmodel_data].start = (uintptr_t)start;
+    g_model_data[g_nmodel_data++].end = (uintptr_t)start + size;
+}
+
+void pc_mem_unregister_model_data(const void *start)
+{
+    for (size_t i = 0; i < g_nmodel_data; i++)
+        if (g_model_data[i].start <= (uintptr_t)start && (uintptr_t)start < g_model_data[i].end) {
+            g_model_data[i] = g_model_data[--g_nmodel_data];
+            return;
+        }
+}
+
+int pc_mem_is_model_data(const void *p)
+{
+    for (size_t i = 0; i < g_nmodel_data; i++)
+        if (g_model_data[i].start <= (uintptr_t)p && (uintptr_t)p < g_model_data[i].end)
+            return 1;
+    return 0;
+}
+
+size_t test_model_data_count(void) { return g_nmodel_data; }
+
 /* The cars a race holds (pc_game_types.h), for tests that build game C reading PC_RACE_CARS: the N64's 6 unless the
  * test sets test_race_cars, which is both the setting (pc_cars_setting) and the race's count (pc_race_cars), so a
  * test sets the count and calls a loop without a race's start. pc_race_cars_begin latches the setting into the count
@@ -151,10 +182,7 @@ uint8_t *test_rdram(void)
 }
 
 /* port/ultra's window functions over test_rdram's window (docs/port/MEMORY.md), for game C and port code a test
- * links; rcpaddr.c's rule reads pc_rdram_size. A test with a window of its own (wad_game) defines them instead and
- * is built with TEST_OWN_WINDOW. (Not weak definitions: mingw's linker doesn't take those for another object's
- * reference.) */
-#ifndef TEST_OWN_WINDOW
+ * links. (Not weak definitions: mingw's linker doesn't take those for another object's reference.) */
 uint8_t *pc_rdram(void) { return g_window; }
 uint32_t pc_rdram_size(void) { return test_rdram_bytes; }
 void *pc_n64_ptr(uint32_t addr)
@@ -167,7 +195,6 @@ uint32_t pc_n64_addr(const void *host)
     const uint8_t *p = host;
     return g_window && p >= g_window && p < g_window + test_rdram_bytes ? PC_RDRAM_BASE + (uint32_t)(p - g_window) : 0;
 }
-#endif
 
 /* The game heap's memory and reports; a test that links port/ultra/heap.c instead (assets_heap) is built with
  * TEST_HEAP_C. The memory is heap.c's: the window from the end of the game's BSS to mem_size. */
@@ -188,7 +215,7 @@ void pc_heap_none(void *heap, uint32_t size, uint32_t free_bytes, uint32_t large
 void pc_heap_short(const char *what, uint32_t need) { (void)what, (void)need; }
 #endif
 
-/* port/ultra's log, for what heap.c and rcpaddr.c's callers print. */
+/* port/ultra's log, for what heap.c and its callers print. */
 int pc_verbose;
 void pc_log(const char *fmt, ...)
 {

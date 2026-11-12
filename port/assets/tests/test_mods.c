@@ -29,6 +29,7 @@
 #include "support.h"
 #include "ultra.h"
 #include "wad_build.h"
+#include "wad_lists_check.h"
 
 void pc_wave_loaded(int wave, void *buf, size_t size);
 
@@ -318,22 +319,28 @@ static void test_checks(uint8_t *window)
             fprintf(stderr, "%s: %d of 1000 garbage files passed\n", kd->what, 1000 - garbage_refused);
         CHECK(garbage_refused >= 990);
         /* small mutations: those that pass go through the converter, in a window block of their size */
-        int passed = 0, complaints = 0;
+        int passed = 0, complaints = 0, lists_unlike = 0;
         for (int t = 0; t < 3000; t++) {
             uint8_t *blk = window + 0x100000;
             memcpy(blk, f.b, f.n);
             for (int m = 1 + (int)(rnd() % 4); m > 0; m--)
                 blk[rnd() % f.n] = (uint8_t)rnd();
             if (pc_assets_check(kd->wave, blk, f.n, f.b, f.n, why, sizeof why) == 0) {
+                uint8_t *raw = malloc(f.n);   /* the file before its converter (wad_lists_check) */
+                memcpy(raw, blk, f.n);
                 passed++;
                 complaints += convert_complaints(kd->wave, blk, f.n) != 0;   /* a file that passes converts whole */
+                if ((kd->wave >= PC_WAVE_WAD_FIRST && kd->wave <= PC_WAVE_WORLD_LAST) &&   /* its lists the N64's */
+                    wad_lists_check(blk, raw, f.n, pc_wad_records(blk), kd->what) != 0)
+                    lists_unlike++;
                 pc_heap_block_freed(blk, f.n);
+                free(raw);
             }
         }
-        CHECK(complaints == 0);
+        CHECK(complaints == 0 && lists_unlike == 0);
         fprintf(stderr, "assets_mods: %s: %zu-byte file, %d of %zu truncations and %d of 1000 garbage files refused, "
-                "%d of 3000 mutations converted, %d of them not whole\n", kd->what, f.n, refused, f.n, garbage_refused,
-                passed, complaints);
+                "%d of 3000 mutations converted, %d of them not whole, %d with display lists unlike the N64's\n",
+                kd->what, f.n, refused, f.n, garbage_refused, passed, complaints, lists_unlike);
         free(f.b);
     }
     /* the cartridge's file's rules: names the game looks up, the text's counts */

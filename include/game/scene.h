@@ -59,13 +59,6 @@
 #define TEX_IMAGE_DIRECT           0x08000000  /* texBase is the image (else a display list that loads it) */
 #define TEX_NOPALETTE         0x20000000  /* has no palette of its own */
 
-/* The display lists the track and car files hold stay in N64 form on the PC: 8-byte big-endian commands with 32-bit
- * N64 addresses (docs/port/POINTERS.md; docs/port/NATIVE.md step 10). DLW(w) reads a command word, DLW_SET(w, v)
- * writes one, DL_AT(addr) is the display list at an N64 address. */
-#define DLW(w)                pc_be32_get(&(w))
-#define DLW_SET(w, v)         pc_be32_set(&(w), v)
-#define DL_AT(addr)           ((u32 *)pc_n64_ptr(addr))
-
 /* MBOX_FindObject_WORK, MBOX_FindTexture_WORK: warn, the last argument, complains when the name isn't found. */
 #define MBOX_WARN             1
 
@@ -185,11 +178,11 @@ extern s8 gSplitScreen;
 /* Functions */
 s32 anim_show_on_high_score(void *blit);
 void audio_retrace_thread_entry(void *arg);
-u32 displaylist_get_texture_image(u32 *dl);
-void displaylist_set_texture_image(u32 *dl, u32 value);
-void displaylist_set_tile_size(struct Command *commands, s32 uls, s32 ult, s32 lrs, s32 lrt);
+void *displaylist_get_texture_image(Gfx *dl);
+void displaylist_set_texture_image(Gfx *dl, void *image);
+void displaylist_set_tile_size(Gfx *commands, s32 uls, s32 ult, s32 lrs, s32 lrt);
 s32 FindWorldGroup(f32 *position);
-s32 flip_triangle_winding(u32 *gfx);
+s32 flip_triangle_winding(Gfx *gfx);
 s32 game_strcmp(u8 *s1, u8 *s2);
 s32 game_strncmp(const u8 *s1, const u8 *s2, u32 n);
 u32 get_world_part_flags(struct tModelPart *n);
@@ -208,7 +201,6 @@ void MBOX_ShowObject(s32 node, s32 mode, u32 views);
 s16 NewWorld(u8 *world, s16 parent);
 void NewWorldObject(struct tModelPart *wnode, s16 parent);
 s32 objcmp(u8 *obj1, u8 *obj2);
-void relocate_texture_loads(struct N64Gfx *start, struct N64Gfx *end, s32 base);
 void RemoveObjectTree(s16 objnum, s32 removeChildren, s32 removeNext);
 s32 sample_dma_next(void);
 void sample_dma_thread_entry(intptr_t arg);

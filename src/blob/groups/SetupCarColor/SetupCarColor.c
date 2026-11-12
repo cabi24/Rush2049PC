@@ -4,15 +4,15 @@
  * in a copy of the car type's palette, which the frame and the hood draw with. MAT3 swaps textures instead. */
 #include "game/game.h"
 
-/* PC: the WAD's TLUT (a palette record's colours: MBOX_FindPalette_WORK) stays big-endian; the car's copy, in a heap
- * block that port/gfx reads natively, is made native as it is read. */
+/* PC: the WAD's TLUT (a palette record's colours: MBOX_FindPalette_WORK) keeps the N64's texel format in the file; the
+ * car's copy, in a heap block that port/gfx reads natively, is made native as it is read. */
 #define TLUT_COPY_IN(dst, src, size) tlut_copy_in(dst, src, size)
-/* Copy `size` bytes of big-endian RGBA 5551 entries from `src` to `dst`, native. */
+/* Copy `size` bytes of a file's RGBA 5551 entries from `src` to `dst`, native. */
 static void tlut_copy_in(u16 *dst, const u8 *src, u32 size)
 {
     u32 i;
     for (i = 0; i < size / 2; i++)
-        dst[i] = pc_be16_get(src + 2 * i);
+        dst[i] = pc_tlut_get(src + 2 * i);
 }
 /* PC: the car part's s32 model handle (MBOX_NewObject's), and id its low half: the second s16 on the N64, the first on a
  * little-endian host (docs/port/ENDIAN.md). */

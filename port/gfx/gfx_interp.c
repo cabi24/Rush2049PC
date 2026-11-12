@@ -344,7 +344,14 @@ static uint32_t current_xf(RFrame *f) {
     return f->cur_xf;
 }
 
-void pcgfx_rec_load(const uint8_t *p, int be, int v0, int n) {
+/* A vertex's (Vtx) 16-bit field at p: the host's byte order, the game's vertices and the files' alike. */
+static int16_t vtx_s16(const uint8_t *p) {
+    int16_t v;
+    memcpy(&v, p, 2);
+    return v;
+}
+
+void pcgfx_rec_load(const uint8_t *p, int model, int v0, int n) {
     RFrame *f = (RFrame *)pcgfx_rec;
     uint32_t xi;
     Xf *x;
@@ -353,9 +360,9 @@ void pcgfx_rec_load(const uint8_t *p, int be, int v0, int n) {
     if (xi == NONE)
         return;
     x = &f->xf[xi];
-    x->sig = mix(mix(x->sig, (uint64_t)(uintptr_t)p), (uint64_t)n << 1 | (be != 0));
+    x->sig = mix(mix(x->sig, (uint64_t)(uintptr_t)p), (uint64_t)n << 1 | (model != 0));
     x->nload++;
-    if (!be)
+    if (!model)
         x->has_dyn = 1;
     for (i = 0; i < n; i++) {
         const GfxVtx *g = &pcgfx.vtx[v0 + i];
@@ -365,9 +372,9 @@ void pcgfx_rec_load(const uint8_t *p, int be, int v0, int n) {
             return;
         }
         x = &f->xf[xi];   /* PUSH may not move it, but keep it simple */
-        r->o[0] = (int16_t)pcgfx_rd16(p + 16 * i + 0, be);
-        r->o[1] = (int16_t)pcgfx_rd16(p + 16 * i + 2, be);
-        r->o[2] = (int16_t)pcgfx_rd16(p + 16 * i + 4, be);
+        r->o[0] = vtx_s16(p + 16 * i + 0);
+        r->o[1] = vtx_s16(p + 16 * i + 2);
+        r->o[2] = vtx_s16(p + 16 * i + 4);
         r->clip[0] = g->x;
         r->clip[1] = g->y;
         r->clip[2] = g->z;
@@ -379,7 +386,7 @@ void pcgfx_rec_load(const uint8_t *p, int be, int v0, int n) {
         r->s = g->s;
         r->t = g->t;
         r->xf = xi;
-        r->flags = (uint8_t)(((pcgfx.geom & G_FOG) ? V_FOG : 0) | (be ? 0 : V_DYN));
+        r->flags = (uint8_t)(((pcgfx.geom & G_FOG) ? V_FOG : 0) | (model ? 0 : V_DYN));
         for (k = 0; k < 3; k++) {
             if (r->o[k] < x->bmin[k]) x->bmin[k] = r->o[k];
             if (r->o[k] > x->bmax[k]) x->bmax[k] = r->o[k];

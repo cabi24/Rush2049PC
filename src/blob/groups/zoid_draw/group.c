@@ -637,7 +637,7 @@ s32 zoid_draw_object(Gfx **gp, ObjectInstance *parent, s32 depth, s32 use_parent
                     lod--;
                 }
             }
-            dl = (Gfx *)def->lod[lod].displayList;   /* the file's list, in the N64's form, or the track map's own */
+            dl = def->lod[lod].displayList;   /* the file's list (its converter's, native), or the track map's own */
             if (dl != NULL) {
                 if (node->flags & OBJ_ENV_MAPPED) {
                     /* A reflection: texture coordinates generated from the normals by a lookat from the camera to

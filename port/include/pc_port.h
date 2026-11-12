@@ -32,16 +32,19 @@ size_t pc_rom_size(void);
 void *pc_n64_ptr(uint32_t n64_addr);      /* K0/K1/physical address -> host pointer (NULL if outside RDRAM) */
 uint32_t pc_n64_addr(const void *host);   /* host pointer into RDRAM -> K0 address (0 if outside) */
 uint32_t pc_rdram_size(void);             /* the window's size: PC_RDRAM_SIZE until pc_mem_set_size */
-/* port/ultra/rcpaddr.c (game C reaches them through pc_prelude.h): a K0 address in the window past 16 MiB, and the
- * display-list relocation's rule, the N64's `((w1 + base) & 0xFFFFFF) | segment` but for the K0 address there. */
-int pc_rdram_k0_high(uint32_t addr);
-uint32_t pc_rcp_reloc(uint32_t w1, uint32_t base, int32_t seg);
 
-/* Ranges that hold raw big-endian bytes from the ROM (asset buffers filled by DMA). The renderer and the
- * audio interpreter read vertices, matrices, 16-bit texels and command lists in N64 byte order there. */
+/* Ranges that hold raw big-endian bytes from the ROM (asset buffers filled by DMA). The renderer reads matrices,
+ * viewports, 16-bit texels and TLUTs in the N64's byte order there, and the audio interpreter its samples and tables
+ * (port/ultra/memory.c). */
 void pc_mem_register_be(const void *start, size_t size);
 void pc_mem_unregister_be(const void *start);
 int pc_mem_is_be(const void *p);
+/* Ranges that hold the models' vertices the WAD converter made native when their file loaded (port/assets/wad.c,
+ * docs/port/NATIVE.md step 10): data that stays where it is while the file is loaded, where the vertices the game
+ * builds each frame don't. The high frame rate pairs a model's transforms by it (gfx_interp.c). */
+void pc_mem_register_model_data(const void *start, size_t size);
+void pc_mem_unregister_model_data(const void *start);
+int pc_mem_is_model_data(const void *p);
 
 /* ---------------------------------------------------------------- paced mode (port/ultra/pace.c) */
 
@@ -102,8 +105,9 @@ void pc_data_overlay_load(int overlay);
 
 /* ---------------------------------------------------------------- the game's files (port/assets) */
 
-/* _ReadWave, after a wave's file is in its heap block and before SetupWaveModel relocates it: convert it to the
- * host's byte order by format (docs/port/ASSETS.md §5). size is the block's size. */
+/* _ReadWave, after a wave's file is in its heap block and before SetupWaveModel sets it up: convert it to the host's
+ * byte order and build its native records and display lists, by format (docs/port/ASSETS.md §5). size is the block's
+ * size. */
 void pc_wave_loaded(int wave, void *buf, size_t size);
 /* The wave's block is freed or moves: drop its big-endian registrations. */
 void pc_wave_released(int wave, void *buf);
@@ -111,8 +115,8 @@ void pc_wave_released(int wave, void *buf);
 /* ---------------------------------------------------------------- graphics (port/gfx), host main thread */
 
 /* Display-list command words on the PC: Gfx (and Acmd) keep w0 as 32 bits and widen w1 to hold a host
- * pointer. 16 bytes per command. Lists in a pc_mem_register_be range are N64 form instead: 8 bytes, big-endian,
- * 32-bit (segmented or K0) addresses. */
+ * pointer. 16 bytes per command. Every list is in this form: the game's own, and the files', which the WAD converter
+ * builds when the file loads (port/assets/wad.c, docs/port/NATIVE.md step 10). */
 typedef struct {
     uint32_t w0;
     uintptr_t w1;

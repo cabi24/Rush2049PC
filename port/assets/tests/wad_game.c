@@ -1,19 +1,16 @@
 /* port/assets/tests/wad_game.c: the game's own WAD loader reads a converted synthetic WAD (wad_build.h).
  *
  * The game's C is built with its PC flags (CMakeLists.txt, test_wad_game): _ReadWave and SetupWaveModel
- * (waves/waves.c) on the WAD's records (port/assets/wad.c), the TXLD rebase (relocate_texture_loads), the display-list relocation (relocate_model_dl) and its vertex pass (mirror_vertex_texcoords), the
- * mirror pass (MirrorWaveInstance, display_list_traverse, flip_triangle_winding), MBOX_FindTexture_Sub (MBOX_FindTexture_WORK),
+ * (waves/waves.c) on the WAD's records and native display lists (port/assets/wad.c), the race's set-up of the lists
+ * (relocate_model_dl: the LOD markers' sections) and its vertex pass (mirror_vertex_texcoords), the mirror pass
+ * (MirrorWaveInstance, display_list_traverse, flip_triangle_winding), MBOX_FindTexture_Sub (MBOX_FindTexture_WORK),
  * MBOX_FindPalette_WORK and their slot test (ModelActive), and the texture animation: its set-up
- * (InitTextureAnimation) and per-frame update (TextureAnimation) with the TXLD helpers displaylist_get_texture_image, displaylist_set_texture_image and
- * displaylist_set_tile_size. This file stands in for the rest: the wave and animation tables, a PI DMA from a
- * synthetic cartridge, and the RDRAM window at host PC_RDRAM_BASE, which the display lists' 32-bit relocation needs
- * (they keep the N64's form until docs/port/NATIVE.md step 10). The window
- * is 64 MiB, game.memory's (docs/port/MEMORY.md 3, 6), and the WAD is loaded past 16 MiB too: there the relocated
- * display-list words are K0 addresses (port/ultra/rcpaddr.c), which the walkers follow. */
-#define _GNU_SOURCE
+ * (InitTextureAnimation) and per-frame update (TextureAnimation) with the load-list helpers
+ * displaylist_get_texture_image, displaylist_set_texture_image and displaylist_set_tile_size. This file stands in for
+ * the rest: the wave and animation tables and a PI DMA from a synthetic cartridge. The WAD's heap blocks are ordinary
+ * host memory: the lists hold host pointers, and nothing needs the RDRAM window (docs/port/NATIVE.md step 10). */
 #include <stdlib.h>
 #include <string.h>
-#include <sys/mman.h>
 
 #include "assets.h"
 #include "pc_game_types.h"
@@ -93,16 +90,6 @@ volatile float gFrameSeconds;
 volatile int gLastFrameCount;
 char *game_strcpy(char *dst, const char *src) { return strcpy(dst, src); }
 
-#define WINDOW (64u << 20)   /* game.memory = 64 */
-static uint8_t *g_rdram;
-void *pc_n64_ptr(uint32_t a)
-{
-    uint32_t phys = N64_IS_KSEG0_OR_1(a) ? N64_TO_PHYS(a) : a;
-    return phys < WINDOW ? g_rdram + phys : NULL;
-}
-uint32_t pc_n64_addr(const void *p) { return PC_RDRAM_BASE + (uint32_t)((const uint8_t *)p - g_rdram); }
-uint32_t pc_rdram_size(void) { return WINDOW; }
-
 void ReadWave(int32_t slot);   /* _ReadWave */
 void *MBOX_FindTexture_WORK(char *name, int16_t *out, int8_t lo, int8_t hi, int32_t err);   /* MBOX_FindTexture_Sub */
 void InitTextureAnimation(void);   /* the texture animation's set-up */
@@ -110,104 +97,111 @@ void TextureAnimation(void);         /* its per-frame update */
 
 /* ---------------------------------------------------------------- checks */
 
-static uint32_t n32(uint32_t a) { uint32_t v; memcpy(&v, pc_n64_ptr(a), 4); return v; }
-static uint32_t b32(uint32_t a) { return pc_be32(pc_n64_ptr(a)); }
-static uint16_t b16(uint32_t a) { return pc_be16(pc_n64_ptr(a)); }
-#define PHYS(a) ((a) & 0xFFFFFFu)
-/* A relocated display-list address: physical (the N64's 24 bits) below 16 MiB, past it K0 (docs/port/MEMORY.md 3). */
-#define RCP(a) (N64_TO_PHYS(a) >= PC_RCP_SEGMENT_SPAN ? (a) : PHYS(a))
+#define BLOCK 0x1000
+static uint16_t b16(const uint8_t *p) { return pc_be16(p); }
+static int16_t ns16(const void *p) { int16_t v; memcpy(&v, p, 2); return v; }
 
-/* Loads the synthetic WAD as wave 101 (a track: it has PTHD) into slot at base, as LoadWave would. */
-static void load(int slot, uint32_t base)
+/* A level's or a listed texture's native list (the converter's: PcGfxWords, the game's Gfx). */
+#define LIST(p) ((PcGfxWords *)(void *)(p))
+
+/* Loads the synthetic WAD as wave 101 (a track: it has PTHD) into slot's heap block, as LoadWave would. */
+static void load(int slot, uint8_t *block)
 {
     memset(&gWaveInstance[slot], 0, sizeof gWaveInstance[slot]);
     gWaveInstance[slot].model = 1;
     gWaveInstance[slot].wave = 101;
-    gWaveInstance[slot].ptr = pc_n64_ptr(base);
-    gWaveInstance[slot].size = 0x1000;
+    gWaveInstance[slot].ptr = block;
+    gWaveInstance[slot].size = BLOCK;
     ReadWave(slot);
 }
 
-/* The WAD's records the converter built for the block at base. */
-static const struct pc_wad_records *records(uint32_t base)
+static const struct pc_wad_records *records(const uint8_t *block)
 {
-    return pc_wad_records(pc_n64_ptr(base));
+    return pc_wad_records(block);
 }
 
-static void check_tables(int slot, uint32_t base)
+/* The model's lists in the order the converter built them (the file's): model 0's level 0 (6 commands), the list it
+ * calls (2), the tail its second marker names (2), level 1 (2), model 1's (1). */
+static PcGfxWords *level0(const uint8_t *block)
 {
-    const struct pc_wad_records *w = records(base);
-    uint32_t imag = base + W_IMAG;
+    return LIST(records(block)->models[0].lod[0].displayList);
+}
+
+static void check_tables(int slot, uint8_t *b)
+{
+    const struct pc_wad_records *w = records(b);
+    PcGfxWords *dl0 = level0(b);
     CHECK(gRomObjDefPtrs[slot].p == w->models && gRomObjDefPtrs[slot].count == 2);
     CHECK(gTexDefPtrs[slot].p == w->textures && gTexDefPtrs[slot].count == 3);
     CHECK(gPalDefPtrs[slot].p == w->palettes && gPalDefPtrs[slot].count == 2);
     CHECK(gTargetPaths.p == w->paths && gTargetPaths.count == 3);
     CHECK(gWaveInstance[slot].loaded && gWaveInstance[slot].ready);
 
-    /* OBHD: the display lists and vertices in the file */
-    CHECK((void *)w->models[0].lod[0].displayList == pc_n64_ptr(base + W_DL0) && w->models[0].lod[0].vtxList == pc_n64_ptr(base + W_VTX));
-    CHECK((void *)w->models[0].lod[1].displayList == pc_n64_ptr(base + W_DL1));
-    CHECK((void *)w->models[1].lod[0].displayList == pc_n64_ptr(base + W_DL_M1));
-    /* TXHD texBase and PLHD palBase past IMAG; flags native */
-    CHECK(w->textures[0].texBase == pc_n64_ptr(imag) && w->textures[2].texBase == pc_n64_ptr(imag + 0x20));
-    CHECK(w->textures[1].texBase == pc_n64_ptr(base + W_TXLD));   /* texture 1: its TXLD list */
+    /* OBHD: the levels' native lists, in the file's order after texture 1's (6 commands) */
+    CHECK(dl0 != NULL && LIST(w->models[0].lod[1].displayList) == dl0 + 10 && LIST(w->models[1].lod[0].displayList) == dl0 + 12);
+    CHECK(w->models[0].lod[0].vtxList == b + W_VTX);
+    /* TXHD texBase and PLHD palBase past IMAG (texture 1: its native load list); flags native */
+    CHECK(w->textures[0].texBase == b + W_IMAG && w->textures[2].texBase == b + W_IMAG + 0x20);
+    CHECK(LIST(w->textures[1].texBase) + 6 == dl0);
     CHECK(w->textures[0].flags == 0x08010000u);
-    CHECK(w->palettes[1].palBase == pc_n64_ptr(base + W_TLUT + 0x20));
-    /* PTHD: the points in the file, the trigger a record; PATH native in the file */
-    CHECK((void *)w->paths[1].pts == pc_n64_ptr(base + W_PATH + 0x44 * 2) && w->paths[0].trigPtr == &w->paths[1]);
-    CHECK(n32(base + W_PATH + 0x44 * 3 + 0x40) == 0xF1A90003u);
+    CHECK(w->palettes[1].palBase == b + W_TLUT + 0x20);
+    /* PTHD: the points in the file, the trigger a record */
+    CHECK((void *)w->paths[1].pts == b + W_PATH + 0x44 * 2 && w->paths[0].trigPtr == &w->paths[1]);
 
-    /* TXLD rebased by IMAG, big-endian */
-    CHECK(b32(base + W_TXLD + 4) == RCP(imag + 0x10) && b32(base + W_TXLD + 20) == RCP(imag + 0x20));
-    CHECK(b32(base + W_TXLD + 12) == 0x07000000u && b32(base + W_TXLD + 36) == 0x0007C03Cu);
-    /* the display lists: relocated w1, big-endian */
-    CHECK(b32(base + W_DL0) == 0x01003006u && b32(base + W_DL0 + 4) == RCP(base + W_VTX));
-    CHECK(b32(base + W_DL0 + 28) == RCP(base + W_DL_SUB));
-    CHECK(pc_mem_is_be(pc_n64_ptr(base + W_DL0)) && pc_mem_is_be(pc_n64_ptr(base + W_TLUT)));
+    /* The lists' addresses: host pointers (the call, the vertices native beside the file) */
+    CHECK(dl0[0].w0 == 0x01003006u && pc_mem_is_model_data((void *)dl0[0].w1));
+    CHECK(dl0[3].w0 == 0xDE000000u && dl0[3].w1 == (uintptr_t)(dl0 + 6));
+    CHECK(LIST(w->textures[1].texBase)[0].w1 == (uintptr_t)(b + W_IMAG + 0x10));
+    /* The file itself: not relocated (the game no longer reads its lists), its texels and TLUTs big-endian */
+    CHECK(memcmp(b + W_TXLD, g_rom + ROM_WAD + W_TXLD, W_IMAG - W_TXLD) == 0);
+    CHECK(pc_mem_is_be(b + W_TLUT));
 }
 
 int main(void)
 {
-    g_rdram = mmap((void *)(uintptr_t)PC_RDRAM_BASE, WINDOW, PROT_READ | PROT_WRITE,
-                   MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED_NOREPLACE, -1, 0);
-    if (g_rdram != (uint8_t *)(uintptr_t)PC_RDRAM_BASE) {
-        fprintf(stderr, "wad_game: no RDRAM window at 0x%X; skipped\n", PC_RDRAM_BASE);
-        return 77;
-    }
+    uint8_t *block = aligned_alloc(32, BLOCK), *block2 = aligned_alloc(32, BLOCK);
     size_t size = wad_build(g_rom + ROM_WAD);
+    PcGfxWords *dl0;
+
+    if (!block || !block2)
+        return 1;
+    memset(block, 0, BLOCK);
+    memset(block2, 0, BLOCK);
     wave_rom_offsets[101] = ROM_WAD;
     gWaveSizes[101] = (int32_t)size;
 
     /* One player, forward, mirrored: LOD bit 1 kept, bit 2 becomes a branch; s and the windings flip. */
-    uint32_t base = PC_RDRAM_BASE + 0x200000u;   /* the slot's block: a window address at 2 MiB */
     gNumPlayers = 1, gBackwards = 0, gMirrorWaves = 1;
-    load(3, base);
-    check_tables(3, base);
+    load(3, block);
+    check_tables(3, block);
+    dl0 = level0(block);
     CHECK(gWaveInstance[3].mirrored == 1);
-    CHECK(b32(base + W_DL0 + 16) == 0xE0010001u && b32(base + W_DL0 + 20) == W_DL1);   /* kept as it was */
-    CHECK(b32(base + W_DL0 + 32) == 0xDE010000u && b32(base + W_DL0 + 36) == PHYS(base + W_DL_TAIL));
-    CHECK(b32(base + W_DL0 + 8) == 0x05000402u);                                          /* windings */
-    CHECK(b32(base + W_DL_SUB) == 0x06000402u && b32(base + W_DL_SUB + 4) == 0x00020604u);  /* the call */
-    CHECK(b32(base + W_DL_TAIL) == 0x05020604u);                                          /* the branch */
-    CHECK(b32(base + W_DL1) == 0x05000402u);                                              /* LOD 1 */
+    CHECK(dl0[2].w0 == 0xE0010001u && dl0[2].w1 == (uintptr_t)(dl0 + 10));   /* kept as it was */
+    CHECK(dl0[4].w0 == 0xDE010000u && dl0[4].w1 == (uintptr_t)(dl0 + 8));    /* a branch to the tail */
+    CHECK(dl0[1].w0 == 0x05000402u);                                           /* windings */
+    CHECK(dl0[6].w0 == 0x06000402u && dl0[6].w1 == 0x00020604u);               /* the call */
+    CHECK(dl0[8].w0 == 0x05020604u);                                           /* the branch */
+    CHECK(dl0[10].w0 == 0x05000402u);                                          /* LOD 1 */
     for (int v = 0; v < 3; v++) {
-        CHECK(b16(base + W_VTX + 16 * v + 6) == ((v < 2 ? 0xC000 : 0x4000) | 32));       /* done bit */
-        CHECK(b16(base + W_VTX + 16 * v + 8) == 1024 - v * 256);                         /* s mirrored */
-        CHECK(b16(base + W_VTX + 16 * v + 10) == v * 128);
+        const uint8_t *x = (const uint8_t *)dl0[0].w1 + 16 * v;
+        CHECK((uint16_t)ns16(x + 6) == ((v < 2 ? 0xC000 : 0x4000) | 32));      /* done bit */
+        CHECK(ns16(x + 8) == 1024 - v * 256);                                  /* s mirrored */
+        CHECK(ns16(x + 10) == v * 128);
+        CHECK(b16(block + W_VTX + 16 * v + 8) == v * 256);                     /* the file's: untouched */
     }
 
     /* MBOX_FindTexture_Sub over the loaded slots: record and (slot << 10) | index. */
     {
         int16_t out = -1;
         gNumModels = 4;
-        CHECK(MBOX_FindTexture_WORK("bravo", &out, -1, -1, 0) == &records(base)->textures[1]);
+        CHECK(MBOX_FindTexture_WORK("bravo", &out, -1, -1, 0) == &records(block)->textures[1]);
         CHECK(out == (3 << 10 | 1));
         CHECK(MBOX_FindTexture_WORK("zulu", &out, -1, -1, 0) == NULL && out == 0);
     }
 
-    /* The texture animation over slot 3: a palette light sequence (pal1, rewritten big-endian), a texture scroll
-     * (bravo's TXLD SETTILESIZE), a flip-book on a TXLD texture (bravo: its SETTIMG) and on a texel texture
-     * (alpha: its texBase). */
+    /* The texture animation over slot 3: a palette light sequence (pal1, its colours written in the file's TLUT, in
+     * its texel format), a texture scroll (bravo's load list: its SETTILESIZE), a flip-book on a listed texture
+     * (bravo: its SETTIMG) and on a texel texture (alpha: its texBase). */
     {
         static AnimRow rows[3] = {
             {"pal1", 2, 15, 0, 6, 1, 0, NULL},
@@ -219,63 +213,45 @@ int main(void)
         static AnimSequence seqs[3] = {
             {2, 0, 1, 0, 0, 0, flip_txld}, {2, 0, 1, 0, 0, 0, flip_texels}, {0, 0, 0, 0, 0, 0, NULL},
         };
-        uint32_t imag = base + W_IMAG, txld = base + W_TXLD, tlut1 = base + W_TLUT + 0x20;
+        uint8_t *imag = block + W_IMAG, *tlut1 = block + W_TLUT + 0x20;
+        PcGfxWords *txld = LIST(records(block)->textures[1].texBase);
         PaletteLists[0] = rows;
         TextureSwapLists[0] = seqs;
         gTrackNum = 0, expansion_pak_present = 1, gRestartGame = 0;
         InitTextureAnimation();
-        CHECK(rows[0].data == pc_n64_ptr(tlut1) && rows[1].data == pc_n64_ptr(txld));
-        CHECK(flip_txld[0].resource == &records(base)->textures[1]);
-        CHECK(flip_txld[0].output == (void *)(uintptr_t)PHYS(imag + 0x10));   /* bravo's SETTIMG */
-        CHECK(flip_txld[1].output == pc_n64_ptr(imag) && flip_texels[1].output == pc_n64_ptr(imag + 0x20));
+        CHECK(rows[0].data == tlut1 && rows[1].data == txld);
+        CHECK(flip_txld[0].resource == &records(block)->textures[1]);
+        CHECK(flip_txld[0].output == imag + 0x10);                               /* bravo's SETTIMG */
+        CHECK(flip_txld[1].output == imag && flip_texels[1].output == imag + 0x20);
 
         gFrameSeconds = 0.05f, gLastFrameCount = 1;
         TextureAnimation();
         CHECK(b16(tlut1 + 8) == 1985 && b16(tlut1 + 6) == 10561 && b16(tlut1 + 4) == 10241);
         CHECK(b16(tlut1 + 2) == 0xF012 && b16(tlut1 + 10) == 0xF016);              /* untouched */
-        CHECK(rows[1].first == 8 && b32(txld + 32) == 0xF2002000u && b32(txld + 36) == 0x0007C03Cu);
-        CHECK(b32(txld + 4) == imag);                                              /* SETTIMG = alpha's texels */
-        CHECK(records(base)->textures[0].texBase == pc_n64_ptr(imag + 0x20));      /* alpha = charlie's texels */
-        CHECK(records(base)->textures[0].flags == 0x08010000u);                    /* flags kept */
+        CHECK(rows[1].first == 8 && txld[4].w0 == 0xF2002000u && txld[4].w1 == 0x0007C03Cu);
+        CHECK(txld[0].w1 == (uintptr_t)imag);                                     /* SETTIMG = alpha's texels */
+        CHECK(records(block)->textures[0].texBase == imag + 0x20);                /* alpha = charlie's texels */
+        CHECK(records(block)->textures[0].flags == 0x08010000u);                  /* flags kept */
         PaletteLists[0] = NULL, TextureSwapLists[0] = NULL;
     }
 
     /* Two players, no mirror: bit 1 becomes the branch, bit 2 stays; nothing flips. */
-    uint32_t base2 = PC_RDRAM_BASE + 0x300000u;
     gNumPlayers = 2, gMirrorWaves = 0;
-    load(4, base2);
-    check_tables(4, base2);
+    load(4, block2);
+    check_tables(4, block2);
+    dl0 = level0(block2);
     CHECK(gWaveInstance[4].mirrored == 0);
-    CHECK(b32(base2 + W_DL0 + 16) == 0xDE010000u && b32(base2 + W_DL0 + 20) == PHYS(base2 + W_DL1));
-    CHECK(b32(base2 + W_DL0 + 32) == 0xE0010002u && b32(base2 + W_DL0 + 36) == W_DL_TAIL);
-    CHECK(b32(base2 + W_DL0 + 8) == W_TRI1_A && b32(base2 + W_DL_SUB) == W_TRI2_0);
-    CHECK(b16(base2 + W_VTX + 6) == 0xC020 && b16(base2 + W_VTX + 8) == 0);
+    CHECK(dl0[2].w0 == 0xDE010000u && dl0[2].w1 == (uintptr_t)(dl0 + 10));
+    CHECK(dl0[4].w0 == 0xE0010002u && dl0[4].w1 == (uintptr_t)(dl0 + 8));
+    CHECK(dl0[1].w0 == W_TRI1_A && dl0[6].w0 == W_TRI2_0);
+    CHECK((uint16_t)ns16((const uint8_t *)dl0[0].w1 + 6) == 0xC020 && ns16((const uint8_t *)dl0[0].w1 + 8) == 0);
 
-    /* game.memory: the same WAD past 16 MiB, one player, mirrored, as at base. Its relocated words are K0 addresses,
-     * which the mirror pass (display_list_traverse) follows to the called list and the branch, and the vertex pass
-     * (mirror_vertex_texcoords) to the vertices; with the N64's 24 bits they would be 16 MiB lower. */
-    uint32_t base3 = PC_RDRAM_BASE + 0x1200000u;   /* at 18 MiB */
-    gNumPlayers = 1, gBackwards = 0, gMirrorWaves = 1;
-    load(5, base3);
-    check_tables(5, base3);
-    CHECK(gWaveInstance[5].mirrored == 1);
-    CHECK(b32(base3 + W_DL0 + 4) == base3 + W_VTX && b32(base3 + W_DL0 + 28) == base3 + W_DL_SUB);   /* K0 */
-    CHECK(b32(base3 + W_DL0 + 16) == 0xE0010001u && b32(base3 + W_DL0 + 20) == W_DL1);
-    CHECK(b32(base3 + W_DL0 + 32) == 0xDE010000u && b32(base3 + W_DL0 + 36) == base3 + W_DL_TAIL);
-    CHECK(b32(base3 + W_TXLD + 4) == base3 + W_IMAG + 0x10);
-    CHECK(b32(base3 + W_DL0 + 8) == 0x05000402u);                                          /* windings */
-    CHECK(b32(base3 + W_DL_SUB) == 0x06000402u && b32(base3 + W_DL_SUB + 4) == 0x00020604u); /* the call */
-    CHECK(b32(base3 + W_DL_TAIL) == 0x05020604u);                                          /* the branch */
-    for (int v = 0; v < 3; v++) {
-        CHECK(b16(base3 + W_VTX + 16 * v + 6) == ((v < 2 ? 0xC000 : 0x4000) | 32));
-        CHECK(b16(base3 + W_VTX + 16 * v + 8) == 1024 - v * 256);
-    }
-
-    /* The heap frees the blocks: their registrations go. */
-    pc_heap_block_freed(pc_n64_ptr(base), 0x1000);
-    pc_heap_block_freed(pc_n64_ptr(base2), 0x1000);
-    pc_heap_block_freed(pc_n64_ptr(base3), 0x1000);
-    CHECK(!pc_mem_is_be(pc_n64_ptr(base + W_DL0)) && !pc_mem_is_be(pc_n64_ptr(base2 + W_DL0)));
-    CHECK(test_be_range_count() == 0);
+    /* The heap frees the blocks: their registrations and lists go. */
+    pc_heap_block_freed(block, BLOCK);
+    pc_heap_block_freed(block2, BLOCK);
+    CHECK(!pc_mem_is_be(block + W_TLUT) && !pc_mem_is_be(block2 + W_TLUT));
+    CHECK(test_be_range_count() == 0 && test_model_data_count() == 0);
+    free(block);
+    free(block2);
     return TEST_DONE();
 }

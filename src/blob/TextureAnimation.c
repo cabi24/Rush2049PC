@@ -5,9 +5,7 @@
  * load display lists, and textures whose image steps through a series of others. The N64 adds the palette effects
  * 0-8 to MAT3's scrolls. */
 #include "game/game.h"
-#define Gfx GfxView   /* this file's own Gfx: include/game's Gfx is another type */
 
-typedef struct Gfx { u32 w0; uintptr_t w1; } Gfx;
 /* What a palette animation works on: the palette's colours, or a texture's load display list (the scrolls). */
 typedef union AnimatedData { u16 *palette; Gfx *commands; } AnimatedData;
 /* A palette animation (MAT3 tPaletteAnim); state is a PALANIM_* (scene.h). */
@@ -20,23 +18,18 @@ typedef struct tPaletteAnim {
     f32 time;           /* the time left to the next step, seconds */
     AnimatedData ptr;
 } tPaletteAnim;
-/* PC: the palettes are the WAD's TLUTs, which stay big-endian, as do the TXLD lists (port/assets/wad.c). */
-#define PAL_SET(entry, value) pc_be16_set(&(entry), value)
+/* PC: the palettes are the WAD's TLUTs, which keep the N64's texel format in the file (port/assets/wad.c): a colour
+ * is written in it. */
+#define PAL_SET(entry, value) pc_tlut_set(&(entry), value)
 /* A flipbook frame (MAT3 tTextureBase; InitTextureAnimation's Item12): its texture's name, the texture (the WAD's
  * record, MAT3 tTexture), the image it shows. */
-typedef struct tTextureBase { char *name; tTexture *tex; Gfx *texBase; } tTextureBase;
+typedef struct tTextureBase { char *name; tTexture *tex; void *texBase; } tTextureBase;
 /* A texture flipbook (MAT3 tTextureSwap; InitTextureAnimation.c). */
 typedef struct tTextureSwap {
     s16 num, startnum, fd, idx;
     f32 time, initTime;
     tTextureBase *swapTexs;
 } tTextureSwap;
-/* The image of flipbook frame f in the form a texture's load display list holds (G_SETTIMG's word: the list keeps the
- * N64's form until docs/port/NATIVE.md step 10): a frame of a texel texture holds that texture's texBase, a host pointer
- * into its WAD, which is its N64 address in the RDRAM window (PC_N64A: the same 32 bits in the fixed build); a frame of
- * a listed texture holds the address its own list's G_SETTIMG had (InitTextureAnimation) already. */
-#define FRAME_IMAGE_IN_LIST(f) \
-    (((f)->tex->flags & TEX_IMAGE_DIRECT) ? PC_N64A((f)->texBase) : (u32)(uintptr_t)(f)->texBase)
 /* PC: game.frame_rate 60 (pc_game_fps.h). The texture scrolls (actions 9 and 10) add step x the frame's retraces each
  * time they run: every frame when ticks is 0 (so step a retrace at any rate), else once every ticks 30 Hz frames, when
  * on the N64 the frame's retraces are its 2. At 60 those keep the N64's 2, so the scroll keeps its speed. */
@@ -131,13 +124,13 @@ void TextureAnimation(void)
                     plist->start+=plist->offset*PC_SCROLL_RETRACES(gLastFrameCount, plist->speed);
                     if(plist->start<0) plist->start+=plist->end;
                     else if(plist->start>=plist->end) plist->start-=plist->end;
-                    displaylist_set_tile_size((Gfx *)palette,plist->start>>2,-1,-1,-1);
+                    displaylist_set_tile_size(plist->ptr.commands,plist->start>>2,-1,-1,-1);
                     break;
                 case PALANIM_SCROLL_T:
                     plist->start+=plist->offset*PC_SCROLL_RETRACES(gLastFrameCount, plist->speed);
                     if(plist->start<0) plist->start+=plist->end;
                     else if(plist->start>=plist->end) plist->start-=plist->end;
-                    displaylist_set_tile_size((Gfx *)palette,-1,plist->start>>2,-1,-1);
+                    displaylist_set_tile_size(plist->ptr.commands,-1,plist->start>>2,-1,-1);
                     break;
                 }
             }
@@ -160,7 +153,7 @@ void TextureAnimation(void)
                     }
                     tex=tlist->swapTexs[tlist->startnum].tex;
                     if(tex->flags&TEX_IMAGE_DIRECT) tex->texBase=tlist->swapTexs[tlist->idx].texBase;
-                    else displaylist_set_texture_image(tex->texBase,FRAME_IMAGE_IN_LIST(&tlist->swapTexs[tlist->idx]));
+                    else displaylist_set_texture_image(tex->texBase,tlist->swapTexs[tlist->idx].texBase);
                 }
             }
             tlist++;
