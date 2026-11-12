@@ -18,7 +18,6 @@ owns `main()`. About 3,300 lines of C11.
 | `pakfile.c`, `pakwrite.c` | the controller pak's file: a blank image, what an image is, the atomic write; the thread that writes the paks |
 | `memory.c` | the game heap's block (its size: `game.memory`), the N64 guard (`RUSH2049_N64_GUARD`), the big-endian ranges and the models' vertices' ranges (model data); until [NATIVE.md](NATIVE.md) step 12 the RDRAM window, `pc_n64_ptr`/`pc_n64_addr` and the absolute-symbol fix-up |
 | `heap.c` | the game heap's high-water marks and fallbacks, the exit line ([MEMORY.md](MEMORY.md) 4) |
-| `crossings.c` | only in the counting build (`cmake -DRUSH_COUNT_CROSSINGS=ON`): every crossing between an N64 address and a host pointer counted by site, and the arena guard (`RUSH2049_WINDOW_GUARD=arenas`) ([NATIVE.md](NATIVE.md) 9) |
 | `misc.c` | `osInitialize` and the low-memory globals, cache/TLB/interrupt no-ops, faults, stubs |
 | `loop.c` | the host main loop |
 | `defaults.c` | weak no-op versions of the other parts' interfaces |

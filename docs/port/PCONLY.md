@@ -367,8 +367,8 @@ setup screen use 12. No synthetic path changes for any of them; the gate on the 
 
 ### Wave 3: the memory model (2026-11-09, in progress)
 
-The plan and each step's results are [NATIVE.md](NATIVE.md) (its census, `tools/port/window_census.py`; its crossing
-counter and arena guard, `tools/port/crossings.py`, section 9). Done: step 1 (the counter and the guard), wave 3.1
+The plan and each step's results are [NATIVE.md](NATIVE.md) (its census, `tools/port/window_census.py`; until wave 3.5
+its crossing counter and arena guard, section 9; since then the N64 guard, `tools/port/n64_guard.py`, section 17). Done: step 1 (the counter and the guard), wave 3.1
 (steps 2, 3, 4: the car record's, the level objects', the sky's and palettes' pointers; the images by pointer), wave
 3.2 (step 5, the arenas out of the RDRAM window as blocks of host memory; step 6, the heap's own code on host pointers
 with the N64's accounting; step 8, the text bank, the world and the paths as native records; a synthetic path
@@ -376,16 +376,28 @@ with the N64's accounting; step 8, the text bank, the world and the paths as nat
 on pointers, the samples named by cartridge address) and wave 3.4 (step 10, the files' display lists built in the PC's
 form with host pointers when they load, `relocate_model_dl` renamed `prepare_model_dl`; step 11, the last holders of
 heap addresses (the ghosts' samples, the frame's colour buffer, the once-per-frame functions) and the tests' own
-windows). Along the 64 paths the game and the PC layer crossed between a host pointer and an N64 address 73.2 million
+windows) and wave 3.5 (step 12, the window gone: the game heap is one block of PC memory wherever the OS maps it, with
+the N64's size, alignment modulo 64 KiB and accounting; libultra's boot parameters are ordinary variables; the RDRAM
+window and everything that existed for it are deleted: the views at 0x80000000 and 0xA0000000, `pc_n64_ptr` and
+`pc_n64_addr`, the prelude's `PC_N64P`, `PC_N64A`, `PC_N64W` and `PC_SLOT_*`, `absfix.c`, the linker script's absolute
+names, the renderer's and the audio interpreter's 4 GiB rule, the moved build `RUSH_NOFIXED` and its CI job, and the
+x86-64 `-fPIC`/no-relaxation flags; `nofixed_audit.py` is `n64_audit.py`). Along the 64 paths the game and the PC layer crossed between a host pointer and an N64 address 73.2 million
 times at 243 places before step 1, 30.6 million at 47 after wave 3.2, 27.0 million at 20 after wave 3.3 and 2.0
-million at 6 after wave 3.4 (what is left: the renderer's texel, depth and colour images and the present, which name
-heap blocks, and the boot's low-memory parameters: step 12); no game C uses `PC_N64P`, `PC_N64A` or `PC_N64W` any
-more, and the arena guard finds no access by an N64 address. The gate compares the data loader's summary with
+million at 6 after wave 3.4 (the renderer's images and present, which named heap blocks, and the boot's low-memory
+parameters), and none after wave 3.5, when the counter went with the window. Its successor, the N64 guard
+(`RUSH2049_N64_GUARD=1`), reserves 0x80000000-0xBFFFFFFF with no access and maps the heap above 4 GiB with a trap
+below it, so an N64 address or a heap pointer cut to 32 bits faults; the 64 paths and the lead's 42 retail scripts run
+under it with no fault, the retail-only inflate of DEFLATEd files among them. With the heap at a different address in
+each process, the state hash names a heap pointer by its offset; the gate's first run found a chance match on a 64 MiB
+heap (a decoupled record's numbers read as a heap pointer in one run only), and the heap rule now applies only where a
+heap pointer can be. AddressSanitizer runs on x86-64 as well since wave 3.5, in CI. CI's sanitizer jobs found one bug
+in wave 3.4 after its push (`qsort` given a null list when a WAD loads no vertices: every game boot under UBSan; fixed
+in 392a1aa3); the lead now runs the UBSan set before a wave is pushed. The gate compares the data loader's summary with
 `--data-moved` since step 2 (its pointer counts by class move as data leaves the arenas). Step 9 found the synthetic
 cartridge silent (MusyX's pitch and volume tables were zero), so the gate's `--audio` had compared silence until then;
 `synth_rom.py --sounds` makes a cartridge whose sound bank and a song are heard, and a step that touches the sound
 compares on it too. Wave 3.4 found the retail runs of `synth_compare --script` taking none of a script's own options,
 so their `--shots` had compared no screenshot; they do now, and the lead's retail check of step 10 compared
-screenshots of every race track forward, backward and mirrored. Left: the window itself (3.5), one object per datum
-under ASan and the last of the N64's byte order (3.6).
+screenshots of every race track forward, backward and mirrored. Left: one object per datum under ASan and the last of
+the N64's byte order (3.6).
 
