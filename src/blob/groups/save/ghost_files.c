@@ -5,25 +5,7 @@
 typedef struct OSMesgQueue OSMesgQueue;
 s32 osRecvMesg(OSMesgQueue *,void **,s32);s32 osSendMesg(OSMesgQueue *,void *,s32);
 
-/* ---- menu objects ---- */
-typedef struct MenuData {
-    u8 pad0[5];
-    s8 loaded;        /* 5 */
-    s8 index;         /* 6 */
-    u8 variant;       /* 7 */
-    u8 pad8[14];
-    char name[18];    /* 22 */
-    s32 key0;         /* 40 */
-    s32 key1;         /* 44 */
-    u8 pad48[12];
-    s32 size;         /* 60 */
-    s32 tag;          /* 64 */
-    u8 pad68[8];
-    s32 buffer;       /* 76 */
-    u8 pad80[4];
-    s32 count;        /* 84 */
-    u8 data[4];       /* 88 */
-} MenuData;
+/* A ghost record (tGhostFile) as this file reads it, in the PC's layout. */
 typedef struct Obj Obj;
 typedef Obj **Handle;
 struct Obj {
@@ -38,8 +20,7 @@ struct Obj {
     void **h36;       /* 36 */
     void **h40;       /* 40 */
 };
-/* PC: paksys' tPS_File (96 bytes, docs/port/POINTERS.md 9.10). PurgeGhostData also reaches the ghost header's
- * start (N64 0x4C, 32 bits in the file data) through this view, as f76: on the PC through HeaderStart. */
+/* PC: paksys' tPS_File (96 bytes, docs/port/POINTERS.md 9.10). */
 typedef struct Slot {
     void *next, *prev;
     void *update;     /* RemoveFile */
@@ -51,8 +32,6 @@ typedef struct Slot {
     u8 pad68[4];
     void **data;
 } Slot;
-typedef struct HeaderStart { u8 pad0[76]; s32 f76; } HeaderStart;
-#define START_VIEW HeaderStart
 
 VIEW(Handle[4], gGhosts);
 #define gGhosts gGhosts_view
@@ -60,8 +39,8 @@ VIEW(Handle[4], gGhosts);
 s32 sprintf(char *, const char *, ...);
 void *memcpy(void *, const void *, u32);
 
-/* The ghost's buffer is kept in its header (MenuData.buffer, the ghost file's layout) as the block's 32-bit window
- * address (PC_N64W: pc_prelude.h); unzipdata and CalcChecksumInternal take the block. */
+/* A ghost's decoded recording is its data block (h36, MAT3 datah); its header (tGhostHeader) says it has it
+ * (hasSamples: MAT3 kept the block's address there, as start). */
 s32 unzipdata(void *, s32, void *);
 
 /* Frees an open pak file's data (it is read again when needed) and clears the file's lock flag. */
@@ -78,7 +57,7 @@ void PS_PurgeFile(Handle h) {
     }
 }
 
-/* Frees a ghost's decoded recording and its file's data (PS_PurgeFile), clearing the header's recording address. */
+/* Frees a ghost's decoded recording and its file's data (PS_PurgeFile); its header no longer has its samples. */
 void PurgeGhostData(Handle h) {
     Obj *o = *h;
 
@@ -88,7 +67,7 @@ void PurgeGhostData(Handle h) {
         DeallocateMemoryInternal(old, 0);
         osSendMesg(&heap_lock_queue, NULL, 0);
         o->h36 = NULL;
-        ((START_VIEW *)*o->h40)->f76 = 0;
+        (*(tGhostHeader **)o->h40)->hasSamples = 0;
         if (o->slot != NULL) {
             PS_PurgeFile(o->slot);
             o->h40 = NULL;
@@ -96,22 +75,22 @@ void PurgeGhostData(Handle h) {
     }
 }
 
-/* Decompresses a ghost's recording (unzipdata) into a new heap block, once: the header then holds the block's address
- * and the number of samples (three bytes each). */
+/* Decompresses a ghost's recording (unzipdata) into a new heap block, the ghost's data (h36), once: the header then
+ * has its samples, their number (three bytes each) and is to be played back (flag 1). */
 void DecodeGhost(Handle h) {
-    MenuData *m = *(MenuData **)(*h)->h40;
+    tGhostHeader *m = *(tGhostHeader **)(*h)->h40;
     void *buffer;
     s32 n;
 
-    if (m->buffer == 0) {
-        (*h)->h36 = (void **)AllocateHandleHeap(NULL, m->tag);
+    if (m->hasSamples == 0) {
+        (*h)->h36 = (void **)AllocateHandleHeap(NULL, m->unzippedSize);
         buffer = *(*h)->h36;
-        m->buffer = PC_N64W(buffer);
-        n = unzipdata(m->data, m->size, buffer);
-        m->count = n / 3;
+        m->hasSamples = 1;
+        n = unzipdata(m + 1, m->zippedSize, buffer);
+        m->size = n / 3;
         do {} while (0);
         CalcChecksumInternal(buffer, n);
-        m->loaded = 1;
+        m->flag = 1;
     }
 }
 
@@ -155,8 +134,8 @@ void DeleteGhost(Handle ghosth) {
 }
 
 /* The ghost file name's direction suffix: backward or forward, by the header. */
-char *GhostDirName(MenuData *header) {
-    if (header->variant) {
+char *GhostDirName(tGhostHeader *header) {
+    if (header->backward) {
         return ghost_backward_suffix;
     }
     return ghost_forward_suffix;
@@ -168,16 +147,16 @@ char *GhostDirName(MenuData *header) {
  * track and the direction is created, the ghost written to it and its data dropped from memory, and the ghost joins
  * the ghost list in order of its time. Returns 0 when the file can't be created. */
 s32 SaveGhost(s32 pak, Handle player, Handle saveGhosth, s32 limbo) {
-    MenuData *m;
+    tGhostHeader *m;
     Handle node;
     char buf[32];
     Obj *obj;
     Handle created;
     u32 size;
 
-    m = *(MenuData **)(*saveGhosth)->h40;
+    m = *(tGhostHeader **)(*saveGhosth)->h40;
     if (limbo) {
-        SaveGhostInLimbo(m, m->data);
+        SaveGhostInLimbo(m, m + 1);
         cart_free_direct((*saveGhosth)->h40);
         FreeGhost(saveGhosth);
         return 1;
@@ -185,11 +164,11 @@ s32 SaveGhost(s32 pak, Handle player, Handle saveGhosth, s32 limbo) {
     for (node = gGhostFiles.head; node != NULL; node = obj->next) {
         obj = *node;
         if (pak == ((Slot *)*obj->slot)->id && game_strcmp(obj->name, m->name) == 0 &&
-            m->key0 == obj->key0 && m->key1 == obj->key1 &&
-            obj->index == m->index && obj->variant == m->variant) {
+            m->playerId[0] == obj->key0 && m->playerId[1] == obj->key1 &&
+            obj->index == m->track && obj->variant == m->backward) {
             slot_forget(node);
             if (ReadGhostDataInternal(node, 0, 0)) {
-                SaveGhostInLimbo(*obj->h40, ((MenuData *)*obj->h40)->data);
+                SaveGhostInLimbo(*obj->h40, *(tGhostHeader **)obj->h40 + 1);
                 DeleteGhost(node);
             }
             break;
@@ -197,7 +176,7 @@ s32 SaveGhost(s32 pak, Handle player, Handle saveGhosth, s32 limbo) {
     }
     obj = *saveGhosth;
     size = GetPtrSize(obj->h40);
-    sprintf(buf, ghost_file_name_format, (char *)*M2C_FIELD(*player, void ***, PROFILE_OFS(8)) + PSF_OFS(18), m->index + 1,
+    sprintf(buf, ghost_file_name_format, (char *)*M2C_FIELD(*player, void ***, PROFILE_OFS(8)) + PSF_OFS(18), m->track + 1,
             GhostDirName(m));
     created = PS_CreateFile(pak, buf, ghost_file_ext, size, GAME_COMPANY_CODE, GAME_CODE);
     if (created == NULL) {

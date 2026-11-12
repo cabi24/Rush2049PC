@@ -709,7 +709,7 @@ straightShot:
                     BodyVector(shot->vel, v1, &uvs[0][0]);
                     v1[1] = 0.9f*-v1[1];
                     WorldVector(v1, shot->vel, &uvs[0][0]);
-                    EmitGameSound(shot->pos, (intptr_t)&unitmatrix_origin, 400.0f, 0.0f, 1.0f, 0.0f, (s32)(70.0f + Random(3.0f)), shot->slot, 0, 0x80);
+                    EmitGameSound(shot->pos, &unitmatrix_origin, 400.0f, 0.0f, 1.0f, 0.0f, (s32)(70.0f + Random(3.0f)), shot->slot, 0, 0x80);
                     break;
                 default:
 wallHit:

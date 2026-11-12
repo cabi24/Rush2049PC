@@ -233,7 +233,7 @@ extern struct pc_multiblit buttonsFrontEnd[EXTENT(81)];
 extern struct pc_multiblit buttonsPauseSingle[EXTENT(21)];
 extern struct pc_multiblit buttonsPauseMulti[EXTENT(41)];
 extern s8 controls_inited;
-extern void *controls_blit;
+extern tBlit *controls_blit;
 extern s32 exitControlScreen;
 extern PlayerRect controls_gPlayerRects[EXTENT(4)][4];
 extern s8 gControlValid[EXTENT(28)];

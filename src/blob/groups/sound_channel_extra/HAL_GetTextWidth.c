@@ -4,7 +4,7 @@
 /* The width in pixels of the first maxlen characters of str (all of it when negative; it stops at a newline), in the
  * current font: each letter's width and the spacing between letters, less the kerning, a space's width for spaces,
  * characters over 255 and characters the font lacks, maxWidth plus spacing for each character of a fixed-width font;
- * without the spacing after the last. (The counter of characters reuses the parameter str.) */
+ * without the spacing after the last. */
 s32 HAL_GetTextWidth(u8 *str, s16 maxlen)
 {
     s32 width;
@@ -13,6 +13,7 @@ s32 HAL_GetTextWidth(u8 *str, s16 maxlen)
     s32 ch;
     s32 step;
     s32 prev;
+    s32 count;   /* the characters measured (the N64 kept the count in str's register) */
     u8 *s;
 
     SetupFontData(0);
@@ -27,9 +28,9 @@ s32 HAL_GetTextWidth(u8 *str, s16 maxlen)
         step = 1;
     }
     width = 0;
-    str = 0;
+    count = 0;
     prev = -1;
-    while ((maxlen < 0 || (intptr_t) str < maxlen) && (s[pos] != 0 || (wide && s[pos + 1] != 0))) {
+    while ((maxlen < 0 || count < maxlen) && (s[pos] != 0 || (wide && s[pos + 1] != 0))) {
         if (gFontHeader->nonProp) {
             width += gFontHeader->maxWidth + gSpacing;
             prev = ch;
@@ -61,7 +62,7 @@ s32 HAL_GetTextWidth(u8 *str, s16 maxlen)
             }
         }
         pos += step;
-        str++;
+        count++;
     }
     return width - gSpacing;
 }

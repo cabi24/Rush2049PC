@@ -83,9 +83,11 @@ _Static_assert(sizeof(struct ghost) == PC_GHOST_SIZE && GHOST_OFS(0x2C) == PC_GH
                offsetof(struct ghost, fileh) == GHOST_OFS(4) && offsetof(struct ghost, finish) == GHOST_OFS(0x20) &&
                offsetof(struct ghost, datah) == GHOST_OFS(0x24) && offsetof(struct ghost, header) == GHOST_OFS(0x28),
                "GHOST_OFS");
-/* The ghost header is file data and keeps its N64 layout: start, the sample buffer, is a 32-bit window address. */
+/* The ghost header (tGhostHeader) is file data and keeps its N64 layout: at 0x4C, where MAT3 kept the samples'
+ * address, whether it has its samples (a ghost's are its data, datah; a recording's its player's block,
+ * ghost_recording). */
 enum { GH_SUM = 0, GH_REV = 4, GH_FLAG = 5, GH_TRACK = 6, GH_BACK = 7, GH_NAME = 0x16, GH_ID = 0x28, GH_TIME = 0x34,
-       GH_FINISH = 0x38, GH_ZSIZE = 0x3C, GH_SIZE = 0x40, GH_ZSUM = 0x44, GH_USUM = 0x48, GH_START = 0x4C,
+       GH_FINISH = 0x38, GH_ZSIZE = 0x3C, GH_SIZE = 0x40, GH_ZSUM = 0x44, GH_USUM = 0x48, GH_HAS_SAMPLES = 0x4C,
        GH_OFFSET = 0x50, GH_COUNT = 0x54, GH_BYTES = 0x58 };
 struct dllist { uint8_t indirect, doubly, pad[2]; uint32_t count; void **head, **tail; };
 typedef struct {   /* libultra's OSPfs, host layout */
@@ -139,6 +141,7 @@ void SaveFlush(int32_t mode);
 void pak_poll_inserted(void);                                       /* the pak insert scan */
 void **NewGhost(void);                                     /* _NewGhost */
 void **CompressGhost(void *header, int8_t *blocks);
+uint8_t **ghost_recording(void *header);                      /* a race recording header's block */
 int32_t SaveGhost(int32_t pak, void **player, void **ghosth, int32_t limbo);
 void DeleteGhost(void **ghosth);
 int32_t ReadGhostDataInternal(void **ghosth, int32_t decode, int32_t select);   /* _ReadGhostData */
@@ -149,7 +152,7 @@ void *AllocateHandleHeap(void *heap, uint32_t size);
 void *AllocateMemoryHeap(void *heap, uint32_t size);
 uint32_t CalcChecksumInternal(uint8_t *data, uint32_t size);
 void pak_encode_name(uint8_t *out, uint8_t *in, uint8_t limit);   /* ASCII -> pak font */
-void RemovePlayerFile(uintptr_t fileh);                         /* the files' RemoveFile */
+void RemovePlayerFile(void **fileh);                            /* the files' RemoveFile */
 void MovePlayerFile(intptr_t from, intptr_t to);                 /* the files' MoveFile */
 
 /* ---------------------------------------------------------------- the game's data they use */
@@ -184,7 +187,8 @@ char cheat_profile_name[] = "CHEATS", player_file_prefix[9] = "RUSH2049", player
      player_file_digits_format[] = "%0*d", save_file_name_prefix[] = "RUSH2049", player_file_ext_prefix[] = "P";
 char ghost_file_name_format[] = "%s%d%s", ghost_backward_suffix[] = "B", ghost_forward_suffix[] = "F", ghost_file_ext[] = "G";
 void **gGhosts[4];                           /* gGhosts: the ghosts of a race */
-void *gMainHeap;                               /* the heap */
+uint8_t gRealNewGhostHeaders[4][GH_BYTES] __attribute__((aligned(8)));   /* the race's recording headers */
+void *gMainHeap;                            /* the heap */
 int32_t heap_lock_msg;
 TEST_ABS(osMemSize);                           /* osMemSize */
 #define OSMEMSIZE_OFF (TEST_N64(osMemSize) - PC_RDRAM_BASE)   /* osMemSize's offset in the window */
@@ -563,7 +567,8 @@ static void test_load_and_flush(void)
  * the replay plays it and records through the header. */
 static void test_ghost(void)
 {
-    static uint8_t rec[GH_BYTES];   /* the race's recording header (gRealNewGhostHeaders's N64 layout) */
+    uint8_t *rec = gRealNewGhostHeaders[0];   /* the race's recording header, player 0's */
+    uint8_t *samples, *rec_slot;
     const uint32_t max = 600;       /* (ghostRaceTimes[0] + 10) * 60 frames a part */
     void **ghosth, **old, **back, **fileh;
     struct ghost *g;
@@ -584,14 +589,16 @@ static void test_ghost(void)
     strcpy((char *)rec + GH_NAME, "ALICE");
     U32(rec, GH_ID) = 0x11112222, U32(rec, GH_ID + 4) = 0x33334444;
     F32(rec, GH_TIME) = 1.0f / 60, F32(rec, GH_FINISH) = 61.5f;
-    U32(rec, GH_START) = W32(buf), U32(rec, GH_OFFSET) = 4, U32(rec, GH_COUNT) = 4;
+    U32(rec, GH_HAS_SAMPLES) = 1, U32(rec, GH_OFFSET) = 4, U32(rec, GH_COUNT) = 4;
+    *ghost_recording(rec) = buf;
 
     old = NewGhost();                                       /* a ghost slot used before */
     memset(*old, 0xEE, PC_GHOST_SIZE);
     *old = NULL;
     ghost_block_size = GH_BYTES + 12;
     ghosth = CompressGhost(rec, &blocks);
-    CHECK(ghosth == old && blocks == 1 && U32(rec, GH_START) == 0 && was_freed(buf));
+    CHECK(ghosth == old && blocks == 1 && U32(rec, GH_HAS_SAMPLES) == 0 && was_freed(buf));
+    CHECK(*ghost_recording(rec) == NULL);
     if (ghosth != old)
         return;
     g = GHOST_OF(ghosth);
@@ -600,7 +607,7 @@ static void test_ghost(void)
     CHECK(g->ll == NULL && g->fileh == NULL && g->datah == NULL && g->header != NULL);
     h = *g->header;
     CHECK(IN_WINDOW(g->header) && IN_WINDOW(h) && h[GH_REV] == 17 && h[GH_TRACK] == 3);
-    CHECK(U32(h, GH_START) == 0 && U32(h, GH_OFFSET) == 0 && U32(h, GH_COUNT) == 0);
+    CHECK(U32(h, GH_HAS_SAMPLES) == 0 && U32(h, GH_OFFSET) == 0 && U32(h, GH_COUNT) == 0);
     CHECK(U32(h, GH_ZSIZE) == 12 && U32(h, GH_SIZE) == 12 && U32(h, GH_ID) == 0x11112222);
     CHECK(U32(h, GH_SUM) == CalcChecksumInternal(h + GH_REV, GH_ZSUM - 4));
     CHECK(h[GH_BYTES] == 0x0B && h[GH_BYTES + 4] == 0x7F && h[GH_BYTES + 8] == 0xF0 && h[GH_BYTES + 11] == 0);
@@ -642,10 +649,13 @@ static void test_ghost(void)
     if (!g->header)
         return;
     h = *g->header;
-    CHECK(U32(h, GH_START) == 0 && U32(h, GH_OFFSET) == 0x12345678 && U32(h, GH_COUNT) == 0x9ABCDEF0);
+    CHECK(U32(h, GH_HAS_SAMPLES) == 0 && U32(h, GH_OFFSET) == 0x12345678 && U32(h, GH_COUNT) == 0x9ABCDEF0);
 
-    /* the replay: the header's start is the samples' window address, offset the frame, size the frames */
-    U32(h, GH_START) = W32(h + GH_BYTES), U32(h, GH_OFFSET) = 0, U32(h, GH_COUNT) = 4;
+    /* the replay: a ghost played back reads its data (here the file's own bytes after the header stand for the decoded
+     * samples), offset the frame, size the frames */
+    samples = h + GH_BYTES;
+    g->datah = &samples;
+    U32(h, GH_HAS_SAMPLES) = 1, U32(h, GH_OFFSET) = 0, U32(h, GH_COUNT) = 4;
     h[GH_FLAG] = 1;
     gGhosts[0] = back;
     CHECK(GhostUpdate(0, &t) == 0 && t == F32(h, GH_TIME));
@@ -654,13 +664,20 @@ static void test_ghost(void)
     for (i = 1; i < 4; i++)
         GhostUpdate(0, &t);
     CHECK(U32(h, GH_OFFSET) == 4);
-    h[GH_FLAG] = (uint8_t)-1;                                    /* recording */
-    U32(h, GH_OFFSET) = 2;
+    /* recording: the race's header (player 0's) writes its player's block (the same bytes, so the checks read them) */
+    rec_slot = rec;
+    g->header = &rec_slot;
+    *ghost_recording(rec) = h + GH_BYTES;
+    rec[GH_FLAG] = (uint8_t)-1;
+    U32(rec, GH_HAS_SAMPLES) = 1, U32(rec, GH_OFFSET) = 2, U32(rec, GH_COUNT) = 4;
     MODEL_B(0x730) = 4, MODEL_B(0x732) = 1, MODEL_B(0x731) = 0;
     MODEL_F(0x720) = -1.0f, MODEL_F(0x72C) = 1.0f, MODEL_F(0x728) = 0.0f;
     GhostUpdate(0, &t);
     CHECK(h[GH_BYTES + 2] == (5 | 8) && (int8_t)h[GH_BYTES + 4 + 2] == -127 && h[GH_BYTES + 8 + 2] == 0xF0);
+    CHECK(U32(rec, GH_OFFSET) == 3);
     gGhosts[0] = NULL;
+    g->header = FILE_OF(fileh)->data, g->datah = NULL;
+    *ghost_recording(rec) = NULL;
 
     /* PS_DeleteFile through DeleteGhost: RemoveFile takes the ghost out */
     deletes = 0;

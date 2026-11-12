@@ -316,7 +316,8 @@ void *n64_memcpy(void *d, const void *s, unsigned int n) { return memcpy(d, s, n
 int32_t osRecvMesg(void *q, void **m, int32_t flags) { return 0; }
 int32_t osSendMesg(void *q, void *m, int32_t flags) { return 0; }
 void *AllocateMemoryHeapHigh(void *heap, uint32_t size) { return NULL; }
-TEST_ABS(ghost_file_handles);                      /* the N64's handle slots and records, in the game arena: */
+uint8_t gRealNewGhostHeaders[4][0x58];             /* the race's recording headers (ghost_recording) */
+TEST_ABS(ghost_file_handles);                     /* the N64's handle slots and records, in the game arena: */
 TEST_ABS(ghost_file_records);                      /* not used on the PC */
 
 static void test_ghosts(void)

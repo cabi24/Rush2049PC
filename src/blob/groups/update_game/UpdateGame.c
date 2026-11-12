@@ -5,15 +5,10 @@
 /* A player's input record (gPlayers): its car slot and its crashes. */
 typedef struct Player76 { u8 slot; u8 pad01[63]; u16 numCrashes; u8 pad42[0x48 - 0x42]; void *ref; } Player76;
 
-/* A ghost's save header (GhostSaveHeader): the flag that says it is a ghost to race against. */
-typedef struct Inner5 { u8 pad0[5]; s8 flag; } Inner5;
-/* A ghost (SaveInit' Ghost): link, file and data handles before its header, pointer-sized on the PC
- * (docs/port/CASTS.md). */
-typedef struct Ghost40 { void *ll; void **fileh; u8 pad8[0x24 - 8]; void *datah; Inner5 **header; } Ghost40;
-
 extern Player76 gPlayers[];   /* gPlayers */
 
-VIEW(Ghost40 **[], gGhosts);
+/* Each car's ghost (tGhostFile), whose header's flag says whether it is raced against (positive) or recorded. */
+VIEW(tGhostFile **[], gGhosts);
 #define gGhosts gGhosts_view
 
 

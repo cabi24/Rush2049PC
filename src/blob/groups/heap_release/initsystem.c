@@ -31,7 +31,7 @@ static void _InitGfx_Init(void)
     framebuffer_a = AllocateMemoryHeapHigh(0, FRAME_BUFFER_BYTES); PurgeableMemory(framebuffer_a, 0);
     framebuffer_b = AllocateMemoryHeapHigh(0, FRAME_BUFFER_BYTES); PurgeableMemory(framebuffer_b, 0);
     zbuffer = ALIGN_64(zbuffer); framebuffer_a = ALIGN_64(framebuffer_a); framebuffer_b = ALIGN_64(framebuffer_b);
-    frame_records[0].colorBuffer = (uintptr_t)framebuffer_a; frame_records[1].colorBuffer = (uintptr_t)framebuffer_b;
+    frame_records[0].colorBuffer = framebuffer_a; frame_records[1].colorBuffer = framebuffer_b;
     frame_records[0].commands = DL_BUFFER_0; frame_records[1].commands = DL_BUFFER_1;
     frame_records[0].doneMsgType = OS_SC_DONE_MSG; frame_records[1].doneMsgType = OS_SC_DONE_MSG;
     frame_dynamic = frame_records[0].commands; frame_matrix_cursor = (u8 *)frame_records[0].commands + 1728;

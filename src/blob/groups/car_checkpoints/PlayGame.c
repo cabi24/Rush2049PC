@@ -15,16 +15,11 @@ typedef struct Car952 {
 /* A player's input record (gPlayers): the field this counts. */
 typedef struct Player76 { u8 pad00[64]; u16 numCrashes; u8 pad42[0x48 - 0x42]; void *ref; } Player76;
 
-/* A ghost's save header (GhostSaveHeader): the flag that says it is a ghost to race against. */
-typedef struct GhostHeaderView { u8 pad0[5]; s8 flag; } GhostHeaderView;
-/* A ghost (SaveInit's Ghost): link, file and data handles before its header, pointer-sized on the PC
- * (docs/port/CASTS.md). */
-typedef struct Obj40 { void *ll; void **fileh; u8 pad8[0x24 - 8]; void *datah; GhostHeaderView **header; } Obj40;
-
 extern Player76 gPlayers[];
 
 
-VIEW(Obj40 **[], gGhosts);
+/* Each car's ghost (tGhostFile), whose header's flag says whether it is raced against (positive) or recorded. */
+VIEW(tGhostFile **[], gGhosts);
 #define gGhosts gGhosts_view
 /* unitmatrix's fourth row, the origin: the crash sound's orientation */
 

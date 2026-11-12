@@ -36,10 +36,8 @@ void StartCarSounds(Vehicle2056 *vehicle)
  EngineSounds *engine;
  int i;
  s32 fxid;
- fxid=(s32)&PC_CAR_SOUNDS_ON(slot);   /* a dead store and a test of nothing, left from the decompilation */
  engine=PC_ENGINE_SOUND(slot);
  if(!gGameSoundsEnabled || vehicle->crashflag)return;
- if(&PC_CAR_SOUNDS_ON(slot)!=0);
  engine->specs=&gEngineSpecs[vehicle->engine_type];
  for(i=0;i<2;i++) {
   InitSoundState(&engine->state[i]);

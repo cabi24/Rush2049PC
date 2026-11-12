@@ -49,7 +49,7 @@ void SaveGhostInLimbo(tGhostHeader *entry, void *payload) {
         row[i]->header = AllocateHandleHeap(0, entry->zippedSize + sizeof(tGhostHeader));
         memcpy(*row[i]->header, entry, sizeof(tGhostHeader));
         memcpy((u8 *) *row[i]->header + sizeof(tGhostHeader), payload, entry->zippedSize);
-        (*row[i]->header)->start = 0;
+        (*row[i]->header)->hasSamples = 0;
         (*row[i]->header)->size = 0;
         (*row[i]->header)->offset = (*row[i]->header)->size;
     }

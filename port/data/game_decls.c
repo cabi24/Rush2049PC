@@ -12,7 +12,7 @@ extern f32 gDummyVtx[EXTENT(4)][3];   /* src/blob/groups/animate_arrow/group.c: 
 extern EnvironNode gEnvirons[EXTENT(100)];   /* src/blob/InitEnvs.c: defines it */
 extern tTarget *CollisionTargetPtrs[EXTENT(30)];   /* src/blob/InitCollisionTargetPtrs.c: defines it */
 extern PlayerInput gPlayers[EXTENT(4)];   /* src/blob/groups/game_sounds/InitOptions.c: defines it */
-extern intptr_t gOPPFuncs[EXTENT(10)];   /* src/blob/groups/hal_time/group.c: defines it */
+extern void (*gOPPFuncs[EXTENT(10)])(void);   /* src/blob/groups/hal_time/group.c: defines it */
 extern f32 weaponOffsets[EXTENT(8)][13][3];   /* src/ovl_b/groups/weapons/weapons.c: defines it */
 extern ComponentLights compLight[EXTENT(2)];   /* src/ovl_a/groups/carscr/carscr.c: defines it */
 extern s32 pc_audio_pool_fail_every;   /* src/blob/groups/abort_game/GetCmd.c: defines it */

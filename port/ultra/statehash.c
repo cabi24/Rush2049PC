@@ -437,18 +437,21 @@ uint64_t pc_hash_pointer(uint64_t v)
 }
 
 /* pc_prelude.h's pc_n64_identity, through port/ultra/n64mem.c's hook: the 32-bit N64 address a pointer stands for
- * where the game keeps one as a number (an id): a window pointer's own; own storage's, its symbol's N64 address and
- * offset, as on the N64; an arena's datum's, its N64 address; else the low half, as PC_N64A. */
+ * where the game keeps one as a number (an id, which the saves hold: a profile's is its handle's, and the handles are
+ * own storage): own storage's, its symbol's N64 address and offset, as on the N64; an arena's datum's, its N64
+ * address; a pointer into the heap, its address in the RDRAM window (until docs/port/NATIVE.md step 12); else the low
+ * half. The data loader's tables are asked first, so a game datum's id needs no window. */
 static unsigned int n64_identity(const void *p)
 {
-    uint32_t a = p ? pc_n64_addr(p) : 0;
     uint64_t c;
-    if (a || !p)
-        return a;
+    uint32_t a;
+    if (!p)
+        return 0;
     c = pc_hash_pointer((uintptr_t)p);
     if (c && ((uint32_t)(c >> 32) == TAG(K_OWN, (uint32_t)(c >> 32) & 0xFF) || !(c >> 32)))
         return (uint32_t)c;   /* own storage's, or an arena's (canonical gives those the N64 address alone) */
-    return (unsigned int)(uintptr_t)p;
+    a = pc_n64_addr(p);
+    return a ? a : (unsigned int)(uintptr_t)p;
 }
 
 extern unsigned int (*pc_n64_identity_hook)(const void *p);

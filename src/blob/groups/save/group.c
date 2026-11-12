@@ -6,7 +6,7 @@
 #define F(expr,type,offset) (*(type *)((u8 *)(expr)+(offset)))
 /* PC: the save records' host layouts (pc_prelude.h, docs/port/POINTERS.md 9.10): PSF_OFS for the pak file record
  * (*fileh), PROFILE_OFS for the profile record (*player), GHOST_OFS for a ghost. The ghost header is file data, so
- * it keeps its N64 layout; its sample buffer `start` is a window address. */
+ * it keeps its N64 layout (tGhostHeader: it says whether its samples are in memory, which are the ghost's data). */
 #define SLOT_DATA PROFILE_OFS(44)   /* SaveSlot.data */
 typedef void **Handle;
 
@@ -409,27 +409,6 @@ void **ReadPlayer(void **fileh) {
     return player;
 }
 
-typedef struct GhostHeader {      /* tGhostHeader's layout */
-    u32 headerChecksum;           /* 0x00 */
-    u8 revision;                  /* 0x04 */
-    s8 flag;                      /* 0x05 */
-    s8 track;                     /* 0x06 */
-    u8 backward;                  /* 0x07 */
-    u8 pad08[0x16 - 0x08];
-    u8 name[13];                  /* 0x16 */
-    u8 pad23[0x28 - 0x23];
-    u32 playerId[2];              /* 0x28 */
-    u8 pad30[0x38 - 0x30];
-    f32 finish;                   /* 0x38 */
-    u32 zippedSize;               /* 0x3C */
-    u32 unzippedSize;             /* 0x40 */
-    u32 zippedChecksum;           /* 0x44 */
-    u32 unzippedChecksum;         /* 0x48 */
-    u32 start;                    /* 0x4C: a heap block (the window), 32 bits as in the file */
-    u32 offset;                   /* 0x50 */
-    u32 size;                     /* 0x54 */
-} GhostHeader;
-
 typedef struct Ghost {            /* GC __anon_49a9c; N64 layout 0x2C */
     void *ll;                     /* 0x00 */
     void **fileh;                 /* 0x04 */
@@ -440,14 +419,14 @@ typedef struct Ghost {            /* GC __anon_49a9c; N64 layout 0x2C */
     u32 playerId[2];              /* 0x18 */
     f32 finish;                   /* 0x20 */
     u8 **datah;                   /* 0x24 */
-    GhostHeader **header;         /* 0x28 */
+    tGhostHeader **header;        /* 0x28 */
 } Ghost;
 
 /* Checks a ghost's file: its revision (GHOST_REVISION) and header checksum, and with data the recording's checksum.
  * Returns 1 when something is wrong; with repair a bad ghost's file is deleted (and 0 returned). */
 s32 CheckAndRepairGhost(Ghost **ghosth, s32 data, s32 repair) {
     s32 result;
-    GhostHeader *header;
+    tGhostHeader *header;
 
     result = 0;
     header = *(*ghosth)->header;
@@ -486,7 +465,8 @@ s32 CheckAndRepairGhost(Ghost **ghosth, s32 data, s32 repair) {
 
 /* Reads the ghost's file (again: the data already read is purged first) and checks it, repairing it if need be; with
  * decode decompresses the recording; with select moves the header and the recording low in the heap (for the race)
- * and points the header at the recording. Returns 0 when it can't be read. */
+ * and marks the header as having its samples (the recording, MAT3's header->start = *datah). Returns 0 when it
+ * can't be read. */
 s32 ReadGhostDataInternal(Ghost **ghosth, s32 decode, s32 select) {
     Ghost *ghost;
 
@@ -502,11 +482,11 @@ s32 ReadGhostDataInternal(Ghost **ghosth, s32 decode, s32 select) {
         }
     }
     PS_ReadPartialFile(ghost->fileh, 0, F(*ghost->fileh, s32, PSF_OFS(64)));
-    if (F(*ghost->fileh, GhostHeader **, PSF_OFS(72)) == NULL) {
+    if (F(*ghost->fileh, tGhostHeader **, PSF_OFS(72)) == NULL) {
         return 0;
     }
-    ghost->header = F(*ghost->fileh, GhostHeader **, PSF_OFS(72));
-    (*ghost->header)->start = NULL;
+    ghost->header = F(*ghost->fileh, tGhostHeader **, PSF_OFS(72));
+    (*ghost->header)->hasSamples = 0;
     if (CheckAndRepairGhost(ghosth, 1, 0) && !CheckAndRepairGhost(ghosth, 1, 1)) {
         return 0;
     }
@@ -517,7 +497,7 @@ s32 ReadGhostDataInternal(Ghost **ghosth, s32 decode, s32 select) {
         ReallocateMemory(ghost->header, 88);
         heap_move_block_low(ghost->header);
         heap_move_block_low(ghost->datah);
-        (*ghost->header)->start = PC_N64W(*ghost->datah);
+        (*ghost->header)->hasSamples = 1;   /* the samples: its data, *ghost->datah */
     }
     return 1;
 }
@@ -553,7 +533,7 @@ Handle _ReadGhostHeader(Handle fileh) {
     Handle ghosth;
     Ghost *ghost;
     Handle before;
-    GhostHeader *header;
+    tGhostHeader *header;
 
     for (ghosth = gGhostFiles.head; ghosth != NULL; ghosth = *(Handle *)*ghosth) {
         if (((Ghost *)*ghosth)->fileh == fileh) {
@@ -571,9 +551,9 @@ Handle _ReadGhostHeader(Handle fileh) {
     F(*fileh, void *, PSF_OFS(8)) = RemovePlayerFile;
     F(*ghost->fileh, void *, PSF_OFS(12)) = MovePlayerFile;
     ghost->datah = NULL;
-    ghost->header = F(*fileh, GhostHeader **, PSF_OFS(72));
+    ghost->header = F(*fileh, tGhostHeader **, PSF_OFS(72));
     header = *ghost->header;
-    header->start = NULL;
+    header->hasSamples = 0;
     if (CheckAndRepairGhost((Ghost **)ghosth, 0, 0) && !CheckAndRepairGhost((Ghost **)ghosth, 0, 1)) {
         FreeGhost(ghosth);
         return NULL;
