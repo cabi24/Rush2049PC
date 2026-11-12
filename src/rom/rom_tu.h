@@ -1,5 +1,5 @@
-/* src/rom/rom_tu.h: what the boot segment's C files (src/rom) share: libultra's types and internals, the RCP's
- * registers their libultra code names, and the boot code's data and functions. One definition each. */
+/* src/rom/rom_tu.h: what the boot segment's C files (src/rom) share: libultra's types and internals, and the boot
+ * code's data and functions. One definition each. */
 #include "types.h"
 #include "rom_auto.h"   /* auto-decomp type context (autodecomp promotion) */
 #include "PR/os_message.h"
@@ -9,20 +9,6 @@
 extern void pc_mem_register_be(const void *start, __SIZE_TYPE__ size);
 extern void pc_mem_unregister_be(const void *start);
 
-/* The RCP's registers the boot segment's libultra code names (KSEG1 addresses: on the PC port/ultra's
- * libultra stands in for every function that touches them). */
-#define SP_STATUS_REG    (*(vu32 *)0xA4040010)
-#define SP_PC_REG        (*(vu32 *)0xA4080000)
-#define SP_STATUS_HALT     0x0001
-#define SP_STATUS_DMA_BUSY 0x0004
-#define SP_STATUS_IO_FULL  0x0010
-#define DPC_STATUS_REG   (*(vu32 *)0xA410000C)
-#define DPC_CLOCK_REG    (*(vu32 *)0xA4100010)
-#define DPC_BUFBUSY_REG  (*(vu32 *)0xA4100014)
-#define DPC_PIPEBUSY_REG (*(vu32 *)0xA4100018)
-#define DPC_TMEM_REG     (*(vu32 *)0xA410001C)
-#define AI_STATUS_REG    (*(vu32 *)0xA450000C)
-#define AI_STATUS_FIFO_FULL 0x80000000
 
 /* Additive declarations for shared src/rom/rom_tu.h; existing types suffice. */
 extern s32 __osViModeInfo;
@@ -51,7 +37,6 @@ extern s32 __osPiRawReadIo(u32, u32 *);
  * No change to accepted C1 declarations is needed. */
 extern void __osContGetInitData(u8 *, OSContStatus *);
 extern s32 __osSpGetStatus(void);  /* historical target name for SDK __osSpGetStatus */
-extern u32 __osTLBLookup(void *);
 extern s32 __osSpDeviceBusy(void);
 extern u8 __osMaxControllers;
 typedef u32 OSYieldResult;
@@ -277,7 +262,6 @@ typedef struct { __OSInode inode; u8 bank; u8 map[256]; } __OSInodeCache;
 #define PFS_BANK_LAPPED_BY 8
 extern u8 __osViMode[96], __osViModeTable[48];
 extern OSViMode __osViModePending, __osViModeNext, __osViModeBuffer;
-#define K0BASE 0x80000000
 #define OS_TV_TYPE_PAL 0
 #define OS_TV_TYPE_MPAL 2
 extern u32 osTvType;

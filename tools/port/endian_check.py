@@ -1411,11 +1411,10 @@ def loader_map(build):
     dc = (build / "pc-data" / "data.c").read_text()
     runs = [tuple(int(x) for x in m.groups()) for m in re.finditer(
         r"^\s*\{(\d+), (\d+), (\d+), (\d+), (\d+), (\d+), (\d+)\},$", dc[dc.index("pc_runs["):], re.M)]
-    # pc_arenas' rows: an arena's host is its block + an offset (pc_arena_game + 0xD7C, docs/port/DATA.md 3); until
-    # NATIVE.md step 5 it was its N64 address, or pc_window + an offset in a RUSH_NOFIXED build
+    # pc_arenas' rows: an arena's host is its block + an offset (pc_arena_game + 0xD7C, docs/port/DATA.md 3)
     arenas = [(int(m.group(2), 16), int(m.group(3), 16), int(m.group(4), 16), int(m.group(5)), int(m.group(6)))
-              for m in re.finditer(r"\{(\d+), 0x([0-9A-F]+), 0x([0-9A-F]+), 0x([0-9A-F]+), (?:\(uint8_t \*\)\(uintptr_t\)"
-                                   r"0x[0-9A-F]+u|(?:pc_window|pc_arena_\w+) \+ 0x[0-9A-F]+), (\d+), (\d+)\}", dc)]
+              for m in re.finditer(r"\{(\d+), 0x([0-9A-F]+), 0x([0-9A-F]+), 0x([0-9A-F]+), pc_arena_\w+ \+ 0x[0-9A-F]+, "
+                                   r"(\d+), (\d+)\}", dc)]
     syms = {}
     for m in re.finditer(r'\{"(\w+)", 0x([0-9A-F]+), (\d+), (\d+), \w+, (\d+), (\d+), \d+, ([A-Z_|]+)\}', dc):
         syms[m.group(1)] = (int(m.group(2), 16), int(m.group(3)), int(m.group(4)), int(m.group(5)),

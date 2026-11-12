@@ -39,25 +39,16 @@ if(NOT WIN32)
     add_test(NAME window_census COMMAND ${PC_PYTHON} ${PORT_TOOLS}/window_census.py --build ${CMAKE_BINARY_DIR}
         --no-compile --jobs 4)
 endif()
-# crossings.py (docs/port/NATIVE.md 9), wave 3's proof of each step: its report on made-up dumps (the kinds in their
-# order, sites by name, the guard's instructions, the PC layer's sites named with addr2line), and its checks
-# (--zero-kind, --zero-region, --zero-site, --no-faults, --baseline) failing as they should.
-add_test(NAME crossings_tool COMMAND ${PC_PYTHON} ${PORT_TOOLS}/tests/test_crossings.py)
-# In the counting build (cmake -DRUSH_COUNT_CROSSINGS=ON; ctest -L crossings): a few synthetic paths counted, then again
-# in the arena guard's counting mode, each run ending as its script expects with its dump written, and every guarded
-# run's trace its plain run's (the guard changes nothing). The arenas are blocks of host memory (NATIVE.md step 5), so
-# nothing reaches the window's pages over their N64 ranges: the guard finds no fault (--no-faults).
-if(RUSH_COUNT_CROSSINGS)
-    add_test(NAME crossings_paths COMMAND ${PC_PYTHON} ${PORT_TOOLS}/crossings.py --exe $<TARGET_FILE:rush2049pc>
-        --rom ${SYNTH_ROM} --logs ${CMAKE_BINARY_DIR}/crossings/test --guard --check --no-faults -j 3
-        menu race2p stunt)
-    set_tests_properties(crossings_paths PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 600 LABELS crossings)
-    # The guard's stopping mode (RUSH2049_WINDOW_GUARD=arenas): the first access to an arena by its N64 address would
-    # stop the program with a note naming the datum and the instruction, then the fault handler's report. None does:
-    # every path runs through (--check --no-faults).
-    add_test(NAME crossings_guard_stop COMMAND ${PC_PYTHON} ${PORT_TOOLS}/crossings.py --exe $<TARGET_FILE:rush2049pc>
-        --rom ${SYNTH_ROM} --logs ${CMAKE_BINARY_DIR}/crossings/test-stop --stop --check --no-faults -j 2 menu race2p)
-    set_tests_properties(crossings_guard_stop PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 600 LABELS crossings)
+# The N64 guard (RUSH2049_N64_GUARD, docs/port/NATIVE.md 17): n64_guard.py's reading of a guarded run's log on
+# made-up logs; and a few synthetic paths run twice, the second time with the N64's address range reserved and the
+# heap's block placed so that a pointer into it cut to 32 bits faults: every guarded run's trace its plain run's, no
+# guard's note in any (nothing reaches an N64 address). tools/port/n64_guard.py runs them all. Not under
+# AddressSanitizer, whose own memory takes that range on x86-64 (its shadow) and which reports a wild access anyway.
+add_test(NAME n64_guard_tool COMMAND ${PC_PYTHON} ${PORT_TOOLS}/tests/test_n64_guard.py)
+if(NOT WIN32 AND NOT PC_SANITIZE_ADDRESS)
+    add_test(NAME n64_guard_paths COMMAND ${PC_PYTHON} ${PORT_TOOLS}/n64_guard.py --exe $<TARGET_FILE:rush2049pc>
+        --rom ${SYNTH_ROM} --logs ${CMAKE_BINARY_DIR}/synth/n64-guard -j 3 menu race2p battle2p stunt ghost pak)
+    set_tests_properties(n64_guard_paths PROPERTIES FIXTURES_REQUIRED synth_rom TIMEOUT 600)
 endif()
 # the gate script parses (it runs on Rocky against the base: tools/port/pconly_gate.sh)
 find_program(PC_BASH bash)

@@ -29,8 +29,6 @@ int pc_si_set_pak(int ch, int kind)
 int pc_si_pak(int ch) { return ch >= 0 && ch < 4 && test_pak[ch] > 0 && test_pak[ch] < 3 ? test_pak[ch] : 0; }
 void pc_audio_set_volume(double volume) { test_volume = volume; }
 
-void *pc_n64_ptr(uint32_t n64_addr) { (void)n64_addr; return NULL; }
-uint32_t pc_n64_addr(const void *host) { (void)host; return 0; }
 void pc_mem_register_be(const void *start, size_t size) { (void)start, (void)size; }
 void pc_mem_unregister_be(const void *start) { (void)start; }
 int pc_mem_is_be(const void *p) { (void)p; return 0; }

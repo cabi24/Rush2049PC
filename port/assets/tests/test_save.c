@@ -32,8 +32,8 @@
 #include "support.h"
 
 #define ALIAS(name, base, off) __asm__(".globl " #name "\n.set " #name ", " #base " + " #off)
-/* p is in the game heap's memory (pc_heap_memory: the tests' memory from TEST_HEAP_OFFSET to osMemSize). */
-#define IN_HEAP(p) ((const uint8_t *)(p) >= test_memory() + TEST_HEAP_OFFSET && \
+/* p is in the game heap's memory (pc_heap_memory: the tests' memory from PC_HEAP_OFFSET to osMemSize). */
+#define IN_HEAP(p) ((const uint8_t *)(p) >= test_memory() + PC_HEAP_OFFSET && \
                     (const uint8_t *)(p) < test_memory() + osMemSize)
 
 /* ---------------------------------------------------------------- the PC layouts */

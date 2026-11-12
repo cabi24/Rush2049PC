@@ -20,9 +20,9 @@ extern "C" {
 uint16_t pcgfx_rd16(const void *p, int be);
 uint32_t pcgfx_rd32(const void *p, int be);
 int pcgfx_is_be(const void *p);   /* pc_mem_is_be, tolerating NULL */
-/* An address from a command's w1 or an API argument: host pointer (>= 4 GB) or N64 address (GFX.md "Addresses"). */
+/* An address from a command's w1 or an API argument: a host pointer, or a segment's offset where a list set the
+ * segment's base (GFX.md "Addresses"). */
 const uint8_t *pcgfx_resolve(uintptr_t addr);
-uintptr_t pcgfx_segment_value(uintptr_t v);   /* a segment base as set by MOVEWORD -> host base (0 = physical) */
 
 /* ---------------------------------------------------------------- RSP state */
 

@@ -1,6 +1,6 @@
-/* port/ultra/misc.c: osInitialize and the low-memory globals, the CPU's cache, TLB, interrupt and FPU control
- * (no-ops natively), address conversion, a few libc pieces of the boot segment, logging and the fault handler
- * (docs/port/ULTRA.md). On Windows the fault handler and backtraces are in win32.c. */
+/* port/ultra/misc.c: osInitialize and libultra's boot parameters, the CPU's cache, TLB, interrupt and FPU control
+ * (no-ops natively), a few libc pieces of the boot segment, logging and the fault handler (docs/port/ULTRA.md). On
+ * Windows the fault handler and backtraces are in win32.c. */
 #define _GNU_SOURCE
 #ifndef _WIN32
 #include <dlfcn.h>
@@ -55,7 +55,9 @@ uint32_t osMemSize;
  * reports 8 MiB. game.memory reports its size, whatever the pak setting: the game's heap runs to osMemSize
  * (locate_main_heap: the heap's block, port/ultra/memory.c), and sets the Expansion Pak flag past 4 MiB, as a console
  * with that much memory would (docs/port/MEMORY.md 1). */
-static uint32_t g_mem_size = N64_RDRAM_SIZE_NO_PAK;
+#define MEM_SIZE_PAK 0x00800000u      /* the console's RDRAM with the Expansion Pak: 8 MiB */
+#define MEM_SIZE_NO_PAK 0x00400000u   /* and without it: 4 MiB */
+static uint32_t g_mem_size = MEM_SIZE_NO_PAK;
 
 void pc_os_initialize(void)
 {
@@ -64,7 +66,7 @@ void pc_os_initialize(void)
 }
 
 uint32_t pc_os_mem_size(void) { return g_mem_size; }
-void pc_os_set_expansion_pak(int on) { g_mem_size = on ? PC_RDRAM_SIZE : N64_RDRAM_SIZE_NO_PAK; }
+void pc_os_set_expansion_pak(int on) { g_mem_size = on ? MEM_SIZE_PAK : MEM_SIZE_NO_PAK; }
 void pc_os_set_mem_size(uint32_t bytes) { g_mem_size = bytes; }
 
 /* main's first call (libultra's osInitialize; historical label). */
@@ -79,7 +81,6 @@ void osWritebackDCache(void *p, int32_t n) { (void)p, (void)n; }
 void osWritebackDCacheAll(void) {}
 void osUnmapTLBAll(void) {}
 void osMapTLBRdb(void) {}
-uint32_t __osTLBLookup(void *vaddr) { return N64_TO_PHYS((uint32_t)(uintptr_t)vaddr); }
 
 static uint32_t g_sr = 0x2000FF01u, g_fpcsr = 0x01000800u, g_intmask = 0x003FFF01u;
 uint32_t __osGetSR(void) { return g_sr; }
@@ -103,9 +104,7 @@ uint32_t osSetIntMask(uint32_t mask)
 void __osSetGlobalIntMask(uint32_t mask) { g_intmask |= mask; }
 void __osResetGlobalIntMask(uint32_t mask) { g_intmask &= ~mask; }
 
-/* ---------------------------------------------------------------- addresses */
-
-/* (osVirtualToPhysical and osPhysicalToVirtual: none, memory.c says why.) */
+/* ---------------------------------------------------------------- stubs */
 
 /* A generated stub was called (build/pc/pc-data/stubs.c, tools/port/gen_stubs.py). */
 void pc_stub_hit(const char *name)
@@ -193,7 +192,7 @@ static void fault(int sig, siginfo_t *si, void *ctx)
                      si->si_addr, pc_os_thread_name());
     if (write(2, line, (size_t)n) < 0)
         _exit(128 + sig);
-    char note[320];   /* the guard mode: which N64 address it was (docs/port/NOFIXED.md 5) */
+    char note[320];   /* the N64 guard: what the address was (memory.c, docs/port/NATIVE.md 17) */
     int k = sig == SIGSEGV || sig == SIGBUS ? pc_mem_fault_note((uintptr_t)si->si_addr, note, sizeof note) : 0;
     if (k > 0 && write(2, note, (size_t)k < sizeof note ? (size_t)k : sizeof note - 1) < 0)
         _exit(128 + sig);

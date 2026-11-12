@@ -15,15 +15,11 @@
  *
  * Nothing is at its N64 address (docs/port/NATIVE.md steps 5 and 12): each arena and the heap is a block of host
  * memory, so a pointer into one is a host pointer, and a 32-bit field can't hold it. An N64 address no table names is
- * kept as its value (a use of it faults: nothing is mapped there). With the window elsewhere (pc_data_set_window: the
- * guard mode, docs/port/NOFIXED.md 5) such an address is translated to it; tables that name their window (t->window:
- * the RUSH_NOFIXED build's, docs/port/NOFIXED.md 2) put it at its place in that window.
+ * kept as its value: nothing is mapped there, so a use of it faults.
  *
  * The first load writes a report: pointer counts, unresolved pointers, and non-pointer words that look like N64
  * addresses (likely mistyped declarations, or numbers that look like addresses: no u32 reaches the game's memory). */
-#include "pc_crossings.h"   /* the counting build's arena guard (docs/port/NATIVE.md 9): nothing in the default build */
 #include "pc_data.h"
-#include "pc_n64_map.h"   /* the N64's address space: KSEG0 and KSEG1, its 8 MiB of RDRAM, low memory */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -37,15 +33,9 @@
 static PcDataStats g_stats;
 static FILE *g_report;
 static int g_scan;              /* first load: count and report */
-static void *(*g_window)(uint32_t n64);   /* the RDRAM window when it isn't at PC_RDRAM_BASE, or NULL */
 static uint8_t *g_heap;                   /* the game heap's block (pc_data_set_heap), or NULL */
 static uint32_t g_heap_size;
 static const PcDataTables *g_loaded;      /* the tables the last pc_data_load_all filled */
-
-void pc_data_set_window(void *(*n64_to_host)(uint32_t n64))
-{
-    g_window = n64_to_host;
-}
 
 void pc_data_set_heap(uint8_t *block, uint32_t size)
 {
@@ -228,19 +218,14 @@ void pc_data_describe_loaded(uint32_t n64, char *buf, size_t n)
 }
 
 /* A pointer to the game heap's memory on the N64 (at or above the tables' heap_lo): its place in the PC's heap block
- * (pc_data_set_heap), whose first byte is the N64 heap's. Else, and for an RDRAM address no table resolves, the value as
- * it is (no host memory is there: a use faults), or the window's place for it when the window is elsewhere (the
- * tables' window, or pc_data_set_window's). */
+ * (pc_data_set_heap), whose first byte is the N64 heap's. Else, and for an N64 address no table resolves, the value as
+ * it is: nothing is there on the PC, and a use faults (RUSH2049_N64_GUARD says which address it was). */
 static void *kept(const PcDataTables *t, uint32_t v)
 {
-    int rdram = N64_IS_KSEG0_OR_1(v);
     uint32_t a = N64_IS_KSEG1(v) ? N64_KSEG1_TO_KSEG0(v) : v;
     if (g_heap && a >= t->heap_lo && a - t->heap_lo < g_heap_size)
         return g_heap + (a - t->heap_lo);
-    if (t->window && rdram)
-        return t->window + N64_TO_PHYS(v);
-    void *p = g_window && rdram ? g_window(v) : NULL;
-    return p ? p : (void *)(uintptr_t)v;
+    return (void *)(uintptr_t)v;
 }
 
 /* What an address-like word points at, for the report. Nothing the game has is at an N64 address any more: the heap
@@ -346,7 +331,7 @@ static void *resolve(const PcDataTables *t, uint32_t v, int image, const char *w
             return (void *)(intptr_t)(int32_t)v;   /* game's comparisons with (T *)-1 still match */
         return (void *)(uintptr_t)v;
     }
-    /* In a runtime image (its code, data or BSS)? Those live in host code and arenas, not in the window. */
+    /* In a runtime image (its code, data or BSS)? Those live in host code and arenas. */
     int in_ovl = 0;
     for (uint32_t i = 0; i < t->n_images && !in_ovl; i++)
         in_ovl = is_overlay(t, (int)i) && a >= t->images[i].n64_base && a < t->images[i].n64_base + t->images[i].size;
@@ -777,7 +762,6 @@ static void reach_image(const PcDataTables *t, int image)
 
 int pc_data_load_image(const PcDataTables *t, int image)
 {
-    PC_CROSS_GUARD_PAUSED();   /* the counting build: the arena guard's pages open until the load returns */
     if (image < 0 || (uint32_t)image >= t->n_images)
         return -1;
     const uint8_t *img = image_bytes(t, image);
@@ -918,8 +902,8 @@ int pc_data_load_all(const PcDataTables *t, const uint8_t *rom, size_t rom_size,
     }
     /* A runtime image's data is there only once the game has loaded the image (load_overlay reserves its block in the
      * heap, then pc_data_overlay_load fills the arena again): on the N64 its arena lies in that heap block, which is
-     * heap memory until then and starts out zero. So the arena starts out zero here too, as it did when it was in
-     * the RDRAM window; the first load above was for the report and the startup snapshot. */
+     * heap memory until then and starts out zero. So the arena starts out zero here too; the first load above was for
+     * the report and the startup snapshot. */
     for (uint32_t i = 0; i < t->n_arenas; i++) {
         const PcDataArena *ar = &t->arenas[i];
         if (is_overlay(t, ar->image))

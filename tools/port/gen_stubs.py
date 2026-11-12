@@ -14,22 +14,15 @@ weak ones included, but their own references (the C library, zlib, pthreads) are
   alias in aliases.ld, an implicit linker script. So does a historical label from the symbol file
   (SetControls) whose address is one defined function's. Function addresses come from layout/<image>.json
   first: it is what the matching build links.
-- Data the game uses by its N64 address, which nothing else defines, becomes an absolute symbol there: RDRAM
-  addresses (the low-memory globals at 0x80000300, the heap start game_bss_end, the runtime images' base
-  overlay_base) point into port/ultra's RDRAM window, and ROM offsets (sample_bank_rom) become cartridge addresses
-  (0xB0000000 | offset), which the game's PI and MusyX address callbacks accept. port/ultra fixes their GOT
-  slots at startup (memory.c: binutils 2.40 on aarch64 relocates them in a PIE).
+- Data the symbol file places in the N64's RDRAM or at a ROM offset (a cartridge address), which nothing defines, is
+  an error: nothing is at an N64 address on the PC (docs/port/NATIVE.md 17), so such a name needs a definition
+  (port/ultra's osTvType and osMemSize, libultra's boot parameters, are the last that were absolute symbols).
 - Functions become stubs that call pc_stub_hit (port/ultra/misc.c): it prints the name, the N64 thread and a
   symbolized backtrace, then aborts. The first one hit is the next thing to implement.
 - Data becomes zeroed placeholders (twice the N64 size, at least 16 bytes; 4 KiB when the size is unknown).
   Not game data: each one left is a to-do.
 
---nofixed (cmake -DRUSH_NOFIXED=ON, docs/port/NOFIXED.md 2.2): the RDRAM window is data.c's section pc_window, and
-gen_data.py --nofixed defines those names in data.c relative to it (a linker-script symbol would be absolute, which
-only the GOT fix-up made work), absolute_for's rule being the one both use; none may be left here.
-
---standalone writes stubs for a program that links the game without the PC layer (no aliases, no absolute
-symbols, a local pc_stub_hit). Names the host C library provides are left to it. Stdlib only, Python 3.9+.
+--standalone writes stubs for a program that links the game without the PC layer (no aliases, a local pc_stub_hit). Names the host C library provides are left to it. Stdlib only, Python 3.9+.
 """
 import argparse
 import re
@@ -93,8 +86,9 @@ def aliases_for(undefined, defined, syms):
     return out
 
 
-def absolute_for(undefined, syms):
-    """undefined data name -> the absolute address it gets (see the module docstring)."""
+def placed_data(undefined, syms):
+    """undefined data names the symbol file puts in the N64's RDRAM or at a ROM offset: {name: address}. Nothing may
+    be left at such an address (see the module docstring)."""
     out = {}
     for name in sorted(undefined):
         if n64syms.kind_of(name, syms) != "data":
@@ -102,10 +96,8 @@ def absolute_for(undefined, syms):
         addr = n64syms.address_of(name, syms)
         if addr is None:
             continue
-        if n64syms.KSEG0 <= addr < n64syms.RDRAM_END:   # RDRAM: the address itself
+        if n64syms.KSEG0 <= addr < n64syms.RDRAM_END or (addr < 0x01000000 and n64syms.region_of(addr) == "other"):
             out[name] = addr
-        elif addr < 0x01000000 and n64syms.region_of(addr) == "other":   # a ROM offset: its cartridge address
-            out[name] = n64syms.CART_KSEG1 | addr
     return out
 
 
@@ -117,14 +109,6 @@ def undefined_of(game_defs, game_refs, port_defs):
     undefined = {n for n in undefined if not n.startswith(n64syms.PE_WEAK_PREFIX)}   # weak.ld's
     undefined = {n for n in undefined if not n.startswith(n64syms.SANITIZER_PREFIXES)}
     return undefined, defined
-
-
-def window_names(game_defs, game_refs, port_defs, syms):
-    """name -> N64 address of the data the game reaches by its N64 address that would be absolute here (after the
-    aliases): gen_data.py --nofixed defines these in data.c, relative to the window (docs/port/NOFIXED.md 2.2)."""
-    undefined, defined = undefined_of(game_defs, game_refs, port_defs)
-    alias = aliases_for(undefined, defined, syms)
-    return absolute_for(undefined - alias.keys(), syms)
 
 
 STUB_PRELUDE = r"""
@@ -158,8 +142,6 @@ def main():
     ap.add_argument("--nm", default="nm")
     ap.add_argument("--root", type=Path, default=n64syms.ROOT)
     ap.add_argument("--standalone", action="store_true", help="for a program without the PC layer")
-    ap.add_argument("--nofixed", action="store_true",
-                    help="the absolute names relative to pc_window, data.c's window section (RUSH_NOFIXED)")
     a = ap.parse_args()
 
     syms = n64syms.load_symbols(a.root / "symbol_addrs.us.txt")
@@ -170,11 +152,11 @@ def main():
     undefined, defined = undefined_of(game_defs, game_refs, port_defs)
     alias = {} if a.standalone else aliases_for(undefined, defined, syms)
     undefined -= alias.keys()
-    absolute = {} if a.standalone else absolute_for(undefined, syms)
-    if a.nofixed and absolute:   # gen_data --nofixed defines them in data.c, relative to the window
-        sys.exit(f"gen_stubs: --nofixed: {', '.join(sorted(absolute))} would be absolute; gen_data.py --nofixed "
-                 f"defines such names (docs/port/NOFIXED.md 2.2)")
-    undefined -= absolute.keys()
+    placed = {} if a.standalone else placed_data(undefined, syms)
+    if placed:   # nothing is at an N64 address: such a name needs a definition
+        sys.exit("gen_stubs: data the game names at an N64 address, which nothing defines: "
+                 + ", ".join(f"{n} (0x{v:08X})" for n, v in sorted(placed.items()))
+                 + " (docs/port/NATIVE.md 17: define it, in port/ or as game data)")
     unknown = {n for n in undefined if n64syms.address_of(n, syms) is None}
     unknown_funcs = declared_as_function(a.root / "src", unknown)
     funcs, data = [], []
@@ -195,11 +177,8 @@ def main():
         A = ["/* aliases.ld: generated by tools/port/gen_stubs.py; names the game uses for a symbol defined",
              " * under another spelling or name at the same N64 address. */"]
         A += [f"PROVIDE({n} = {t});" for n, t in sorted(alias.items())]
-        A += ["", "/* Data at its N64 address: the RDRAM window, or the cartridge for ROM offsets. */"]
-        A += [f"PROVIDE({n} = ABSOLUTE(0x{v:08X}));" for n, v in sorted(absolute.items())]
         a.aliases.write_text("\n".join(A) + "\n")
-    print(f"gen_stubs: {len(funcs)} function stubs, {len(data)} data placeholders, {len(alias)} aliases, "
-          f"{len(absolute)} absolute -> {a.out}")
+    print(f"gen_stubs: {len(funcs)} function stubs, {len(data)} data placeholders, {len(alias)} aliases -> {a.out}")
 
 
 if __name__ == "__main__":

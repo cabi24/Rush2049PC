@@ -14,6 +14,21 @@
 extern "C" {
 #endif
 
+/* The N64 addresses in the cartridge images' data: the ROM's format, which the loader decodes (and its tests and
+ * checks write). The images were linked at KSEG0 addresses of the console's RDRAM (8 MiB at most, its first 1 KiB
+ * libultra's low memory below the boot code), and the same memory was seen again through KSEG1. Both runtime images
+ * were loaded at N64_OVERLAY_BASE, in a block of the game heap. None of these places exists on the PC: the loader
+ * resolves each address to the host storage of what was there (docs/port/DATA.md). */
+#define N64_KSEG0 0x80000000u            /* K0BASE: RDRAM's first byte through the cache */
+#define N64_KSEG1 0xA0000000u            /* K1BASE: the same memory, uncached */
+#define N64_KSEG2 0xC0000000u            /* K2BASE: KSEG1's end */
+#define N64_RDRAM_END 0x80800000u        /* KSEG0's first address past the 8 MiB */
+#define N64_LOW_MEMORY_END 0x80000400u   /* the boot code's first address: libultra's low memory is below it */
+#define N64_OVERLAY_BASE 0x8038A400u     /* both runtime images' load address */
+#define N64_IS_KSEG0_OR_1(a) ((a) >= N64_KSEG0 && (a) < N64_KSEG2)
+#define N64_IS_KSEG1(a) ((a) >= N64_KSEG1 && (a) < N64_KSEG2)
+#define N64_KSEG1_TO_KSEG0(a) ((a) - (N64_KSEG1 - N64_KSEG0))
+
 /* Element kinds. N64 size / host size: U8 1/1, U16 2/2, U32 and F32 4/4, U64 and F64 8/8, PTR 4/pointer,
  * S32_64 and U32_64 4/8 (the N64's 32-bit long). Values are big-endian on the N64. */
 enum {
@@ -163,7 +178,8 @@ typedef struct {
     uint32_t n_funcs;
     const PcDataName *names;
     uint32_t n_names;
-    uint32_t heap_lo;           /* N64 pointers at or above this, outside the runtime images, are kept as is */
+    uint32_t heap_lo;           /* the N64 heap's first byte: pointers at or above it, outside the runtime images,
+                                 * are into the heap (pc_data_set_heap) */
     PcDataState *state;
     const PcDataCRange *cranges;   /* runtime images' C data, restored on their loads (may be none) */
     uint32_t n_cranges;
@@ -171,10 +187,6 @@ typedef struct {
     uint32_t n_reach;
     const PcDataInit *inits;    /* decoupled data the images initialize (may be none) */
     uint32_t n_inits;
-    /* The RDRAM window (the game's heap, libultra's low memory), where an RDRAM address a pointer keeps is, at
-     * window + (N64 address - PC_RDRAM_BASE): data.c's section in a RUSH_NOFIXED build (docs/port/NOFIXED.md 2).
-     * NULL: the window at host PC_RDRAM_BASE (port/include/pc_n64_map.h), where the address is its own host address. */
-    uint8_t *window;
 } PcDataTables;
 
 /* Pointer resolution results, for the report. rdram: heap addresses kept as their value. raw: not an RDRAM
@@ -200,8 +212,8 @@ int pc_data_load_image(const PcDataTables *t, int image);
 const PcDataStats *pc_data_stats(void);
 /* n bytes of the game's data at n64_addr as the cartridge holds them (the N64's byte order), before anything is
  * loaded: from the first image that holds them, inflated for the call. 0, or -1 (no image holds them, a bad stream).
- * For a value the program needs before the game's data is loaded (an online session's handshake, before the RDRAM
- * window is mapped: docs/port/NETPLAY.md 17). */
+ * For a value the program needs before the game's data is loaded (an online session's handshake, before the game
+ * heap's block is mapped: docs/port/NETPLAY.md 17). */
 int pc_data_peek(const PcDataTables *t, const uint8_t *rom, size_t rom_size, uint32_t n64_addr, void *out, uint32_t n);
 /* Host address for an N64 address with the tables' symbols (NULL if none); for checks and tools. */
 void *pc_data_host_of(const PcDataTables *t, uint32_t n64_addr, int image);
@@ -210,10 +222,6 @@ void *pc_data_host_of(const PcDataTables *t, uint32_t n64_addr, int image);
  * name, from the tables, rather than a copy of the number (the symbol tables, asm/us/<image>/symbols.json, are the one
  * source). Before or after the data is loaded; a linear search, for startup and checks, not for every frame. */
 uint32_t pc_data_addr_of(const PcDataTables *t, const char *name);
-/* The RDRAM window when it isn't at host PC_RDRAM_BASE (the guard mode, docs/port/NOFIXED.md 5): an RDRAM address a
- * pointer keeps becomes n64_to_host(it). NULL (the default) for the window at PC_RDRAM_BASE. Before
- * pc_data_load_all. */
-void pc_data_set_window(void *(*n64_to_host)(uint32_t n64));
 /* The game heap's block (port/ultra/memory.c), size bytes: a pointer in the ROM's data to the N64 heap's memory (at or
  * above the tables' heap_lo, outside the runtime images) resolves to its place there, the block's first byte being the
  * N64 heap's. NULL (the default): such a pointer keeps its N64 address. Before pc_data_load_all. */

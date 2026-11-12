@@ -7,19 +7,9 @@
 #include <string.h>
 
 #include "gfx_internal.h"
-#include "pc_crossings.h"
 #include "pc_port.h"
 
 GfxState pcgfx;
-
-/* The counting build (RUSH_COUNT_CROSSINGS, docs/port/NATIVE.md 9): every address below 4 GiB the renderer takes for
- * an N64 one is counted by the code that asked, as a native list's: since step 10 every list is native, and the kind
- * of a ROM list's (gfx.rom_list) stays at 0. Nothing in the default build. */
-#ifdef RUSH_COUNT_CROSSINGS
-#define GFX_CROSSING(value) PC_CROSS_CALLER(PC_CROSS_GFX_LIST, value)
-#else
-#define GFX_CROSSING(value) ((void)0)
-#endif
 
 /* Clipping (GFX.md "Clipping"). The NoN microcode has no near plane. As the RSP does, a polygon that crosses the
  * guard band, |x| <= GFX_GUARD w and |y| <= GFX_GUARD w (x as the view sees it), is clipped to it, on the CPU, so GL
@@ -53,56 +43,18 @@ int pcgfx_is_be(const void *p) {
     return p != NULL && pc_mem_is_be(p);
 }
 
-static const uint8_t *rdram(uint32_t phys) {
-    return (const uint8_t *)pc_n64_ptr(PC_RDRAM_BASE | N64_TO_PHYS(phys));
-}
-
-/* Addresses (docs/port/GFX.md "Command formats and addresses"). Host pointers are at or above 4 GB (the build is PIE
- * and RDRAM is the window at PC_RDRAM_BASE); anything below is an N64 address: K0/K1 (N64_KSEG0 up to N64_KSEG2: the
- * game's heap blocks, its files' texels among them, until the window goes, docs/port/NATIVE.md step 12), segmented
- * (0x0S000000 + offset, S = 1..15 with a base set) or physical (segment 0, or a segment with no base: RDRAM
- * offset). */
-static int is_host(uintptr_t a) {
-#if UINTPTR_MAX > 0xFFFFFFFFu
-    return a > 0xFFFFFFFFu;
-#else
-    (void)a;
-    return 0;
-#endif
-}
-
-uintptr_t pcgfx_segment_value(uintptr_t v) {
-    uint32_t a;
-    if (v == 0 || is_host(v))
-        return v;
-    GFX_CROSSING(v);
-    a = (uint32_t)v;
-    return (uintptr_t)(a >= N64_KSEG0 ? pc_n64_ptr(a) : rdram(a));
-}
-
+/* Addresses (docs/port/GFX.md "Command formats and addresses"). Every address a list holds is a host pointer: the
+ * game's lists', and the files' lists that port/assets/wad.c builds when they load (docs/port/NATIVE.md steps 10, 12).
+ * The microcode's segments stay: a G_MOVEWORD sets a segment's base (a host pointer), and an address below
+ * N64_SEGMENT_SPAN whose bits 24-27 name a segment with a base is that segment's base plus its low 24 bits. The game
+ * sets only segment 0, to 0 (StartGraphics), so in its lists every address is the pointer it is. */
 const uint8_t *pcgfx_resolve(uintptr_t a) {
-    uint32_t a32, seg;
-    const uint8_t *p;
-    if (a == 0)
-        return NULL;
-    if (is_host(a))
-        return (const uint8_t *)a;
-    GFX_CROSSING(a);
-    a32 = (uint32_t)a;
-    if (a32 >= N64_KSEG0)
-        return (const uint8_t *)pc_n64_ptr(a32);
-    seg = (a32 & N64_SEGMENT_ID_MASK) >> 24;
-    /* A physical address past 16 MiB of a larger window (game.memory, docs/port/MEMORY.md 3) whose segment has no
-     * base, or past 256 MiB (bits 28-30, which no segment has): the RAM there. The game gives the RCP pointers, and
-     * its files' lists hold pointers since docs/port/NATIVE.md step 10, so this is for code that makes a physical
-     * address itself. Outside the window pc_n64_ptr is NULL, so at game.memory = original (8 MiB) this never
-     * applies. */
-    if (a32 >= PC_RCP_SEGMENT_SPAN && (pcgfx.seg[seg] == 0 || a32 >= PC_RDRAM_MAX) &&
-        (p = (const uint8_t *)pc_n64_ptr(a32)) != NULL)
-        return p;
-    if (pcgfx.seg[seg] != 0)
-        return (const uint8_t *)(pcgfx.seg[seg] + (a32 & N64_SEGMENT_OFFSET_MASK));
-    return rdram(a32 & N64_SEGMENT_OFFSET_MASK);
+    if (a < N64_SEGMENT_SPAN) {
+        uintptr_t base = pcgfx.seg[(a & N64_SEGMENT_ID_MASK) >> 24];
+        if (base != 0)
+            return (const uint8_t *)(base + (a & N64_SEGMENT_OFFSET_MASK));
+    }
+    return (const uint8_t *)a;
 }
 
 /* ---------------------------------------------------------------- matrices */
@@ -791,7 +743,7 @@ static void moveword(uint32_t w0, uintptr_t w1) {
         pcgfx.lights_dirty = 1;
         break;
     case G_MW_SEGMENT:
-        pcgfx.seg[(off >> 2) & 0xF] = pcgfx_segment_value(w1);
+        pcgfx.seg[(off >> 2) & 0xF] = w1;   /* a host pointer (0: none) */
         break;
     case G_MW_FOG:
         pcgfx.fog_mul = (int16_t)(v >> 16);
@@ -920,7 +872,6 @@ void pcgfx_run_list(const void *dl) {
     static int task;
     int trace = pcgfx_cfg.trace_task != 0 && ++task == pcgfx_cfg.trace_task;
 
-    PC_CROSS_FRAME();   /* the counting build's arena guard closes its pages again (docs/port/NATIVE.md 9) */
     pcgfx_rsp_reset();
     cur = (GfxDlPtr)dl;
     while (cur != NULL && budget-- > 0) {

@@ -270,26 +270,23 @@ int pc_pakw_fault_submit_fn(const char *path, const char *label, const void *dat
 int pc_pakw_fault_wait(uint64_t timeout_ns);
 
 /* ---------------------------------------------------------------- memory.c */
-int pc_mem_set_size(uint32_t bytes);   /* game.memory, before pc_mem_init: 0, or -1 for a size it can't map */
-int pc_mem_init(void);          /* map the RDRAM window; 0 on success */
+/* The N64 guard (RUSH2049_N64_GUARD=1, docs/port/NATIVE.md 17): before the heap's block is mapped, the N64's address
+ * range reserved with no access; 0, or -1 when it was asked for and can't be had. pc_mem_guard: it is on. */
+int pc_mem_guard_init(void);
+int pc_mem_guard(void);
+/* In the guard, a line saying what a faulting address was (an N64 address taken as a host pointer, a heap pointer cut
+ * to 32 bits); its length, or 0 when it is neither or the guard is off. */
+int pc_mem_fault_note(uintptr_t addr, char *buf, size_t n);
 /* The game heap's block (docs/port/MEMORY.md 1): mapped at startup for mem_size bytes of the console's RDRAM
  * (osMemSize), 0 on success; its first byte and size (NULL before). heap.c reads it as pc_heap_block. */
 int pc_mem_map_heap(uint32_t mem_size);
 uint8_t *pc_mem_heap(uint32_t *size);
-int pc_mem_fixed(void);         /* the window is at host PC_RDRAM_BASE */
-int pc_mem_guard(void);         /* RUSH2049_NOFIXED=guard: the window elsewhere, its old range reserved (NOFIXED.md 5) */
-/* In the guard mode, a line saying what a faulting address was (an N64 address taken as a host pointer, a window
- * address cut to 32 bits, a sign-extended one); its length, or 0 when it is none of those or the mode is off. */
-int pc_mem_fault_note(uintptr_t addr, char *buf, size_t n);
-int pc_mem_fix_absolute(void);  /* first thing in main: GOT slots of absolute N64-address symbols */
-int pc_fix_absolute_got(void);  /* the same, without the log (absfix.c, also linked by tests) */
-uint8_t *pc_rdram(void);
 
 /* ---------------------------------------------------------------- misc.c */
-void pc_os_initialize(void);    /* osInitialize: the low-memory globals */
+void pc_os_initialize(void);    /* osInitialize: libultra's boot parameters (osTvType, osMemSize) */
 uint32_t pc_os_mem_size(void);
 void pc_os_set_expansion_pak(int on);   /* osMemSize 8 MiB instead of 4 */
-void pc_os_set_mem_size(uint32_t bytes);   /* game.memory: osMemSize, the window's size */
+void pc_os_set_mem_size(uint32_t bytes);   /* game.memory: osMemSize, and so the heap's size */
 void pc_print_backtrace(int skip);
 void pc_fault_install(void);       /* SIGSEGV and friends: report the N64 thread and a backtrace */
 /* main's part of the end of the process (port/app's log, docs/port/RELEASE.md): pc_on_fault after a fault's report

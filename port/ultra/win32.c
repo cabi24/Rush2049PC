@@ -224,6 +224,13 @@ static LONG WINAPI fault(EXCEPTION_POINTERS *ep)
                      exception_name(er->ExceptionCode, er), (unsigned long)er->ExceptionCode, addr,
                      pc_os_thread_name());
     WriteFile(GetStdHandle(STD_ERROR_HANDLE), line, (DWORD)n, &written, NULL);
+    if (er->ExceptionCode == EXCEPTION_ACCESS_VIOLATION) {   /* the N64 guard: what the address was (memory.c) */
+        char note[320];
+        int k = pc_mem_fault_note((uintptr_t)addr, note, sizeof note);
+        if (k > 0)
+            WriteFile(GetStdHandle(STD_ERROR_HANDLE), note, (DWORD)(k < (int)sizeof note ? k : (int)sizeof note - 1),
+                      &written, NULL);
+    }
     CONTEXT ctx = *ep->ContextRecord;
     int frames = unwind(&ctx, pcs, MAX_FRAMES);
     print_frames(pcs, frames, 1);

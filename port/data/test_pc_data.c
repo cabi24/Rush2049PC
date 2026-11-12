@@ -18,7 +18,6 @@
  * arena, which on the N64 lies in the "heap", stays clear after the first load until the image is loaded. */
 #define _GNU_SOURCE
 #include "pc_data.h"
-#include "pc_n64_map.h"
 #include "test_pc_data_gen.h"
 
 #include <stdio.h>

@@ -12,7 +12,6 @@
 #include <string.h>
 
 #include "gsm.h"
-#include "pc_n64_map.h"   /* N64_KSEG0: the emulator's addresses are the N64's */
 
 int gsm_decode_frame(GsmState *s, unsigned char *c, short *target);   /* the game's frame decoder */
 
@@ -74,9 +73,10 @@ static const struct {
 /* The emulator's RAM, at a KSEG0 address of the test's own (the kernels address their buffers as on the N64), the
  * buffers in it, and the return address emu_call gives a kernel: the general exception vector, which is no kernel's
  * code. */
-#define RAM_BASE (N64_KSEG0 + 0x100000u)
+#define EMU_KSEG0 0x80000000u   /* the emulated MIPS's KSEG0, where the kernels' code and data addresses are */
+#define RAM_BASE (EMU_KSEG0 + 0x100000u)
 #define RAM_SIZE 0x4000u
-#define RET_MAGIC (N64_KSEG0 + 0x180u)
+#define RET_MAGIC (EMU_KSEG0 + 0x180u)
 #define E_S RAM_BASE
 #define E_XMC (RAM_BASE + 0x400u)
 #define E_ERP (RAM_BASE + 0x500u)

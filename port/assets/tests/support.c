@@ -158,7 +158,7 @@ void pc_pool_overflow(const char *pool, int used, int capacity)
 }
 
 /* The tests' memory (support.h): one block, made the first time it is asked for. */
-uint32_t test_memory_bytes = N64_RDRAM_SIZE;
+uint32_t test_memory_bytes = 8u << 20;   /* the N64's 8 MiB */
 static uint8_t *g_memory;
 
 uint8_t *test_memory(void)
@@ -175,29 +175,13 @@ uint8_t *test_memory(void)
     return g_memory;
 }
 
-/* port/ultra's RDRAM functions over the tests' memory (docs/port/MEMORY.md), for game C and port code a test links:
- * port/ultra/heap.c's reports give the heap's N64 addresses (until docs/port/NATIVE.md step 12), which pc_n64_addr
- * makes of the block's offsets as the N64 would number RDRAM (KSEG0 from its first byte). (Not weak definitions:
- * mingw's linker doesn't take those for another object's reference.) */
-uint8_t *pc_rdram(void) { return test_memory(); }
-uint32_t pc_rdram_size(void) { return test_memory_bytes; }
-void *pc_n64_ptr(uint32_t addr)
-{
-    uint32_t phys = N64_IS_KSEG0_OR_1(addr) ? N64_TO_PHYS(addr) : addr;
-    return phys < test_memory_bytes ? test_memory() + phys : NULL;
-}
-uint32_t pc_n64_addr(const void *host)
-{
-    const uint8_t *p = host, *m = test_memory();
-    return p >= m && p < m + test_memory_bytes ? N64_KSEG0 + (uint32_t)(p - m) : 0;
-}
-
 /* port/ultra/memory.c's game heap block (which port/ultra/heap.c reads): the tests' memory past what lies below the
- * heap on the N64, to its end. */
+ * heap on the N64, to its end. (Not a weak definition: mingw's linker doesn't take one for another object's
+ * reference.) */
 uint8_t *pc_mem_heap(uint32_t *size)
 {
-    *size = test_memory_bytes - TEST_HEAP_OFFSET;
-    return test_memory() + TEST_HEAP_OFFSET;
+    *size = test_memory_bytes - PC_HEAP_OFFSET;
+    return test_memory() + PC_HEAP_OFFSET;
 }
 
 /* The game heap's memory and reports; a test that links port/ultra/heap.c instead (assets_heap) is built with
@@ -206,8 +190,8 @@ uint8_t *pc_mem_heap(uint32_t *size)
 #ifndef TEST_HEAP_C
 void *pc_heap_memory(uint32_t mem_size, uint32_t *size)
 {
-    *size = mem_size > TEST_HEAP_OFFSET ? mem_size - TEST_HEAP_OFFSET : 0;
-    return test_memory() + TEST_HEAP_OFFSET;
+    *size = mem_size > PC_HEAP_OFFSET ? mem_size - PC_HEAP_OFFSET : 0;
+    return test_memory() + PC_HEAP_OFFSET;
 }
 void pc_heap_created(void *heap) { (void)heap; }
 void pc_heap_allocated(void *heap) { (void)heap; }

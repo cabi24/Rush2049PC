@@ -23,10 +23,9 @@ It is the cheap, exact check of a change that should not change code (headers, n
 1,078 game objects, against minutes for the synthetic gate (docs/port/PCONLY.md 2), and stronger where it applies,
 since it sees code no synthetic path runs. A unit that is not `same` is then explained, or run through the gate.
 
-Line numbers: the default builds compile none into code. The checking builds do: RUSH_CHECK_CASTS and RUSH_NOFIXED
-pass __FILE__ and __LINE__ to their PC_N64W checks (port/include/pc_prelude.h), so a change that moves lines in a
-file that uses PC_N64W changes that unit's code there. Compare default builds (Debug's build/pc, RelWithDebInfo's
-build/opt), and prove the checking builds with their own checks (docs/port/NOFIXED.md).
+Line numbers: the builds compile none into code (the checking builds that passed __FILE__ and __LINE__ to their
+32-bit address checks went with docs/port/NATIVE.md step 12). Compare Debug's build/pc or RelWithDebInfo's
+build/opt.
 
 Renames: a global's name is compared, so a change that renames one (tools/port/rename.py, a name map) shows in every
 unit that defines or references it, and a moved file's unit is in one build only. --renames MAP (repeatable) reads

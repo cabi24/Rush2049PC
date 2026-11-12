@@ -23,7 +23,7 @@
 #include "support.h"
 #include "ultra.h"   /* port/ultra/heap.c: pc_heap_stats */
 
-/* p is in the tests' memory; at offset o of it (where the N64 address N64_KSEG0 + o lies in RDRAM). */
+/* p is in the tests' memory; at offset o of it (where the N64 had o bytes into RDRAM). */
 #define IN_MEMORY(p) ((const uint8_t *)(p) >= test_memory() && (const uint8_t *)(p) < test_memory() + test_memory_bytes)
 #define AT(o) (test_memory() + (o))
 
@@ -91,7 +91,7 @@ int main(void)
     osMemSize = 0x400000;            /* 4 MB */
     InitMemory(16, 16);
     /* the heap where the N64's was: its header at the end of the game's BSS, its first chunk 64 bytes past it */
-    CHECK((uint8_t *)gMainHeap == AT(TEST_HEAP_OFFSET) && ((Heap *)gMainHeap)->magic == 0xFEDCBA98u &&
+    CHECK((uint8_t *)gMainHeap == AT(PC_HEAP_OFFSET) && ((Heap *)gMainHeap)->magic == 0xFEDCBA98u &&
           (uint8_t *)((Heap *)gMainHeap)->chunks == (uint8_t *)gMainHeap + 64 &&
           ((Heap *)gMainHeap)->end == AT(0x400000u) && !expansion_pak_present);
     a = AllocateMemoryHeap(NULL, 256);
@@ -152,8 +152,7 @@ int main(void)
     /* the runtime images' block: the N64's place, taken and locked, where the image loads find it (load_overlay's
      * allocate_memory_at) */
     Chunk *img = HDR(images);
-    CHECK(images == AT(N64_OVERLAY_BASE - N64_KSEG0) &&
-          PC_RUNTIME_IMAGE_SIZE == N64_OVERLAY_BLOCK_END - N64_OVERLAY_BASE);
+    CHECK(images == AT(PC_HEAP_OFFSET + PC_RUNTIME_IMAGE_OFFSET));   /* 0x8038A400 on the N64 */
     CHECK(img->magic == CHUNK_MAGIC && img->used == 1 && img->locked == 1 && img->size == PC_RUNTIME_IMAGE_SIZE);
     CHECK(allocate_memory_at(images, PC_RUNTIME_IMAGE_SIZE) == images && img->size == 0x30F80u);
     /* below the images' block and above it, to the floor: two more locked blocks, nothing free */

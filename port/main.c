@@ -1,7 +1,7 @@
 /* port/main.c: PC entry point (docs/PORT_PLAN.md, docs/port/ULTRA.md, docs/port/FRONTEND.md).
  *
  * Resolves the settings (defaults, rush2049pc.ini, the environment, a press file's `pak` line, then the
- * command line: port/config), loads and checks the ROM, maps the RDRAM window, fills the game's initialized data
+ * command line: port/config), loads and checks the ROM, maps the game heap's block, fills the game's initialized data
  * (port/data), opens the renderer (port/gfx) and live input (port/input), then starts the game's own main
  * (main, compiled as n64_main) on an N64 thread and runs the host main loop (port/ultra/loop.c) until the
  * window closes or a limit is reached. */
@@ -20,7 +20,6 @@
 #include "mods.h"
 #include "pc_audio.h"
 #include "pc_compat.h"
-#include "pc_crossings.h"   /* the counting build (docs/port/NATIVE.md 9): nothing in the default build */
 #include "pc_data.h"
 #include "pakfs.h"
 #include "pc_game_fps.h"
@@ -86,7 +85,7 @@ static void usage(FILE *f)
             "  --input-delay D     this PC's pads D retraces later (the first D idle), or a schedule D:FROM,...\n"
             "                      (2:0,4:600,1:1200: 2 from retrace 0, 4 from 600, 1 from 1200)\n"
             "  --log-pads          each change of the game's pads, with its retrace\n"
-            "  --log-hash N[,W]    every N retraces, the state hash's line; the window and own storage every W\n"
+            "  --log-hash N[,W]    every N retraces, the state hash's line; the heap and own storage every W\n"
             "                      (default 60; 0 never); --hash-report N:PATH writes retrace N's regions to PATH\n"
             "  --session-rules     an online session's rules without the network: the game's HUD models keep their\n"
             "                      N64 places in widescreen\n"
@@ -601,7 +600,7 @@ static int mods_flag(void *user, const char *folder)
     return pc_settings_mod_on(user, folder);
 }
 
-/* Before the RDRAM window is mapped (it needs the ROM): the mods, their files checked and settled, and the memory
+/* Before the game heap's block is mapped (it needs the ROM): the mods, their files checked and settled, and the memory
  * they need, which may raise cfg->memory (pc_mods_prepare logs why). Then the overlay's Mods page. */
 static int mods_prepare(const PcSettings *cfg, const PcAppDirs *dirs, int dir_from_command_line, int no_rom)
 {
@@ -885,7 +884,7 @@ static char *must_match_text(const PcSettings *cfg)
         if (pc_settings_get(from, pc_must_match[i].section, pc_must_match[i].key, v, sizeof v) == 0)
             ADD("%s.%s=%s\n", pc_must_match[i].section, pc_must_match[i].key, v);
     }
-    ADD("memory.window=%u\nmemory.os=%u\n", (unsigned)pc_rdram_size(), (unsigned)pc_os_mem_size());
+    ADD("memory.os=%u\n", (unsigned)pc_os_mem_size());   /* osMemSize: the heap's size follows from it */
     for (int ch = 0; ch < 4; ch++) {
         if (pc_si_pak_image(ch, img))
             ADD("pak%d.image=%016llx\n", ch + 1, (unsigned long long)pc_xxh64(img, PC_PAK_SIZE, 0));
@@ -1439,7 +1438,7 @@ static int rush_main(int argc, char **argv)
     }
     pc_os_set_expansion_pak(cfg.expansion_pak);
     /* The ROM: from the command line as given, else game.rom by the lookup order (port/app/paths.c). Read before the
-     * RDRAM window is mapped: the mods (docs/port/MODS.md) need the cartridge's files to say how much memory they
+     * game heap's block is mapped: the mods (docs/port/MODS.md) need the cartridge's files to say how much memory they
      * need. */
     int rom_from_command_line = from_command_line(over, nover, "game", "rom"), memory = cfg.memory;
     if (!selftest) {
@@ -1467,13 +1466,9 @@ static int rush_main(int argc, char **argv)
                     : "unpaced (--fast): as fast as both PCs and the network allow");
         }
     }
-    /* game.memory (docs/port/MEMORY.md): the RDRAM window pc_mem_init maps below, and osMemSize */
-    if (memory) {   /* the setting, or what the mods raised it to */
+    /* game.memory (docs/port/MEMORY.md): osMemSize, and so the game heap's block mapped below */
+    if (memory) {   /* the setting, or what the mods raised it to (config.c keeps it in the setting's range) */
         uint32_t bytes = (uint32_t)memory << 20;
-        if (pc_mem_set_size(bytes) != 0) {
-            fprintf(stderr, "rush2049pc: game.memory = %d can't be mapped\n", memory);
-            return 2;
-        }
         pc_os_set_mem_size(bytes);
         fprintf(stderr, "rush2049pc: %d MiB of memory (game.memory%s)\n", memory,
                 memory != cfg.memory ? ", for the mods" : "");
@@ -1543,18 +1538,10 @@ static int rush_main(int argc, char **argv)
 #ifndef _WIN32   /* stderr is unbuffered there, and the CRT has no line buffering */
     setvbuf(stderr, NULL, _IOLBF, 0);
 #endif
-#ifndef RUSH_NOFIXED   /* RUSH_NOFIXED: the names are relative to the window, with nothing to fix up (NOFIXED.md 2) */
-    pc_mem_fix_absolute();
-#endif
     pc_fault_install();
-    if (pc_mem_init() != 0) {
-        fprintf(stderr, "rush2049pc: cannot map the RDRAM window\n");
+    /* RUSH2049_N64_GUARD (docs/port/NATIVE.md 17): the N64's address range reserved before anything else is mapped */
+    if (pc_mem_guard_init() != 0)
         return 1;
-    }
-#ifndef RUSH_NOFIXED   /* RUSH_NOFIXED: the tables give the arenas in the window already */
-    if (!pc_mem_fixed())
-        pc_data_set_window(pc_n64_ptr);   /* the guard mode, or a host that can't map PC_RDRAM_BASE (NOFIXED.md 5) */
-#endif
     /* The game heap's block, for osMemSize (game.memory, game.expansion_pak): the heap's memory, and where the data
      * loader puts a ROM pointer into the N64 heap's memory (docs/port/MEMORY.md 1) */
     if (pc_mem_map_heap(pc_os_mem_size()) != 0)
@@ -1579,7 +1566,6 @@ static int rush_main(int argc, char **argv)
     }
     if (no_rom)
         blank_files();
-    PC_CROSSINGS_START();   /* the counting build: the arena guard, once the data is in (docs/port/NATIVE.md 9) */
     mods_install();   /* docs/port/MODS.md */
     saves_game_names();   /* game.saves = files: what an imported ghost gets on the pak (docs/port/SAVES.md) */
     test_grow_waves();
@@ -1728,10 +1714,6 @@ static int rush_main(int argc, char **argv)
     pc_audio_set_latency((unsigned)cfg.audio_latency);
     if (pc_verbose)
         pc_audio_set_report_every(10);   /* the output's counters every 10 s, besides the exit line */
-#ifndef RUSH_NOFIXED   /* RUSH_NOFIXED: N64 addresses are translated, and the game has no fixed address left */
-    if (!pc_mem_fixed())
-        fprintf(stderr, "rush2049pc: warning: N64 addresses are translated; the game's fixed addresses fault\n");
-#endif
 
     run.game_state = game_state;
     run.game_info = game_info;
@@ -1803,7 +1785,6 @@ static int rush_main(int argc, char **argv)
         pc_gfx_scene_stats(&tasks, &tris, &most);
         pc_scene_report(tasks, tris, most);   /* port/config/detail.c: what the scene drew (docs/port/DETAIL.md) */
     }
-    PC_CROSSINGS_FINISH();   /* the counting build: the crossings counted, written (docs/port/NATIVE.md 9) */
     remember_window(&cfg, headless);
     pc_input_shutdown();
     pc_audio_shutdown();

@@ -21,7 +21,6 @@
  * (pc_data_addr_of), or one the symbol file names (symbol_file_addr). */
 #define _GNU_SOURCE
 #include "pc_data.h"
-#include "pc_n64_map.h"   /* the runtime images' load address */
 #include "pc_symbol_file.h"   /* the inflate tables' addresses, by name */
 
 #include <math.h>

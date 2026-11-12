@@ -619,13 +619,14 @@ void pc_audio_mixer_stats(PcMixerStats *out)
  * The SFD array is the first region, at CAP_SFD; every pointer in it is moved to a fresh address of the same
  * alignment mod 8. The state block is CAP_STATE for every task and is not written: the microcode's own state
  * carries over, starting from zero as the game's does.
- * The places below are KSEG0 addresses of the capture's own RDRAM, not the game's (an outside format, which wave 3
- * keeps): offsets from N64_KSEG0 (pc_n64_map.h). */
-#define CAP_STATE (N64_KSEG0 + 0x00010000u)       /* the microcode's state block */
-#define CAP_SFD (N64_KSEG0 + 0x00100000u)         /* the SFD array, the first region */
-#define CAP_OUT (N64_KSEG0 + 0x00180000u)         /* the outputs */
-#define CAP_ARENA (N64_KSEG0 + 0x00200000u)       /* the regions the SFD points to, moved here */
-#define CAP_ARENA_END (N64_KSEG0 + 0x00400000u)   /* the arena's end, at 4 MiB */
+ * The places below are KSEG0 addresses of the capture's own RDRAM, as the microcode reads them (CAP_RDRAM, the N64's
+ * KSEG0): an outside format, not the game's memory. */
+#define CAP_RDRAM 0x80000000u                     /* the capture's RDRAM, through KSEG0 */
+#define CAP_STATE (CAP_RDRAM + 0x00010000u)       /* the microcode's state block */
+#define CAP_SFD (CAP_RDRAM + 0x00100000u)         /* the SFD array, the first region */
+#define CAP_OUT (CAP_RDRAM + 0x00180000u)         /* the outputs */
+#define CAP_ARENA (CAP_RDRAM + 0x00200000u)       /* the regions the SFD points to, moved here */
+#define CAP_ARENA_END (CAP_RDRAM + 0x00400000u)   /* the arena's end, at 4 MiB */
 
 static struct {
     FILE *f;

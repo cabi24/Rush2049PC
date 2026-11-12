@@ -16,8 +16,8 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
     set(CMAKE_BUILD_TYPE Debug CACHE STRING "Build type" FORCE)
 endif()
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)   # tools/port/census.py reads compile_commands.json
-# Executables are PIE, so host code and data load above 4 GB, clear of the RDRAM window, and a pointer below
-# 4 GB is an N64 address (docs/port/DATA.md). Debian and Ubuntu compilers link PIE by default, Red Hat's don't.
+# Executables are PIE: the OS places them anywhere (ASLR), as it does the game heap's block (port/ultra/memory.c).
+# Debian and Ubuntu compilers link PIE by default, Red Hat's don't.
 include(CheckPIESupported)
 check_pie_supported()
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
@@ -111,52 +111,6 @@ target_include_directories(game_flags INTERFACE include include/PR)
 # First include of every game file: pointer-sized integer types and big-endian helpers for the 64-bit host
 # (docs/port/POINTERS.md).
 target_compile_options(game_flags INTERFACE -include ${CMAKE_SOURCE_DIR}/port/include/pc_prelude.h)
-# A debug build that stops at the first store of a host address into a 32-bit N64 address field (PC_N64W in
-# pc_prelude.h, docs/port/CASTS.md): for a run with the ROM, to check that only RDRAM-window addresses get there.
-option(RUSH_CHECK_CASTS "Check the game's 32-bit N64 address stores for host addresses at run time" OFF)
-if(RUSH_CHECK_CASTS)
-    target_compile_definitions(game_flags INTERFACE RUSH_CHECK_CASTS)
-endif()
-# No fixed address (docs/port/NOFIXED.md, phase B): the RDRAM window (the game's heap, libultra's low memory) is
-# pc_window, a zero-fill section of the executable that data.c defines, and the names it holds are relative to it
-# (gen_data, gen_stubs; the arenas are blocks of their own in every build), so nothing is mapped at a fixed host
-# address and no GOT slot is fixed up; the game C's boundaries between a 32-bit N64
-# address and a host pointer translate (pc_prelude.h), with PC_N64W checked. Off by default: the fixed window stays
-# the default until phase D. ELF only for now (Linux).
-option(RUSH_NOFIXED "The RDRAM window anywhere: a section of the executable, the names relative to it" OFF)
-set(PC_NOFIXED_ARGS "")
-set(PC_DATA_NOFIXED_ARGS "")
-if(RUSH_NOFIXED)
-    if(WIN32 OR APPLE)
-        message(FATAL_ERROR "RUSH_NOFIXED is ELF only so far (docs/port/NOFIXED.md 6, phase D)")
-    endif()
-    add_compile_definitions(RUSH_NOFIXED)   # the game C, the PC layer and the tests
-    set(PC_NOFIXED_ARGS --nofixed)          # gen_stubs.py
-    # gen_data.py also defines the names gen_stubs would make absolute, for which the PC layer's definitions count
-    set(PC_DATA_NOFIXED_ARGS --nofixed --defined-list ${CMAKE_BINARY_DIR}/port_objects.txt)
-endif()
-# The crossing counter and the arena guard (docs/port/NATIVE.md 9, wave 3's measure): every place the game or the PC
-# layer turns a 32-bit N64 address into a host pointer or back, counted by its site and written at exit
-# (RUSH2049_CROSSINGS=FILE; tools/port/crossings.py runs the synthetic paths and reports), and RUSH2049_WINDOW_GUARD=
-# arenas, the window's ranges where the game's data arenas were on the N64 without access (the arenas are blocks of
-# host memory: whatever reaches them by an N64 address faults). port/ultra/crossings.c is built only here, and the
-# hooks elsewhere (port/include/pc_crossings.h) are nothing without the option: the default build doesn't change. A
-# Debug build (crossings.py makes one), with no inlining in any case: the PC layer's sites are counted by their caller,
-# which inlining would hide. Linux only (mprotect, a SIGSEGV handler), and the default layout only: the moved and
-# cast-checking builds translate or check every crossing themselves.
-option(RUSH_COUNT_CROSSINGS "Count the crossings between N64 addresses and host pointers; the arena guard" OFF)
-if(RUSH_COUNT_CROSSINGS)
-    if(WIN32 OR APPLE)
-        message(FATAL_ERROR "RUSH_COUNT_CROSSINGS is Linux only so far (docs/port/NATIVE.md 9)")
-    endif()
-    if(RUSH_NOFIXED OR RUSH_CHECK_CASTS)
-        message(FATAL_ERROR "RUSH_COUNT_CROSSINGS counts the default build's crossings: not with RUSH_NOFIXED or "
-                "RUSH_CHECK_CASTS (docs/port/NATIVE.md 9)")
-    endif()
-    add_compile_definitions(RUSH_COUNT_CROSSINGS)   # the game C (pc_prelude.h), the PC layer and the tests
-    # the game C's sites as paths in the tree (src/blob/forces1.c:71), wherever the checkout is; no inlining (above)
-    add_compile_options(-fmacro-prefix-map=${CMAKE_SOURCE_DIR}/= -fno-inline)
-endif()
 # IDO semantics: gnu89, so `__inline` functions also get an out-of-line definition (C99 rules would drop it,
 # and CMake's C_STANDARD adds no flag when the compiler's default is newer). Plain char is unsigned and signed
 # overflow wraps. The code type-puns freely, and some files define the same tentative global (common symbols).
@@ -277,10 +231,10 @@ add_custom_command(
     COMMAND ${PC_PYTHON} ${PORT_TOOLS}/gen_data.py --objects-list ${CMAKE_BINARY_DIR}/types_objects.txt
             --link-objects-list ${CMAKE_BINARY_DIR}/game_objects.txt --decls $<TARGET_OBJECTS:game_decls>
             --nm ${CMAKE_NM} --readelf ${PC_DWARF_TOOL} --root ${CMAKE_SOURCE_DIR} --out ${PC_DATA_DIR}/data.c
-            ${PC_DATA_PE_ARGS} ${PC_DATA_NOFIXED_ARGS}
+            ${PC_DATA_PE_ARGS}
     DEPENDS $<TARGET_OBJECTS:${PC_TYPES_TARGET}> $<TARGET_OBJECTS:game> $<TARGET_OBJECTS:game_decls>
             ${PORT_TOOLS}/gen_data.py
-            ${PORT_TOOLS}/n64syms.py ${CMAKE_SOURCE_DIR}/port/include/pc_n64_map.h ${PORT_TOOLS}/gen_stubs.py
+            ${PORT_TOOLS}/n64syms.py ${PORT_TOOLS}/gen_stubs.py
             ${CMAKE_SOURCE_DIR}/symbol_addrs.us.txt ${CMAKE_SOURCE_DIR}/undefined_syms_auto.us.txt
             ${CMAKE_SOURCE_DIR}/rom_symbol_aliases.ld ${CMAKE_SOURCE_DIR}/port/data/asm_functions.txt
             ${CMAKE_SOURCE_DIR}/port/data/extents.txt ${CMAKE_SOURCE_DIR}/port/data/reached.txt
@@ -304,7 +258,7 @@ if(PC_HAVE_NO_TOPLEVEL_REORDER)
 endif()
 find_package(ZLIB REQUIRED)
 add_library(pcdata_rt OBJECT port/data/pc_data.c)
-target_include_directories(pcdata_rt PUBLIC port/data port/include)   # port/include: pc_n64_map.h, the N64 memory map
+target_include_directories(pcdata_rt PUBLIC port/data port/include)
 # The loader's report on the first load (docs/port/DATA.md), for bring-up: in the build directory by default; empty
 # for none (the release builds, docs/port/RELEASE.md). PC_DATA_REPORT overrides it at run time.
 set(RUSH_DATA_REPORT "${CMAKE_BINARY_DIR}/data_report.txt" CACHE STRING "Where the data loader writes its report; empty for none")
@@ -323,12 +277,9 @@ file(GLOB PC_ULTRA_SOURCES CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/port/ultra/*.c)
 if(NOT WIN32)
     list(FILTER PC_ULTRA_SOURCES EXCLUDE REGEX "/win32\\.c$")   # Windows' fault handler (docs/port/WINDOWS.md)
 endif()
-if(NOT RUSH_COUNT_CROSSINGS)   # the crossing counter (docs/port/NATIVE.md 9): only in its own build
-    list(FILTER PC_ULTRA_SOURCES EXCLUDE REGEX "/crossings\\.c$")
-endif()
 add_library(pcultra OBJECT port/main.c ${PC_ULTRA_SOURCES})
-# The state hash (docs/port/LOCKSTEP.md 5) normalises and hashes the 8-256 MiB RDRAM window: optimized in every build,
-# or a Debug build's tests that hash it every 30 retraces take minutes.
+# The state hash (docs/port/LOCKSTEP.md 5) normalises and hashes the game heap's 6.5-254 MiB block: optimized in every
+# build, or a Debug build's tests that hash it every 30 retraces take minutes.
 set_source_files_properties(port/ultra/statehash.c PROPERTIES COMPILE_OPTIONS "-O2")
 target_include_directories(pcultra PRIVATE port/include port/ultra port/config ${ZLIB_INCLUDE_DIRS})
 target_compile_options(pcultra PRIVATE -std=gnu11 -Wall -Wextra -Wno-unused-parameter)
@@ -397,7 +348,8 @@ list(APPEND PC_PORT_ARCHIVES pcaudio pcgfx)            # port/audio, port/gfx (d
 # Everything the game and the generated data still leave undefined becomes a stub that prints its name and a
 # backtrace, or a zeroed placeholder (tools/port/gen_stubs.py); names that differ from a definition only by the
 # case of their address digits become linker aliases (aliases.ld). The PC layer's own definitions count, its
-# references (the C library, zlib, pthreads) do not.
+# references (the C library, zlib, pthreads) do not. Nothing is placed at an N64 address: data the game names that
+# nothing defines would be a placeholder, so gen_stubs refuses any the symbol file puts in RDRAM.
 set(PC_GAME_OBJECTS $<TARGET_OBJECTS:game> $<TARGET_OBJECTS:pcdata>)
 set(PC_PORT_OBJECTS "")
 foreach(lib ${PC_PORT_OBJECT_LIBS})
@@ -408,26 +360,19 @@ foreach(lib ${PC_PORT_ARCHIVES})
 endforeach()
 file(GENERATE OUTPUT ${CMAKE_BINARY_DIR}/game_link_objects.txt CONTENT "$<JOIN:${PC_GAME_OBJECTS},\n>\n")
 file(GENERATE OUTPUT ${CMAKE_BINARY_DIR}/port_objects.txt CONTENT "$<JOIN:${PC_PORT_OBJECTS},\n>\n")
-if(RUSH_NOFIXED)   # gen_data.py --nofixed reads the PC layer's definitions (PC_DATA_NOFIXED_ARGS above)
-    add_custom_command(OUTPUT ${PC_DATA_DIR}/data.c APPEND DEPENDS ${PC_PORT_OBJECTS})
-endif()
 add_custom_command(
     OUTPUT ${PC_DATA_DIR}/stubs.c ${PC_DATA_DIR}/aliases.ld
     COMMAND ${PC_PYTHON} ${PORT_TOOLS}/gen_stubs.py --objects-list ${CMAKE_BINARY_DIR}/game_link_objects.txt
             --defined-list ${CMAKE_BINARY_DIR}/port_objects.txt --nm ${CMAKE_NM} --root ${CMAKE_SOURCE_DIR}
-            --out ${PC_DATA_DIR}/stubs.c --aliases ${PC_DATA_DIR}/aliases.ld ${PC_NOFIXED_ARGS}
+            --out ${PC_DATA_DIR}/stubs.c --aliases ${PC_DATA_DIR}/aliases.ld
     DEPENDS ${PC_GAME_OBJECTS} ${PC_PORT_OBJECTS} ${PORT_TOOLS}/gen_stubs.py ${PORT_TOOLS}/n64syms.py
-            ${CMAKE_SOURCE_DIR}/port/include/pc_n64_map.h
             ${CMAKE_SOURCE_DIR}/symbol_addrs.us.txt ${CMAKE_SOURCE_DIR}/layout/game.json
             ${CMAKE_SOURCE_DIR}/layout/ovl_a.json ${CMAKE_SOURCE_DIR}/layout/ovl_b.json
     COMMENT "Stubs for what is still missing (tools/port/gen_stubs.py)"
     VERBATIM)
 set_source_files_properties(${PC_DATA_DIR}/stubs.c PROPERTIES COMPILE_OPTIONS "-fno-builtin")
 
-# rush2049pc: the game on the PC layer. It stays position-independent, so every host address of its code, data,
-# heap and stacks is above 4 GiB and none can be mistaken for an N64 address (physical, segmented, or KSEG0/1,
-# where port/ultra maps the RDRAM window). Symbols at absolute N64 addresses (aliases.ld) work through a startup
-# fix-up of their GOT slots (port/ultra/memory.c): binutils 2.40 on aarch64 relocates them by the load address.
+# rush2049pc: the game on the PC layer.
 add_executable(rush2049pc ${PC_DATA_DIR}/stubs.c ${PC_GAME_OBJECTS})
 # pcnet: online play's network library (port/net, docs/port/NETWORK.md), for port/app/netplay.c; Winsock 2 on Windows
 target_link_libraries(rush2049pc PRIVATE ${PC_PORT_OBJECT_LIBS} pcnet ZLIB::ZLIB Threads::Threads m)
@@ -483,7 +428,7 @@ add_test(NAME ultra_selftest_fast COMMAND rush2049pc --selftest --fast)   # the 
 # measures time
 add_test(NAME ultra_selftest_paced COMMAND rush2049pc --selftest --paced)
 set_tests_properties(ultra_selftest_paced PROPERTIES RUN_SERIAL TRUE LABELS realtime)
-# the RDRAM window at game.memory 64 and 256 (the most): its size through every view, the RCP's addresses past 16 MiB
+# the game heap's block at game.memory 64 and 256 (the most): its size, its alignment, its last byte
 # (docs/port/MEMORY.md)
 add_test(NAME ultra_selftest_memory64 COMMAND rush2049pc --selftest --fast --set game.memory=64)
 add_test(NAME ultra_selftest_memory256 COMMAND rush2049pc --selftest --fast --set game.memory=256)
@@ -623,8 +568,8 @@ endforeach()
 # Input record, replay and delay, the pads gate and the state hash (docs/port/LOCKSTEP.md 8, tools/port/replay_check.py).
 # replay_same_<path>: each path on the virtual clock recorded (--record-inputs), then replayed (--replay-inputs) by
 # another process: the same trace (states, status lines, every retrace's physics and pads, exact floats) and the same
-# state hash at every retrace, the window's, own storage's and the decoupled data's every 30, with the processes'
-# images apart (ASLR). Its recording and replay log stay in synth/replay for CI's windows-replay. replay_delay: with
+# state hash at every retrace, the heap's, own storage's, the decoupled data's and the arenas' every 30, with the
+# processes' images and heaps apart (ASLR). Its recording and replay log stay in synth/replay for CI's windows-replay. replay_delay: with
 # --input-delay 2 the game's pads are the script's 2 retraces later and the run is the script's moved 2 retraces, and a
 # delay schedule gives the delay line's pads and replays to its trace. replay_file: a file cut short, damaged or of
 # other settings. gate_same: pads held back at random retraces for random real times (RUSH_SIM_GATE) leave no trace.
@@ -820,13 +765,6 @@ add_executable(test_romcheck port/ultra/tests/test_romcheck.c port/ultra/romchec
 target_include_directories(test_romcheck PRIVATE port/ultra port/include)
 target_compile_options(test_romcheck PRIVATE -std=gnu11 -Wall -Wextra -Wno-unused-parameter)
 add_test(NAME ultra_romcheck COMMAND test_romcheck)
-if(NOT WIN32)
-    add_executable(test_absfix port/ultra/tests/test_absfix.c port/ultra/absfix.c)
-    target_include_directories(test_absfix PRIVATE port/include)   # pc_n64_map.h
-    target_compile_options(test_absfix PRIVATE -std=gnu11 -Wall -Wextra)
-    set_target_properties(test_absfix PROPERTIES EXPORT_COMPILE_COMMANDS OFF)
-    add_test(NAME ultra_absfix COMMAND test_absfix)
-endif()
 add_executable(test_app port/app/tests/test_app.c port/app/paths.c)
 target_include_directories(test_app PRIVATE port/app port/include)
 target_compile_options(test_app PRIVATE -std=gnu11 -Wall -Wextra -Wno-unused-parameter)
@@ -1115,8 +1053,8 @@ list(APPEND PACED_REALTIME_TESTS paced_desktop paced_vsync)
 # only): the course and the state hash every retrace --fast's without it, the pads that came over half a retrace late
 # re-based by the network library's rule (paced_gate). And audio.latency 100 with SDL's disk driver fed from the tap,
 # against --fast's null output at 0: the AI's queue is the null output's whatever the device and the latency, so the
-# state hash every retrace (the RDRAM window every 60) is the same (paced_latency; with --fast the latency changes the
-# window from retrace 0, docs/port/LOCKSTEP.md).
+# state hash every retrace (the full hash every 60) is the same (paced_latency; with --fast the latency changes the
+# heap from retrace 0, docs/port/LOCKSTEP.md).
 add_test(NAME paced_gate COMMAND ${PC_PYTHON} ${PORT_TOOLS}/paced_check.py --exe $<TARGET_FILE:rush2049pc>
     --rom ${SYNTH_ROM} --path race2p --env RUSH_SIM_GATE=7,0.05,40 --hash 1 --slowed
     --logs ${CMAKE_BINARY_DIR}/synth/paced-gate)
@@ -1308,7 +1246,6 @@ add_custom_command(
     COMMAND ${PC_PYTHON} ${PORT_TOOLS}/gen_stubs.py --objects-list ${CMAKE_BINARY_DIR}/game_link_objects.txt
             --nm ${CMAKE_NM} --root ${CMAKE_SOURCE_DIR} --out ${PC_DATA_DIR}/stubs_standalone.c --standalone
     DEPENDS ${PC_GAME_OBJECTS} ${PORT_TOOLS}/gen_stubs.py ${PORT_TOOLS}/n64syms.py
-            ${CMAKE_SOURCE_DIR}/port/include/pc_n64_map.h
     COMMENT "Standalone stubs (tools/port/gen_stubs.py)"
     VERBATIM)
 set_source_files_properties(${PC_DATA_DIR}/stubs_standalone.c PROPERTIES COMPILE_OPTIONS "-fno-builtin")
@@ -1327,7 +1264,6 @@ add_custom_command(
     COMMAND ${Python3_EXECUTABLE} ${PORT_TOOLS}/gen_data.py --test-tables $<TARGET_OBJECTS:pc_data_test_decls>
             --nm ${CMAKE_NM} --readelf ${PC_DWARF_TOOL} --out ${PC_DATA_DIR}/test_pc_data_gen.h
     DEPENDS $<TARGET_OBJECTS:pc_data_test_decls> ${PORT_TOOLS}/gen_data.py ${PORT_TOOLS}/n64syms.py
-            ${CMAKE_SOURCE_DIR}/port/include/pc_n64_map.h
     COMMENT "pc_data_test's tables from test_pc_data_decls.c (tools/port/gen_data.py --test-tables)"
     VERBATIM)
 add_executable(pc_data_test port/data/test_pc_data.c ${PC_DATA_DIR}/test_pc_data_gen.h)

@@ -5,14 +5,13 @@
  *   - image A: test_overlay/src/ovl_a/statics.c, a stand-in with file-local and function-local statics;
  *   - image B: the game's weapons.c, built as the game is. Its global table weaponOffsets is initialized data in its C
  *     range. Its muzzle-flash records and current weapons (gCurWeaponType, gGattMuzzleObjs, gCannMuzzleObjs) are image B's BSS,
- *     which this test's tables give an arena (in host memory) as the game's give the window: they start out zero,
+ *     which this test's tables give an arena (in host memory) as the game's do: they start out zero,
  *     so the first _RemoveCannMFlash / _RemoveGattMFlash of a slot removes its models and marks them -1, and a
  *     second one finds nothing.
  *
  * The game writes them; a load of the other image leaves them alone; a load of their image puts them back, as the
  * N64's load does. The program stands in for everything else weapons.c references. */
 #include "pc_data.h"
-#include "pc_n64_map.h"   /* N64_OVERLAY_BASE: where the runtime images load */
 #include "../include/pc_game_types.h"
 
 #include <stdio.h>

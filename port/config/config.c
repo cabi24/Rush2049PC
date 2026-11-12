@@ -18,7 +18,7 @@
 #include "config.h"
 #include "pc_compat.h"
 #include "pc_game_types.h"   /* PC_N64_CARS, PC_MAX_LINKS: game.cars' range */
-#include "pc_port.h"         /* PC_RCP_SEGMENT_SPAN, PC_RDRAM_MAX: game.memory's range */
+#include "pc_port.h"         /* PC_MEMORY_MIN_MIB, PC_MEMORY_MAX_MIB: game.memory's range */
 
 #define FILE_NAME "rush2049pc.ini"
 
@@ -209,8 +209,8 @@ static const Item items[] = {
      "track select's Drones option asks for, up to this many; the option then goes up to one less than this (its "
      "default, 5, still races 6 cars). The circuit stays 6 cars; the attract demo races this many. Applies from the "
      "next race."},
-    /* game.memory (docs/port/MEMORY.md): the RDRAM window, mapped at start */
-    {"game", "memory", T_INT, F(memory), PC_RCP_SEGMENT_SPAN >> 20, PC_RDRAM_MAX >> 20, memory_choices, "original",
+    /* game.memory (docs/port/MEMORY.md): osMemSize, and so the game heap's block mapped at start */
+    {"game", "memory", T_INT, F(memory), PC_MEMORY_MIN_MIB, PC_MEMORY_MAX_MIB, memory_choices, "original",
      "The game's memory in MiB: original (the N64's 8 MiB, the Expansion Pak; 4 with expansion_pak off) or 16-256. "
      "More gives its heap room past the N64's (the files it loads, a race's cars), and the game uses its Expansion "
      "Pak features at any size, so expansion_pak = off does nothing then. Applies at the next start."},

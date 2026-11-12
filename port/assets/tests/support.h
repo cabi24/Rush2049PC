@@ -20,12 +20,10 @@ extern int test_race_begins;        /* how many times the game C called pc_race_
 /* pc_pool_overflow (pc_game_types.h) calls this when a test sets it; otherwise a pool past its end fails the test. */
 extern void (*test_pool_overflow)(const char *pool, int used, int capacity);
 /* The tests' memory: one block of host memory, test_memory_bytes long (the N64's 8 MiB; a test of game.memory sets
- * more before the first call), aligned to TEST_MEMORY_ALIGN as port/ultra's heap memory is, zeroed, at no fixed place:
- * the game heap's memory (pc_heap_memory: from TEST_HEAP_OFFSET, the heap's offset in the N64's RDRAM, so the heap
- * has the N64's size and alignment) and what a test plants for the game's code. pc_rdram() and pc_rdram_size() are it
- * (support.c). */
+ * more before the first call), aligned to TEST_MEMORY_ALIGN as port/ultra's heap block is, zeroed, at no fixed place:
+ * the game heap's memory (pc_heap_memory, pc_mem_heap: from PC_HEAP_OFFSET, the heap's place in the N64's RDRAM, so the
+ * heap has the N64's size and alignment) and what a test plants for the game's code (support.c). */
 #define TEST_MEMORY_ALIGN 0x10000u
-#define TEST_HEAP_OFFSET (N64_HEAP_BASE - N64_KSEG0)   /* the game image and low memory lie below the heap */
 extern uint32_t test_memory_bytes;
 uint8_t *test_memory(void);
 

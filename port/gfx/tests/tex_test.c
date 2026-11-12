@@ -43,18 +43,6 @@ int pcgfx_png_decode(const uint8_t *data, size_t size, uint8_t **out, int *out_w
 
 /* ---------------------------------------------------------------- the memory functions port/ultra provides */
 
-static uint8_t *s_rdram;
-
-void *pc_n64_ptr(uint32_t a) {
-    uint32_t p = N64_TO_PHYS(a);
-    return p < PC_RDRAM_SIZE ? s_rdram + p : NULL;
-}
-
-uint32_t pc_n64_addr(const void *h) {
-    const uint8_t *p = (const uint8_t *)h;
-    return p >= s_rdram && p < s_rdram + PC_RDRAM_SIZE ? PC_RDRAM_BASE + (uint32_t)(p - s_rdram) : 0;
-}
-
 static const uint8_t *s_be_p;
 static size_t s_be_n;
 void pc_mem_register_be(const void *start, size_t size) {
@@ -1117,7 +1105,6 @@ int main(int argc, char **argv) {
     const char *which = argc > 1 ? argv[1] : "all";
     int i, ran = 0, failed = 0;
     s_dir = argc > 2 ? argv[2] : ".";
-    s_rdram = (uint8_t *)calloc(1, PC_RDRAM_SIZE);
     mtx_setup();
     setenv("RUSH_GFX_SCALE", "2", 1);
     setenv("RUSH_GFX_TEXTURE_SYNC", "1", 1);
@@ -1138,7 +1125,6 @@ int main(int argc, char **argv) {
     }
     pc_gfx_shutdown();
     free(s_px);
-    free(s_rdram);
     if (ran == 0) {
         printf("no case named %s\n", which);
         return 2;

@@ -12,7 +12,6 @@
  * arrays are swapped in place in the arena, by their lengths; the report lists the tables; a reload makes them
  * again. */
 #include "pc_data.h"
-#include "pc_n64_map.h"
 
 #include <stdio.h>
 #include <stdlib.h>

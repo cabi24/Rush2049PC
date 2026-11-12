@@ -28,18 +28,6 @@ float pc_gfx_parse_aspect(const char *text, int *ok);
 
 /* ---------------------------------------------------------------- the memory functions port/ultra provides */
 
-static uint8_t *s_rdram;
-
-void *pc_n64_ptr(uint32_t a) {
-    uint32_t p = N64_TO_PHYS(a);
-    return p < PC_RDRAM_SIZE ? s_rdram + p : NULL;
-}
-
-uint32_t pc_n64_addr(const void *h) {
-    const uint8_t *p = (const uint8_t *)h;
-    return p >= s_rdram && p < s_rdram + PC_RDRAM_SIZE ? PC_RDRAM_BASE + (uint32_t)(p - s_rdram) : 0;
-}
-
 static struct {
     const uint8_t *p;
     size_t n;
@@ -190,9 +178,9 @@ typedef struct {
 /* Model data, as the game's WADs give it: a 20 x 20 square per model, in the xy plane, a colour each, its vertices
  * native and registered as model data (what the WAD's converter makes them), its texture big-endian (the file's).
  * The ground is a large square in the xz plane, through the eye plane; the textured one samples a checker. */
-static uint8_t *s_models;          /* in the RDRAM window */
-static uint32_t s_model_vtx[NUM_MODELS];
-static uint32_t s_tex_addr;
+static _Alignas(16) uint8_t s_models[0x2000];   /* the models' vertices, then their texture */
+static uintptr_t s_model_vtx[NUM_MODELS];
+static uintptr_t s_tex_addr;
 
 static void be16(uint8_t *p, uint16_t v) {
     p[0] = v >> 8;
@@ -212,18 +200,15 @@ static uint16_t rgba16(int r, int g, int b, int a) {
     return (uint16_t)((r >> 3) << 11 | (g >> 3) << 6 | (b >> 3) << 1 | (a ? 1 : 0));
 }
 
-#define MODELS_AT (PC_RDRAM_BASE + 0x200000u)   /* the models' vertices and texture: a KSEG0 place, 2 MiB in */
-
 static void make_models(void) {
     static const uint8_t col[NUM_MODELS][3] = {{255, 0, 0},     {0, 255, 0},   {0, 0, 255},   {255, 255, 0},
                                                {120, 120, 120}, {255, 255, 255}, {0, 90, 200}, {0, 120, 220},
                                                {0, 150, 240},   {0, 180, 255}};
     int m, i;
-    s_models = (uint8_t *)pc_n64_ptr(MODELS_AT);
-    memset(s_models, 0, 0x2000);
+    memset(s_models, 0, sizeof s_models);
     for (m = 0; m < NUM_MODELS; m++) {
         uint8_t *v = s_models + m * 64;
-        s_model_vtx[m] = MODELS_AT + (uint32_t)m * 64;
+        s_model_vtx[m] = (uintptr_t)v;
         if (m == M_GROUND) {   /* 4000 x 4000 at y = -40, so it reaches behind the eye */
             model_vtx(v + 0, -2000, -40, -2000, 0, 0, 90, 140, 90, 255);
             model_vtx(v + 16, -2000, -40, 2000, 0, 0, 90, 140, 90, 255);
@@ -236,7 +221,7 @@ static void make_models(void) {
             model_vtx(v + 48, 10, 10, 0, 16 << 5, 0, col[m][0], col[m][1], col[m][2], 255);
         }
     }
-    s_tex_addr = MODELS_AT + 0x1000u;
+    s_tex_addr = (uintptr_t)(s_models + 0x1000);
     for (i = 0; i < 16 * 16; i++)   /* a 16 x 16 RGBA16 checker */
         be16(s_models + 0x1000 + 2 * i, ((i & 15) / 4 + i / 64) & 1 ? rgba16(255, 255, 255, 1) : rgba16(255, 0, 255, 1));
     pc_mem_register_model_data(s_models, 0x1000);        /* the vertices */
@@ -1145,7 +1130,6 @@ int main(int argc, char **argv) {
     for (i = 2; i < argc; i++)
         if (strcmp(argv[i], "--png") == 0 && i + 1 < argc)
             s_png_dir = argv[++i];
-    s_rdram = (uint8_t *)calloc(1, PC_RDRAM_SIZE);
     if (pc_gfx_init(1, WIN_W, WIN_H) != 0) {
         printf("FAIL: pc_gfx_init\n");
         return 2;
@@ -1164,7 +1148,6 @@ int main(int argc, char **argv) {
     }
     pc_gfx_set_frame_rate(0);
     pc_gfx_shutdown();
-    free(s_rdram);
     if (ran == 0) {
         printf("no case named %s\n", which);
         return 2;

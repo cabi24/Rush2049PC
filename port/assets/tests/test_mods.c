@@ -410,8 +410,8 @@ static int verdicts(int argc, char **argv)
  * places of its own in them (handed to pc_mods_cart_read as main.c hands it the game's, found by name), the files
  * after. SAMPLE_BASE is the ROM offset the sample directory's offsets count from (AudioInitSys.c's
  * SAMPLE_BANK_ROM_OFFSET), and SAMPLE_BASE_K1 the cartridge address the game adds them to. */
-#define BOOT_BASE (N64_KSEG0 + 0x2E000u)
-#define GAME_BASE (N64_KSEG0 + 0x11B000u)
+#define BOOT_BASE 0x8002E000u   /* KSEG0 addresses, as the cartridge's images are linked */
+#define GAME_BASE 0x8011B000u
 #define IMG_SIZE 0x9000u
 #define ROM_BOOT 0x1000u
 #define ROM_GAME 0x10000u

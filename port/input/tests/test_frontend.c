@@ -17,7 +17,7 @@
 #include "input_internal.h"
 #include "pc_compat.h"
 #include "pc_game_types.h"   /* the race's cars: pc_race_cars, its latch, PC_MAX_LINKS */
-#include "pc_port.h"         /* game.memory's range: PC_RDRAM_MAX, PC_RCP_SEGMENT_SPAN */
+#include "pc_port.h"         /* game.memory's range: PC_MEMORY_MIN_MIB, PC_MEMORY_MAX_MIB */
 
 static int g_fail, g_checks;
 static const char *g_dir;
@@ -679,8 +679,8 @@ static void test_memory(void)
     pc_settings_defaults(&s);
     CHECK(s.memory == 0 && pc_settings_get(&s, "game", "memory", v, sizeof v) == 0 && !strcmp(v, "original"),
           "the default: original (%d, '%s')", s.memory, v);
-    CHECK(PC_RDRAM_MAX == 256u << 20 && PC_RCP_SEGMENT_SPAN == 16u << 20, "the range's ends: %u, %u MiB",
-          PC_RDRAM_MAX >> 20, PC_RCP_SEGMENT_SPAN >> 20);
+    CHECK(PC_MEMORY_MAX_MIB == 256 && PC_MEMORY_MIN_MIB == 16, "the range's ends: %d, %d MiB", PC_MEMORY_MAX_MIB,
+          PC_MEMORY_MIN_MIB);
     static const char *const good[] = {"16", "17", "32", "64", "100", "128", "255", "256"};
     for (size_t i = 0; i < sizeof good / sizeof *good; i++)
         CHECK(pc_settings_set(&s, "game", "memory", good[i], why, sizeof why) == 0 && s.memory == atoi(good[i]) &&

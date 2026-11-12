@@ -125,7 +125,7 @@ static int wad_open(Ck *c, Wad *w)
     if (c->size < 8)
         return bad(c, "it is %zu bytes: too short for a WAD's header", c->size);
     w->toc = be32(c, 0), w->n = be32(c, 4);
-    if (w->toc >= N64_KSEG0)   /* an N64 address (the file's load address + the offset), not an offset */
+    if (w->toc >= 0x80000000u)   /* an N64 address (the file's KSEG0 load address + the offset), not an offset */
         return bad(c, "its table of contents is already relocated (0x%08X): not a file as the cartridge holds it",
                    w->toc);
     if (w->toc < 8 || (w->toc & 3) || w->toc > c->size || w->n > MAX_TOC || w->n > (c->size - w->toc) / 12)

@@ -1,4 +1,4 @@
-"""Shared helpers for the PC port tools: the decompilation's symbol file, N64 memory regions, nm output.
+"""Shared helpers for the PC port tools: the decompilation's symbol file, the N64 images' regions, nm output.
 
 Stdlib only, Python 3.9+. Used by census.py, gen_stubs.py and gen_data.py.
 """
@@ -10,24 +10,14 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 
 
-def _n64_map(path=ROOT / "port" / "include" / "pc_n64_map.h"):
-    """The N64's memory map as the PC layer writes it, once (port/include/pc_n64_map.h): {name: value} for each
-    `#define NAME 0x...u` there."""
-    return {m.group(1): int(m.group(2), 16)
-            for m in re.finditer(r"^#define (\w+) 0x([0-9A-Fa-f]+)u\b", Path(path).read_text(), re.M)}
-
-
-# The N64's address space (pc_n64_map.h has what each is): the MIPS segments, RDRAM, libultra's low memory, the
-# cartridge on the bus, where the game's loader puts its runtime images. Wave 3 of docs/port/PCONLY.md removes all but
-# the cartridge's with the RDRAM window.
-N64_MAP = _n64_map()
-KSEG0, KSEG1, KSEG2 = N64_MAP["N64_KSEG0"], N64_MAP["N64_KSEG1"], N64_MAP["N64_KSEG2"]
-PHYS_MASK = N64_MAP["N64_PHYS_MASK"]                    # a KSEG0 or KSEG1 address to its physical one
-RDRAM_SIZE = N64_MAP["N64_RDRAM_SIZE"]                  # 8 MiB, with the Expansion Pak
-RDRAM_END = KSEG0 + RDRAM_SIZE                          # KSEG0's first address past it
-LOW_MEMORY_END = N64_MAP["N64_LOW_MEMORY_END"]          # the boot code's first address
-CART_KSEG1 = KSEG1 | N64_MAP["N64_CART_PHYS"]           # the cartridge's first byte through KSEG1 (osRomBase)
-OVERLAY_BASE = N64_MAP["N64_OVERLAY_BASE"]              # both runtime images' load address
+# The N64 addresses of the cartridge's images (the ROM's format, as port/data/pc_data.h's loader reads it; nothing of
+# the game is at one on the PC, docs/port/NATIVE.md 17): the images were linked at KSEG0 addresses of the console's
+# RDRAM, libultra's low memory below the boot code, the same memory again through KSEG1, and both runtime images
+# loaded at OVERLAY_BASE.
+KSEG0, KSEG1, KSEG2 = 0x80000000, 0xA0000000, 0xC0000000   # K0BASE, K1BASE, K2BASE
+RDRAM_END = 0x80800000                                     # KSEG0's first address past the console's 8 MiB
+LOW_MEMORY_END = 0x80000400                                # the boot code's first address
+OVERLAY_BASE = 0x8038A400                                  # both runtime images' load address
 
 # The four images whose data the PC build fills from the ROM (docs/memory_map.md):
 # name, how it is stored, ROM offset, stored length, image size, N64 base. "raw" is a plain copy (the boot
@@ -95,7 +85,7 @@ REGIONS = [
     (*CODE["game"], "game code"),
     (_ARENA["game"][0], _ARENA["game"][1], "game data"),
     (_ARENA["game"][1], _ARENA["game"][2], "game bss"),
-    (OVERLAY_BASE, KSEG0 + N64_MAP["N64_RDRAM_SIZE_NO_PAK"], "overlay"),
+    (OVERLAY_BASE, KSEG0 + 0x400000, "overlay"),
 ]
 BSS_REGIONS = {"boot bss": _ARENA["boot"][1:], "game bss": _ARENA["game"][1:]}
 

@@ -4,8 +4,8 @@
  * high-score name table gTotalNames with each player's name slot gThisPlayer, whose slots hold a name index or a
  * profile handle (InitRecords, FindTempNameIdx, RemovePlayerScores and its caller ClearPlayerRecords,
  * RankScores), the ghost allocator _NewGhost (NewGhost), the audio manager's walk of its sound requests
- * (AudioSfxServer), and the RUSH_CHECK_CASTS check of 32-bit N64 address stores (PC_N64W). Host storage here is
- * above 4 GB, as the game's own storage is (the heap's blocks too: the sound requests).
+ * (AudioSfxServer). Host storage here is above 4 GB, as the game's own storage is (the heap's blocks too: the
+ * sound requests).
  * game: src/blob/InitBlast.c src/blob/UpdateEnvirons.c src/blob/SkyUpdate.c
  * game: src/blob/InitRecords.c src/blob/FindTempNameIdx.c src/blob/RemovePlayerScores.c
  * game: src/blob/ClearPlayerRecords.c src/blob/groups/highscore_rank/RankScores.c
@@ -15,7 +15,6 @@
 #include <stddef.h>
 #include <string.h>
 
-#define RUSH_CHECK_CASTS   /* this file's own PC_N64W checks, whatever the build's option */
 #include "pc_prelude.h"
 #include "support.h"
 
@@ -489,29 +488,6 @@ static void test_ido_f2u(void)
     CHECK(pc_mips_d2u(2147483649.5) == 2147483649u && pc_mips_d2u(1234.99) == 1234);
 }
 
-/* ---------------------------------------------------------------- RUSH_CHECK_CASTS */
-
-static struct { const char *file; int line; uintptr_t value; int n; } cast_fail;
-
-void pc_cast_fail(const char *file, int line, uintptr_t value)
-{
-    cast_fail.file = file, cast_fail.line = line, cast_fail.value = value, cast_fail.n++;
-}
-
-static void test_check_casts(void)
-{
-    int line;
-
-    const uint32_t window_addr = PC_RDRAM_BASE + 0x123456u, cart_addr = N64_CART_KSEG1 | 0x39B40u;
-    CHECK(PC_N64W((void *)(uintptr_t)window_addr) == window_addr);   /* a window address */
-    CHECK(PC_N64W(NULL) == 0 && PC_N64W(cart_addr) == cart_addr);   /* a cartridge address (MusyX's sample base) */
-    CHECK(cast_fail.n == 0);
-    line = __LINE__ + 1;
-    CHECK(PC_N64W(&profiles[0]) == (uint32_t)(uintptr_t)&profiles[0]);   /* host storage */
-    CHECK(cast_fail.n == 1 && cast_fail.value == (uintptr_t)&profiles[0] && cast_fail.line == line);
-    CHECK(cast_fail.file && strstr(cast_fail.file, "test_casts.c"));
-}
-
 int main(void)
 {
     test_blast_mats();
@@ -527,6 +503,5 @@ int main(void)
     test_sound_effect();
     test_ido_f2u();
     test_listener_packet();
-    test_check_casts();
     return TEST_DONE();
 }

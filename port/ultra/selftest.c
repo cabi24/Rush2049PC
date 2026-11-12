@@ -1,6 +1,6 @@
 /* port/ultra/selftest.c: rush2049pc --selftest. Exercises the PC libultra without the ROM: thread priorities
  * and preemption, blocking and non-blocking message calls, jam, stop/start, osSetThreadPri, yield, events,
- * the VI retrace, timers, busy-wait yields, the RDRAM window and big-endian ranges, and the PIF with the
+ * the VI retrace, timers, busy-wait yields, the game heap's block and big-endian ranges, and the PIF with the
  * game's own osContInit / osContStartReadData / osPfsInitPak / osMotorInit C (src/rom), with an accessory on each
  * port. Runs on the real main loop; with --fast, on the virtual clock (timer.c), where the same bounds hold and the
  * whole run takes a fraction of the time. */
@@ -71,10 +71,6 @@ extern uint32_t osTvType, osMemSize;
 extern uint8_t gWaveSizes[], wave_rom_offsets[], gTrophyMat[];
 /* The page gen_data.py aligns the arenas' blocks to (its ARENA_PAGE): a datum keeps its N64 address's offset in it. */
 #define ARENA_PAGE 0x1000u
-#ifdef RUSH_NOFIXED
-/* RUSH_NOFIXED (docs/port/NOFIXED.md 2): the window is data.c's section pc_window. */
-extern uint8_t pc_window[], *pc_window_base;
-#endif
 
 #define MS(n) ((uint64_t)(n) * PC_COUNT_HZ / 1000)
 /* How late a loaded host (parallel ctest, CI runners) may wake a thread. Lower bounds stay exact: nothing may
@@ -373,7 +369,7 @@ static void t_spin(void)
 
 /* A datum of an arena (port/data, docs/port/DATA.md 3): where the loader's tables put its N64 address (its arena's
  * block + the offset), at its N64 address's offset in a page, as aligned as on the N64. The block is the executable's
- * BSS, which "host addresses above 4 GiB" checks is high (g_log). */
+ * BSS. */
 static int in_block(const uint8_t *p, const char *name)
 {
     uint32_t a = pc_data_addr_of(&pc_data_tables, name);
@@ -381,68 +377,36 @@ static int in_block(const uint8_t *p, const char *name)
            ((uintptr_t)p & (ARENA_PAGE - 1)) == (a & (ARENA_PAGE - 1));
 }
 
-/* Window addresses for the checks: PROBE 4 KiB into RDRAM, through KSEG0 and KSEG1 and as a physical address. */
-#define PROBE_PHYS 0x1000u
-#define PROBE_K0 (N64_KSEG0 + PROBE_PHYS)
-#define PROBE_K1 (N64_KSEG1 + PROBE_PHYS)
+/* An N64 address the guard's checks take: 4 KiB into KSEG0, where the N64's RDRAM was. */
+#define PROBE_K0 0x80001000u
 
 static void t_memory(void)
 {
-    char d[96];
-    int fixed = pc_mem_fixed();
-    uint8_t *k0 = pc_n64_ptr(PROBE_K0), *k1 = pc_n64_ptr(PROBE_K1), *ph = pc_n64_ptr(PROBE_PHYS);
-    k0[0] = 0x5A;
-    snprintf(d, sizeof d, "fixed %d, K0 %p, KSEG1 %p, physical %p", fixed, (void *)k0, (void *)k1, (void *)ph);
-    check("RDRAM window", k0 == k1 && k0 == ph && pc_n64_addr(k0) == PROBE_K0 && pc_n64_ptr(pc_rdram_size()) == NULL &&
-                              (!fixed || (k0 == (uint8_t *)(uintptr_t)PROBE_K0 &&
-                                          *(volatile uint8_t *)(uintptr_t)PROBE_K1 == 0x5A)),
-          d);
-    /* game.memory (docs/port/MEMORY.md): the window's last byte through every view, the first past it through none. */
-    uint32_t size = pc_rdram_size(), top = PC_RDRAM_BASE + size - 1;
-    uint8_t *last = pc_n64_ptr(top);
-    if (last)
-        *last = 0xA5;
-    uint32_t mem_size = osMemSize, tv_type = osTvType;
-    snprintf(d, sizeof d, "%u MiB, last byte %p, osMemSize 0x%X", size >> 20, (void *)last, mem_size);
-    check("RDRAM window's size", last && pc_n64_ptr(N64_KSEG1 | N64_TO_PHYS(top)) == last &&
-                                     pc_n64_ptr(size - 1) == last &&
-                                     *(volatile uint8_t *)pc_n64_ptr(size - 1) == 0xA5 && pc_n64_addr(last) == top &&
-                                     pc_n64_ptr(top + 1) == NULL && pc_n64_ptr(size) == NULL &&
-                                     (size == PC_RDRAM_SIZE || mem_size == size), d);
-    /* The game heap's block (memory.c): osMemSize less what lay below the N64's heap, its first byte as far past a
-     * 64 KiB boundary as the N64 heap's, so the game's rounding of addresses comes out as on the N64. */
-    uint32_t heap_size;
+    char d[160];
+    /* The game heap's block (memory.c): osMemSize less what lay below the N64's heap (game.memory sizes it: the
+     * memory64 and memory256 runs), its first byte as far past a 64 KiB boundary as the N64 heap's, so the game's
+     * rounding of addresses comes out as on the N64; its last byte writable. */
+    uint32_t mem_size = osMemSize, tv_type = osTvType, heap_size;
     uint8_t *heap = pc_heap_memory(mem_size, &heap_size);
+    if (heap && heap_size)
+        heap[heap_size - 1] = 0xA5;
     snprintf(d, sizeof d, "heap %p, %u bytes, osTvType %u, osMemSize 0x%X", (void *)heap, heap_size, tv_type,
              mem_size);
     check("the game heap's block", heap && heap_size == mem_size - PC_HEAP_OFFSET &&
-                                       ((uintptr_t)heap & 0xFFFF) == (PC_HEAP_OFFSET & 0xFFFF) && tv_type == 1 &&
+                                       ((uintptr_t)heap & 0xFFFF) == (PC_HEAP_OFFSET & 0xFFFF) &&
+                                       *(volatile uint8_t *)(heap + heap_size - 1) == 0xA5 && tv_type == 1 &&
                                        mem_size == pc_os_mem_size(), d);
-#ifdef RUSH_NOFIXED
-    snprintf(d, sizeof d, "window %p, pc_window %p, pc_window_base %p", (void *)pc_rdram(), (void *)pc_window,
-             (void *)pc_window_base);
-    check("RUSH_NOFIXED: the window is pc_window", pc_rdram() == pc_window && pc_window_base == pc_window && !fixed,
-          d);
-#endif
-    if (pc_mem_guard()) {   /* RUSH2049_NOFIXED=guard: the window elsewhere, its old range reserved (NOFIXED.md 5) */
-        char note[320] = "";
-        uintptr_t w = (uintptr_t)pc_rdram();
-        char probe[16];
+    if (pc_mem_guard()) {   /* RUSH2049_N64_GUARD: the N64's range reserved, and the note a fault there gets */
+        char note[320] = "", probe[16];
         snprintf(probe, sizeof probe, "0x%08X", PROBE_K0);
-        int n = pc_mem_fault_note(PROBE_K0, note, sizeof note), cut = pc_mem_fault_note(w & 0xFFFFFFFFu, d, sizeof d);
-        snprintf(d, sizeof d, "window %p, K0 %s at %p, note %d, cut %d", (void *)w, probe, (void *)k0, n, cut);
-        check("guard: window elsewhere", (w >> 32) && k0 == (uint8_t *)w + PROBE_PHYS && !pc_mem_fixed() &&
-                                             n > 0 && strstr(note, probe) && pc_n64_addr((void *)w) == PC_RDRAM_BASE,
-              d);
+        int n = pc_mem_fault_note(PROBE_K0, note, sizeof note);
+        snprintf(d, sizeof d, "note %d: %.100s", n, note);
+        check("N64 guard: an N64 address noted", n > 0 && strstr(note, probe) != NULL, d);
     }
     snprintf(d, sizeof d, "%p, %p, %p", (void *)gWaveSizes, (void *)wave_rom_offsets, (void *)gTrophyMat);
     check("game data in its arena's block", in_block(gWaveSizes, "gWaveSizes") &&
                                                 in_block(wave_rom_offsets, "wave_rom_offsets") &&
                                                 in_block(gTrophyMat, "gTrophyMat"), d);
-    int local;
-    snprintf(d, sizeof d, "code %p, data %p, stack %p", (void *)check, (void *)g_log, (void *)&local);
-    check("host addresses above 4 GiB", (uintptr_t)check >> 32 && (uintptr_t)g_log >> 32 && (uintptr_t)&local >> 32,
-          d);
 
     static uint8_t buf[256];
     pc_mem_register_be(buf, 100);

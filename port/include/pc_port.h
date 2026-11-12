@@ -15,7 +15,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "pc_n64_map.h"   /* the N64's memory map: the RDRAM window's constants (PC_RDRAM_BASE ...) */
+#include "pc_n64_map.h"   /* the cartridge's bus addresses, a display list's segments */
 
 #ifdef __cplusplus
 extern "C" {
@@ -27,11 +27,10 @@ extern "C" {
 const uint8_t *pc_rom_bytes(void);
 size_t pc_rom_size(void);
 
-/* The N64's RDRAM as the game addresses it outside its own symbols: the RDRAM window, PC_RDRAM_BASE to
- * PC_RDRAM_BASE + pc_rdram_size() in the N64's KSEG0 (its constants and why: pc_n64_map.h, the N64's memory map). */
-void *pc_n64_ptr(uint32_t n64_addr);      /* K0/K1/physical address -> host pointer (NULL if outside RDRAM) */
-uint32_t pc_n64_addr(const void *host);   /* host pointer into RDRAM -> K0 address (0 if outside) */
-uint32_t pc_rdram_size(void);             /* the window's size: PC_RDRAM_SIZE until pc_mem_set_size */
+/* game.memory's range (docs/port/MEMORY.md 1): the console's RDRAM in whole MiB, osMemSize, from which the game heap's
+ * block is sized (port/ultra/memory.c). original, the default, is the N64's 8 MiB (4 without the Expansion Pak). */
+#define PC_MEMORY_MIN_MIB 16
+#define PC_MEMORY_MAX_MIB 256
 /* port/ultra/heap.c: whether p lies in the game heap's memory (the main heap's, which holds the others), once the game
  * has made it. */
 int pc_heap_holds(const void *p);
@@ -98,10 +97,11 @@ void pc_pace_info(PcPaceInfo *out);
 
 /* Fill the boot and game images' initialized data from the ROM. 0 on success. */
 int pc_data_init(const uint8_t *rom, size_t rom_size);
-/* The window when it isn't at host PC_RDRAM_BASE (port/data/pc_data.h, docs/port/NOFIXED.md 5), before pc_data_init. */
-void pc_data_set_window(void *(*n64_to_host)(uint32_t n64));
+/* The game heap's block (port/ultra/memory.c), where a pointer in the ROM's data into the N64 heap's memory resolves
+ * (port/data/pc_data.h), before pc_data_init. */
+void pc_data_set_heap(uint8_t *block, uint32_t size);
 
-/* An overlay "load": both runtime images share N64_OVERLAY_BASE on the N64; natively both are linked in, and a load
+/* An overlay "load": both runtime images shared one load address on the N64; natively both are linked in, and a load
  * resets that image's data to its initial values and zeroes its BSS. */
 enum { PC_OVERLAY_A = 0, PC_OVERLAY_B = 1 };
 void pc_data_overlay_load(int overlay);

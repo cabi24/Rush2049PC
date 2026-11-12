@@ -61,7 +61,7 @@ typedef struct PcSettings {
     int expansion_pak;              /* 8 MiB of RDRAM */
     int cars;                       /* the most cars a race holds: 0 original (the N64's 6), else 6-12 */
     int memory;                     /* game.memory: 0 original (the N64's: 8 MiB, 4 with expansion_pak off), else
-                                     * the RDRAM window and osMemSize in MiB, 16 to PC_RDRAM_MAX (docs/port/MEMORY.md) */
+                                     * osMemSize in MiB, PC_MEMORY_MIN_MIB to PC_MEMORY_MAX_MIB (docs/port/MEMORY.md) */
     int game_fps;                   /* game.frame_rate: 0 original (a frame every two retraces at most), 60 */
     int pc_setup;                   /* game.pc_setup: PC SETUP in the main menu opens the overlay (start_menu.c) */
     int ghost_prompt;               /* game.ghost_prompt: the ghost save prompt for every profile (ghost_prompt.c) */
