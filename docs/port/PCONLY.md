@@ -369,17 +369,23 @@ setup screen use 12. No synthetic path changes for any of them; the gate on the 
 
 The plan and each step's results are [NATIVE.md](NATIVE.md) (its census, `tools/port/window_census.py`; its crossing
 counter and arena guard, `tools/port/crossings.py`, section 9). Done: step 1 (the counter and the guard), wave 3.1
-(steps 2, 3, 4: the car record's, the level objects', the sky's and palettes' pointers; the images by pointer) and
-wave 3.2 (step 5, the arenas out of the RDRAM window as blocks of host memory; step 6, the heap's own code on host
-pointers with the N64's accounting; step 8, the text bank, the world and the paths as native records; a synthetic
-path `language`, so the gate is 64 paths) and wave 3.3 (step 7, the WAD's records and the font letters native; step
-9, MusyX on pointers, the samples named by cartridge address). Along the 64 paths the game and the PC layer crossed
-between a host pointer and an N64 address 73.2 million times at 243 places before step 1, 30.6 million at 47 after
-wave 3.2, 27.0 million at 20 after wave 3.3 (most of what is left: the renderer's and the heap's, steps 10 and 11);
-the arena guard finds no access by an N64 address. The gate compares the data loader's summary with `--data-moved`
-since step 2 (its pointer counts by class move as data leaves the arenas). Step 9 found the synthetic cartridge
-silent (MusyX's pitch and volume tables were zero), so the gate's `--audio` had compared silence until then;
+(steps 2, 3, 4: the car record's, the level objects', the sky's and palettes' pointers; the images by pointer), wave
+3.2 (step 5, the arenas out of the RDRAM window as blocks of host memory; step 6, the heap's own code on host pointers
+with the N64's accounting; step 8, the text bank, the world and the paths as native records; a synthetic path
+`language`, so the gate is 64 paths), wave 3.3 (step 7, the WAD's records and the font letters native; step 9, MusyX
+on pointers, the samples named by cartridge address) and wave 3.4 (step 10, the files' display lists built in the PC's
+form with host pointers when they load, `relocate_model_dl` renamed `prepare_model_dl`; step 11, the last holders of
+heap addresses (the ghosts' samples, the frame's colour buffer, the once-per-frame functions) and the tests' own
+windows). Along the 64 paths the game and the PC layer crossed between a host pointer and an N64 address 73.2 million
+times at 243 places before step 1, 30.6 million at 47 after wave 3.2, 27.0 million at 20 after wave 3.3 and 2.0
+million at 6 after wave 3.4 (what is left: the renderer's texel, depth and colour images and the present, which name
+heap blocks, and the boot's low-memory parameters: step 12); no game C uses `PC_N64P`, `PC_N64A` or `PC_N64W` any
+more, and the arena guard finds no access by an N64 address. The gate compares the data loader's summary with
+`--data-moved` since step 2 (its pointer counts by class move as data leaves the arenas). Step 9 found the synthetic
+cartridge silent (MusyX's pitch and volume tables were zero), so the gate's `--audio` had compared silence until then;
 `synth_rom.py --sounds` makes a cartridge whose sound bank and a song are heard, and a step that touches the sound
-compares on it too. Left: the display lists and the rest that holds heap addresses (wave 3.4), the window itself
-(3.5), one object per datum under ASan and the last of the N64's byte order (3.6).
+compares on it too. Wave 3.4 found the retail runs of `synth_compare --script` taking none of a script's own options,
+so their `--shots` had compared no screenshot; they do now, and the lead's retail check of step 10 compared
+screenshots of every race track forward, backward and mirrored. Left: the window itself (3.5), one object per datum
+under ASan and the last of the N64's byte order (3.6).
 

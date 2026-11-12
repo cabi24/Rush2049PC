@@ -639,7 +639,10 @@ the cartridge's and the display lists' segments, `n64syms.py`'s window constants
 the census at 0 but `context.`; the gate; the guard mode along every path and the retail scripts; ASan on x86-64
 over ctest and every synthetic path; the Windows and (first build) macOS jobs. Depends on: everything above.
 Risk: what the synthetic paths never reach (retail-only data, the songs): the guard is the net, so the lead's retail
-scripts run in the guard mode too.
+scripts run in the guard mode too. One such place is known (wave 3.4's retail count): `inflate_buffer`
+(`port/ultra/pi.c`) bounds a DEFLATE file's output by the window's end (`pc_n64_addr` of the destination, 500
+crossings on the retail scripts); the synthetic cartridge stores no file DEFLATEd, so the synthetic count never sees
+it. With the window gone the bound is the heap block's end (or the caller's size).
 
 ### Step 13. One object per datum (large; may be split by subsystem)
 
@@ -1555,6 +1558,15 @@ attract demo, battle and stunt arenas, the cars' models, and a mod's texture pac
 - **The names**: `relocate_model_dl` relocated nothing any more (it keeps the race's sections and prepares the
   vertices for a mirrored track), so the lead renamed it `prepare_model_dl` after the merge
   (`tools/port/names/wave3.tsv`); this page uses the new name throughout.
+- **The retail cartridge (the lead, on the Pi, after the merge with step 11)**: `rush2049pc_assetcheck` passes every
+  check (103,019), with no `display lists:` line: every WAD's native lists agree with the replay of the N64's
+  relocation, command for command. Base 90979a43 against the merged tree, two runs each, `--shots --audio
+  --data-moved` (`synth_compare --script` now takes a script's own `# args:`, so a retail run's screenshots are
+  compared): the 21 standard scripts (`# expect:` lines dropped, so the ones that end elsewhere on retail are compared
+  too) and 21 track scripts written for it (every race track forward and backward, three mirrored, three backward and
+  mirrored, two in split screen, one at `video.frame_rate=120`, each with a screenshot well into the race): all
+  `same` (one varied once under three jobs at a time and was `same` alone, three runs each). The guarded counting
+  build on nine of them: no fault, `gfx.rom_list`, `PC_N64A`, `PC_N64P` and `PC_N64W` at 0.
 
 ## 16. Step 11: the rest that holds heap addresses, and the tests' windows (done 2026-11-11)
 
@@ -1680,3 +1692,11 @@ gone; left: step 10's `FRAME_IMAGE_IN_LIST` and `DL_AT`), `conv.pc_n64_ptr.port`
   counts the N64's record sizes from the low 32 bits of the lists' addresses (`dcache_create_dirty_lines` is a loop
   that advances a counter on the PC; its cursor follows the end, so a list across a 4 GiB boundary can't make it
   spin), and the microcode sizes' 32-bit difference in `sound_hw_submit_task`.
+
+- **The retail cartridge (the lead, on the Pi)**: the ghost, pak and profile scripts (ghost, ghost_off,
+  ghost_prompt, pak, pak4p, profile) are `same` against wave 3.1's and 3.3's builds; saves_check's `game` and `race`
+  scenarios with the base and this build give the same checks, and their save files (14) the same notes byte for
+  byte: of the 6 that differ, only the port's version in the header (0x4C), the header's CRC-32 and the directory
+  entry's status and reserved bytes, which the game's `osPfsAllocateFile` leaves as they lay on its stack (as the N64
+  did), differ. The guarded count: `PC_N64P`, `PC_N64W` at 0; `pc_n64_addr`'s one retail site is the decompressor's
+  (step 12: section 5's step 12).
