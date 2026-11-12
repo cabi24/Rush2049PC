@@ -684,7 +684,8 @@ static void build_vertices(Lists *L, WadKept *kept, uint32_t **native)
 {
     size_t n = 0, total = 0;
 
-    qsort(L->runs, L->nruns, sizeof *L->runs, run_cmp);
+    if (L->nruns)   /* L->runs is still NULL when no list loads vertices, and qsort may not take NULL */
+        qsort(L->runs, L->nruns, sizeof *L->runs, run_cmp);
     for (size_t i = 0; i < L->nruns; i++) {   /* merge, in place */
         if (n && L->runs[i].start <= L->runs[n - 1].end) {
             if (L->runs[i].end > L->runs[n - 1].end)

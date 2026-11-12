@@ -93,7 +93,9 @@ if(PC_SANITIZE)
     endif()
     string(REPLACE ";" "," pc_link "${PC_SANITIZE}")
     add_link_options(-fsanitize=${pc_link})
-    # The runtimes' options for ctest's programs (and the ones the test scripts start), unless already set.
+    # The runtimes' options for ctest's programs (and the ones the test scripts start), unless already set. Each
+    # runtime leaves the fatal signals to the program, whose own handler writes the backtrace to its log
+    # (app_firstrun's fault check); Clang's UBSan runtime takes them by default, GCC's doesn't.
     set(pc_supp ${CMAKE_SOURCE_DIR}/tools/port/sanitize)
     file(WRITE ${CMAKE_BINARY_DIR}/sanitize_env.cmake
         "# Written by cmake/sanitize.cmake: the sanitizer runtimes' options for ctest (docs/port/SANITIZE.md).\n"
@@ -104,7 +106,7 @@ if(PC_SANITIZE)
         "  set(ENV{LSAN_OPTIONS} \"suppressions=${pc_supp}/lsan.supp:print_suppressions=0\")\n"
         "endif()\n"
         "if(NOT DEFINED ENV{UBSAN_OPTIONS})\n"
-        "  set(ENV{UBSAN_OPTIONS} \"print_stacktrace=1:halt_on_error=1:suppressions=${pc_supp}/ubsan.supp\")\n"
+        "  set(ENV{UBSAN_OPTIONS} \"print_stacktrace=1:halt_on_error=1:handle_segv=0:handle_sigbus=0:handle_sigfpe=0:handle_sigill=0:suppressions=${pc_supp}/ubsan.supp\")\n"
         "endif()\n"
         "if(NOT DEFINED ENV{TSAN_OPTIONS})\n"
         "  set(ENV{TSAN_OPTIONS} \"halt_on_error=1:second_deadlock_stack=1:report_signal_unsafe=0:handle_segv=0:handle_sigbus=0:handle_sigfpe=0:handle_sigill=0:suppressions=${pc_supp}/tsan.supp\")\n"
