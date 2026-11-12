@@ -214,14 +214,17 @@ jobs:
         include:
           - os: ubuntu-24.04
             sanitize: undefined
+            cache: ub   # the compiler cache's name for the kind (actions/cache keys can't hold matrix.sanitize's comma)
             skip_tests: '^(audio_realtime|input_live_drive|hfr_paced|hfr_paced_queue|hfr_paced_60|hfr_paced_game60|hfr_paced_busy|paced_vsync|audio_realtime_game60|realtime_game60_v60|realtime_auto_even)$'
           # AddressSanitizer on x86-64: the arm job's set (its skip list, below, and why), on the x86-64 runner.
           - os: ubuntu-24.04
             sanitize: address,undefined
+            cache: asan
             skip_tests: >-
               ^(audio_realtime|input_live_drive|hfr_paced|hfr_paced_queue|hfr_paced_60|hfr_paced_game60|hfr_paced_busy|paced_vsync|audio_realtime_game60|realtime_game60_v60|realtime_auto_even|synth_boot_race|synth_boot_pcsetup|pak_realtime|saves_files_swap|replay_same_.*|paced_same_.*|paced_model_.*|replay_same60_.*|net_session_(sim_.*|battle2p|battlequit|memhigh2p|race2p12|adopt|pause|raceend|menu|auto|paced|fuzz|view|fps60|paced60|rumble|router|rejoin_host|rejoin_paced|recover_repeat|recover_page|outage)|paced_(realtime|audio|hold|coarse|desktop|gate|latency|stop|load))$
           - os: ubuntu-24.04-arm
             sanitize: address,undefined
+            cache: asan
             # and the race and PC SETUP's path on the host's clock, which under ASan on 4 cores don't reach their
             # states in time, the pak writer's check, whose control and run both drop thousands of retraces there,
             # and the saves' hot swap, whose F1 presses are on the host's clock too (tools/port/saves/swap.press).
@@ -260,9 +263,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.ccache
-          # by runner and by sanitizers: two jobs run on ubuntu-24.04 (UBSan, and ASan with UBSan)
-          key: ccache-sanitize-${{ matrix.os }}-${{ matrix.sanitize }}-${{ github.sha }}
-          restore-keys: ccache-sanitize-${{ matrix.os }}-${{ matrix.sanitize }}-
+          # by runner and by sanitizers (matrix.cache): two jobs run on ubuntu-24.04 (UBSan, and ASan with UBSan)
+          key: ccache-sanitize-${{ matrix.os }}-${{ matrix.cache }}-${{ github.sha }}
+          restore-keys: ccache-sanitize-${{ matrix.os }}-${{ matrix.cache }}-
       - name: Configure
         run: |
           cmake -S . -B build/san -G Ninja -DCMAKE_BUILD_TYPE=Debug -DRUSH_SANITIZE=${{ matrix.sanitize }} \
@@ -288,7 +291,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: logs-sanitize-${{ matrix.os }}-${{ matrix.sanitize }}
+          name: logs-sanitize-${{ matrix.os }}-${{ matrix.cache }}
           path: |
             build/san/synth/paths/
             build/san/Testing/Temporary/LastTest.log
