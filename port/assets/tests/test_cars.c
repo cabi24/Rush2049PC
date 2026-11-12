@@ -6,9 +6,9 @@
  * car physics descriptors (car_descriptors, whose tire constants are pointers too), and the physics that read them
  * (the torque enginetorque, calcaa, transmission; docs/port/LAYOUT.md 5); Update_MDrive reads a car's node handle's
  * low half; the brake lights (AnimateBrakeLights) read their car's slot from the visual. The car and model arrays and
- * the descriptors are host storage, as in the game (PC data, docs/port/DECOUPLE.md); the checkpoint block and the
- * tune and torque tables sit at their N64 addresses in an RDRAM window the test maps (exit 77, skipped, if it
- * can't), as the game's arena does.
+ * the descriptors are host storage, as in the game (PC data, docs/port/DECOUPLE.md), and so are the checkpoint block,
+ * the car parts and the tune, torque and tire tables, which the game's arena holds (the test's own storage, of the
+ * sizes include/game declares).
  * game: src/blob/init_cars.c src/blob/InitCarVisuals.c src/blob/InitCarPath.c
  * game: src/blob/StartEnvironment.c src/blob/groups/StartCar/startcar.c src/blob/StartFrame.c
  * game: src/blob/StartSparks.c src/blob/groups/StartWingFlame/group.c src/blob/groups/StartCar/group.c
@@ -47,9 +47,8 @@ struct car {
 /* The physics descriptor's field at MAT3's offset n: its tires[] (+0x60) are 8-byte pointers on the PC. */
 #define DESC_OFS(n) ((n) < 0x60 ? (n) : (n) < 0x70 ? 0x60 + ((n) - 0x60) * 2 : (n) + 0x10)
 #define DF(d, n, T) MF(d, DESC_OFS(n), T)
-/* Names defined here in assembly (absolute N64 addresses, support.h's TEST_ABS, or offsets into the car array) are for
- * the game's objects only: this file reaches that data by its address, since the assembler can't take a GOT reference
- * to a symbol it defines with .set. */
+/* Names defined here in assembly (offsets into the car array) are for the game's objects only: this file reaches that
+ * data by its address, since the assembler can't take a GOT reference to a symbol it defines with .set. */
 #define ALIAS(name, base, off) __asm__(".globl " #name "\n.set " #name ", " #base " + " #off)
 
 /* ---------------------------------------------------------------- the game's data the code under test uses */
@@ -59,14 +58,13 @@ struct pc_car pc_cars[PC_CAR_SLOTS];      /* gGameCar, the car records (pc_game_
 
 struct pc_model pc_models[PC_MODEL_SLOTS];    /* model[], the model records (pc_game_types.h), which data.c defines */
 #define MODEL(i) ((uint8_t *)&pc_models[i])
-TEST_ABS(gCheckpoints);                      /* the checkpoint block (Route at +0) */
-#define gCheckpoints TEST_AT(gCheckpoints)
-TEST_ABS(gCarParts);                         /* gCarParts, 0x40 bytes a car */
-#define PARTS(i) ((uint32_t *)TEST_AT(gCarParts) + (i) * 16)
-TEST_ABS(gTune);                             /* the tune table, 44 bytes an entry */
-TEST_ABS(stdtorquecurve);                    /* the torque curve */
-TEST_ABS(frontTire);                         /* the tire records after it (car_resistance names them) */
-#define TUNES ((float *)TEST_AT(gTune))
+uint8_t gCheckpoints[0x10000] __attribute__((aligned(16)));   /* the checkpoint block (Route at +0) */
+uint32_t gCarParts[52 * 16];                  /* gCarParts, 0x40 bytes a car */
+#define PARTS(i) (gCarParts + (i) * 16)
+float gTune[3 * 11];                         /* the tune table, 44 bytes an entry */
+int16_t stdtorquecurve[120];                 /* the torque curve */
+uint8_t frontTire[2 * 0x18] __attribute__((aligned(8)));   /* the front and the rear tires' records */
+#define TUNES gTune
 
 void *gCarModels[13];                      /* Car *[]: own storage, pointing into the game arena */
 /* The physics descriptors (MAT3 _tCar[6], include/game/types.h) in their host layout: own storage, as in the game. */
@@ -453,7 +451,7 @@ static void test_model(void)
     g_ntire = g_nprev = 0;
     carsetup(m);
     CHECK(MD(m, 0, void *) == desc && MD(m, 4, void *) == &TUNES[2 * 11]);
-    CHECK(MD(m, 4, void *) == TEST_AT(gTune) + 2 * 44 && MD(m, 0x40C, void *) == TEST_AT(stdtorquecurve));
+    CHECK(MD(m, 4, void *) == (uint8_t *)gTune + 2 * 44 && MD(m, 0x40C, void *) == (void *)stdtorquecurve);
     CHECK(g_ntire == 4 && g_nprev == 4);
     for (i = 0; i < 4; i++)
         CHECK(g_tire_info[i] == g_tire_records[i]);
@@ -537,11 +535,6 @@ static void test_brake_lights(void)
 
 int main(void)
 {
-    if (!test_rdram()) {
-        fprintf(stderr, "test_cars: the RDRAM window can't be mapped here: skipped\n");
-        return 77;
-    }
-    pc_fix_absolute_got();
     test_layout();
     test_init_cars();
     start_all(0);

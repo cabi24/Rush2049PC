@@ -5,8 +5,7 @@
  * profile handle (InitRecords, FindTempNameIdx, RemovePlayerScores and its caller ClearPlayerRecords,
  * RankScores), the ghost allocator _NewGhost (NewGhost), the audio manager's walk of its sound requests
  * (AudioSfxServer), and the RUSH_CHECK_CASTS check of 32-bit N64 address stores (PC_N64W). Host storage here is
- * above 4 GB, as the game's own storage is; the part with window data (the sound requests) maps the RDRAM window
- * and is skipped if it can't be.
+ * above 4 GB, as the game's own storage is (the heap's blocks too: the sound requests).
  * game: src/blob/InitBlast.c src/blob/UpdateEnvirons.c src/blob/SkyUpdate.c
  * game: src/blob/InitRecords.c src/blob/FindTempNameIdx.c src/blob/RemovePlayerScores.c
  * game: src/blob/ClearPlayerRecords.c src/blob/groups/highscore_rank/RankScores.c
@@ -92,7 +91,7 @@ static void test_visuals(void)
     for (i = 0; i < 4; i++) {
         visuals[i].next = i < 3 ? &visuals[i + 1] : NULL;
         visuals[i].timeStamp = 0.0333333f;   /* N64 +0x14, where the 32-bit walk took the func from */
-        visuals[i].data = TEST_SCRATCH + i;   /* a data word */
+        visuals[i].data = 0x5A00u + i;        /* a data word */
     }
     visuals[0].func = end_self;
     visuals[1].func = record;
@@ -317,8 +316,6 @@ int32_t osRecvMesg(void *q, void **m, int32_t flags) { return 0; }
 int32_t osSendMesg(void *q, void *m, int32_t flags) { return 0; }
 void *AllocateMemoryHeapHigh(void *heap, uint32_t size) { return NULL; }
 uint8_t gRealNewGhostHeaders[4][0x58];             /* the race's recording headers (ghost_recording) */
-TEST_ABS(ghost_file_handles);                     /* the N64's handle slots and records, in the game arena: */
-TEST_ABS(ghost_file_records);                      /* not used on the PC */
 
 static void test_ghosts(void)
 {
@@ -356,7 +353,7 @@ static void test_ghosts(void)
 
 void AudioSfxServer(void);
 
-/* The audio manager's request entries (24 bytes, no pointers) are a heap block: window addresses. */
+/* The audio manager's request entries (24 bytes, no pointers) are a heap block. */
 void *gSfxInstances;
 int32_t gNumInstances, gNumChannels;
 int8_t audiosfx_gInited, gStopAllEffects;
@@ -387,16 +384,12 @@ static void *list_last;   /* the list the last link or unlink was on */
 static int list_links, list_unlinks;
 void InsertLLE(void *list) { list_last = list, list_links++, sfx_calls++; }
 void RemoveLLE(void *list) { list_last = list, list_unlinks++, sfx_calls++; }
-#define SFX_AT (TEST_SCRATCH + 0x10000u)
+static uint8_t sfx_entries[3 * 24] __attribute__((aligned(16)));   /* the request entries' heap block */
 
 static void test_sound_requests(void)
 {
-    uint8_t *e = (uint8_t *)(uintptr_t)SFX_AT;
+    uint8_t *e = sfx_entries;
 
-    if (!test_rdram()) {
-        fprintf(stderr, "test_casts: the RDRAM window can't be mapped here: sound request part skipped\n");
-        return;
-    }
     memset(e, 0, 3 * 24);
     e[0] = e[1] = 1, *(int32_t *)(e + 8) = 7, *(int32_t *)(e + 0x10) = 100;            /* finished */
     e[24] = e[25] = 1, *(int32_t *)(e + 32) = 8, *(int32_t *)(e + 24 + 0x10) = 101;    /* still playing */
@@ -420,11 +413,9 @@ typedef struct { void *prev, *next; uint8_t kind, busy, pad[2]; void *entry; flo
 
 static void test_sound_effect(void)
 {
-    uint8_t *e = (uint8_t *)(uintptr_t)SFX_AT;
+    uint8_t *e = sfx_entries;
     static TestSfxNode start, change;
 
-    if (!test_rdram())
-        return;
     memset(e, 0, 24);
     e[0] = 1, *(int32_t *)(e + 8) = 9, *(int32_t *)(e + 12) = 0x123;   /* in use, handle 9, effect 0x123 */
     *(int32_t *)(e + 0x10) = -1;
@@ -523,8 +514,6 @@ static void test_check_casts(void)
 
 int main(void)
 {
-    if (test_rdram())
-        pc_fix_absolute_got();
     test_blast_mats();
     test_visuals();
     test_camera_matrix();

@@ -5,7 +5,7 @@
  * the flagged nodes in a heap block of slots, UpdateBattleHealth, UpdateBattleShield and UpdateBattleInvs (a node's
  * flags, handle and object), PauseTargets, which gives every node on the list state 2 and no sound, and the pause
  * screen's PauseTargets, which does the same when a race is paused (updatePauseScreen, the nonmatching draft the PC
- * builds). The heap sits in an RDRAM window the test maps (exit 77, skipped, if it can't).
+ * builds). The heap's blocks are the test's own memory.
  * game: src/blob/initTargetStructs.c src/blob/ClearStatLL.c src/blob/GetStatLLE.c
  * game: src/blob/PauseTargets.c src/ovl_b/InitBattlePowerUps.c src/ovl_b/groups/powerups/powerups.c
  * game: nonmatching/game/updatePauseScreen.c src/blob/AudPauseAllEffects.c src/blob/AudResumeAllEffects.c
@@ -23,15 +23,12 @@ typedef struct { uint8_t doubly; int32_t count, size; void *mem, *active, *free;
 typedef struct { void *object; int16_t active, count; } Slot;
 
 #define NF(n, off, T) (*(T *)((uint8_t *)(n) + (off)))   /* a field at its offset (the input records, the car) */
-#define W32(p) ((uint32_t)(uintptr_t)(p))
-#define WP(a) ((void *)(uintptr_t)(a))
 #define ALIAS(name, base, off) __asm__(".globl " #name "\n.set " #name ", " #base " + " #off)
 
 /* ---------------------------------------------------------------- the game's data */
 
 struct tTarget pc_target_nodes[PC_TARGET_NODES];   /* the nodes (pc_game_types.h), which data.c defines */
 #define NODE(i) (&pc_target_nodes[i])
-#define HEAP TEST_SCRATCH             /* the game heap (AllocateMemoryHeap) */
 
 StatLL gTargetList, gAlwaysColList;
 
@@ -54,15 +51,16 @@ struct pc_car pc_cars[PC_CAR_SLOTS];   /* the car records (pc_game_types.h) */
 
 /* ---------------------------------------------------------------- what the code under test calls */
 
-static uint32_t g_heap = HEAP;
+static uint8_t g_heap_memory[0x10000];   /* the game heap (AllocateMemoryHeap): its blocks one after another */
+static uint8_t *g_heap = g_heap_memory;
 static uint32_t g_slots_size;        /* the last block's size: InitBattlePowerUps' slots */
 void *AllocateMemoryHeap(int32_t heap, int32_t size)
 {
-    void *p = WP(g_heap);
+    void *p = g_heap;
     g_slots_size = (uint32_t)size;
     memset(p, 0, (size_t)size);
-    g_heap += (uint32_t)size;
-    memset(WP(g_heap), 0xAB, 64);    /* a guard after each block */
+    g_heap += size;
+    memset(g_heap, 0xAB, 64);        /* a guard after each block */
     return p;
 }
 float Random(float max) { return 0.0f; }   /* Random */
@@ -138,11 +136,6 @@ int main(void)
     Slot *s;
     int i;
 
-    if (!test_rdram()) {
-        fprintf(stderr, "test_battle: the RDRAM window can't be mapped here: skipped\n");
-        return 77;
-    }
-    pc_fix_absolute_got();
     memset(pc_target_nodes, 0, sizeof pc_target_nodes);
     gRace = 0;
     initTargetStructs(0);

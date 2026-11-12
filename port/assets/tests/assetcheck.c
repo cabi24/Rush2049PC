@@ -4,8 +4,8 @@
  *     rush2049pc_assetcheck [baserom.us.z64] [-v]
  *
  * Each of the 183 waves is taken from the file table as _ReadWave takes it (ROM offset wave_rom_offsets, size
- * gWaveSizes, storage wave_storage_kinds: raw, LZSS or DEFLATE), put in a 32-byte-rounded block in the RDRAM window and
- * passed to pc_wave_loaded. Then:
+ * gWaveSizes, storage wave_storage_kinds: raw, LZSS or DEFLATE), put in a 32-byte-rounded block (of the tests' memory,
+ * as the game's heap gives one) and passed to pc_wave_loaded. Then:
  *   - no converter may report a file it refused or cut ("runs past", "outside", "doesn't parse", ...);
  *   - WADs (the records the converter built beside the file, against the file's own): each record chunk's count fits
  *     before the next chunk; OBHD radii and LOD radii are finite, display lists 8-aligned in the file, and a level
@@ -502,17 +502,12 @@ int main(int argc, char **argv)
         return 1;
     }
     g_rom = rom, g_rom_size = (size_t)len;
-    uint8_t *window = test_rdram();
-    if (!window) {
-        printf("assetcheck: the RDRAM window at 0x%X can't be mapped here: skipped\n", PC_RDRAM_BASE);
-        return 77;
-    }
     g_game = malloc(GAME_SIZE);
     if (!g_game || inflate_raw(rom + GAME_ROM, g_rom_size - GAME_ROM, g_game, GAME_SIZE) != GAME_SIZE) {
         printf("assetcheck: the game image doesn't inflate from ROM 0x%X\n", GAME_ROM);
         return 1;
     }
-    uint8_t *buf = window + 0x200000;
+    uint8_t *buf = test_memory() + 0x200000;
     unsigned files[8] = {0};
     for (int w = 0; w < WAVES; w++) {
         uint32_t off = game32(g_wave_rom_offsets + 4 * w) & 0x0FFFFFFF, size = boot32(g_wave_sizes + 4 * w);

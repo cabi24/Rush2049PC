@@ -36,12 +36,12 @@ static inline int test_rand(unsigned *seed)
 
 /* ---------------------------------------------------------------- stubs.c: port/ultra stand-ins */
 
-/* A fake RDRAM: buffers standing for the game's heap, where its sample caches, codebooks and outputs are (the task
- * capture copies a region's neighbours there, stubs.c's pc_n64_addr). */
-#define TEST_RDRAM_SIZE 0x400000u
-extern uint8_t test_rdram[TEST_RDRAM_SIZE];
-void *rdram_alloc(size_t size);   /* zeroed, 16-byte aligned */
-void rdram_reset(void);
+/* A fake game heap: buffers standing for the game's heap blocks, where its sample caches, codebooks and outputs are
+ * (the task capture copies a region's neighbours there, stubs.c's pc_heap_holds). */
+#define TEST_HEAP_SIZE 0x400000u
+extern uint8_t test_heap[TEST_HEAP_SIZE];
+void *heap_alloc(size_t size);   /* zeroed, 16-byte aligned */
+void heap_reset(void);
 void test_set_rom(const uint8_t *rom, size_t size);
 
 /* ---------------------------------------------------------------- ref.c */

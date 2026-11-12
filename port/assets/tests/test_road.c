@@ -68,7 +68,7 @@ static int16_t s16_at(const uint8_t *p) { int16_t v; memcpy(&v, p, 2); return v;
 int main(void)
 {
     static uint8_t buf[0x400];
-    uint8_t *w = test_rdram(), *f = w ? w + 0x400000 : buf;
+    uint8_t *f = buf;
     float x;
     uint32_t v;
     int k;

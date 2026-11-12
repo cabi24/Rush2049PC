@@ -11,36 +11,33 @@ int test_finish(const char *name)
     return test_failures ? 1 : 0;
 }
 
-_Alignas(16) uint8_t test_rdram[TEST_RDRAM_SIZE];
-static size_t rdram_used;
+_Alignas(16) uint8_t test_heap[TEST_HEAP_SIZE];
+static size_t heap_used;
 
-void rdram_reset(void)
+void heap_reset(void)
 {
-    memset(test_rdram, 0, rdram_used);
-    rdram_used = 0x1000;   /* the window's first address (PC_RDRAM_BASE) itself stays unused */
+    memset(test_heap, 0, heap_used);
+    heap_used = 0x1000;   /* the first 4 KiB stay unused, as the game heap's header and first chunks are */
 }
 
-void *rdram_alloc(size_t size)
+void *heap_alloc(size_t size)
 {
-    if (!rdram_used)
-        rdram_used = 0x1000;
-    rdram_used = (rdram_used + 15) & ~(size_t)15;
-    if (rdram_used + size > TEST_RDRAM_SIZE)
+    if (!heap_used)
+        heap_used = 0x1000;
+    heap_used = (heap_used + 15) & ~(size_t)15;
+    if (heap_used + size > TEST_HEAP_SIZE)
         return NULL;
-    void *p = test_rdram + rdram_used;
+    void *p = test_heap + heap_used;
     memset(p, 0, size);
-    rdram_used += size;
+    heap_used += size;
     return p;
 }
 
-/* The capture (musyx.c's cap_region) asks whether a region is in RDRAM, to copy its neighbours as the RSP reads them:
- * here the fake RDRAM is. */
-uint32_t pc_n64_addr(const void *host)
+/* The capture (musyx.c's cap_region) asks whether a region is in the game's heap, to copy its neighbours as the RSP
+ * reads them: here the fake heap is. */
+int pc_heap_holds(const void *p)
 {
-    const uint8_t *p = host;
-    if (p < test_rdram || p >= test_rdram + TEST_RDRAM_SIZE)
-        return 0;
-    return PC_RDRAM_BASE + (uint32_t)(p - test_rdram);
+    return (const uint8_t *)p >= test_heap && (const uint8_t *)p < test_heap + TEST_HEAP_SIZE;
 }
 
 static struct {

@@ -1187,7 +1187,7 @@ file(GLOB PC_ASSETS_TESTS CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/port/assets/test
 foreach(t ${PC_ASSETS_TESTS})
     get_filename_component(n ${t} NAME_WE)
     string(REGEX REPLACE "^test_" "" n ${n})
-    add_executable(test_assets_${n} ${t} port/assets/tests/support.c port/ultra/n64mem.c port/ultra/absfix.c
+    add_executable(test_assets_${n} ${t} port/assets/tests/support.c port/ultra/n64mem.c
         port/ultra/rcpaddr.c $<TARGET_OBJECTS:pcassets>)
     target_include_directories(test_assets_${n} PRIVATE port/include port/assets port/assets/tests)
     target_compile_options(test_assets_${n} PRIVATE -std=gnu11 -Wall -Wextra -Wno-unused-parameter)
@@ -1246,7 +1246,7 @@ target_compile_definitions(test_assets_pools PRIVATE ${PC_POOLS_TEST_SIZES})
 target_compile_definitions(test_assets_pools_game PRIVATE ${PC_POOLS_TEST_SIZES})
 target_sources(test_assets_pools PRIVATE port/ultra/pools.c)
 target_include_directories(test_assets_pools PRIVATE port/ultra)
-# The heap's test runs port/ultra/heap.c on the game's own heap (docs/port/MEMORY.md 4), in a 32 MiB window.
+# The heap's test runs port/ultra/heap.c on the game's own heap (docs/port/MEMORY.md 4), in 32 MiB of the tests' memory.
 target_sources(test_assets_heap PRIVATE port/ultra/heap.c)
 target_include_directories(test_assets_heap PRIVATE port/ultra)
 target_compile_definitions(test_assets_heap PRIVATE TEST_HEAP_C)   # support.c leaves the heap's reports to heap.c
@@ -1288,7 +1288,7 @@ set_target_properties(test_assets_wad_game test_wad_game PROPERTIES EXPORT_COMPI
 # rush2049pc_assetcheck: every wave of your ROM through the converters, checked as the game reads it
 # (port/assets/tests/assetcheck.c, docs/port/ASSETS.md 8). Skipped (77) without a ROM.
 add_executable(rush2049pc_assetcheck port/assets/tests/assetcheck.c port/assets/tests/support.c port/ultra/n64mem.c
-    port/ultra/absfix.c $<TARGET_OBJECTS:pcassets>)
+    $<TARGET_OBJECTS:pcassets>)
 target_include_directories(rush2049pc_assetcheck PRIVATE port/include port/assets port/assets/tests)
 target_compile_options(rush2049pc_assetcheck PRIVATE -std=gnu11 -Wall -Wextra -Wno-unused-parameter)
 target_compile_definitions(rush2049pc_assetcheck PRIVATE PC_DATA_ROM="${CMAKE_SOURCE_DIR}/baserom.us.z64"

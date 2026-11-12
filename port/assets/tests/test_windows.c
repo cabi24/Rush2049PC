@@ -147,7 +147,8 @@ static void test_round_trip(void)
 static void test_frame_clear(void)
 {
     static Gfx dl[8];
-    void *buf0 = (void *)(uintptr_t)TEST_SCRATCH, *buf1 = (void *)(uintptr_t)(TEST_SCRATCH + 0x40000u);
+    static uint16_t colour0[16], colour1[16];   /* the two frame buffers (only their places are read) */
+    void *buf0 = colour0, *buf1 = colour1;
 
     memcpy(frame_records + 0xC8, &buf0, sizeof buf0);
     memcpy(frame_records + 208 + 0xC8, &buf1, sizeof buf1);

@@ -9,8 +9,8 @@
  * another file; CompressGhost makes a ghost, SaveGhost writes it, _ReadGhostHeader and _ReadGhostData read it back,
  * and the replay plays and records through its header; PS_DeleteFile deletes a ghost's and a profile's file through
  * RemoveFile. The pak's notes are the test's (in place of the SI and the Pfs C, which the selftest covers); the
- * game's heap runs in an RDRAM window the test maps (exit 77, skipped, if it can't), so its blocks and handles are
- * window addresses, as in the game.
+ * game's heap runs in the tests' memory (support.h), with the N64's size, so its blocks and handles are host pointers
+ * into it, as in the game.
  * game: src/blob/groups/paksysdc/group.c nonmatching/game/PS_ReadPartialFile.c src/blob/PS_ReadFile.c
  * game: src/blob/groups/paksysdc_flush/group.c src/blob/SaveFlush.c src/blob/pak_poll_inserted.c
  * game: src/blob/InsertLLE.c src/blob/RemoveLLE.c src/blob/pak_encode_name.c src/blob/pak_decode_name.c
@@ -32,8 +32,9 @@
 #include "support.h"
 
 #define ALIAS(name, base, off) __asm__(".globl " #name "\n.set " #name ", " #base " + " #off)
-#define W32(p) ((uint32_t)(uintptr_t)(p))
-#define IN_WINDOW(p) ((uintptr_t)(p) >= PC_RDRAM_BASE && (uintptr_t)(p) < PC_RDRAM_BASE + PC_RDRAM_SIZE)
+/* p is in the game heap's memory (pc_heap_memory: the tests' memory from TEST_HEAP_OFFSET to osMemSize). */
+#define IN_HEAP(p) ((const uint8_t *)(p) >= test_memory() + TEST_HEAP_OFFSET && \
+                    (const uint8_t *)(p) < test_memory() + osMemSize)
 
 /* ---------------------------------------------------------------- the PC layouts */
 
@@ -190,8 +191,7 @@ void **gGhosts[4];                           /* gGhosts: the ghosts of a race */
 uint8_t gRealNewGhostHeaders[4][GH_BYTES] __attribute__((aligned(8)));   /* the race's recording headers */
 void *gMainHeap;                            /* the heap */
 int32_t heap_lock_msg;
-TEST_ABS(osMemSize);                           /* osMemSize */
-#define OSMEMSIZE_OFF (TEST_N64(osMemSize) - PC_RDRAM_BASE)   /* osMemSize's offset in the window */
+uint32_t osMemSize = 0x400000;                 /* libultra's boot parameter: 4 MB, no Expansion Pak */
 struct { uint8_t pad[72]; void **handle; } gPlayers[4];   /* the input records' profile handles */
 int16_t gNumPlayers;
 float gRetraceTime = 1.0f / 60;                   /* gRetraceTime */
@@ -434,8 +434,8 @@ static void test_handles(void)
 {
     uint8_t **a = AllocateHandleHeap(NULL, 64), **b = AllocateHandleHeap(NULL, 64);
 
-    CHECK(IN_WINDOW(a) && IN_WINDOW(b) && a != b);
-    CHECK(IN_WINDOW(*a) && IN_WINDOW(*b) && *a != *b && (*b - *a == 64 + 32 || *a - *b == 64 + 32));
+    CHECK(IN_HEAP(a) && IN_HEAP(b) && a != b);
+    CHECK(IN_HEAP(*a) && IN_HEAP(*b) && *a != *b && (*b - *a == 64 + 32 || *a - *b == 64 + 32));
 }
 
 /* PS_InitPakSys and the default profiles; PS_PakServer finds the pak, empty. */
@@ -476,7 +476,7 @@ static void test_create(void)
     CHECK(f->MoveFile == (void (*)(void **, void **))MovePlayerFile);
     CHECK(f->pak == PAK && f->fileNo == 0 && f->size == 2304 && f->blocks == 9);   /* whole pages */
     CHECK(!strcmp(f->name, "RUSH2049ALICE") && !strcmp(f->ext, "P"));
-    CHECK(f->data != NULL && p->data == f->data && IN_WINDOW(f->data) && IN_WINDOW(*f->data));
+    CHECK(f->data != NULL && p->data == f->data && IN_HEAP(f->data) && IN_HEAP(*f->data));
     CHECK(!strcmp(p->name, "ALICE") && p->controls[10] == 1 && p->controls[0] == 1 && p->controls[9] == 7);
     CHECK(gPlayerFiles.head == player && gPlayerFiles.count == 1 && p->next == NULL && p->prev == NULL);
     n = note_named("RUSH2049ALICE", "P");
@@ -580,7 +580,7 @@ static void test_ghost(void)
 
     /* the recording: 4 frames of gear and flags, steering, and gas and brake, 600 apart */
     buf = AllocateMemoryHeap(NULL, 3 * max);
-    CHECK(IN_WINDOW(buf));
+    CHECK(IN_HEAP(buf));
     memset(buf, 0, 3 * max);
     buf[0] = 0x0B, buf[1] = 0x12, buf[2] = 0x0A, buf[3] = 0x01;
     buf[max] = 0x7F, buf[max + 1] = (uint8_t)-127, buf[max + 3] = 64;
@@ -606,7 +606,7 @@ static void test_ghost(void)
     CHECK(g->playerId[0] == 0x11112222 && g->playerId[1] == 0x33334444);
     CHECK(g->ll == NULL && g->fileh == NULL && g->datah == NULL && g->header != NULL);
     h = *g->header;
-    CHECK(IN_WINDOW(g->header) && IN_WINDOW(h) && h[GH_REV] == 17 && h[GH_TRACK] == 3);
+    CHECK(IN_HEAP(g->header) && IN_HEAP(h) && h[GH_REV] == 17 && h[GH_TRACK] == 3);
     CHECK(U32(h, GH_HAS_SAMPLES) == 0 && U32(h, GH_OFFSET) == 0 && U32(h, GH_COUNT) == 0);
     CHECK(U32(h, GH_ZSIZE) == 12 && U32(h, GH_SIZE) == 12 && U32(h, GH_ID) == 0x11112222);
     CHECK(U32(h, GH_SUM) == CalcChecksumInternal(h + GH_REV, GH_ZSUM - 4));
@@ -707,15 +707,8 @@ static void test_delete(void)
 
 int main(void)
 {
-    uint8_t *w = test_rdram();
     int i;
 
-    if (!w) {
-        fprintf(stderr, "test_save: the RDRAM window can't be mapped here: skipped\n");
-        return 77;
-    }
-    pc_fix_absolute_got();
-    U32(w, OSMEMSIZE_OFF) = 0x400000;                  /* osMemSize: 4 MB */
     gControllerData[PAK].present = 1;
     for (i = 0; i < 256; i++)                          /* the N64 pak font: 0, space, digits, letters */
         pak_charset[i] = 0xFFFF;

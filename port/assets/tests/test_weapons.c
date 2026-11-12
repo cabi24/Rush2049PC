@@ -3,8 +3,7 @@
  * (_AnimateWeaponIcon), from their drafts in nonmatching/game (docs/port/POINTERS.md 10). The icon is a level-object
  * node (struct tTarget, the host layout), the cars have their PC layout (0x510 bytes, docs/port/CARS.md) and the
  * model records their N64 one. Cars, records and nodes past the first are used, so an N64 stride or a field at its
- * N64 offset lands somewhere else. The heap's records sit in an RDRAM window the test maps (exit 77, skipped, if it
- * can't).
+ * N64 offset lands somewhere else. The heap's records are the test's own memory.
  * game: nonmatching/game/StartWeaponIcon.c nonmatching/game/AnimateWeaponIcon.c
  * game: src/blob/ZOID_ObjectFlags.c
  */
@@ -34,14 +33,12 @@ _Static_assert(sizeof(TInfo) == TINFO_OFS(0x30) && offsetof(TInfo, sound) == TIN
 
 #define NF(n, off, T) (*(T *)((uint8_t *)(n) + (off)))   /* a field at its N64 offset (a heap record, the model) */
 #define CF(c, off, T) (*(T *)((uint8_t *)(c) + CAR_OFS(off)))   /* a car field by its N64 offset */
-#define W32(p) ((uint32_t)(uintptr_t)(p))
-#define WP(a) ((void *)(uintptr_t)(a))
 
 /* ---------------------------------------------------------------- the game's data */
 
 static struct tTarget g_nodes[8];   /* level-object nodes (the game's are pc_target_nodes) */
 #define NODE(i) (&g_nodes[i])
-#define HEAP TEST_SCRATCH   /* the game heap's blocks */
+static uint8_t g_heap[0x1000] __attribute__((aligned(16)));   /* the game heap's blocks */
 TInfo targetInfo[122];
 struct pc_car pc_cars[PC_CAR_SLOTS];                  /* the car records (pc_game_types.h) */
 #define CAR(i) ((uint8_t *)&pc_cars[i])
@@ -163,7 +160,7 @@ static void test_visual(void)
 {
     struct pc_visual v;
     struct tTarget *t;
-    uint8_t *rate = WP(HEAP + 0x100u);
+    uint8_t *rate = g_heap + 0x100u;
 
     memset(&v, 0, sizeof v);
     t = icon(352, 0x02, 0);
@@ -201,10 +198,6 @@ static void test_visual(void)
 
 int main(void)
 {
-    if (!test_rdram()) {
-        fprintf(stderr, "test_weapons: the RDRAM window can't be mapped here: skipped\n");
-        return 77;
-    }
     for (int i = 0; i < 122; i++)
         targetInfo[i].sound = -1;
     targetInfo[INFO].sound = 0x5151;

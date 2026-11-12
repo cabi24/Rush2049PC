@@ -7,7 +7,7 @@
  *   - the decompressors: LZSS and DEFLATE round trips, bad streams and the cap;
  *   - the checks: a good file of every kind passes; every truncation and 1000 garbage files of each kind never read
  *     outside the file (under ASan in the sanitizer builds) and the garbage is refused; 3000 small mutations of each,
- *     and the converter runs on every one that passes, in the RDRAM window;
+ *     and the converter runs on every one that passes, in a block of the tests' memory, as in a heap block;
  *   - a mods folder: mod.ini's fields, a mod without one, another game's, files by number and name, a stored LZSS
  *     file, an unknown name, the order (priorities, game.mods_order, [mods] off), two mods for one wave (the first
  *     wins), a refused file falling back to the next mod's, text overrides over the cartridge's bank (the first mod's
@@ -284,7 +284,7 @@ static int convert_complaints(int wave, uint8_t *b, size_t n)
     return complaints;
 }
 
-static void test_checks(uint8_t *window)
+static void test_checks(uint8_t *memory)
 {
     char why[256];
     for (size_t k = 0; k < sizeof k_kinds / sizeof *k_kinds; k++) {
@@ -317,10 +317,10 @@ static void test_checks(uint8_t *window)
         if (garbage_refused < 1000)
             fprintf(stderr, "%s: %d of 1000 garbage files passed\n", kd->what, 1000 - garbage_refused);
         CHECK(garbage_refused >= 990);
-        /* small mutations: those that pass go through the converter, in a window block of their size */
+        /* small mutations: those that pass go through the converter, in a block as the game's heap gives one */
         int passed = 0, complaints = 0;
         for (int t = 0; t < 3000; t++) {
-            uint8_t *blk = window + 0x100000;
+            uint8_t *blk = memory + 0x100000;
             memcpy(blk, f.b, f.n);
             for (int m = 1 + (int)(rnd() % 4); m > 0; m--)
                 blk[rnd() % f.n] = (uint8_t)rnd();
@@ -933,14 +933,9 @@ int main(int argc, char **argv)
         }
         return 0;
     }
-    uint8_t *window = test_rdram();
-    if (!window) {
-        printf("assets_mods: the RDRAM window can't be mapped here: skipped\n");
-        return 77;
-    }
     test_names();
     test_decompress();
-    test_checks(window);
+    test_checks(test_memory());
     test_folder();
     test_zip_bomb();
     test_dl_budget();
