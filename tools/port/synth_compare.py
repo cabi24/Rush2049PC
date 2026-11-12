@@ -35,7 +35,8 @@ fixed retrace), without the graphics-task counts. Runs of one executable give th
               is for (tools/port/synth/battle2p.press on the retail cartridge picks practice, docs/port/QA.md)
 
 --script, --until and --seconds run one press script of any path instead (the retail cartridge: --rom, no
---no-rom-check then, docs/port/BRINGUP.md); the logs stay in --logs. --set-b, --env-b and --args-b give the second
+--no-rom-check then, docs/port/BRINGUP.md), with the script's own `# args:` and `# env:` lines as a path's (its
+screenshots, for --shots); the logs stay in --logs. --set-b, --env-b and --args-b give the second
 executable settings, environment variables and options of its own, so one program can be compared with itself under
 other settings (docs/port/MEMORY.md 6), or in another mode: paced mode against --fast (docs/port/ULTRA.md 10), with a
 device fed from the tap (--args-b takes the options as one string, after --fast and --audio null, which it overrides);
@@ -355,10 +356,14 @@ def main():
     if a.script:
         if not a.until:
             ap.error("--script needs --until")
+        try:   # the script's own `# args:` and `# env:` lines, as a path's (its screenshots, for --shots)
+            spec = synth_paths.read_script(Path(a.script))
+        except SystemExit:   # a script without an `# until:` line: --until gives it
+            spec = {"args": [], "env": {}}
         tail = ["--press-file", str(Path(a.script).resolve()), "--until-state", a.until, "--seconds", a.seconds,
-                "--status", a.status]
+                "--status", a.status] + spec["args"]
         differ += compare(Path(a.script).stem, a.exe, a.rom, tail, a.runs, a.logs, retail=True,
-                          expect=script_expect(a.script))
+                          path_env=spec["env"], expect=script_expect(a.script))
     else:
         names = a.names or sorted(p.stem for p in synth_paths.PRESS_DIR.glob("*.press"))
         names_out = []
