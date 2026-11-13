@@ -2443,6 +2443,8 @@ typedef struct HighScoreRect { /* 0xC bytes: a player's box on the high-score sc
     s16 cy;         /* 0xA */
 } HighScoreRect;
 
+/* A menu screen's 3D button (MAT3 tMenuButton): its model, its scene object, its turn, the tUVMatrix it draws by and
+ * its alpha. */
 typedef struct MenuButton { /* 0x40 bytes */
     s32 type;         /* 0x0 */
     s32 handle;       /* 0x4 */
@@ -2503,11 +2505,12 @@ typedef struct SoundClearRecord { /* 0x30 bytes */
     struct pc_multiblit m; /* 0x0 */
 } SoundClearRecord;
 
+/* A start screen button (MAT3 startscr.c's buttonInfo, anon_buttonType_objIdx_3c): a MenuButton without the alpha. */
 typedef struct StartScreenButton { /* 0x3C bytes */
-    f32 x;            /* 0x0 */
-    f32 y;            /* 0x4 */
-    f32 angle;        /* 0x8 */
-    u8 unknown0C[36]; /* 0xC */
+    s32 type;         /* 0x0 its model, startscr_buttonNames[type] */
+    s32 handle;       /* 0x4 its scene object, -1 until it is made */
+    f32 angle;        /* 0x8 how far it has turned over, radians */
+    f32 matrix[3][3]; /* 0xC its orientation; with position, the tUVMatrix its scene object draws by */
     f32 position[3];  /* 0x30 */
 } StartScreenButton;
 
@@ -2521,16 +2524,6 @@ typedef struct TrackMapEntry { /* 0x48 bytes */
     f32 matrix[3][3]; /* 0x18 */
     f32 position[3];  /* 0x3C */
 } TrackMapEntry;
-
-typedef struct TrackScreenButton { /* 0x40 bytes */
-    f32 x;            /* 0x0 */
-    f32 y;            /* 0x4 */
-    f32 angle;        /* 0x8 */
-    u8 unknown0C[36]; /* 0xC */
-    f32 position[3];  /* 0x30 */
-    u8 alpha;         /* 0x3C */
-    u8 unknown3D[3];  /* 0x3D */
-} TrackScreenButton;
 
 typedef struct TrackSlot { /* 0x18 bytes */
     s8 gTrackNum;  /* 0x0 */

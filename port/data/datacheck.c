@@ -143,6 +143,15 @@ static const struct {
     {"trackscr_init_button_color and trackscr_update_button_color", "trackscr_init_button_color", 0, 8, 2, 1},
     {"carscr_buttonInfo, a MenuSlot's first float", "carscr_buttonInfo", 0, 4, 2, 4},
     {"carscr_buttonInfo, its alpha byte", "carscr_buttonInfo", 0x3C, 1, 2, 1},
+    /* The start and track screens' buttons (MAT3 startscr.c's and trackscr.c's buttonInfo): byte pads over their
+     * matrices kept those in the ROM's order until NATIVE.md step 14 gave the records their fields. */
+    {"startscr_buttonInfo, the first button's matrix and place", "startscr_buttonInfo", 0xC, 48, 2, 4},
+    {"startscr_buttonInfo, the last button's matrix", "startscr_buttonInfo", 17 * 0x3C + 0xC, 36, 2, 4},
+    {"trackscr_buttonInfo, the first button's matrix", "trackscr_buttonInfo", 0xC, 36, 2, 4},
+    {"trackscr_buttonInfo, the first button's alpha byte", "trackscr_buttonInfo", 0x3C, 1, 2, 1},
+    {"trackscr_buttonInfo, the last button's matrix", "trackscr_buttonInfo", 47 * 0x40 + 0xC, 36, 2, 4},
+    {"playerscr_buttonInfo, the first player's first button's matrix", "playerscr_buttonInfo", 0xC, 36, 2, 4},
+    {"playerscr_buttonInfo, its alpha byte", "playerscr_buttonInfo", 0x3C, 1, 2, 1},
     {"hudextra_playerColor, image B's player colours", "hudextra_playerColor", 0, 16, 3, 1},
     {"stunt_coin_color and weapon_icon_color", "stunt_coin_color", 0, 8, 3, 1},
     {"hitColor", "hitColor", 0, 4, 3, 1},

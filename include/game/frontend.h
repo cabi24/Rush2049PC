@@ -541,7 +541,7 @@ extern s32 titlescr_inited;
 extern struct Blit *titlescr_blit;
 extern s32 movieIdx;
 extern char *trackscr_buttonNames[EXTENT(9)];
-extern TrackScreenButton trackscr_buttonInfo[EXTENT(48)];
+extern MenuButton trackscr_buttonInfo[EXTENT(48)];
 extern f32 trackscr_title_button_position[EXTENT(3)];
 extern s32 trackscr_buttonsInited;
 extern s32 trackscr_buttonsJustInited;

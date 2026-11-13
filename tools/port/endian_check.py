@@ -2137,6 +2137,10 @@ SELFTEST_HALVES = [(("sym", "gHandles"), 0x2, "handle_index"), (("sym", "gHandle
 LOADER_EXPECT = [("gBackRects", 0x0, 4), ("gBackRects", 0xC, 4), ("gCheatState", 0x0, 2), ("gCheatState", 0x28, 2),
                  ("pause_gPlayerRects", 0x0, 4), ("pause_gPlayerRects", 0x10, 4), ("hud_playerPaneColors", 0x0, 1), ("hud_playerPaneColors", 0x5, 1),
                  ("carscr_buttonInfo", 0x0, 4), ("carscr_buttonInfo", 0x3C, 1), ("cont_bit_pattern", 0x0, 1), ("gResetLastKeyTime", 0x0, 1),
+                 # the start and track screens' buttons: their matrices (NATIVE.md step 14), the track screen's alpha
+                 ("startscr_buttonInfo", 0xC, 4), ("startscr_buttonInfo", 0x2C, 4), ("startscr_buttonInfo", 0x3C + 0xC, 4),
+                 ("trackscr_buttonInfo", 0xC, 4), ("trackscr_buttonInfo", 0x2C, 4), ("trackscr_buttonInfo", 0x3C, 1),
+                 ("playerscr_buttonInfo", 0xC, 4), ("playerscr_buttonInfo", 0x3C, 1),
                  ("gIgnoreCount", 0x0, 1), ("gStopAllEffects", 0x0, 1), ("vp1", 0x0, 2), ("vp1", 0xC, 2),
                  ("vplr", 0x6, 2), ("modescr_button_color", 0x0, 1), ("modescr_button_color", 0x3, 1),
                  ("target_steer_zero_dist_message", 0x0, 1), ("target_steer_zero_dist_message", 0x3, 1),
