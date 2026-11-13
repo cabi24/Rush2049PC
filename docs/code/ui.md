@@ -137,7 +137,7 @@ the circuit before). A player without a profile plays on a "just play" profile (
   (`ghost_recording`, NewGhost.c). The once-a-frame table (`gOPPFuncs`) holds function pointers, the frame records'
   colour buffer (`FrameRecord.colorBuffer`) a pointer.
 - **The game's own data in the N64's layout**: the pools (`BlitPtrs`, `gBlitInstanceList`, `gPaneBlits`, `gPaks`,
-  `pak_file_records`) are own storage in N64 order; the save data's totals are in the arena.
+  `pak_file_records`) are own storage; the save data's totals are data of their own (DATA.md 3).
 - **The RDP.** The blitter writes N64 display list commands (`G_TEXRECT`, `G_LOADTLUT` ...) that port/gfx renders;
   `BLIT_ATTR_TALL` and the copy mode are the N64's ways of drawing.
 - **Types to finish**: `HudBlitDef` is an alias of `tBlitDef` (frontend.h uses it); the prototypes of `NewBlit`, `NewMultiBlit`,

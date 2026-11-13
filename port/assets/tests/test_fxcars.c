@@ -83,7 +83,7 @@ float gModelTime, resurrectTime = 1.0f, gCarMiddles[13], unitmatrix[4][3], skid_
 float gSeconds[4], gDummyVtx[16];
 uint16_t gFireTexs[6], gObjList[220], gTexList[10];   /* the smoke, fire and spray models from 195; the skid texture, 8 */
 char *FireTexNames[6];
-int8_t gCarWings[(PC_MAX_LINKS + 1) * 13];   /* row 0 the default, then each player's option per car type ([5][13] in the game) */
+int8_t gCarWings[(PC_MAX_LINKS + 1) * 13];   /* row 0 the default, then each player's option per car type ([13][13] in the game) */
 int32_t smoke_white, smoke_wing_color1, smoke_wing_color2, smoke_wing_color3, smoke_road_color, smoke_dirt_color;
 struct { struct tTexture *data; int32_t count; } gTexDefPtrs[64];   /* TextureDefTable */
 void *gBlastMats[50];

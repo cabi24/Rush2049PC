@@ -428,8 +428,8 @@ def tables_pass(inv, build, jobs):
         where = next((a for a, (lo, hi) in arenas if lo <= addr <= hi), "outside")
         absolute[name] = addr
         inv.add(f"symbols.arena.{where}", "data_layout.json", 0, f"{name} 0x{addr:08X}")
-    for name, base, off in lay["sets"]:
-        inv.add("symbols.inside_own", "data_layout.json", 0, f"{name} = {base} + 0x{off:X}")
+    for name, base, off in lay["sets"] + [[n, b, o] for n, b, o, _ in lay.get("object_names", []) if o and n != b]:
+        inv.add("symbols.inside_own", "data_layout.json", 0, f"{name} = {base} + 0x{off:X}")   # inside a datum's storage
     for name, size in lay["own"]:
         inv.add("symbols.own", "data_layout.json", 0, f"{name} {size} B")
     for pc, size, retired in lay["decoupled"]:

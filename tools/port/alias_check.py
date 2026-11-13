@@ -21,9 +21,9 @@ pointer derived from the symbol covers the symbol's whole extent. Then, per func
 
 and per file, because the optimizer inlines within a file (there is no link-time optimization): the same between
 functions of one file that may end up in one function, the one a function calls through the file's own non-weak
-definitions, transitively (a weak copy is never inlined). Pairs read and judged are in REVIEWED. Exit status 1 if a
-function has a hazard, or a file has a pair that may be inlined together and isn't in REVIEWED. The call graph comes
-from the source text, so check a new hit by hand. Stdlib only, Python 3.9+.
+definitions, transitively (a weak copy is never inlined). Pairs read and judged, in one function or in one file, are
+in REVIEWED. Exit status 1 if a function has a hazard, or a file has a pair that may be inlined together, that isn't in
+REVIEWED. The call graph comes from the source text, so check a new hit by hand. Stdlib only, Python 3.9+.
 """
 import argparse
 import collections
@@ -38,20 +38,23 @@ import endian_check as ec  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
 
-# (source, name, name): pairs between functions of one file, read and judged.
+# (source, name, name): pairs in one function or between functions of one file, read and judged.
 _PLAYER_ROWS = ("calcSelectMenuMaxSize reads only gPlayerRects_biased[n][0] with n = gNumPlayers, 1 to 4: "
                 "gPlayerRects_biased + 96 n, in the layout table playerscr_gPlayerRects, which no code writes. "
                 "Row 0, over this name, "
                 "is never read (docs/port/DATA.md 3)")
+# gCarWings is declared to the 13 rows StartSmoke reads (include/game/cars.h), one storage with gWingSizes and
+# gFrontTireScale after its five (docs/port/NATIVE.md 18.2).
+_WING_ROWS = ("the stores to gCarWings are a player's row, [p + 1] or [i + 1] with the player under 4: bytes 13 to 64, "
+              "never gFrontTireScale's (from 80); the stores to gFrontTireScale are its own bytes, which no access to "
+              "gCarWings here reaches")
 REVIEWED = {
     ("src/ovl_a/groups/playerscr/playerscr.c", "gPlayerRects_biased", "playerscr_buttonInfo"): _PLAYER_ROWS,
     # the data at 0x803B5D0C..0x803B5D28, which row 0 covers
     **{("src/ovl_a/groups/playerscr/playerscr.c", "gPlayerRects_biased", f"playerscr_{x}"): _PLAYER_ROWS
        for x in ("gButtonZoom", "gButtonScale", "gButtonSpace", "buttonX", "maxY", "minY", "buttonZ", "cursorZ")},
-    ("src/rom/sound/sequencer.c", "sound_seq_players", "sound_seq_studio_groups"):
-        "sound_seq_set_studio_group stores sound_seq_studio_groups[index][selector] once, with the index "
-        "sound_seq_find_slot finds by reading the contexts' identifier and inactiveFC1: the store depends on those "
-        "reads, and nothing reads after it",
+    **{(src, "gCarWings", "gFrontTireScale"): _WING_ROWS
+       for src in ("src/blob/groups/save/GhostStart.c", "src/ovl_a/groups/carscr/carscr.c")},
 }
 
 
@@ -183,8 +186,11 @@ def main():
           f"{len(acc)} functions")
     for (unit, func), v in sorted(acc.items()):
         for (x, y), lines in sorted(pairs(v).items()):
-            bad += 1
             ls = ", ".join(f"{p}/{q}" for p, q in sorted(lines)[:4])
+            if (unit, x, y) in REVIEWED:
+                print(f"hazard  {unit} {func}: {x} and {y} (lines {ls}): reviewed: {REVIEWED[(unit, x, y)]}")
+                continue
+            bad += 1
             print(f"hazard  {unit} {func}: {x} and {y} reach the same bytes (lines {ls})")
     per_unit = collections.defaultdict(list)
     for (unit, func), v in acc.items():

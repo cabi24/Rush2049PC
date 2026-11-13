@@ -189,7 +189,6 @@ extern unsigned int sound_seq_next_id;
 extern u8 sound_track_volumes[SEQ_TRACKS];
 extern int sound_synth_frequency;
 extern unsigned char sound_initialized;
-/* the data loader's label for slot 0's track_groups (MUSYX_DATA.md 8.2), indexed by slot */
 
 /* The synth, the volume groups and this file's functions */
 extern int sound_stop_unlocked(u32);

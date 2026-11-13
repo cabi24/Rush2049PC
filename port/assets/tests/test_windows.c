@@ -1,5 +1,5 @@
 /* port/assets/tests/test_windows.c: the ZOID windows (ZoidWinInfo, 80 bytes a window on the PC) and the frame records
- * seen from frame_color_buffers through the game's own code (docs/port/POINTERS.md 10): ZOID_InitializeWindow
+ * seen from frame_records through the game's own code (docs/port/POINTERS.md 10): ZOID_InitializeWindow
  * with the projection set-up (ZOID_SetWindow), the fog set-up and read-back (ZOID_SetFog, ZOID_GetFog), the
  * m2c accessors (ZOID_SetViewport, ZOID_GetWindow), the fog regions (WorldFogDensity, which strides by hand), and a
  * world-to-screen projection (ZOID_ProjectWindow, through ZOID_GetWindow) undone by the unprojection
@@ -28,13 +28,10 @@ typedef struct {
 } Window;
 _Static_assert(sizeof(Window) == 80 && offsetof(Window, range_start) == 0x48, "the window's host layout");
 
-#define ALIAS(name, base, off) __asm__(".globl " #name "\n.set " #name ", " #base " + " #off)
-
 Window ZoidWinInfo[4];
 /* The frame records (Segs, 2 x 208 bytes on the PC: the native OSScTask, then the display list, the colour
- * buffer at +0xC8); frame_color_buffers is frame 0's colour buffer, as gen_data places it. */
+ * buffer at +0xC8, ClearScreen's frame_records[n].colorBuffer). */
 uint8_t frame_records[2 * 208] __attribute__((aligned(16)));
-ALIAS(frame_color_buffers, frame_records, 0xC8);
 struct { int16_t scale[4], translate[4]; } vp0;
 float gViewableDistance;
 int32_t screen_width = 320, screen_height = 240;

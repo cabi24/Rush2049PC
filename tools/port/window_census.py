@@ -446,8 +446,8 @@ def scan_tables(cen, build, jobs):
             cen.add("data.window_aliases", "data_layout.json", 0, f"{name} 0x{addr:08X}")
         else:
             cen.add("context.cartridge_aliases", "data_layout.json", 0, f"{name} 0x{addr:08X}")
-    for name, base, off in lay["sets"]:
-        cen.add("data.inside_own", "data_layout.json", 0, f"{name} = {base} + 0x{off:X}")
+    for name, base, off in lay["sets"] + [[n, b, o] for n, b, o, _ in lay.get("object_names", []) if o and n != b]:
+        cen.add("data.inside_own", "data_layout.json", 0, f"{name} = {base} + 0x{off:X}")   # inside a datum's storage
     for name, addr, size in lay.get("reserved", []):
         window[name] = addr
         cen.add("data.reserved", "data_layout.json", 0, f"{name} 0x{addr:08X} {size} B")

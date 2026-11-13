@@ -113,8 +113,8 @@ extern f32 gCarBraking[EXTENT(13)];
 extern f32 gCarMass[EXTENT(13)];
 extern f32 gCollisionMass[EXTENT(14)];
 extern f32 gCrashThreshold[EXTENT(13)];
-/* The car settings chosen (MAT3 [5][13] tables: gCarTrans ... gCarHorn, gTireRims, the paint choices in frontend.h): row
- * 0 the cars' own, row 1 + player each player's, a column per car type. */
+/* The car settings chosen (MAT3 [5][13] tables: gCarTrans ... gCarHorn, gTireRims, the paint choices in frontend.h):
+ * row 0 the cars' own, row 1 + player each player's, a column per car type. */
 extern s8 gCarTrans[5][13];
 extern f32 carTransGearRatio[EXTENT(8)][6];
 extern s8 gCarHandling[5][13];
@@ -125,7 +125,10 @@ extern f32 gTireDrift[EXTENT(5)][3];
 extern f32 gTireSideForce[EXTENT(5)];
 extern s8 gCarFrame[5][13];
 extern f32 carDurability[EXTENT(6)];
-extern s8 gCarWings[5][13];
+/* gCarWings' rows past 4 aren't its: StartSmoke reads row slot + 1 for every car, which for a drone runs on into
+ * gWingSizes and the tyre scales after it, as the N64 did; declared to the 13 rows that reaches (12 cars), the data
+ * after share its storage (gen_data's OVERLAPS_REVIEWED). */
+extern s8 gCarWings[13][13];
 extern f32 gWingSizes[EXTENT(3)];
 extern f32 gFrontTireScale[5][13];
 extern f32 gRearTireScale[5][13];

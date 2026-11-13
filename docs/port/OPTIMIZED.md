@@ -74,9 +74,10 @@ walk never met its end and called `ZOID_RemovePoly` on whatever followed.
 **Fixes.**
 - The walk ends at the handles' end under `TARGET_PC` (`#define bg_texture ((&backPolys)[4])`, the N64 tokens
   unchanged). The Debug object differs only in that bound, which Debug's layout gave the same address.
-- data.c is compiled with `-fno-toplevel-reorder`, so own storage keeps data.c's order, N64 address order, in every
-  build type, and any other walk from one symbol to the next behaves as in Debug.
-- `gen_data.py --check` verifies that order in the linked executable (`398 own in N64 order`).
+- data.c was compiled with `-fno-toplevel-reorder`, so own storage kept data.c's order, N64 address order, in every
+  build type, and `gen_data.py --check` verified that order. Since [NATIVE.md](NATIVE.md) step 13 neither: every datum
+  is an object of its own, the walks AddressSanitizer found between data are fixed, and the compiler places data.c's
+  objects as it likes (GCC reverses them at `-O2`), which the optimized build's comparison with the base checks.
 
 A scan of the game C for comparisons against the address of an own-storage symbol finds this walk and
 `RemovePanes`'s, which has had a PC version since the synthetic cartridge (SYNTH.md 3).
@@ -127,8 +128,10 @@ functions of one file that the file's calls may inline into one function. Over 2
 
 The current `-O2` objects happened to keep the order in all three; the fixes make that a guarantee. The other pairs
 it lists are read and judged in its `REVIEWED` table (the player rows `gPlayerRects_biased[n][0]`, which land in a table no
-code writes; the MusyX context table, whose one store depends on the reads before it), and three more are never in
-one function with a write. CI runs it (section 4).
+code writes; since [NATIVE.md](NATIVE.md) 18 `gCarWings`' 13 rows, one storage with `gFrontTireScale`, whose stores in
+`GhostStart` and the car screen are the players' rows, before the tyre scales' bytes; until then the MusyX context
+table, whose one store depended on the reads before it, now one name, `sound_seq_players[index].track_groups`), and
+three more are never in one function with a write. CI runs it (section 4).
 
 ### 2.6 Outside the game C
 
@@ -305,7 +308,7 @@ a constant offset past it: no store or load to confuse. `[200]` would change the
 |---|---|---|---|
 | `-ffp-contract=off` | game C (`game_flags`) | each float operation rounded on its own, as the VR4300 does (2.3) | no change: `-O0` never fuses |
 | `-fno-aggressive-loop-optimizations` | game C | the declarations are views shorter than their data (2.4) | no change |
-| `-fno-toplevel-reorder` | data.c (`pcdata`) | own storage in N64 address order (2.2) | no change: `-O0` keeps the order |
+| `-fno-toplevel-reorder` (until [NATIVE.md](NATIVE.md) step 13) | data.c (`pcdata`) | own storage in N64 address order (2.2) | no change: `-O0` keeps the order |
 | `-O0 -g -UNDEBUG` | `game_types`, the second copy of the game objects for gen_data's types (non-Debug only) | DWARF with every declaration (2.1) | not built: the game objects are used |
 | `-O0` | `pc_data_test_decls` (and `game_probe`, gen_weak's, until 2026-11-08) | the same at every build type | no change |
 | `no_reorder` (attribute) | gen_weak's PE anchor (until 2026-11-08) | first global of its file (2.6) | no change |

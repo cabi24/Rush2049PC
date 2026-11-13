@@ -20,20 +20,21 @@ No ROM bytes are read here or written into the build.
    and for the host (the DWARF offsets). The result is a field program: runs of (kind, count, N64 offset, host
    offset), repeated with strides for arrays. A union is copied as bytes when a member made of bytes covers it
    (the colour unions), else laid out by its largest member.
-3. Storage. Each image's data and BSS is an arena laid out as on the N64, in a block of host memory of its own that
-   data.c defines (pc_arena_boot, pc_arena_game, pc_arena_ovl_a, pc_arena_ovl_b: zero-filled, from the start of the
-   page of the arena's first N64 address, so each datum's host address is as aligned as its N64 address), and a
-   symbol with no pointers whose two layouts agree is a name in that block at its N64 offset (an assembler .set
-   relative to the block), so code that indexes from one symbol into the next keeps working. A symbol with pointers,
-   or whose host layout differs, gets its own storage in the executable; symbols inside its N64 extent are defined at
+3. Storage. Each image's data and BSS is an arena, laid out as on the N64, which the loader lays out in a buffer of
+   its own. A symbol with no pointers whose two layouts agree is an object of its own in data.c (pc_datum_<i>), from
+   its N64 address to the next datum's (arena_objects: the bytes after its extent that no declaration covers stay
+   with it, as in the N64's layout), which the loader fills from the arena's layout (--objects, all by default; an
+   arena left out is a block in the N64's layout, as until docs/port/NATIVE.md step 13). A symbol with pointers, or
+   whose host layout differs, gets its own storage in the executable; symbols inside its N64 extent are defined at
    the matching host offsets. Where declarations overlap in an arena at other element widths (bytes included), the
    most informative one decides and the rest are reported. Every name data.c defines is relocatable: the
-   executable's own relocations (ELF, PE) place it, and none is at an N64 address (docs/port/NATIVE.md step 5).
+   executable's own relocations (ELF, PE) place it, and none is at an N64 address (docs/port/NATIVE.md 17, 18).
 4. Addresses: the referencing image's symbol table (asm/us/<image>/symbols.json, what the N64 build linked
    against), then symbol_addrs.us.txt and undefined_syms_auto.us.txt, then D_XXXXXXXX names. Functions known by
    address (layout/*.json, the symbol file, port/data/asm_functions.txt) go in a table, through weak references, so
    the loader can turn N64
-   function pointers into host ones; the game's data defined in C is listed the same way.
+   function pointers into host ones; the game's data defined in C is listed the same way, and each runtime image's
+   own C data (its objects' globals) for the loader to put back on every load of the image (pc_cdata).
 5. Names the game calls under another label of a defined function (a runtime image's stale label of a game
    function) get a branch thunk.
 
@@ -744,7 +745,7 @@ def main():
     ap.add_argument("--decls", type=Path, action="append", default=[],
                     help="the object of the canonical data declarations (port/data/game_decls.c, compiled -O0 -g "
                          "-fno-eliminate-unused-debug-symbols): a datum it declares takes its type from it alone")
-    ap.add_argument("--objects", default="",
+    ap.add_argument("--objects", default="all",
                     help="the arenas whose data are objects of their own, one per datum, comma-separated (boot, game, "
                          "ovl_a, ovl_b, or all); the others are blocks in the N64's layout (docs/port/DATA.md 3)")
     a = ap.parse_args()
@@ -1239,6 +1240,10 @@ OVERLAPS_REVIEWED = {
     ("blitPrimColor", "gPS_PakName"): "BlitXLU's environment colour (blitPrimColor.env), which nothing sets: the bytes of "
                                       "gPS_PakName's first word as the table's words are swapped, as the game always drew "
                                       "with (include/game/blit.h)",
+    ("gCarWings", "gWingSizes"): "StartSmoke's gCarWings[slot + 1] for a drone (rows past 4): the bytes of the wings' sizes "
+                                 "after the table, the floats as they load, one storage as on the N64 (include/game/cars.h)",
+    ("gCarWings", "gFrontTireScale"): "StartSmoke's gCarWings[slot + 1] for a drone (rows past 4): the bytes of the tyre "
+                                      "scales after the table, the floats as they load (include/game/cars.h)",
     ("blit_ia_palette", "blit_tile_lines"): "the IA blits' environment colour (blit_ia_palette[4..7]), which nothing sets: "
                                             "blit_tile_lines' first two u16s, one storage as on the N64 "
                                             "(include/game/maths.h)",

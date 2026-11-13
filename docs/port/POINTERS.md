@@ -691,7 +691,7 @@ range and colour. The storage had the 80-byte layout; four views padded over the
   (`frame_records` + 0x7C), as 128-byte records `{buf; ...}`. On the PC a record is 208 bytes, so frame 1's buffer was
   read 136 bytes on: the PC view runs into the next record's task, display list and count. The other three views
   of `frame_records` are arrays of half the `Segs` struct and agree with it (view_check now compares such arrays element
-  by element).
+  by element). Since [NATIVE.md](NATIVE.md) 18 `ClearScreen` reads `frame_records[n].colorBuffer`; the label is gone.
 - `TextureAnimation` typed the frame's name (`texture_swap_shared_frames`, `InitTextureAnimation`'s `Item12`) as a `u32`; it is a
   pointer. The host offsets were the same.
 

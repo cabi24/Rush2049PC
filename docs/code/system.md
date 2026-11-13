@@ -198,8 +198,9 @@ same input.
   `display_list_traverse`, `mirror_vertex_texcoords` and the texture animation read and write them as they are. The
   texels and the palettes' colours stay in the file in the N64's formats.
 - **The frame**: `frame_records`' tasks are `PcScTaskShape`, the N64 OSScTask in host form; the frame buffers and
-  the z-buffer are pointers into the heap (`framebuffer_a`, `zbuffer`); `frame_color_buffers`
-  is a label 0xC8 bytes into `frame_records`.
+  the z-buffer are pointers into the heap (`framebuffer_a`, `zbuffer`); a frame's colour buffer is
+  `frame_records[n].colorBuffer` (until [NATIVE.md](../port/NATIVE.md) 18 the label `frame_color_buffers`, 0xC8
+  bytes in).
 - **The scheduler's** queues and thread keep N64-sized storage at their N64 offsets in `PcSched`, because the game
   takes their addresses (`scheduler_task_queue` ...) and reads the retrace count at 0x27C.
 - **Data declared with the wrong width** in input.h: `gNewLevels` is one s32 to the data loader, MAT3's volatile

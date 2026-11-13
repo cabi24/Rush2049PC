@@ -277,7 +277,7 @@ field sequence with every pointer typed as one, also where the N64 header has a 
 0x88, the song at 0x10C, the 64 event tracks at 0x128 (`SequenceSlotTrack`, 24 bytes), the per-track streams in
 `SequenceTrack` (56 bytes), the tempo track, the note lists, and the request copy from 0xFC8 with its stream pointer
 and result word. gen_data counts pointers as 4 bytes and gets the N64 layout back (32704 bytes for the 8 slots;
-`sound_seq_studio_groups`, `channels528` of slot 0, lands at +0x738).
+slot 0's `track_groups`, until [NATIVE.md](NATIVE.md) 18 the label `sound_seq_studio_groups`, lands at +0x738).
 
 Every view in `sequencer.c` follows the header on the PC: `sound_seq_set_program`'s `SequenceProgramView`, `sound_seq_start`'s
 `SequencePlayer` (and its `SequencePatternState` with three pointers), `sound_seq_play_note_events`'s `SequenceContextEvents`,

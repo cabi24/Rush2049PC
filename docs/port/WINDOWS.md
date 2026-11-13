@@ -82,9 +82,10 @@ The game and port/data used about 1,800 names at absolute N64 addresses: port/da
 low-memory globals and cartridge offsets ([DATA.md](DATA.md) §3). On Linux, code reaches them through the GOT, and
 `absfix.c` puts the slots back after the dynamic loader relocates them.
 
-Since [NATIVE.md](NATIVE.md) step 5 (2026-11-09) only `aliases.ld`'s names are absolute. port/data's arena names are
-relative to their arenas' blocks (`.set gWaveSizes, pc_arena_boot + 0x7580` in `data.c`): on PE a section-relative
-symbol in `.bss`, as the names inside own storage always were. A `.refptr` slot of one gets a base relocation as any
+Since [NATIVE.md](NATIVE.md) step 5 (2026-11-09) only `aliases.ld`'s names are absolute. port/data's arena names were
+relative to their arenas' blocks (`.set gWaveSizes, pc_arena_boot + 0x7580` in `data.c`), and since step 13 each is an
+object of its own (`uint8_t pc_datum_<i>[n] __asm__("gWaveSizes")`, a second name `.set` inside it): on PE a symbol in
+`.bss`, or a section-relative one, as the names inside own storage always were. A `.refptr` slot of one gets a base relocation as any
 relocatable symbol's does, so the names move with the image; a file's own (tentative) definition of one is reached
 PC-relatively within the image, which works (the six below could be definitions again). The rest of this section is
 how the absolute names work, `aliases.ld`'s now and the arenas' until step 5.

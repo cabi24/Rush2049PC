@@ -21,8 +21,9 @@ results below come from; the option works with any.
 | What | Instrumented with |
 |---|---|
 | port/ (ultra, input, config, app, assets, data's loader, audio, gfx, upscale) and every test program | the sanitizers asked for; UBSan with every check of `-fsanitize=undefined`, alignment included, plus `float-cast-overflow` |
-| the game C (`game_flags`: the game, and the game C the test programs link) | ASan (without its global redzones, below) as asked, TSan only with `RUSH_SANITIZE_GAME_THREAD` (section 6); of UBSan only `RUSH_SANITIZE_GAME_UB` |
-| `game_probe`, `game_types`, `pcdata` (data.c) (`PC_NO_SANITIZE`) | nothing |
+| the game C (`game_flags`: the game, and the game C the test programs link) | ASan as asked, its globals with redzones (since [NATIVE.md](NATIVE.md) 18), TSan only with `RUSH_SANITIZE_GAME_THREAD` (section 6); of UBSan only `RUSH_SANITIZE_GAME_UB` |
+| data.c (`pcdata`): every datum's storage | the sanitizers asked for: ASan's redzones around each datum (since NATIVE.md 18) |
+| `game_types`, `game_decls` (`PC_NO_SANITIZE`) | nothing |
 
 **The game C's UBSan checks** (`RUSH_SANITIZE_GAME_UB`, a cache variable): `bounds`, `shift`,
 `integer-divide-by-zero`, `float-cast-overflow`, `pointer-overflow`, `null`, `vla-bound`, `unreachable`. Left out,
@@ -46,8 +47,8 @@ or a real read past an object. Both kinds turned up (section 3).
 
 **Not instrumented.** gen_data reads the `-O0` types copy's DWARF and nm (and, until 2026-11-08, gen_weak read the
 probe's symbols), so those stay as in every other build: a sanitizer build compiles `game_types` even as Debug, and `data.c`, `data_layout`
-and `data_symbols.txt` are the same files as a normal build's. data.c's own storage has to stay in N64 address
-order with nothing between (OPTIMIZED.md 2.2), so it gets no redzones.
+and `data_symbols.txt` are the same files as a normal build's. (Until [NATIVE.md](NATIVE.md) step 13 data.c wasn't
+instrumented either: its own storage had to stay in N64 address order with nothing between, OPTIMIZED.md 2.2.)
 
 ### 1.1 The game's memory and the runtimes' memory
 
@@ -109,12 +110,12 @@ unwinder, which allocates, and addr2line runs through `popen`, neither safe in a
 - **gen_stubs** would have stubbed the runtimes' entry points (`__asan_*`, `__ubsan_*`, `__tsan_*`...), which the
   instrumented game objects reference: `n64syms.SANITIZER_PREFIXES` leaves them to the linker, and the census
   skips them.
-- **The game's C data** (asan-globals=0). A runtime image's C data is one range that the loader saves at startup and
-  puts back on each load of the image (port/data/overlays.ld); ASan's redzones between its globals made the loader's
-  `memcpy` of that range a global-buffer-overflow at once. The game also walks from one symbol to the next where the
-  N64's layout allows it (OPTIMIZED.md 2.2). So the game C's globals get no redzones (`--param asan-globals=0`);
-  their accesses, and the heap and stacks, are still checked. UBSan's `bounds` still sees reads past a game table
-  (section 3).
+- **The game's data** have redzones, every datum (since [NATIVE.md](NATIVE.md) 18): data.c's objects (each datum of the
+  images' data and BSS, own storage, decoupled data) and the game C's own globals. Until then the game C was built with
+  `--param asan-globals=0` and data.c without ASan: a runtime image's C data was one range the loader put back whole
+  (port/data/overlays.ld, whose `memcpy` ran over the redzones between its globals), the arenas were blocks in the
+  N64's layout, and the game walked from one datum to the next as that layout allowed. The loader puts the runtime
+  images' C data back datum by datum now, and the walks AddressSanitizer found are fixed (NATIVE.md 18).
 - **LeakSanitizer** doesn't scan mappings it didn't make, so a host allocation the game keeps only in its heap
   would look leaked: port/ultra/memory.c registers the heap's block as a root region (the window until step 12).
 - **The heap's blocks get no redzones**: the game's allocator manages its block itself, so ASan sees one addressable
@@ -211,6 +212,8 @@ after the fixes: clean. Each ran the game time its script needs (40-130 s); 70 s
 | 19 | port/ultra/loop.c, rcp.c (new on main: the RSP yield) | TSan | the exit line read the audio task and graphics yield counts while the game's scheduler could still count | relaxed atomics on both sides | `synth_boot_race` under TSan |
 | 20 | port/assets/tests/test_targets.c | ASan stack-use-after-return (CI's arm runner) | the stand-in `RotateUV` kept the pointer `AnimateRotGeneric` passes, its own frame's `xyz`, and the test read the floats after the function returned | the stand-in copies them | `assets_targets` |
 | 21 | src/blob/groups/audiosfx_play/group.c | UBSan float-cast-overflow (the synthetic cartridge with sounds, `synth_rom.py --sounds`) | `AudioSfxServer`'s four conversions of an effect's volume, pan, front/back pan and pitch to a byte are IDO's inlined `(u32)f`, whose FCSR test the PC's m2c reads as 0, leaving `(s32)f`; a NaN front/back pan at a race's set-up on the synthetic track (the retail runs have none) gave 0 on AArch64 where IDO's code gives -1 (the byte 0xFF), as x86-64 did | NaN and out of range give -1 (`PC_CVT_S32`) | `synth_voices_race12`, `synth_engines_*` under ASan + UBSan (AUDIO.md 10.9) |
+| 22 | the game C: `video_set_mode`, `InitRushControls`, `ZOID_RemovePoly`, `RemoveObjectTree`, the car settings, the circuit's tracks, `init_views`, `startscr_initButtons`, `BlitXLU`, `ZOID_EndFrame`, `StartSmoke` | ASan (every datum an object of its own since [NATIVE.md](NATIVE.md) 18), UBSan bounds | walks from one datum into the next that the N64's layout allowed | per walk ([NATIVE.md](NATIVE.md) 18.2): declarations to the reach, a count tested first, one storage where the game reads the next datum's bytes | every synthetic path under ASan + UBSan; `assets_fxcars` |
+| 23 | port/assets/tests/test_models.c | ASan global-buffer-overflow | the stand-in `modelrun` was an `int8_t`, which the game's code writes as the u16 it is | `uint16_t` | `assets_models` |
 
 **The first fix for 5 was wrong, and a retail run caught it.** It gave the table a ninth row under `TARGET_PC`. But
 gen_data takes a C-defined symbol's size from its DWARF and maps the N64 addresses it covers to the C object
@@ -402,11 +405,12 @@ thread at a time) leaves it little to find. Run it after changing the threads, t
 - **MemorySanitizer** (uninitialized reads) is Clang-only and needs every library instrumented. ASan's stack and
   heap layout differ from Debug's, which is how an uninitialized read could show, as a run that diverges: the one
   retail path compared with Debug (`race4p`) gave the same states and car positions.
-- **Inside the game's heap and arenas** ASan sees one addressable block each (the heap's block, each arena's; until
-  [NATIVE.md](NATIVE.md) step 12 one 8 MiB window): the game's own allocator and the N64's layout get no redzones,
-  so an overflow from one game object into the next there is invisible to it (UBSan's `bounds` sees those it can
-  from the declarations). That is the N64's memory model, which the port keeps on purpose; step 13 (one object per
-  datum) takes the arenas' share of it.
+- **Inside the game's heap** ASan sees one addressable block (until [NATIVE.md](NATIVE.md) step 12 one 8 MiB window,
+  until step 13 each arena's block too): the game's own allocator gets no redzones, so an overflow from one heap block
+  into the next is invisible to it (UBSan's `bounds` sees those it can from the declarations). That is the N64's
+  memory model, which the port keeps on purpose (the heap's accounting). Every datum outside it has redzones (step 13).
+  Within a datum's object, the bytes after its declared extent up to the next datum (DATA.md 3) are its own: a read
+  past the declaration into them isn't seen, as it reads what it did on the N64.
 - **x86-64 ASan** runs since [NATIVE.md](NATIVE.md) step 12 (section 1.1), on the build host with Clang's runtime
   (1.4) and in CI with GCC 13's; until then the aarch64 runs covered the same C.
 - **Game C checks left out** (section 1): object-size, alignment, signed overflow. A UBSan build with

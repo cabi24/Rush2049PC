@@ -1,11 +1,12 @@
 # Decoupling game data from its N64 address
 
-Most of the game's data sits in its image's arena, a block of host memory laid out as the N64's data and BSS were
-([DATA.md](DATA.md) 3; until [NATIVE.md](NATIVE.md) step 5 the arenas were at their N64 addresses in the RDRAM window),
-so the decompiled C runs unchanged. That costs the port: an array can't grow (its neighbours follow it), and address
-arithmetic between symbols is baked in, so AddressSanitizer can't put a redzone between two data (NATIVE.md step 13).
-And while the RDRAM window (the heap's, until step 12) is at a fixed address, AddressSanitizer can't run on x86-64 and
-macOS arm64 can't map it. Decoupling moves one item
+Since [NATIVE.md](NATIVE.md) step 13 (section 18) every datum is an object of its own, filled from the image as the
+N64 laid it out ([DATA.md](DATA.md) 3), with AddressSanitizer's redzones around it; the general case of this page's
+recipe, without a per-item accessor where an item keeps its C name and type. This page is the recipe as it was done
+item by item before that, when most of the game's data sat in its image's arena, laid out as the N64's data and BSS
+were (a block of host memory from step 5, at the N64 addresses in the RDRAM window before), so the decompiled C ran
+unchanged; that cost the port: an array couldn't grow (its neighbours followed it), and address arithmetic between
+symbols was baked in. Decoupling moves one item
 to storage the PC owns outright, with one PC declaration and no N64 address. The first item is the race roster
 (the arcade's `gLink`), the second the model records (`D_8014A250`, MAT3 `model[]`), the third the car records
 (`gGameCar`, MAT3 `gGameCar`), which had host storage of their own already: steps toward 12 cars a race

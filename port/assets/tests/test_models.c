@@ -38,7 +38,8 @@ struct pc_model pc_models[PC_MODEL_SLOTS];  /* data.c defines it in the game */
 
 int32_t gRace, gModelIteration, gGameState;
 float gRetraceTime = 1.0f / 60, gModelTime;
-int8_t gNumActiveCars, gNoCarCollisions, gRumble, modelrun;
+int8_t gNumActiveCars, gNoCarCollisions, gRumble;
+uint16_t modelrun;   /* volatile u16 in the game (physics.h) */
 struct { uint16_t count; void *points; } gResPath;          /* the track's path graph (path.c's Route) */
 struct pc_car pc_cars[PC_CAR_SLOTS];   /* the car records (pc_game_types.h), PC layout */
 

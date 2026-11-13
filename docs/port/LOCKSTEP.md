@@ -161,8 +161,9 @@ is the hash of their hashes: what a session sends every retrace.
 the heap's own headers; until [NATIVE.md](NATIVE.md) step 12 this region was `window`, the whole RDRAM window), `own`
 (each own-storage symbol of port/data's tables, the game data that holds pointers, in N64 order), `decoupled` (every
 item of `port/data/decoupled.txt`: the roster, the model and car records, the blasts, skids, sounds, MusyX voices and
-sound messages; `hash_decoupled_list` checks the list is complete) and `arenas` (the game's data and BSS in the N64
-layout, port/data's blocks).
+sound messages; `hash_decoupled_list` checks the list is complete) and `data` (the game's data and BSS without
+pointers, each datum's object in N64 order with its N64 address; until [NATIVE.md](NATIVE.md) step 13 the region was
+`arenas`, port/data's blocks).
 
 The hash is xxHash64, written from its specification (no code taken). `--log-hash N[,W]` prints:
 
@@ -190,8 +191,9 @@ found the window's other host pointers: the audio manager's effect tags' `list`,
 is hashed as what it points to: into the game heap's block, "the heap" and the offset in it (the heap's accounting is
 the N64's, so the same allocations give the same offsets in every process); into the image, what port/data's tables
 know: an own-storage symbol's N64 address and the N64 offset in it (through the loader's runs, so a layout with 8-byte
-pointers or longs gives the same id on every OS); a game function's N64 address; a decoupled item's index and offset; a
-runtime image's C data. Which values are host pointers depends on what the bytes are:
+pointers or longs gives the same id on every OS), and a datum's object the same way (its layout is the N64's; until
+step 13 a datum in an arena's block was its N64 address alone); a game function's N64 address; a decoupled item's
+index and offset; a runtime image's C datum's index and offset. Which values are host pointers depends on what the bytes are:
 
 | Bytes | A host pointer is | Taken as |
 |---|---|---|

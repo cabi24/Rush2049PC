@@ -2,12 +2,13 @@
 
 The game C declares about 2,200 data symbols at fixed N64 addresses that nothing defines: the initialized data
 of the boot segment, the game image and the two runtime images, and their BSS. The PC build gives each one
-storage with a correct host layout, and fills the initialized ones from the player's ROM at startup. Data without
-pointers sits in its image's arena, a block of host memory laid out as the N64's data and BSS were (so a walk from
-one datum into the next works as on the N64); data with pointers has storage of its own in the executable. No datum
-is at its N64 address (since 2026-11-09, [NATIVE.md](NATIVE.md) step 5: until then the arenas were at their N64
-addresses in the RDRAM window, which step 12 took away with the heap's place in it). Neither the executable nor the
-repository holds ROM bytes: the
+storage with a correct host layout, and fills the initialized ones from the player's ROM at startup. Every datum is
+an object of its own in the executable (since 2026-11-13, [NATIVE.md](NATIVE.md) 18): data without pointers in the
+N64's layout, filled from its image's arena (the image's data and BSS as the N64 laid them out, which the loader lays
+out in a buffer of its own), data with pointers in the host's layout. No datum is at its N64 address, and no code
+relies on what lies next to what. (Until step 13 the data without pointers sat in one block per arena laid out as on
+the N64, and until step 5 at their N64 addresses in the RDRAM window, which step 12 took away with the heap's place
+in it.) Neither the executable nor the repository holds ROM bytes: the
 build knows only addresses, sizes and layouts, and every value is read from the ROM at run time. An overlay "load"
 is the same fill run again for one image.
 
@@ -22,7 +23,7 @@ is the same fill run again for one image.
 | Game data the PC owns, with no N64 address | `port/data/decoupled.txt` ([DECOUPLE.md](DECOUPLE.md)) |
 | Tests | `port/data/test_pc_data.c` (synthetic tables, partly from gen_data's rules on `test_pc_data_decls.c`), `port/data/datacheck.c` (real tables: `--synthetic`, or your ROM), `port/data/test_overlay_data.c` (a runtime image's C data on reload), `port/data/test_reach.c` (the reach rules) |
 | Overlay loads | `src/blob/groups/{heap_release,score_insert}/overlay_loader.c`, `{carcolor,state}/ctx_overlay_loader.c` |
-| The runtime images' C data, one range each | `port/data/overlays.ld` (linked with `-T`), section 5 |
+| The runtime images' C data, datum by datum | data.c's `pc_cdata` (gen_data from the images' objects), section 5 |
 
 ## How it works
 
@@ -72,7 +73,7 @@ is too long is worse than one that is too short. That is what the bound fixes:
 | `gInterruptedFxTags` | InterruptFxTag.c's 20-byte `Node` | 16 B | the list head of 6 files' `List`/`tDLList`; `pak_file_handles` (`PakHandle[]`, 64 pointers) follows |
 | `finish_cam` | 2-byte `Flags` | 6 B (`u8[6]`) | per car, cleared for 6 by `init_views`, which defines it |
 | `gDriveHulk` | `s8[]`, 8 B by the gap | `s8[4]` | `InitOptions`'s definition |
-| `video_default_x`, `video_default_y` (0x8002AFFC, 0x8002AFFE) | `s16[32]` (`m2c_types.h`) | `s16[9]`, 18 B, the PC declaration | one table `s16[3][4]` from `video_default_extra_width` (0x8002AFF8) to `video_pending_frames` (0x8002B010), a row per TV type: `video_mode.c` reads `((s16 (*)[4])video_default_x)[video_tv_type][0]` with `video_tv_type` = `osTvType` (0-2). These two are its columns 2 and 3. The 64-byte views ran over `video_pending_frames`, `video_adjusted_mode`, `gInitFlag` and `decompress_lock_ready` (arena, section 3), and the loader swapped the two flags with the bytes after them |
+| `video_default_x`, `video_default_y` (0x8002AFFC, 0x8002AFFE) | `s16[32]` (`m2c_types.h`) | `s16[9]`, 18 B, the PC declaration | one table `s16[3][4]` from `video_default_extra_width` (0x8002AFF8) to `video_pending_frames` (0x8002B010), a row per TV type: `video_mode.c` reads `((s16 (*)[4])video_default_x)[video_tv_type][0]` with `video_tv_type` = `osTvType` (0-2). These two are its columns 2 and 3. The 64-byte views ran over `video_pending_frames`, `video_adjusted_mode`, `gInitFlag` and `decompress_lock_ready` (arena, section 3), and the loader swapped the two flags with the bytes after them. Since [NATIVE.md](NATIVE.md) 18 the table is one datum, `video_defaults[3]` (`VideoDefault`), and the four column names are gone |
 
 ### 2. Two layouts per type
 
@@ -113,32 +114,37 @@ The libultra structures also come out at their known sizes (`OSThread` 432, `OSM
 
 ### 3. Storage
 
-Each image's data and BSS is an **arena** laid out as on the N64, in a block of host memory of its own that `data.c`
-defines (zero-filled, in the executable's BSS):
+Each image's data and BSS is an **arena**, the N64's layout of it, which the loader lays out in a buffer of its own
+(the tables' runs give each described element's place there):
 
-| Arena | N64 range | Block | Image |
-|---|---|---|---|
-| boot | 0x800277D0–0x80086A50 (data to 0x8002E8E0) | `pc_arena_boot`, from 0x80027000 | boot segment tail, a plain copy of ROM 0x283D0 |
-| game | 0x8010FD7C–0x8017A640 (data to 0x801249F0) | `pc_arena_game`, from 0x8010F000 | game image, DEFLATE at ROM 0xB0CB10 |
-| ovl_a | 0x803AF978–0x803BAE20 (data to 0x803B9A50) | `pc_arena_ovl_a`, from 0x803AF000 | runtime image A, DEFLATE at ROM 0xB5C534 |
-| ovl_b | 0x80393B34–0x8039B440 (data to 0x80394F70) | `pc_arena_ovl_b`, from 0x80393000 | runtime image B, DEFLATE at ROM 0xB6FEC4 |
+| Arena | N64 range | Image |
+|---|---|---|
+| boot | 0x800277D0–0x80086A50 (data to 0x8002E8E0) | boot segment tail, a plain copy of ROM 0x283D0 |
+| game | 0x8010FD7C–0x8017A640 (data to 0x801249F0) | game image, DEFLATE at ROM 0xB0CB10 |
+| ovl_a | 0x803AF978–0x803BAE20 (data to 0x803B9A50) | runtime image A, DEFLATE at ROM 0xB5C534 |
+| ovl_b | 0x80393B34–0x8039B440 (data to 0x80394F70) | runtime image B, DEFLATE at ROM 0xB6FEC4 |
 
-A block is aligned to 4 KiB and starts at the 4 KiB page of its arena's first N64 address (gen_data's `ARENA_PAGE`),
-so every datum keeps its N64 address's offset in the page: it is exactly as aligned as on the N64, and as it was at
-its N64 address in the RDRAM window, where the arenas were until 2026-11-09 ([NATIVE.md](NATIVE.md) step 5). A symbol
-with no pointers whose two layouts agree is a name in its arena's block at its N64 offset, an assembler `.set`
-relative to the block in `data.c` (`.set gWaveSizes, pc_arena_boot + 0x7580`). Code that indexes from one symbol into
-its neighbor still works (the block keeps the N64 layout) and 8-byte data keeps the N64 alignment. Its address is a
-host pointer, as any other datum's: a 32-bit field can't hold it (steps 2-4 of NATIVE.md made every such field the
-game had a pointer), and the renderer and the audio interpreter take it for a host pointer.
+A symbol with no pointers whose two layouts agree is an **object of its own** in `data.c` (`uint8_t pc_datum_<i>[n]
+__asm__("gWaveSizes")`; `pc_objs` in the tables), laid out as on the N64, which the loader fills from the arena's
+layout. Its object runs from its N64 address to the next datum's: the bytes after its extent that no declaration
+covers (text after a table, constants no C reads, a table's rows past a declaration that says fewer) stay with it, as
+they did in the N64's layout, so a pointer from the ROM's data into them still reaches them; bytes with no datum before
+them (an arena's start, after own storage) are an object of their own with no name. Data whose N64 extents overlap (a
+name inside another's table) share one object, the later names `.set` inside it. Each object is aligned as own storage
+is (16, or 32 from 32 bytes) and at least as the N64 aligned its address, to 64 bytes. Its address is a host pointer,
+as any other datum's: a 32-bit field can't hold it (steps 2-4 of NATIVE.md made every such field the game had a
+pointer), and the renderer and the audio interpreter take it for a host pointer. Code that walked from one datum into
+the next on the N64 was found by AddressSanitizer's redzones around each object and fixed in the C (NATIVE.md 18), and
+`gen_data.py --check` verifies each object's place, size and alignment. (From [NATIVE.md](NATIVE.md) step 5 to step 13
+each arena was one block of host memory in the N64's layout, `pc_arena_<image>`, every name a `.set` relative to it;
+the loader still takes an arena as a block, its unit tests' form.)
 
 A symbol whose type has pointers, a `long`, or a host layout that differs gets its **own storage** in the executable
 (host size, aligned 16, or 32 from 32 bytes as x86-64 aligns such a common), and every symbol whose address lies
 inside its N64 extent is defined at the matching host offset (`input_rec1 = gPlayers + 0x50`). Names at one address
 are aliases. Tentative definitions (common symbols) in game and runtime-image C get the same treatment; the linker
-prefers the strong definition. The two names one past an overlay's BSS (`start_overlay_bss_end`,
-`extra_overlay_bss_end`, the loaders' `bssEnd`) are one past its arena's block. The block's bytes under own storage
-hold that data's N64 form and are not used.
+prefers the strong definition. The arena's layout under own storage holds that data's N64 form, which no object
+copies (but two environment colours the game read from such bytes, NATIVE.md 18).
 A **decoupled** symbol (`port/data/decoupled.txt`) has neither: the PC owns it with one declaration of its own, data.c
 defines it outside the arenas at its host size, and its N64 name and every name inside its N64 extent are retired
 ([DECOUPLE.md](DECOUPLE.md)). The first is the race roster, `pc_links` (was `gLink`), the second the model
@@ -151,27 +157,27 @@ decoupled item had freed, because something kept its address as a 32-bit N64 add
 `pc_matrix_spill`, [MORECARS.md](MORECARS.md) 8). The last one became PC storage with [NATIVE.md](NATIVE.md) step 4,
 and step 5 removed the rules and the file: nothing needs a place in the window.
 
-**How the names reach their blocks.**
-- Every name `data.c` defines is relocatable: a symbol in its block's section, which the executable's own relocations
+**How the names reach their storage.**
+- Every name `data.c` defines is relocatable: a symbol in its object's section, which the executable's own relocations
   place wherever the executable loads (ELF RELATIVE relocations, PE base relocations), and the game's code reaches it
   as it reaches any extern. No name is absolute since [NATIVE.md](NATIVE.md) step 12: the GOT fix-up
   (`pc_mem_fix_absolute`, port/ultra/absfix.c, which put back aarch64's RELATIVE slots of absolute symbols: 1,802 with
   the arenas' names, 6 at the end) and x86-64's `-fPIC`/no-GOT-relaxation flags it needed went with `aliases.ld`'s last
   absolute names (low memory's globals, now port/ultra's variables). `gen_data.py --check` verifies that nothing is
   at an N64 address ("nothing at an N64 address").
-- PE (Windows, [WINDOWS.md](WINDOWS.md) 3): a `.set` relative to a block is a section-relative symbol in `.bss`, as the
-  names inside own storage always were there. Code reaches it through a `.refptr` slot, which now gets a base
+- PE (Windows, [WINDOWS.md](WINDOWS.md) 3): an object is a symbol in `.bss`; a `.set` inside one (a second name) is a
+  section-relative symbol, as the names inside own storage always were there. Code reaches it through a `.refptr` slot, which now gets a base
   relocation as any relocatable symbol's does, or PC-relatively from the file that defines it (the six tentative
   definitions WINDOWS.md 3 made declarations could be definitions again). gen_data's `--check --pe` checks that
   nothing is at an N64 address.
 - The order. `main` loads the ROM, maps the game heap's block (`pc_mem_map_heap`), gives the loader its place
   (`pc_data_set_heap`) and then calls `pc_data_init`. Nothing touches game data before that (there are no
   constructors).
-- The runtime images' arenas are blocks too. The first load fills them, for the report and the startup snapshot of
+- The runtime images' data are objects too. The first load fills them, for the report and the startup snapshot of
   game-C data, and then clears them: on the N64 an image's arena lies in the heap block `load_overlay` reserves for
   the images (0x8038A400–0x803BB380), which is heap memory until the game loads the image, and so the arena starts out
   zero as it did on the N64. The game's own load of an image (`load_overlay`, after it has reserved the block)
-  fills that image's arena again. As on the N64, an image's data is valid only while the image is loaded; its
+  fills that image's objects again. As on the N64, an image's data is valid only while the image is loaded; its
   own-storage symbols keep their values in the executable. The heap block is still reserved, for the heap's accounting
   (NATIVE.md step 6), but nothing is copied into it.
 
@@ -214,16 +220,16 @@ and `layout/game.json` agree with each other.
 
 1. Each image's bytes: the boot tail is a slice of the ROM; the other three inflate with zlib (raw DEFLATE). The
    inflated size must equal the image size. The runtime images stay cached for reloads; the game image is freed.
-2. Each arena, in place in its block: copy the initialized part, zero the BSS, byte-swap every described element.
-   Pointers stay N64 addresses there (in host byte order): the arenas hold data without pointers, and the N64 form of
-   own storage's.
+2. Each arena, in its layout (the loader's buffer, freed after the first load for boot and the game, kept for the
+   runtime images): copy the initialized part, zero the BSS, byte-swap every described element. Pointers stay N64
+   addresses there (in host byte order): the arenas hold data without pointers, and the N64 form of own storage's.
 3. Each symbol with its own storage: convert from the image element by element through its runs.
 4. Each decoupled symbol whose N64 data the image initialized (`pc_inits`, [DECOUPLE.md](DECOUPLE.md) 7): its first
    elements converted from the image's bytes at the retired N64 address, the rest zero or continuing them with a
    period. It has no N64 address the tables resolve, and the arena's bytes there are left as the image has them.
-5. Game-C data in a runtime image: its bytes are saved at startup and put back on every load (zeroed if BSS): the
-   symbols the tables name, and each image's C range, which holds its file-local statics too (section 5).
-6. After the first load, the runtime images' arenas are cleared (section 3).
+5. A runtime image's own C data: each datum's bytes are saved at startup and put back on every load (section 5).
+6. The tables only pointers reach (section 7), then each datum's object copied from its arena's layout.
+7. After the first load, the runtime images' objects are cleared (section 3).
 
 Pointer values are turned into host pointers in this order:
 
@@ -235,7 +241,7 @@ Pointer values are turned into host pointers in this order:
 | a function entry: the data's own image first (A and B share code addresses), any image from game or boot data | the host function | functions |
 | a function with no C yet | NULL, logged once | no C |
 | inside own storage or game-C data | its storage plus the offset mapped through its runs | own, C data |
-| inside an arena | its block + the offset (an undescribed byte too: the block keeps the N64 layout) | arena |
+| inside an arena | its datum's object + the offset (an undescribed byte too: it is in the object of the datum before it) | arena |
 | anything else | the value, logged once | unresolved |
 
 The heap rule: a pointer at or above the heap's N64 start (`heap_lo`, 0x8017A640) is that place in the game heap's
@@ -278,6 +284,10 @@ turns it off):
 
 - `unresolved <symbol>+<offset> <value>`: a pointer below the heap that is in no symbol;
 - `no-code <symbol>+<offset> <value> <function>`: a pointer to a function with no C yet;
+- `adjacent <symbol>+<offset> <value> -> <target>, also one past <datum>`: a pointer to a datum's first byte that is
+  also the end of the datum before it in the N64's layout, which is an object of its own: the loader resolves it to the
+  datum it starts (the N64 had one address for both). Code that took it for the earlier datum's end would walk past it,
+  so each is a line to read (NATIVE.md 18: the synthetic cartridge's 20 are all tables' starts);
 - `addr-word <symbol>+<offset> <value> -> <target> [<class>]`: a word in a non-pointer (u32) field whose value
   looks like an N64 address (0x80000000–0x80800000), and what it points at. A u32 reaches none of them: `[arena]`
   is a block of host memory since NATIVE.md step 5, `[heap]` since step 12, and `[low memory]` is nothing on the PC
@@ -307,39 +317,36 @@ exactly the tokens of the original, so the N64 build is unchanged. That is check
 the matching build itself (IDO, Rocky host) has not been run.
 
 **The images' C data.** On the N64 a load copies the image's `.data` and zeroes its `.bss`, so every variable its C
-defines starts again from its initial value, file-local and function-local statics too. On the PC that C is linked
-into the executable, and the tables name only symbols with N64 addresses. So each image's C data is gathered into
-one range by `port/data/overlays.ld`, linked with `-T` (its `INSERT AFTER .data` adds to the default script; ELF and
-PE ld alike): the `.data`, `.data.rel`, `.data.rel.local`, `.bss` and commons of the objects compiled from
-`src/ovl_a`, `nonmatching/ovl_a` (`.ovl_a`, `pc_ovl_a_start`..`pc_ovl_a_end`) and `src/ovl_b`, `nonmatching/ovl_b`
-(`.ovl_b`). data.c lists the two ranges (`PcDataCRange`), so every program that links data.c links the script.
-The loader copies each range at startup, before the game runs, and puts it back on every later load of its image;
-the other image's range is untouched. Read-only data stays where it was: it never changes.
+defines starts again from its initial value. On the PC that C is linked into the executable, so the loader takes each
+datum's bytes at startup and puts them back on every later load of its image, datum by datum: gen_data lists every
+global the image's objects define (nm), with its size from the DWARF, as `pc_cdata` (image, storage through a weak
+reference, size), and refuses a file-local or function-local static, which no table can name. The images keep none:
+MAT3's function-local statics of the screens are globals named for their screen (`carscr_cursorSpeed`,
+`trackscr_mapPos`, `warningscr_blit` ...: 15, NATIVE.md 18), and what was never written is `const` (shots.c's
+`gShieldSizes`, `sWeaponFx`). Read-only data stays where it is. (Until step 13 each image's C data was one range,
+gathered by `port/data/overlays.ld` with `-T` and put back whole; with ASan's redzones around the game C's globals
+that copy would run over them.)
 
 | Image | File | C data (`data_layout.txt`, "Runtime-image C data") |
 |---|---|---|
-| A | `carscr/carscr.c` | `cursorSpeed.1`, `scrollSpeed.0`, `zoom.2`, `compLight` (ComponentLights, global) |
-| A | `trackscr/trackscr.c` | `angle.8`, `cityPos.4`, `cursorSpeed.1`, `fogPos.7`, `fogTileSize.6`, `mapPos.2`, `mapPos.3`, `rotAngle.5`, `scrollSpeed.0` |
-| A | `circuitscr/circuitscr.c` | `cursorSpeed.1`, `del.0` (a pointer: `.data.rel`), `scrollSpeed.2` |
-| B | `shots.c` | `gShieldSizes`, `sWeaponFx` (and the const `CaseOffsets`, `ShotOffsets`) |
-| B | `weapons.c` | `weaponOffsets` (global) |
+| A | `carscr/carscr.c` | `carscr_cursorSpeed`, `carscr_scrollSpeed`, `carscr_zoom`, `compLight` |
+| A | `trackscr/trackscr.c` | `trackscr_carouselAngle`, `trackscr_fogPos`, `trackscr_fogTileSize`, `trackscr_mapCityPos`, `trackscr_mapPos`, `trackscr_mapRotAngle`, `trackscr_mapsPos`, `trackscr_scrollSpeed`, `trackscr_cursorSpeed` |
+| A | `circuitscr/circuitscr.c` | `circuitscr_cursorSpeed`, `circuitscr_scrollSpeed` |
+| A | `updateWarningScreen.c` | `warningscr_blit` |
+| B | `weapons.c` | `weaponOffsets` |
 
-Of the 22 the report listed before, `CaseOffsets` and `ShotOffsets` are read-only, and `weapons.c`'s three
-(`gCurWeaponType` gCurWeaponType, `gGattMuzzleObjs` and `gCannMuzzleObjs`, the muzzle-flash records) were a second copy: on the N64
-they are that file's statics at those addresses, and `InitBattlePlayer`, the weapon reset after a resurrect, writes
-them by the addresses. On the PC the file had its own statics while `InitBattlePlayer` wrote image B's arena, so the
-reset never reached the weapons. `weapons.c` declares them `extern` on the PC now (`WEAPON_STATE`; the N64 tokens are
-unchanged), one storage in the BSS arena, which every load of image B zeroes. That leaves 17 statics, and the two
-globals (`compLight`, `weaponOffsets`), restored already as game-C data and restored twice now, to the same bytes: 19
-in the ranges. Each image's own storage (data.c, its N64 data with pointers or a host layout) needs nothing new: a
-load converts it from the image again, or zeroes it if BSS (step 3 above).
+Five of them have an N64 address the image's symbol table names (`trackscr_fogTileSize` ...), and so are also game-C
+data the tables list for pointers (PC_SYM_CDEF). `weapons.c`'s state the image's BSS holds (`gCurWeaponType`,
+`gGattMuzzleObjs`, `gCannMuzzleObjs`) is in its objects, which every load of image B zeroes. Each image's own storage
+(data.c, its N64 data with pointers or a host layout) needs nothing new: a load converts it from the image again, or
+zeroes it if BSS (step 3 above).
 
-Checks: `gen_data.py --check` (after linking `rush2049pc_datacheck`) finds each of the 19 inside its image's range,
-by name and count. The ctest `pc_data_overlay` (`port/data/test_overlay_data.c`) links image B's `weapons.c` and a
-stand-in for image A's C (`port/data/test_overlay/src/ovl_a/statics.c`: file-local and function-local statics, a
-BSS array, a pointer to a static), both through the script, with the loader and tables of its own (image B's BSS
-arena in host memory). It writes them all (the muzzle-flash records through `_RemoveCannMFlash` and
-`_RemoveGattMFlash`), then checks that a load of one image puts back that image's and leaves the other's.
+Checks: `gen_data.py --check` (after linking `rush2049pc_datacheck`) finds each listed datum defined once in the
+executable. The ctest `pc_data_overlay` (`port/data/test_overlay_data.c`) links image B's `weapons.c` and a stand-in
+for image A's C (`port/data/test_overlay/src/ovl_a/statics.c`: globals of the kinds the images have), with the loader
+and tables of its own listing their data datum by datum (image B's BSS arena in host memory). It writes them all (the
+muzzle-flash records through `_RemoveCannMFlash` and `_RemoveGattMFlash`), then checks that a load of one image puts
+back that image's and leaves the other's.
 
 ### 6. What the declarations miss: the report's text and undescribed lines
 
@@ -582,17 +589,19 @@ Without the ROM (all run by `ctest` in `build/pc`, and the first two by every bu
   `TARGET_PC` and its records are 80 bytes there as in the storage. The last three are at N64 addresses less
   aligned than the host gives a common, so their tentative definitions (`controlsys/group.c`,
   `ClearControls.c`) are declarations on PC (`PC_ONLY(extern)`; the N64 tokens are unchanged).
-- **Post-link check**: `gen_data.py --check` reads the linked `rush2049pc_datacheck` with nm. All 1,797 arena
-  names were absolute at their N64 addresses (since [NATIVE.md](NATIVE.md) step 5: each of the 1,633 at its block +
-  its offset, and each block its size, 4 KiB-aligned), the 77 names inside own storage sit at their base plus offset,
-  all 384 own storages have their sizes, and nothing else is linked at or above 0x80000000.
+- **Post-link check**: `gen_data.py --check` reads the linked `rush2049pc_datacheck` with nm: each datum's object at
+  its size and alignment and every name in it at its offset (1,599 names in 1,592 objects since [NATIVE.md](NATIVE.md)
+  18; until then the arena names were absolute at their N64 addresses, then from step 5 at their blocks' offsets), the
+  names inside own storage at their base plus offset, all own storages at their sizes, the runtime images' C data, and
+  nothing at an N64 address.
 - **Unit test** `pc_data_test`: hand-written tables over a synthetic ROM with a raw and three DEFLATE images.
   It covers byte order per kind, a struct whose host layout differs (pointer, `long`), struct arrays (strides),
   pointers into own storage, arenas and the heap, per-image functions at a shared address, functions with no C,
   raw values, an overlay reload (data, BSS, game-C data), the report with the address-like words' targets, and a
-  stream of the wrong size. Its arenas are blocks of host memory, as the game's are: an arena pointer is its block +
-  the offset, an address-like word of an arena can't reach it, and the runtime images' arenas stay clear until
-  loaded (until NATIVE.md step 5 it ran a second time with them at their N64 addresses in a window it mapped at
+  stream of the wrong size. Its boot arena's data are objects of their own, as the game's are (a pointer into it is its
+  datum's object + the offset); its other arenas are blocks of host memory, the loader's other form (an arena pointer is
+  its block + the offset); an address-like word of an arena can't reach it, and the runtime images' arenas stay clear
+  until loaded (until NATIVE.md step 5 it ran a second time with them at their N64 addresses in a window it mapped at
   0x80000000). One arena's runs come from gen_data's own rules: `gen_data.py --test-tables` reads the DWARF of
   `port/data/test_pc_data_decls.c` and writes them, with the element conflicts it finds, to
   `pc-data/test_pc_data_gen.h`. The declarations: two colour unions (bytes stay in order, also under a word view
@@ -610,9 +619,9 @@ Without the ROM (all run by `ctest` in `build/pc`, and the first two by every bu
   `Vtx` and `MenuSlot`, the boot's viewport table and the flags after it), checked against the images. With the
   union rule and the viewport declaration both undone, 18 of them fail (the 16 colour places and the two flags),
   and so do 28 checks of `pc_data_test` and 50 of `endian_check --check-loader`.
-- **`rush2049pc --selftest`** checks that boot, game and runtime-image data names are in their arenas' blocks, where
-  the loader's tables put their N64 addresses, at their N64 addresses' offsets in a page (until NATIVE.md step 5: at
-  their N64 addresses, through the fixed-up GOT).
+- **`rush2049pc --selftest`** checks that boot, game and runtime-image data names are objects of their own, where the
+  loader's tables put their N64 addresses, as aligned as on the N64 (until NATIVE.md step 13: in their arenas' blocks;
+  until step 5: at their N64 addresses, through the fixed-up GOT).
 - **Determinism**: two runs with different `PYTHONHASHSEED` give identical outputs.
 
 With the ROM, `rush2049pc_datacheck [path]` (default `baserom.us.z64` in the source tree; it passes with a

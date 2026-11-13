@@ -226,8 +226,8 @@ because the library is the same.
 - **Labels into objects**: `flashColors_at_1` is `flashColors[1]`, `gPlayers_save` is `gPlayers[0].profile` (no
   longer used here), the trophy sheen's scale is `ObjInstanceList[node].w` (until wave 2c circuitscr.c wrote it
   through `object_list_scale_view`, a label 0x10 before `ObjInstanceList` read as 0x44-byte records: the window's
-  copy, so the drawn sheen kept w 1; the label is gone); `gFrontTireScale` and
-  `gRearTireScale` are declared one row long and read rows 1-4, which are `gFrontTireScale_players` after them.
+  copy, so the drawn sheen kept w 1; the label is gone); `gFrontTireScale` and `gRearTireScale` are declared
+  [5][13] (until [NATIVE.md](../port/NATIVE.md) 18 one row long, rows 1-4 read through `gFrontTireScale_players`).
 - **Stale names** the screens called until wave 2c: `player_mode_set` (`SetControllerStickEdges`) and
   `sound_handles_array_clear` (`RemovePane`), image A's symbol table's names; the screens call them by the game's
   names now.

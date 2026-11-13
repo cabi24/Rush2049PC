@@ -654,7 +654,12 @@ scripts run in the guard mode too. One such place is known (wave 3.4's retail co
 crossings on the retail scripts); the synthetic cartridge stores no file DEFLATEd, so the synthetic count never sees
 it. With the window gone the bound is the heap block's end (or the caller's size).
 
-### Step 13. One object per datum (large; may be split by subsystem)
+### Step 13. One object per datum (large; may be split by subsystem): done
+
+Done 2026-11-13 (wave 3.6): what changed, the walks it found and fixed, ASan's run and the proof are section 18. In
+short: every datum of the four images' data and BSS is an object of its own in data.c, the loader fills each from its
+arena's layout, the runtime images' C data is put back datum by datum, nothing keeps the N64's order, and an ASan build
+(redzones around every datum, the game C's own globals too) runs all 65 synthetic paths with no report. The plan was:
 
 4.1's second half, with ASan's redzones as the check: gen_data gives each datum its own storage
 (`decoupled.txt`'s recipe without a list: every symbol), each walk found is ended at its own array or its data made
@@ -1968,3 +1973,134 @@ Rocky (x86-64, GCC 14), against wave 3.4's end (`~/rush2049pc/w3e-ref`, 392a1aa3
   pointers and the 28 into low memory, section 11: nothing is there on the PC now, so a use faults in the guard).
 - **macOS**: nothing in the memory model stands in the way (no fixed address, no 4 GiB rule, no `__PAGEZERO`
   problem); its first build is still to be made.
+
+## 18. Step 13: one object per datum (done 2026-11-13)
+
+Wave 3.6's step 13, one agent, on bb46fab4. Every datum of the four images' data and BSS is an object of its own,
+nothing keeps the N64's order, and AddressSanitizer puts its redzones around each. Seven commits, each building on the
+one before (the proof, 18.5, is the last's):
+
+| Stage | What |
+|---|---|
+| 1 | gen_data `--objects` and the loader: an arena's data can be objects of their own (off by default, the program the same) |
+| 2 | the boot and game arenas' data in objects; the walks ASan found fixed in the C (below); the self-test |
+| 3 | the runtime images' too; their own C data put back datum by datum (`pc_cdata`), `overlays.ld` gone |
+| 4 | data in any order (no `-fno-toplevel-reorder`, no order check); data.c and the game C's globals get ASan's redzones |
+| 5 | names inside other data's storage folded into fields; then, a commit of its own, the macros' global variables by name |
+| 6 | `StartSmoke`'s wing rows (18.2) and a test's stand-in; this section, DATA.md, DECOUPLE.md, SANITIZE.md, LOCKSTEP.md, OPTIMIZED.md, WINDOWS.md, docs/code; the checks' baselines (`n64_audit_baseline.json`, `bounds_reviewed.txt`) |
+
+### 18.1 What changed
+
+| What | Before | After |
+|---|---|---|
+| the arenas' data without pointers | four blocks (`pc_arena_boot` ... `pc_arena_ovl_b`) in the N64's layout, 1,618 names `.set` at block + offset | 1,592 named objects of their own in data.c (`pc_datum_<i>`, `pc_objs`) for 1,599 names; a datum's object runs to the next datum's address, so the bytes after its extent no declaration covers stay with it (text after a table, a table's rows past a short declaration); 78 more objects, without a name, for bytes with no datum before them; aligned as own storage and at least as the N64 aligned the address (to 64) |
+| the loader | filled each block in place | lays each arena out in a buffer of its own, swaps it through the runs, runs the reach rules, then copies each datum's object; a pointer into an arena is its datum's object + the offset; the report lists `adjacent` pointers (a datum's first byte that is also the end of the one before it) |
+| own storage | N64 order: data.c `-fno-toplevel-reorder`, `--check` failed otherwise | any order (GCC reverses data.c's at `-O2`) |
+| the runtime images' C data | one range per image (`port/data/overlays.ld`, `-T`), saved and put back whole | datum by datum (`pc_cdata`: 17), gen_data refusing a static it can't name: the screens' 15 function-local statics are globals named for their screen (`carscr_cursorSpeed`, `trackscr_mapPos` ...), shots.c's two never-written tables `const`, circuitscr's never-written `del` is `circuitscr_del_text`; the implicit link scripts link plainly again (no `-T`, `cmake/concat.cmake` gone) |
+| ASan | data.c `PC_NO_SANITIZE`, the game C `--param asan-globals=0` | both instrumented: every datum has redzones |
+| the state hash | full region `arenas` (the blocks), an arena datum named by its bare N64 address, a runtime image's C data by its range | region `data` (each datum's object in N64 order with its N64 address: SCRATCH still applies), a pointer into a datum named as own storage's (tag and N64 address + offset), a runtime image's C datum by its index; the state words (`gGameState`, `gNewGameState`, two data) hashed from a copy. Hash values differ from bb46fab4's (the `data` region, and those ids) |
+| names inside other data | 12 inside own storage, 13 inside arena data | 4 (`symbols.inside_own`): `gPlayers_save` (gPlayers' profile handle: eight game files and no shared declaration of gPlayers to name it by), `blit_tile_lines` inside `blit_ia_palette`'s eight bytes, and `gWingSizes` and `gFrontTireScale` inside `gCarWings`' 13 rows (one storage on purpose, 18.2); 4 second names at a datum's first byte (`gStackIdle`, `sample_dma_thread_stack_top`, `gEngineSpecs`, `static_ltree`) |
+| load_overlay | took the name, the BSS bounds and the ROM place, unused on the PC | the block, its end and the loaded flag |
+
+### 18.2 The walks, found and fixed
+
+An ASan+UBSan build (GCC 14's objects, Clang 21's runtime, `-fsanitize-recover=address`, `halt_on_error=0`) with
+every arena's data in objects, run over all 65 synthetic paths, then each fix's again until no report:
+
+| Where | What it walked | Found by | Fix |
+|---|---|---|---|
+| `video_set_mode` (video_mode.c) | the TV types' default adjustments, one s16[3][4] the symbol file named by its four columns (`video_default_extra_width` ... `video_default_y`), read across them | ASan, every path | `video_defaults[3]` of `VideoDefault {extra_width, extra_height, x, y}` (system.h); one name in the symbol file |
+| `InitRushControls` | copied the default layout to each controller until `&gFrontDistance`, the next datum (the C's one end pointer into another datum) | ASan, every path (and section 2's experiment) | `gNewControls[4][10]`, `gDefaultControls[10]` declared whole; a loop over the four |
+| `ZOID_RemovePoly`, `RemoveObjectTree` | read the entry before the list (index -1) once the count reached 0, a value the test then ignored | ASan, every path (removeBG, the player screen) | the count tested first |
+| the car settings: carscr, selectcarload, AnimateTire | MAT3's [5][13] tables declared as one row; the tyre scales' rows 1-4 had a second name (`gFrontTireScale_players`), read across | ASan, every car select and race | `gCarTrans` ... `gCarHorn`, `gTireRims`, `car_color_choice_a/b/c`, `gFrontTireScale`, `gRearTireScale` declared [5][13]; the second names gone |
+| `SetOptions`, the track select (trackscr.c, trackscr_animText.c) | `gCircuitTracks[gCircuitTrack]` with gCircuitTrack -1 (a circuit not begun): the five bytes before the table | ASan, `circuit`, `circuit12` | `CurrentCircuitTrack()` (ContinueCircuit.c) builds that slot from the bytes the N64's layout put there: the last byte of `audio_cursorSpeed` as memory holds it, `gCircuitPlayer`, three zeros; `gCircuitTracks[24]` |
+| `init_views` (4 windows) | `camera_nextSwitch[3]`, declared three: the frame scales' unused leading 1.0 (`FSCLS_from_one`) | ASan, `race4p` | `camera_nextSwitch[4]`; the frame scale reads `FSCLS.fscls[gFrameScale - 1]` |
+| `startscr_initButtons` | copied 48 bytes from `unitmatrix` (f32[3][3]) and the origin after it | ASan, `screens`, `cheats*`, `language` | `unitmatrix[4][3]`, `unitmatrix_origin` its fourth row |
+| `BlitXLU` → `BlitColors` | an intensity texture's environment colour, the 4 bytes after `blitPrimColor`: on the N64 the first word of `gPS_PakName` (own storage) | ASan, every path | `blitPrimColor` is `BlitXluColors {prim, env}`, whose 8 bytes the loader fills from the layout as the block had them (`OVERLAPS_REVIEWED`) |
+| `ZOID_EndFrame` → `BlitColors` | the IA blits' environment colour, the 4 bytes after `blit_ia_palette`: `blit_tile_lines`' first two u16s | ASan, `battle2p`, `battlequit` | `blit_ia_palette[8]`, one storage with `blit_tile_lines` (`OVERLAPS_REVIEWED`) |
+| `StartSmoke` | `gCarWings[slot + 1]` for every car: for a drone (slot 4 and up, more cars than players) the rows past the table's five, on into `gWingSizes` and `gFrontTireScale`, read as wing types | UBSan's `bounds` in CI's ASan test set (`assets_fxcars`, 12 cars); no synthetic path's smoke reaches it | `gCarWings[13][13]` (12 cars' rows), one storage with `gWingSizes` and `gFrontTireScale` (`OVERLAPS_REVIEWED`): the bytes as the PC had them |
+| `sound_macro_get_variable`, `_set_variable` | the global macro variables as 32 bytes past `sound_seq_current_index` | reading the code (docs/code/audio.md); no path runs a macro with a global variable | `sound_global_variables[index - 16]` |
+
+The two environment colours and a drone's wing type for its smoke are what the game always had, garbage of the N64's
+layout kept byte for byte (the gate's screenshots); a change of them is a visible change, for the lead to decide.
+
+**End pointers.** In the C: `InitRushControls`' `&gFrontDistance` (fixed above); a scan of every relational comparison
+against a datum's address finds the others ending inside their own arrays (InitStunt, RemovePanes, TargetPathAvoid,
+StartEnvironment). In the ROM's data: the loader's `adjacent` lines, 20 on the synthetic cartridge, each a table's
+first byte its reader takes it for: `gCarModels` → `car_descriptors` (13), the descriptors' tyre pointers →
+`frontTire` (2), zlib's static trees and extra-bits tables (5). The retail cartridge's are the lead's to read.
+
+### 18.3 What ASan saw, and its settings
+
+With every arena's data in objects, data.c instrumented and the game C's globals with redzones (stages 3 and 4), the
+same ASan+UBSan build ran all 65 synthetic paths: 0 reports, every path to its state. Before the fixes of 18.2 it
+reported 28 distinct sites in 12 places (and the paths that ran into a walk stopped there). CI's ASan test set then
+found two more: UBSan's `bounds` in `StartSmoke` (18.2), and ASan a global-buffer-overflow in `assets_models`, whose
+stand-in for `modelrun` was an `int8_t` the game's code writes as the u16 it is (test_models.c: now a `uint16_t`).
+
+Kept: `PC_NO_SANITIZE` for `game_types` and `game_decls` (the -O0 copies gen_data reads, never linked), the heap's
+block without redzones (the game's allocator and its N64 accounting: SANITIZE.md 6), and the UBSan checks the game C
+leaves out (SANITIZE.md 1). Removed: data.c's `PC_NO_SANITIZE`, the game C's `--param asan-globals=0`, data.c's
+`-fno-toplevel-reorder`.
+
+The ASan builds on Rocky link GCC 14's objects against Clang 21's runtime (SANITIZE.md 1.4: `libasan.so` and
+`libubsan.so` both linked to `libclang_rt.asan.so`), with `allow_addr2line=1` in ASAN_OPTIONS, UBSAN_OPTIONS and
+LSAN_OPTIONS (no llvm-symbolizer there). The search build added `-fsanitize-recover=address` and `halt_on_error=0`,
+so one run lists every site.
+
+### 18.4 What no synthetic path proves
+
+- **Walks the paths don't reach** stay hidden from ASan and, in a build without it, read whatever object the linker put
+  next. Known and left as the N64 does them: a player without a controller (5) reads `gNewControls[5]`, past the
+  four layouts (SetControls, controls_validControl, animControls: on the N64 the bytes of `gFrontDistance` and what
+  follows); `CheckCameraView` indexes the switch times by a car's camera (under 4 on every path); the ghost race reads
+  `gGhosts[m->slot]`. The retail cartridge's scripts under ASan on the Pi are the net for the rest.
+- **The circuit's slot before its first race** (18.2) is built from `audio_cursorSpeed`'s last byte in memory: on a
+  little-endian PC its top byte, where the N64 read its lowest. After the audio options screen, the PC (before this
+  step and after it) reads 0x43 there for a circuit not begun, where the N64 read 0. Kept as it was; the lead's to
+  judge.
+- **The two environment colours** (18.2) are the image's bytes as the PC always had them (the N64's word byte-swapped
+  as a u32 for `blitPrimColor`): the same pixels as before, not the N64's. So is a drone's wing type in `StartSmoke`
+  (a float's bytes in the PC's order, where the N64 read them big-end first): the smoke's colour as the PC had it.
+- **The retail cartridge's ROM pointers**: the loader's `adjacent` lines name every pointer to a datum's first byte
+  that is also the end of the one before it; one that its reader takes for a table's end would now run past that
+  table. The synthetic cartridge's 20 are all starts.
+
+### 18.5 The proof
+
+Rocky (x86-64, GCC 14), against wave 3.6's start (`~/rush2049pc/w3f-ref`, bb46fab4's builds), on the last commit:
+
+| Check | Result |
+|---|---|
+| `pconly_gate.sh --base ~/rush2049pc/w3f-ref --skip realtime --skip compare --data-moved` (its compare, at -j8, run at -j6 below: Rocky was shared) | PASS: the build, ctest 572 of 572 (`assets_rom` skipped: no ROM on Rocky) |
+| `synth_compare.py --same --shots --audio --data-moved -j6`, Debug against the base's Debug | 64 of 64 `same` |
+| the audible cartridge (`rush2049_synth_snd.z64`), the same | 64 of 64 `same` |
+| RelWithDebInfo against the base's RelWithDebInfo, the same options | 64 of 64 `same` (GCC reverses data.c's objects at `-O2`); `ctest --test-dir build/opt -LE realtime` 572 of 572 |
+| the realtime tests (`ctest -L realtime`, Debug, under `flock ~/rush2049pc/.realtime.lock`) | 61 of 61 |
+| ASan with UBSan (GCC 14's objects, Clang 21's runtime), every synthetic path on both cartridges, each in a data folder of its own | 65 and 65 paths, no ASan, LSan or UBSan report, every path to its state |
+| ASan with UBSan over CI's x86-64 set (the arm job's skip list, `halt_on_error=1`) | 399 of 399 |
+| `gen_data.py --check` (Debug, RelWithDebInfo, ASan) | 1,599 names in 1,592 objects, 1 inside own storage, 405 own, 17 runtime-image C data, 39 decoupled, nothing at an N64 address |
+| CI's linux checks: `offset_check.py --strict`, `alias_check.py`, `bounds_check.py`, `census.py`, `n64_audit.py --baseline` | all pass: `offset_check.py --strict` no open finding; `alias_check.py` none open (`REVIEWED` now takes a function's pairs too: `gCarWings` and `gFrontTireScale` in `GhostStart`, `carscr_InitScreen`, `updateCarScreen`, 18.2; the MusyX context table's entry gone with its label); `bounds_check.py` none new (13 entries for the declarations of 18.2 added to `bounds_reviewed.txt`, 3 gone with their labels); `census.py` 1,063 of 1,063 compile, 0 pointer warnings, 0 undefined; `n64_audit.py` no class grew (`symbols.inside_own` 12 to 4 in the baseline); `window_census.py` `data.arena.*` 0, `data.inside_own` 4 |
+| the Windows paths | mingw-w64 on the Pi: the generated data.c compiles (`-Wall`, no warning), every name a `B` symbol, the names inside an object at its symbol + offset (`gWingSizes` = `gCarWings` + 0x44); `gen_data.py --check --pe` on that object: the objects and names agree (its 17 errors are the runtime images' C data, which the game C defines); pc_data.c, datacheck.c, statehash.c, selftest.c `-fsyntax-only -Wall` clean. Not linked or run (CI's windows jobs) |
+| the stages | stage 1: ctest 572 of 572, 64 of 64 `same` (membig alone); stage 2: 64 of 64 `same` and the data, hash and asset tests; stages 3 and 4: the ASan runs over every path (0 reports); the whole proof is the last commit's |
+
+The state hash's values differ from bb46fab4's (the `data` region and the ids of 18.1): an older build's `--log-hash`
+lines don't compare with this one's, and online play's desync check needs this build (or a later one) on both sides,
+as between any two builds whose hashes differ. A recording's header names its build in any case (LOCKSTEP.md 3).
+
+### 18.6 What this changes for later steps
+
+- **A datum's storage is its object.** A rule over a range of an arena (step 14's big-endian ranges, a decoupling)
+  takes its datum's object (`pc_data_arena_host`, the loader's `pc_objs`): there's no block any more, and two data
+  next to each other on the N64 are anywhere on the PC. A rule over a range that crosses data is one per datum.
+- **Data the game reads across** are one storage on purpose, with the reason in gen_data's `OVERLAPS_REVIEWED`
+  (`blitPrimColor`, `blit_ia_palette`, `gCarWings`). A new one shows as an ASan report on a path or a test, or as a
+  UBSan `bounds` report where the declaration is short; the fix is in the C (18.2) or a declaration to the reach and
+  the reviewed overlap.
+- **A walk no path reaches** reads, in a build without ASan, whatever object the linker put next, which differs from
+  build to build: the retail scripts under ASan on the Pi, the paths' ASan runs (SANITIZE.md), and the guard are the
+  nets. 18.4 lists the known ones.
+- **ASan's redzones** are around every datum, the game C's and data.c's; only the heap's block is the N64's (its
+  allocator's accounting).
+- **The decoupling recipe** ([DECOUPLE.md](DECOUPLE.md)) is now for a datum that changes its type or layout; a datum
+  that only needs to be an object of its own already is.
