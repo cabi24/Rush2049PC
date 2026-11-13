@@ -215,6 +215,6 @@ extern void osViSetSpecialFeatures(u32 features);
 /* --- Game thread stack (symbol_addrs.us.txt: "game thread stack base"),
  * used only for address arithmetic (base + offset) when setting up the
  * thread's stack pointer. */
-extern u8 main_thread_stack[0x2000];
+extern u8 main_thread_stack[0x960];
 
 #endif

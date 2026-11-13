@@ -461,7 +461,7 @@ extern struct Blit *licensescr_blit;
 extern s8 licensescr_inited;
 extern char *modescr_buttonNames[EXTENT(8)];
 extern ModeScreenButton modescr_buttonInfo[EXTENT(13)];
-extern f32 modescr_title_button_position[EXTENT(3)];
+#define modescr_title_button_position (modescr_buttonInfo[12].position)   /* the title's button's place */
 extern s32 modescr_buttonsInited;
 extern s32 modescr_buttonsJustInited;
 extern f32 modescr_gButtonScale;
@@ -522,8 +522,8 @@ extern struct Blit *startscr_blit;
 extern s8 startscr_validOption[EXTENT(12)];
 extern char *startscr_buttonNames[EXTENT(8)];
 extern StartScreenButton startscr_buttonInfo[EXTENT(18)];
-extern f32 startscr_players_button_position[EXTENT(3)];
-extern f32 startscr_title_button_position[EXTENT(3)];
+#define startscr_players_button_position (startscr_buttonInfo[10].position)   /* the players button's place */
+#define startscr_title_button_position (startscr_buttonInfo[11].position)   /* the title's button's place */
 extern s32 startscr_buttonsInited;
 extern s32 startscr_buttonsJustInited;
 extern f32 startscr_gButtonScale;
@@ -541,7 +541,7 @@ extern struct Blit *titlescr_blit;
 extern s32 movieIdx;
 extern char *trackscr_buttonNames[EXTENT(9)];
 extern TrackScreenButton trackscr_buttonInfo[EXTENT(48)];
-extern f32 trackscr_title_button_position[EXTENT(3)];
+#define trackscr_title_button_position (trackscr_buttonInfo[42].position)   /* the title's button's place */
 extern s32 trackscr_buttonsInited;
 extern s32 trackscr_buttonsJustInited;
 extern f32 trackscr_gButtonScale;

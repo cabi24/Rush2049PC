@@ -43,7 +43,7 @@ typedef union {
 void ClearScreen(u16 color)
 {
     gDPPipeSync(frame_dl++);
-    gDPSetColorImage(frame_dl++, G_IM_FMT_RGBA, G_IM_SIZ_16b, screen_width, frame_color_buffers[frame_record_index].buf);
+    gDPSetColorImage(frame_dl++, G_IM_FMT_RGBA, G_IM_SIZ_16b, screen_width, frame_records[frame_record_index].colorBuffer);
     gDPSetFillColor(frame_dl++, ((u32)color << 16) | color);
     gDPFillRectangle(frame_dl++, 0, 0, screen_width - 1, screen_height - 1);
     gDPPipeSync(frame_dl++);

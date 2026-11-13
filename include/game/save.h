@@ -62,9 +62,10 @@ extern OSMesgQueue si_event_queue;
 extern s8 gSaveGhostFiles;
 extern s8 gCheatActive[EXTENT(21)];
 extern s16 gCheatState[EXTENT(21)];   /* the cheats' states, by number (cheatscr.c; MAT3 signed short gCheatState[23]) */
-extern s16 cheat_all_cars;
-extern s16 cheat_all_tracks;
-extern s16 cheat_all_parts;
+/* The unlock-everything cheats' states, gCheatState's entries 14 to 16 (cheatscr.c sets them by number). */
+#define cheat_all_cars (gCheatState[14])
+#define cheat_all_tracks (gCheatState[15])
+#define cheat_all_parts (gCheatState[16])
 extern struct pc_multiblit PS_ErrorFunc_dimMultiBlit[EXTENT(1)];
 extern char *gPasswordAlphabet;
 extern u8 gInversePasswordAlphabet[EXTENT(256)];

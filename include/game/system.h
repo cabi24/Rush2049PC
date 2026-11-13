@@ -101,7 +101,7 @@ extern OSMesgQueue decompress_lock_queue;
 extern OSMesg decompress_lock_message;
 extern u8 gStackIdle[EXTENT(32)];
 extern u8 bg_load_thread_stack[EXTENT(2400)];
-extern u8 main_thread_stack[EXTENT(8192)];
+extern u8 main_thread_stack[EXTENT(2400)];   /* the boot threads' stacks, one after another on the N64 */
 extern u8 game_thread_stack[EXTENT(4800)];
 extern u8 model_thread_stack[EXTENT(3200)];
 extern u8 gSchedulerStack[EXTENT(1600)];
@@ -175,7 +175,6 @@ extern s32 retraces_since_frame;
 extern OSMesg si_lock_msg;
 /* gOPPFuncs: declared by its files (src/blob/groups/hal_time/group.c: defines it) */
 extern FrameRecord frame_records[EXTENT(2)];
-extern FrameBuffer frame_color_buffers[EXTENT(1)];
 extern void *framebuffer_a;
 extern void *framebuffer_b;
 extern struct Dynamic *frame_dynamic;

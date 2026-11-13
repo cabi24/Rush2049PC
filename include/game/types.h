@@ -24,7 +24,6 @@ struct BSTNode;
 struct C96Handle;
 struct CCar;
 struct CCol;
-struct CallbackWords;
 struct CamNode;
 struct CamSlot;
 struct Camera;
@@ -947,11 +946,18 @@ typedef struct SmallNode { /* 0x18 bytes */
     struct StateNode *object; /* 0x10 */
 } SmallNode;
 
-typedef struct SpeechServiceHooks { /* 0x40 bytes */
-    void (*unknown_00[6])(void); /* 0x0 */
-    void *(*allocate)(u32, s32); /* 0x30 */
-    void (*release)(void *);     /* 0x38 */
-} SpeechServiceHooks;
+/* The game's services to the sound library (audio_driver_services, sound_set_services; src/rom/sound/sound_services.h
+ * declares the same record for the library's C). */
+typedef struct SoundServices { /* 0x40 bytes */
+    void (*submit_task)(OSTask *task);                       /* 0x0 */
+    void (*wait_task)(void);                                 /* 0x8 */
+    void (*add_callback)(void (*callback)(void));            /* 0x10 */
+    void (*remove_callback)(void (*callback)(void));         /* 0x18 */
+    void (*start_dma)(void *dst, u16 size, void *src);       /* 0x20 */
+    u32 (*translate_address)(u32 address);                   /* 0x28 */
+    void *(*allocate)(u32 size, u32 mode);                   /* 0x30 */
+    void (*release)(void *allocation);                       /* 0x38 */
+} SoundServices;
 
 typedef struct SpeechStream { /* 0x1268 bytes */
     u8 gsm_history[358];                                         /* 0x0 */

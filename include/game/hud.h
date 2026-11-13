@@ -48,7 +48,7 @@ extern f32 gLapTime[EXTENT(4)];
 extern f32 gElapsedTime[EXTENT(4)];
 extern s16 markers_valid;
 extern s8 dot_order_list[EXTENT(12)];
-extern u8 TrackTimeStr[EXTENT(6)][8];
+extern u8 TrackTimeStr[5][8];   /* the players' race times as text (hud_updateFrame): eight bytes each, gAutoEdges after */
 extern char CheckpointStr;
 extern struct Voice *HudBlit1;
 extern struct Voice *HudBlit2;

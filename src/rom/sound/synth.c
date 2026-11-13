@@ -195,7 +195,6 @@ extern void sound_midi_set_controller(u8, u8, u8, u8);
 extern void sound_midi_copy_voice_controller(u8, struct VoiceState *, struct VoiceState *);
 extern u8 sound_initialized;
 extern void sound_ms_to_time(u32 *);
-extern unsigned char sound_volume_fader_types[][40];
 extern short sound_global_variables[16];
 extern u32 sound_synth_unread_setting;
 extern void sound_init_handles(void);
@@ -1011,12 +1010,11 @@ void sound_fade_pause_volume_unlocked(u8 volume, u16 time, u8 group)
     }
 }
 
-/* Sets volume group channel's type. sound_volume_fader_types is the faders' type bytes (fader 0's at +0x14, a stride
- * of 40 bytes): [channel][0] is fader channel's type. */
+/* Sets volume group channel's type: its fader's type byte. */
 void sound_set_group_type(unsigned char group, unsigned char type)
 {
     if (sound_initialized) {
-        sound_volume_fader_types[group][0] = type;
+        sound_volume_faders[group].type = type;
     }
 }
 

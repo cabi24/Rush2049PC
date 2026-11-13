@@ -18,6 +18,7 @@
  * cache, and that bookkeeping went with docs/port/NATIVE.md step 12 (it kept the low 32 bits of heap addresses). */
 #include "../rom_tu.h"
 #include "musyx.h"
+#include "sound_services.h"
 #include "sound_hw_voice.h"
 #include "sound_sample_record.h"
 
@@ -202,15 +203,7 @@ extern unsigned char rspbootTextStart[];
 extern unsigned char rspbootTextEnd[];
 extern unsigned char audio_ucode_text[];
 extern unsigned char audio_ucode_data[];
-/* The game's services (sound_set_services) and the frame hooks */
-extern void *(*sound_service_alloc)(unsigned int, unsigned int);
-extern void (*sound_service_free)(void *);
-extern void (*sound_service_wait_task)(void);
-extern void (*sound_services)(OSTask *);
-extern void (*sound_service_start_dma)(void *, unsigned short, void *);
-extern void (*sound_service_add_callback)(void (*)(void));
-extern void (*sound_service_remove_callback)(void (*)(void));
-extern unsigned int (*sound_service_translate_address)(unsigned int);
+/* The frame hooks (the game's services, sound_set_services, are sound_services: sound_services.h) */
 extern void (*sound_dma_flush_hook)(void);
 extern void (*sound_frame_hook)(void);
 
@@ -313,7 +306,7 @@ void sound_hw_run_output_thread(void *argument)
     if (sound_output_frequency <= 22050) {
         sound_output_buffer_count >>= 1;
     }
-    sound_output_buffers[0] = sound_service_alloc(sound_output_buffer_count * OUTPUT_BUFFER_BYTES, 128);
+    sound_output_buffers[0] = sound_services.allocate(sound_output_buffer_count * OUTPUT_BUFFER_BYTES, 128);
     for (i = 1; i < sound_output_buffer_count; i++) {
         sound_output_buffers[i] = (unsigned char *)sound_output_buffers[i - 1] + OUTPUT_BUFFER_BYTES;
     }
@@ -347,7 +340,7 @@ void sound_hw_start_output_thread(unsigned int *frequency)
     osSetEventMesg(OS_EVENT_AI, (OSMesgQueue *) sound_output_queue, &sound_output_event);
     sound_output_frequency = osAiSetFrequency(*frequency);
     *frequency = sound_output_frequency;
-    sound_output_stack = sound_service_alloc(OUTPUT_THREAD_STACK_BYTES, 128);
+    sound_output_stack = sound_services.allocate(OUTPUT_THREAD_STACK_BYTES, 128);
     osCreateThread((OSThread *) sound_output_thread, 0, sound_hw_run_output_thread, 0,
                    sound_output_stack + OUTPUT_THREAD_STACK_BYTES, OUTPUT_THREAD_PRIORITY);
     osStartThread((OSThread *) sound_output_thread);
@@ -367,8 +360,8 @@ void sound_hw_stop_output_thread(void)
     unsigned char command[1];
     command[0] = OUTPUT_MSG_STOP;
     osSendMesg((OSMesgQueue *)sound_output_queue, command, OS_MESG_BLOCK);
-    sound_service_free(sound_output_buffers[0]);
-    sound_service_free(sound_output_stack);
+    sound_services.release(sound_output_buffers[0]);
+    sound_services.release(sound_output_stack);
 }
 
 /* Allocates the delay effect's line: duration_ms of samples at the output rate, rounded up to whole subframes (and
@@ -381,7 +374,7 @@ void sound_hw_alloc_delay_line(unsigned int frequency, unsigned short duration_m
         count = SUBFRAME_FRAMES - count % SUBFRAME_FRAMES + count;
         sound_delay_length = count;
         sound_delay = 0;
-        sound_delay_line = sound_service_alloc(count * 2, 0);
+        sound_delay_line = sound_services.allocate(count * 2, 0);
     } else {
         sound_delay_line = 0;
     }
@@ -399,7 +392,7 @@ void sound_hw_set_delay(SoundDelayConfig *config)
     if (sound_delay_line != 0) {
         count = config->duration * sound_output_frequency / 1000;
         count = SUBFRAME_FRAMES - count % SUBFRAME_FRAMES + count;
-        state = sound_service_alloc(DELAY_STATE_SIZE, 0);
+        state = sound_services.allocate(DELAY_STATE_SIZE, 0);
         state->buffer = sound_delay_line;
         i = count * 2;
         bzero(state->buffer, i);
@@ -434,7 +427,7 @@ void sound_hw_remove_delay(void)
 {
     if (sound_delay != 0) {
         sound_hw_wait_task();
-        sound_service_free(sound_delay);
+        sound_services.release(sound_delay);
         sound_delay = 0;
     }
 }
@@ -444,7 +437,7 @@ void sound_hw_free_delay_line(void)
 {
     sound_hw_remove_delay();
     if (sound_delay_line != 0) {
-        sound_service_free(sound_delay_line);
+        sound_services.release(sound_delay_line);
     }
 }
 
@@ -455,7 +448,7 @@ void sound_hw_alloc_voices(unsigned short voice_count, unsigned int frequency)
 {
     unsigned short i;
     sound_hw_voice_count = voice_count; pc_sfd_layout(voice_count);
-    sound_hw_voice_block = sound_service_alloc(sound_hw_voice_count * sizeof(SoundHwVoice), 0);
+    sound_hw_voice_block = sound_services.allocate(sound_hw_voice_count * sizeof(SoundHwVoice), 0);
     sound_hw_voices = sound_hw_voice_block;
     sound_sfd_set = 0;
     for (i = 0; i < sound_hw_voice_count; i++) {
@@ -468,11 +461,11 @@ void sound_hw_alloc_voices(unsigned short voice_count, unsigned int frequency)
     } else {
         sound_sfds_per_task = (unsigned short) (((float)frequency / 25.0f / 192.0f) * sound_sfd_margin_half_rate) + 1;
     }
-    sound_sfd_sets[0] = sound_service_alloc(sound_sfds_per_task * SFD_SIZE, 0);
-    sound_sfd_sets[1] = sound_service_alloc(sound_sfds_per_task * SFD_SIZE, 0);
+    sound_sfd_sets[0] = sound_services.allocate(sound_sfds_per_task * SFD_SIZE, 0);
+    sound_sfd_sets[1] = sound_services.allocate(sound_sfds_per_task * SFD_SIZE, 0);
     sound_sfd_counts[1] = 0;
     sound_sfd_counts[0] = 0;
-    sound_mix_state = sound_service_alloc(PC_MX_STATE(664), 0);
+    sound_mix_state = sound_services.allocate(PC_MX_STATE(664), 0);
     bzero(sound_mix_state, PC_MX_STATE(664));
     osWritebackDCache(sound_mix_state, PC_MX_STATE(664));
 }
@@ -480,10 +473,10 @@ void sound_hw_alloc_voices(unsigned short voice_count, unsigned int frequency)
 /* Frees what sound_hw_alloc_voices allocated. */
 void sound_hw_free_voices(void)
 {
-    sound_service_free(sound_sfd_sets[0]);
-    sound_service_free(sound_sfd_sets[1]);
-    sound_service_free(sound_hw_voice_block);
-    sound_service_free(sound_mix_state);
+    sound_services.release(sound_sfd_sets[0]);
+    sound_services.release(sound_sfd_sets[1]);
+    sound_services.release(sound_hw_voice_block);
+    sound_services.release(sound_mix_state);
 }
 
 /* Sizes and allocates the DMA side: the DMA list (two entries per voice per subframe a task may hold), its done
@@ -503,7 +496,7 @@ void sound_hw_alloc_dma(unsigned short voice_count, unsigned int frequency, unsi
     }
     sound_sample_cache_size = (unsigned int) ((float)(sound_dma_capacity * sound_sample_cache_size) * sound_sample_cache_factor);
     sound_sample_cache_size = ((((sound_sample_cache_size + 63) >> 6) * ADPCM_BLOCK_BYTES) + 15) & 0xFFF0;
-    sound_dma_list = sound_service_alloc(sound_dma_capacity * 2 * DMA_ENTRY_SIZE, 0);
+    sound_dma_list = sound_services.allocate(sound_dma_capacity * 2 * DMA_ENTRY_SIZE, 0);
     osCreateMesgQueue((OSMesgQueue *)sound_dma_queue, &sound_dma_message, 1);
     sound_dma_busy = 0;
     sound_hw_init_codebook_cache(sound_dma_capacity);
@@ -515,7 +508,7 @@ void sound_hw_free_dma(void)
 {
     while (sound_dma_busy != 0) { pc_os_spin_yield("sound_hw_free_dma");
     }
-    sound_service_free(sound_dma_list);
+    sound_services.release(sound_dma_list);
 }
 
 /* Empties the DMA list for a new frame. */
@@ -528,7 +521,7 @@ void sound_hw_reset_dma_list(void)
 void sound_hw_wait_task(void)
 {
     if (sound_task_busy != 0) {
-        sound_service_wait_task();
+        sound_services.wait_task();
         osYieldThread();
         sound_task_busy = 0;
     }
@@ -551,7 +544,7 @@ void sound_hw_submit_task(void *sfds, unsigned short sfd_count)
         task->t.data_ptr = sfds;
         task->t.data_size = sfd_count;
         osWritebackDCache(sfds, sfd_count * SFD_N64_BYTES);
-        sound_services(task);
+        sound_services.submit_task(task);
         sound_task_busy = 1;
     }
 }
@@ -673,7 +666,7 @@ void sound_hw_start_dma(void)
 {
     if (sound_dma_list_count != 0) {
         sound_dma_busy = 1;
-        sound_service_start_dma(sound_dma_list, sound_dma_list_count, sound_dma_queue);
+        sound_services.start_dma(sound_dma_list, sound_dma_list_count, sound_dma_queue);
     }
 }
 
@@ -709,8 +702,8 @@ void sound_hw_advance_voice_position(SoundHwVoice *audio, unsigned short samples
 void sound_hw_init_codebook_cache(int entry_count)
 {
     int i;
-    sound_codebook_nodes = sound_service_alloc(entry_count * sizeof(AudioNode), 0);
-    sound_codebook_cache = sound_service_alloc(entry_count * ADPCM_CODEBOOK_BYTES, 0);
+    sound_codebook_nodes = sound_services.allocate(entry_count * sizeof(AudioNode), 0);
+    sound_codebook_cache = sound_services.allocate(entry_count * ADPCM_CODEBOOK_BYTES, 0);
     osInvalDCache(sound_codebook_cache, entry_count * ADPCM_CODEBOOK_BYTES); pc_mem_register_be(sound_codebook_cache, entry_count * ADPCM_CODEBOOK_BYTES);
     sound_codebook_used = 0;
     sound_codebook_free = sound_codebook_nodes;
@@ -728,8 +721,8 @@ void sound_hw_init_codebook_cache(int entry_count)
 /* Frees the codebook cache. */
 void sound_hw_free_codebook_cache(void)
 {
-    pc_mem_unregister_be(sound_codebook_cache); sound_service_free(sound_codebook_cache);
-    sound_service_free(sound_codebook_nodes);
+    pc_mem_unregister_be(sound_codebook_cache); sound_services.release(sound_codebook_cache);
+    sound_services.release(sound_codebook_nodes);
 }
 
 /* Once a frame: counts down every cached codebook's frames left; one at 0 may be reused. */
@@ -787,9 +780,9 @@ unsigned char *sound_hw_fetch_codebook(unsigned int source)
 void sound_hw_init_sample_cache(unsigned short block_count)
 {
     int i;
-    sound_sample_cache = sound_service_alloc(block_count * SAMPLE_BLOCK_BYTES, 0);
+    sound_sample_cache = sound_services.allocate(block_count * SAMPLE_BLOCK_BYTES, 0);
     osInvalDCache(sound_sample_cache, block_count * SAMPLE_BLOCK_BYTES); pc_mem_register_be(sound_sample_cache, block_count * SAMPLE_BLOCK_BYTES);
-    sound_sample_nodes = sound_service_alloc(block_count * sizeof(AudioCacheNode), 0);
+    sound_sample_nodes = sound_services.allocate(block_count * sizeof(AudioCacheNode), 0);
     sound_sample_lru_head = 0;
     sound_sample_lru_tail = 0;
     sound_sample_free = sound_sample_nodes;
@@ -806,8 +799,8 @@ void sound_hw_init_sample_cache(unsigned short block_count)
 /* Frees the sample cache. */
 void sound_hw_free_sample_cache(void)
 {
-    sound_service_free(sound_sample_nodes);
-    pc_mem_unregister_be(sound_sample_cache); sound_service_free(sound_sample_cache);
+    sound_services.release(sound_sample_nodes);
+    pc_mem_unregister_be(sound_sample_cache); sound_services.release(sound_sample_cache);
 }
 
 /* Takes a sample cache block for new data and puts it at the LRU list's tail (the most recent end): a free one,
@@ -1399,7 +1392,7 @@ void sound_hw_install_callback(void)
     sound_render_index = RENDER_INDEX_NONE;
     sound_dma_flush_hook = 0;
     sound_frame_hook = 0;
-    sound_service_add_callback(sound_hw_service_frame);
+    sound_services.add_callback(sound_hw_service_frame);
 }
 
 /* Lets the output drain (waits until sound_hw_service_frame has rendered a ring's worth of buffers more), then
@@ -1409,7 +1402,7 @@ void sound_hw_remove_callback(void)
     sound_drain_count = sound_output_buffer_count;
     while (sound_drain_count > 0) { pc_os_spin_yield("sound_hw_remove_callback");
     }
-    sound_service_remove_callback(sound_hw_service_frame);
+    sound_services.remove_callback(sound_hw_service_frame);
 }
 
 /* The common start-up of both outputs: the voices (at most PC_MX_VOICE_SLOTS on the PC, 32 on the N64), the DMA
@@ -1738,7 +1731,7 @@ void sound_hw_flush_stream_wrap(short *buffer, unsigned int samples)
 unsigned int sound_hw_cart_address(unsigned int samples)
 {
     if (samples - CART_BUS_BASE >= CART_BUS_SIZE) {
-        samples = sound_service_translate_address(samples);
+        samples = sound_services.translate_address(samples);
     }
     return samples;
 }

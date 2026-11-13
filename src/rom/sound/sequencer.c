@@ -190,7 +190,6 @@ extern u8 sound_track_volumes[SEQ_TRACKS];
 extern int sound_synth_frequency;
 extern unsigned char sound_initialized;
 /* the data loader's label for slot 0's track_groups (MUSYX_DATA.md 8.2), indexed by slot */
-extern unsigned char sound_seq_studio_groups[][sizeof(SequenceContext)];
 
 /* The synth, the volume groups and this file's functions */
 extern int sound_stop_unlocked(u32);
@@ -1239,7 +1238,7 @@ void sound_seq_set_studio_group(unsigned int identifier, unsigned char track, un
     if (sound_initialized) {
         index = sound_seq_find_slot(identifier);
         if (index != 0xFFFFFFFF) {
-            sound_seq_studio_groups[index][track] = group;
+            sound_seq_players[index].track_groups[track] = group;
             sound_set_group_type(group, 2);
         }
     }

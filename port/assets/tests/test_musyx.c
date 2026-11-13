@@ -509,7 +509,6 @@ STORAGE(sound_sfx_tables, 128 * 16);
 STORAGE(sound_seq_free_notes, 8);
 STORAGE(sound_seq_players, 0x10000);
 STORAGE(sound_seq_note_pool, 256 * 64);
-STORAGE(sound_seq_studio_groups, 16);
 STORAGE(sound_seq_current_index, 64);
 STORAGE(sound_seq_current_index_byte, 1);
 STORAGE(sound_seq_fading_out, 4);
@@ -543,8 +542,7 @@ STORAGE(sound_voice_count, 4);
 STORAGE(sound_midi_channel_owners, 128);
 STORAGE(sound_random_seed, 4);
 STORAGE(sound_sine_table, 2048);
-STORAGE(sound_sine_table_end, 2048);
-void *sound_service_alloc, *sound_service_free;
+STORAGE(sound_services, 64);
 /* voices.c's: the voice lists, the channel and priority links, the sequence nodes. */
 STORAGE(sound_voices_locked, 1);
 STORAGE(sound_music_voice_limit, 1);

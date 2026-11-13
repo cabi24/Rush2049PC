@@ -11,6 +11,7 @@
  * offsets (each field's name ends in its offset); on the PC their storage is PC data, PC_MX_VOICE_SLOTS long. */
 #include "../rom_tu.h"
 #include "musyx.h"
+#include "sound_services.h"
 
 #define SFX_GROUP_RESET 254        /* sound_set_sfx_volume_group: back to the default group */
 #define SFX_VOLUME_GROUP_BYTE 9    /* an effect's volume group: byte 9 of its 12 (registry.c's Descriptor) */
@@ -36,7 +37,6 @@ typedef struct VoiceState {
 #pragma pack(0)
 
 /* the 8 service callbacks are function pointers (docs/port/MUSYX_DATA.md 8.1) */
-typedef struct CallbackWords { void (*words[8])(void); } CallbackWords;
 
 extern u8 sound_initialized;
 extern void sound_hw_lock(void);
@@ -68,7 +68,6 @@ extern void sound_fade_volume_group_unlocked(unsigned char, unsigned short, unsi
 extern unsigned char sound_mono;
 extern void sound_hw_set_delay_effect(void *);
 extern void sound_hw_remove_delay_effect(void);
-extern CallbackWords sound_services;
 extern void sound_hw_freeze_output(void);
 
 /* Sets the modulation wheel (14 bits) on every voice of a sound's chain. Returns 0, or -1 if the library is not
@@ -385,9 +384,9 @@ void sound_remove_delay_effect(void)
 
 /* Installs the platform's eight service hooks (sound_services: submit and wait for the audio task, set and clear the
  * retrace callback, DMA, the cartridge address, allocate, free): the library calls nothing of the OS itself. */
-void sound_set_services(const CallbackWords *callbacks)
+void sound_set_services(const SoundServices *services)
 {
-    sound_services = *callbacks;
+    sound_services = *services;
 }
 
 /* Stops the output from advancing (sound_hw_freeze_output): the game's pre-NMI (reset) handler and main loop. */

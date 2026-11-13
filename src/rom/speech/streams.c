@@ -10,6 +10,7 @@
  * N64-shaped: the bank is read by cartridge DMA, and speech_set_bank tells a cartridge address from a RAM one by
  * its top bits. */
 #include "../rom_tu.h"
+#include "../sound/sound_services.h"
 
 #define SPEECH_STREAMS 2                        /* streams that can play at once */
 #define SPEECH_FLAG_STATIC_BUFFERS 1            /* speech_init's flags: allocate both rings once, at the largest size */
@@ -73,9 +74,6 @@ typedef struct SpeechStream {
 } SpeechStream;
 
 typedef int (*SpeechStreamCallback)(short *, unsigned int, short *, unsigned int, unsigned int);
-/* The library's platform services (sound_services: MUSYX_DATA.md 8.1). The six before allocate are the task
- * submit and wait, the retrace callback's set and clear, the DMA start and the address translation. */
-typedef struct SpeechServiceHooks { void (*unknown_00[6])(void); void *(*allocate)(unsigned int, int); void (*release)(void *); } SpeechServiceHooks;
 
 /* The speech module's data */
 extern unsigned char sound_half_rate;
@@ -84,16 +82,11 @@ extern volatile unsigned char speech_initialized[];
 extern OSMesgQueue speech_lock_queue;
 extern OSMesg speech_lock_message;
 extern unsigned int speech_next_token;
-extern void *(*sound_service_alloc)(unsigned int, unsigned int);
 extern void *speech_bank_data;
 extern void *speech_bank_offsets;
 extern unsigned int speech_bank_count;
 extern unsigned int speech_flags;
 extern void *speech_static_buffers[SPEECH_STREAMS];
-extern void (*sound_service_free)(void *);
-/* each stream's busy byte, through the data loader's label (speech_streams + the field's offset) */
-extern volatile unsigned char speech_stream_busy[][sizeof(SpeechStream)];
-extern SpeechServiceHooks sound_services;
 extern unsigned char speech_bank_owned;
 extern unsigned int sound_hw_cart_address(unsigned int);
 extern int sound_hw_is_cartridge(const void *);
@@ -263,7 +256,7 @@ unsigned int speech_play(unsigned int index, unsigned int rate,
                 stream->buffer = speech_static_buffers[selected];
             } else {
                 size = sound_stream_buffer_size(stream->buffer_count);
-                stream->buffer = sound_service_alloc(size, 0);
+                stream->buffer = sound_services.allocate(size, 0);
                 osInvalDCache(stream->buffer, size);
             }
             if (stream->buffer) {
@@ -291,7 +284,7 @@ void speech_stop_stream(int selected)
     case SPEECH_STREAM_STARTING:
         speech_streams[selected].busy = SPEECH_STREAM_FREE;
         if (!(speech_flags & SPEECH_FLAG_STATIC_BUFFERS)) {
-            sound_service_free(speech_streams[selected].buffer);
+            sound_services.release(speech_streams[selected].buffer);
         }
         break;
     case SPEECH_STREAM_PLAYING:
@@ -327,7 +320,7 @@ unsigned char speech_is_playing(unsigned int token)
         if (token == -1) {
             return 0;
         }
-        return speech_stream_busy[token][0] != 0;
+        return speech_streams[token].busy != 0;
     }
     return 0;
 }
@@ -449,18 +442,18 @@ int speech_set_bank(void *source, void *data)
 
     if (speech_initialized[0]) {
         if (speech_bank_offsets && speech_bank_owned) {
-            sound_service_free(speech_bank_offsets);
+            sound_services.release(speech_bank_offsets);
         }
         if (sound_hw_is_cartridge(source)) {
             speech_bank_data = speech_bank = (void *)(uintptr_t)sound_hw_cart_address((unsigned int)(uintptr_t)source);
-            count = sound_service_alloc(4, 0);
+            count = sound_services.allocate(4, 0);
             if (!count) {
                 return 0;
             }
             sound_dma_read_blocking(count, speech_bank, 4);
             speech_bank_count = *count;
-            sound_service_free(count);
-            speech_bank_offsets = sound_service_alloc(speech_bank_count * 4, 0);
+            sound_services.release(count);
+            speech_bank_offsets = sound_services.allocate(speech_bank_count * 4, 0);
             if (!speech_bank_offsets) {
                 return 0;
             }
