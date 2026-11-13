@@ -43,31 +43,31 @@ int pc_heap_holds(const void *p)
 static struct {
     const uint8_t *start;
     size_t size;
-} be_ranges[64];
+} sample_ranges[64];
 
-void pc_mem_register_be(const void *start, size_t size)
+void pc_mem_register_samples(const void *start, size_t size)
 {
     for (int i = 0; i < 64; i++) {
-        if (!be_ranges[i].start) {
-            be_ranges[i].start = start;
-            be_ranges[i].size = size;
+        if (!sample_ranges[i].start) {
+            sample_ranges[i].start = start;
+            sample_ranges[i].size = size;
             return;
         }
     }
 }
 
-void pc_mem_unregister_be(const void *start)
+void pc_mem_unregister_samples(const void *start)
 {
     for (int i = 0; i < 64; i++)
-        if (be_ranges[i].start == start)
-            be_ranges[i].start = NULL;
+        if (sample_ranges[i].start == start)
+            sample_ranges[i].start = NULL;
 }
 
-int pc_mem_is_be(const void *p)
+int pc_mem_is_sample_memory(const void *p)
 {
     const uint8_t *b = p;
     for (int i = 0; i < 64; i++)
-        if (be_ranges[i].start && b >= be_ranges[i].start && b < be_ranges[i].start + be_ranges[i].size)
+        if (sample_ranges[i].start && b >= sample_ranges[i].start && b < sample_ranges[i].start + sample_ranges[i].size)
             return 1;
     return 0;
 }

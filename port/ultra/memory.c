@@ -208,12 +208,18 @@ uint8_t *pc_mem_heap(uint32_t *size)
 
 /* ---------------------------------------------------------------- ranges of the files' data */
 
-/* Two sets of address ranges that the converters and the PI DMA keep, and that the renderer and the audio interpreter
- * ask about: the bytes still in the N64's byte order (big-endian: texels, TLUTs, the sound's data), and the models'
- * vertices the WAD converter made native (port/assets/wad.c, docs/port/NATIVE.md step 10). Each set is sorted and
- * disjoint. A range that overlaps existing ones merges with them, so a PI DMA into a registered buffer (the MusyX
- * caches) leaves it one range; adjacent ranges stay apart, so each buffer can be dropped on its own when it is freed.
- * The converters run on the N64 threads and the renderer on the main thread: each set has a lock. */
+/* Three sets of address ranges that the WAD converter and the sound library keep, and that the renderer and the audio
+ * interpreter ask about (pc_port.h, docs/port/NATIVE.md 19):
+ *   - texel memory: the files' texels and TLUTs (a WAD's IMAG chunk, port/assets/wad.c), in the formats the N64's RDP
+ *     reads, 16- and 32-bit texels high byte first, which the renderer decodes as they are;
+ *   - sample memory: the sound library's caches of the cartridge's samples and ADPCM codebooks
+ *     (src/rom/sound/hardware.c), 16-bit samples and coefficients high byte first, which the audio interpreter
+ *     decodes as the RSP's microcode did;
+ *   - model data: the models' vertices the WAD converter made native, which stay put while their file is loaded
+ *     (the high frame rate pairs a model's transforms by them).
+ * Each set is sorted and disjoint. A range that overlaps existing ones merges with them; adjacent ranges stay apart,
+ * so each buffer can be dropped on its own when it is freed. The converters and the sound library run on the N64
+ * threads, the renderer on the main thread and the audio interpreter on the audio's: each set has a lock. */
 typedef struct { uintptr_t start, end; } Range;
 typedef struct {
     pthread_mutex_t lock;
@@ -221,7 +227,8 @@ typedef struct {
     size_t n, cap;
 } RangeSet;
 
-static RangeSet g_be = {PTHREAD_MUTEX_INITIALIZER, NULL, 0, 0};
+static RangeSet g_texels = {PTHREAD_MUTEX_INITIALIZER, NULL, 0, 0};
+static RangeSet g_samples = {PTHREAD_MUTEX_INITIALIZER, NULL, 0, 0};
 static RangeSet g_model_data = {PTHREAD_MUTEX_INITIALIZER, NULL, 0, 0};
 
 static void range_add(RangeSet *set, const void *start, size_t size)
@@ -286,9 +293,13 @@ static int range_has(RangeSet *set, const void *p)
     return found;
 }
 
-void pc_mem_register_be(const void *start, size_t size) { range_add(&g_be, start, size); }
-void pc_mem_unregister_be(const void *start) { range_drop(&g_be, start); }
-int pc_mem_is_be(const void *p) { return range_has(&g_be, p); }
+void pc_mem_register_texels(const void *start, size_t size) { range_add(&g_texels, start, size); }
+void pc_mem_unregister_texels(const void *start) { range_drop(&g_texels, start); }
+int pc_mem_is_texel_memory(const void *p) { return range_has(&g_texels, p); }
+
+void pc_mem_register_samples(const void *start, size_t size) { range_add(&g_samples, start, size); }
+void pc_mem_unregister_samples(const void *start) { range_drop(&g_samples, start); }
+int pc_mem_is_sample_memory(const void *p) { return range_has(&g_samples, p); }
 
 void pc_mem_register_model_data(const void *start, size_t size) { range_add(&g_model_data, start, size); }
 void pc_mem_unregister_model_data(const void *start) { range_drop(&g_model_data, start); }

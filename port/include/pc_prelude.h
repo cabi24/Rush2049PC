@@ -99,9 +99,10 @@ struct pc_multiblit {
 #define TINFO_OFS(n) ((n) / 0x30 * 0x40 + ((n) % 0x30 < 0x10 ? (n) % 0x30 * 2 : (n) % 0x30 + 0x10))
 
 
-/* Ranges that hold raw big-endian ROM bytes (port/ultra, pc_port.h). */
-void pc_mem_register_be(const void *start, __SIZE_TYPE__ size);
-void pc_mem_unregister_be(const void *start);
+/* Sample memory: the sound library's caches of the cartridge's samples and codebooks, which the audio interpreter reads
+ * as the cartridge holds them (port/ultra, pc_port.h). */
+void pc_mem_register_samples(const void *start, __SIZE_TYPE__ size);
+void pc_mem_unregister_samples(const void *start);
 
 /* A wave's file is in memory, or its block goes away (port/assets, pc_port.h). */
 void pc_wave_loaded(int wave, void *buf, __SIZE_TYPE__ size);

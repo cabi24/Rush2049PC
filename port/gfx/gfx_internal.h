@@ -15,11 +15,13 @@ extern "C" {
 
 /* ---------------------------------------------------------------- memory access */
 
-/* Data the renderer reads in either byte order: big-endian inside a pc_mem_register_be range (a file's matrices,
- * viewports, texels and TLUTs), the host's elsewhere. */
-uint16_t pcgfx_rd16(const void *p, int be);
-uint32_t pcgfx_rd32(const void *p, int be);
-int pcgfx_is_be(const void *p);   /* pc_mem_is_be, tolerating NULL */
+/* Texels and TLUT entries, which the renderer reads in either byte order: high byte first in texel memory (a file's
+ * texels and TLUTs, which keep the formats the N64's RDP reads: pc_mem_register_texels, pc_port.h), the host's
+ * elsewhere (the texels and palettes the game builds). Everything else it reads (lists, vertices, matrices,
+ * viewports, lights) is in the host's byte order. */
+uint16_t pcgfx_rd16(const void *p, int high_first);
+uint32_t pcgfx_rd32(const void *p, int high_first);
+int pcgfx_is_texel_memory(const void *p);   /* pc_mem_is_texel_memory, tolerating NULL */
 /* An address from a command's w1 or an API argument: a host pointer, or a segment's offset where a list set the
  * segment's base (GFX.md "Addresses"). */
 const uint8_t *pcgfx_resolve(uintptr_t addr);

@@ -16,7 +16,7 @@ owns `main()`. About 3,300 lines of C11.
 | `pi.c` | ROM loading and SHA-1, PI DMA, `osPiReadIo`, inflate (zlib) and the boot LZSS |
 | `si.c` | the PIF: controller status and buttons, each controller's accessory: a controller pak (`.mpk`), a rumble pak, hot swaps |
 | `pakfile.c`, `pakwrite.c` | the controller pak's file: a blank image, what an image is, the atomic write; the thread that writes the paks |
-| `memory.c` | the game heap's block (its size: `game.memory`), the N64 guard (`RUSH2049_N64_GUARD`), the big-endian ranges and the models' vertices' ranges (model data); until [NATIVE.md](NATIVE.md) step 12 the RDRAM window, `pc_n64_ptr`/`pc_n64_addr` and the absolute-symbol fix-up |
+| `memory.c` | the game heap's block (its size: `game.memory`), the N64 guard (`RUSH2049_N64_GUARD`), the ranges of texel memory, sample memory and the models' vertices (model data); until [NATIVE.md](NATIVE.md) step 12 the RDRAM window, `pc_n64_ptr`/`pc_n64_addr` and the absolute-symbol fix-up |
 | `heap.c` | the game heap's high-water marks and fallbacks, the exit line ([MEMORY.md](MEMORY.md) 4) |
 | `misc.c` | `osInitialize` and the low-memory globals, cache/TLB/interrupt no-ops, faults, stubs |
 | `loop.c` | the host main loop |
@@ -136,10 +136,12 @@ track, the tracks' animated objects and the front end's song (docs/port/QA.md). 
 `game.memory` (16-256 MiB) sets osMemSize, and so the game's heap ([MEMORY.md](MEMORY.md)); the heap's peak and least
 free are the exit line's `heap:`.
 
-**Big-endian ranges** (`pc_mem_register_be`): sorted, disjoint. A range that overlaps existing ones merges with
-them, so a DMA into a registered buffer keeps it one range. Adjacent ranges stay apart. `pc_mem_unregister_be(p)`
-drops the range that contains p. PI DMA, inflate and LZSS register their destinations. The MusyX driver
-registers its two DMA caches when it allocates them and drops them when it frees them.
+**Texel and sample memory** (`pc_mem_register_texels`, `pc_mem_register_samples`; the big-endian ranges until
+[NATIVE.md](NATIVE.md) step 14): sorted, disjoint. A range that overlaps existing ones merges with
+them. Adjacent ranges stay apart. `pc_mem_unregister_texels(p)` (`_samples`) drops the range that contains p. The
+WAD converter registers each WAD's IMAG, its texels and TLUTs, as texel memory, and drops it with the file's block;
+the MusyX driver registers its two DMA caches as sample memory when it allocates them and drops them when it frees
+them. PI DMA, inflate and LZSS register nothing (until step 14 they registered their destinations).
 
 ## 3. Devices
 
@@ -419,7 +421,7 @@ gcc's preprocessor against main; the IDO build itself was not run):
 | `groups.c`, `sequencer.c` | `sound_start_song_in_group`/`sound_start_song` take pointer-sized integers (a stack address passed through a u32) |
 | `contpfs.c` | `__osIdCheckSum` adds to a pointer, not a truncated one |
 | `pfsdeletefile.c` | `__osPfsReleasePages` builds its first link through the byte fields, like every other link |
-| `rom_tu.h` | declarations of `pc_mem_register_be`/`unregister_be` |
+| `rom_tu.h` | declarations of `pc_mem_register_samples`/`unregister_samples` |
 
 **The scheduler at the game's offsets.** port/data gave the game's N64 names for the scheduler's storage their own
 storage, apart from `gScheduler`. The game sent its graphics tasks to `scheduler_task_queue`, stopped `scheduler_thread`, and
@@ -503,7 +505,7 @@ the libgsm kernels, now `gsm.c` (§8).
   - busy-waits: both yield paths;
   - memory: the heap's block (osMemSize less the N64's room below the heap, its first byte at the N64 heap's place
     modulo 64 KiB, its last byte writable), with the guard (`RUSH2049_N64_GUARD=1`) the reserved range and a fault's
-    note, game data in its arena's block (at the N64 address's offset in a page), big-endian ranges;
+    note, game data in its arena's block (at the N64 address's offset in a page), the texel and sample memory ranges;
   - RSP tasks and DP buffers, a queued graphics task yielding (real time only), and the AI rate and event;
   - in real time, the AI paced by a device: 30 pulls of 512 frames from a host thread, 10 ms apart, answered by
     88 buffers, only the first pull short;

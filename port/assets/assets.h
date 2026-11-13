@@ -3,12 +3,13 @@
  *
  * _ReadWave (src/blob/groups/waves/waves.c) calls pc_wave_loaded once per wave, after the file is in
  * its heap block and before SetupWaveModel sets it up. pc_wave_loaded picks the converter by wave number.
- * Each converter is a strong definition in its own file of this directory. assets.c has a weak no-op for each,
- * so a format that isn't converted yet stays big-endian:
+ * Each converter is a strong definition in its own file of this directory. assets.c has a weak no-op for each, for
+ * a program that doesn't link one (a file stays as the cartridge has it):
  *
  *   wad.c     WAD container: the OBHD, TXHD, PLHD and PTHD records, the display lists (OBJS, TXLD) and their vertices
- *             built native beside the file, the PATH points swapped; registers the block (IMAG texels and TLUTs stay
- *             big-endian) with pc_mem_register_be and the vertices with pc_mem_register_model_data
+ *             (and any matrix or viewport a list loads) built native beside the file, the PATH points swapped;
+ *             registers IMAG, the texels and TLUTs, which stay in the formats the renderer decodes, as texel memory
+ *             (pc_mem_register_texels) and the vertices as model data (pc_mem_register_model_data)
  *   world.c   world WADs' WHDR, WOBJ, GDAT, GTLD (after the WAD pass)
  *   road.c    road / collision
  *   path.c    paths
@@ -17,8 +18,8 @@
  *   musyx.c   MusyX project, pool, sample directory, songs
  *
  * Strategies (ASSETS.md §5): swap scalar fields in place and keep the N64 size; build native records beside the
- * file, with host pointers where the file has offsets (records.c, docs/port/NATIVE.md 4.4); or leave it big-endian
- * for port/gfx or port/audio, registered with pc_mem_register_be. */
+ * file, with host pointers where the file has offsets (records.c, docs/port/NATIVE.md 4.4); or leave the texels and
+ * TLUTs, which hold no address, in the formats the renderer decodes, as texel memory (docs/port/NATIVE.md 7, 19). */
 #ifndef PC_ASSETS_H
 #define PC_ASSETS_H
 
@@ -48,7 +49,7 @@
 
 /* One converter per format. buf is the start of the file in its heap block; size is the block's size, an upper
  * bound on the file's (the file's own headers say how much of it is used). Called once per load: a wave read
- * again into a new block is converted again, from big-endian. */
+ * again into a new block is converted again, from the cartridge's bytes. */
 void pc_assets_wad(int wave, uint8_t *buf, size_t size);
 void pc_assets_world(int wave, uint8_t *buf, size_t size);
 void pc_assets_road(int wave, uint8_t *buf, size_t size);
@@ -66,12 +67,12 @@ int pc_assets_check(int wave, const uint8_t *file, size_t size, const uint8_t *c
 int pc_assets_musyx_check(int wave, const uint8_t *file, size_t size);
 
 /* A wave's heap block goes away (UnloadWaveInstance) or moves (heap compaction): drop what a converter
- * registered for it. The default unregisters the big-endian range that contains buf. */
+ * registered for it (wad.c: the file's texel memory). The default does nothing. */
 void pc_assets_wave_released(int wave, uint8_t *buf);
 
-/* The game's heap frees a block (DeallocateMemoryInternal, src/blob/groups/heap_release/group.c): what was registered
- * big-endian inside it goes, whichever path freed it (UnloadWaveInstance, heap compaction, a whole sub-heap).
- * pc_assets_wad_block_freed is wad.c's part. */
+/* The game's heap frees a block (DeallocateMemoryInternal, src/blob/groups/heap_release/group.c): what was kept for
+ * the files inside it goes, whichever path freed it (UnloadWaveInstance, heap compaction, a whole sub-heap): their
+ * native records, and wad.c's texel memory (pc_assets_wad_block_freed). */
 void pc_heap_block_freed(void *p, size_t size);
 void pc_assets_wad_block_freed(uint8_t *p, size_t size);
 /* The game's heap moved a handle's block (heap compaction: ClearMemoryHeap, heap_move_block_low) from `from` to `to`,

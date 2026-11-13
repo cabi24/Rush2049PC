@@ -9,10 +9,10 @@
  *   wave 8        sample directory
  *   waves 10..21  songs: header, track table, track events, patterns, note events, tempo track
  *
- * Bytes stay where they are. The samples stay in the ROM: the library DMAs them into big-endian caches for
- * port/audio. A field is swapped once even when several records lead to it (tracks share patterns), and every
- * offset is checked against the block, so a file that doesn't parse is converted up to the first bad record
- * and logged. RUSH_TRACE_WAVES=1 prints what each file held. */
+ * Bytes stay where they are. The samples stay in the ROM: the library DMAs them into its caches for port/audio, as
+ * the cartridge holds them (sample memory, pc_port.h). A field is swapped once even when several records lead to it
+ * (tracks share patterns), and every offset is checked against the block, so a file that doesn't parse is converted
+ * up to the first bad record and logged. RUSH_TRACE_WAVES=1 prints what each file held. */
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -470,7 +470,6 @@ void pc_assets_musyx(int wave, uint8_t *buf, size_t size)
     if (mx_blank(&m)) {
         if (trace())
             fprintf(stderr, "rush2049pc: musyx: wave %d is all zero (a blank cartridge): an empty file\n", wave);
-        pc_mem_unregister_be(buf);
         return;
     }
     m.map = calloc(size, 1);
@@ -509,6 +508,4 @@ void pc_assets_musyx(int wave, uint8_t *buf, size_t size)
     }
     free(m.adsr);
     free(m.map);
-    /* The read marked the block as big-endian ROM bytes; it is native now. */
-    pc_mem_unregister_be(buf);
 }

@@ -315,12 +315,11 @@ static void song_build(Song *S)
     b8(B, 0x99), b8(B, 0x99), b8(B, 0x99), b8(B, 0x99);   /* the end's tempo is not read */
 }
 
-/* Convert a copy the way _ReadWave hands it over: the read registered the block as big-endian. */
+/* Convert a copy the way _ReadWave hands it over: the cartridge's bytes as they are, in their block. */
 static void convert(int wave, uint8_t *dst, const Build *B, size_t block)
 {
     memcpy(dst, B->b, B->n);
-    test_be_reset();
-    pc_mem_register_be(dst, B->n);
+    test_texel_reset();
     pc_wave_loaded(wave, dst, block);
 }
 
@@ -337,7 +336,7 @@ static void test_formats(void)
 
     convert(6, buf, &project.B, sizeof project.B.b);
     CHECK(check_converted(&project.B, buf, "project") == 0);
-    CHECK(test_be_range_count() == 0);
+    CHECK(test_texel_range_count() == 0);
     convert(7, buf, &pool.B, sizeof pool.B.b);
     CHECK(check_converted(&pool.B, buf, "pool") == 0);
     /* The envelope's u16 are swapped, the curve's bytes are not. */

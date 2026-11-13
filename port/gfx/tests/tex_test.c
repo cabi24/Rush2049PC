@@ -43,18 +43,18 @@ int pcgfx_png_decode(const uint8_t *data, size_t size, uint8_t **out, int *out_w
 
 /* ---------------------------------------------------------------- the memory functions port/ultra provides */
 
-static const uint8_t *s_be_p;
-static size_t s_be_n;
-void pc_mem_register_be(const void *start, size_t size) {
-    s_be_p = (const uint8_t *)start;
-    s_be_n = size;
+static const uint8_t *s_texels_p;
+static size_t s_texels_n;
+void pc_mem_register_texels(const void *start, size_t size) {
+    s_texels_p = (const uint8_t *)start;
+    s_texels_n = size;
 }
-void pc_mem_unregister_be(const void *start) {
-    if (s_be_p == start)
-        s_be_p = NULL;
+void pc_mem_unregister_texels(const void *start) {
+    if (s_texels_p == start)
+        s_texels_p = NULL;
 }
-int pc_mem_is_be(const void *p) {
-    return s_be_p != NULL && (const uint8_t *)p >= s_be_p && (const uint8_t *)p < s_be_p + s_be_n;
+int pc_mem_is_texel_memory(const void *p) {
+    return s_texels_p != NULL && (const uint8_t *)p >= s_texels_p && (const uint8_t *)p < s_texels_p + s_texels_n;
 }
 int pc_mem_is_model_data(const void *p) {
     (void)p;
@@ -382,7 +382,7 @@ static void case_identity(void) {
     case_dir(dump, sizeof(dump), "dump");
     textures("original", NULL, dump, NULL, 1, 0);
     /* RGBA16 16 x 8: LOADBLOCK at TMEM 0; LOADTILE of the same texels out of a 64-wide image at TMEM 0 with another
-     * line; LOADBLOCK from big-endian memory at TMEM 128 */
+     * line; LOADBLOCK from texel memory (high byte first, a file's) at TMEM 128 */
     for (y = 0; y < 8; y++)
         for (x = 0; x < 16; x++) {
             uint16_t v = s_t16[y * 16 + x];
@@ -390,7 +390,7 @@ static void case_identity(void) {
             s_be16[(y * 16 + x) * 2] = (uint8_t)(v >> 8);
             s_be16[(y * 16 + x) * 2 + 1] = (uint8_t)v;
         }
-    pc_mem_register_be(s_be16, sizeof(s_be16));
+    pc_mem_register_texels(s_be16, sizeof(s_be16));
     frame_begin(0, 0, 0);
     load_texture_block((uintptr_t)s_t16, G_IM_FMT_RGBA, G_IM_SIZ_16b, 16, 8, 0, 0, G_TX_CLAMP, G_TX_CLAMP, 0, 0);
     draw_rect(10, 10, 16, 8);
@@ -419,7 +419,7 @@ static void case_identity(void) {
     load_texture_block((uintptr_t)s_t8, G_IM_FMT_CI, G_IM_SIZ_4b, 16, 8, 5, 0, G_TX_CLAMP, G_TX_CLAMP, 0, 0);
     draw_rect(50, 50, 16, 8);
     frame_end();
-    pc_mem_unregister_be(s_be16);
+    pc_mem_unregister_texels(s_be16);
     pcgfx_tex_wait_idle();
     n = list_dir(dump, names, 16);
     {

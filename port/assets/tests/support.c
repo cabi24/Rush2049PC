@@ -1,6 +1,6 @@
 /* port/assets/tests/support.c: what the converters call from port/ultra, for test programs that link them alone.
- * A small big-endian range registry with the same rules as port/ultra/memory.c (overlapping ranges merge;
- * unregister drops the range that contains the address). */
+ * A small registry of texel memory with the same rules as port/ultra/memory.c (overlapping ranges merge; unregister
+ * drops the range that contains the address); sample memory, which only the sound library registers, is a no-op. */
 #include <stdarg.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -12,7 +12,7 @@
 static struct { uintptr_t start, end; } g_be[256];
 static size_t g_nbe;
 
-void pc_mem_register_be(const void *start, size_t size)
+void pc_mem_register_texels(const void *start, size_t size)
 {
     uintptr_t s = (uintptr_t)start, e = s + size;
     size_t i, j, k;
@@ -40,7 +40,7 @@ void pc_mem_register_be(const void *start, size_t size)
     g_be[i].end = e;
 }
 
-void pc_mem_unregister_be(const void *start)
+void pc_mem_unregister_texels(const void *start)
 {
     uintptr_t a = (uintptr_t)start;
     for (size_t i = 0; i < g_nbe; i++)
@@ -51,7 +51,7 @@ void pc_mem_unregister_be(const void *start)
         }
 }
 
-int pc_mem_is_be(const void *p)
+int pc_mem_is_texel_memory(const void *p)
 {
     uintptr_t a = (uintptr_t)p;
     for (size_t i = 0; i < g_nbe; i++)
@@ -60,9 +60,13 @@ int pc_mem_is_be(const void *p)
     return 0;
 }
 
-size_t test_be_range_count(void) { return g_nbe; }
+size_t test_texel_range_count(void) { return g_nbe; }
 
-void test_be_reset(void) { g_nbe = 0; }
+void test_texel_reset(void) { g_nbe = 0; }
+
+void pc_mem_register_samples(const void *start, size_t size) { (void)start, (void)size; }
+void pc_mem_unregister_samples(const void *start) { (void)start; }
+int pc_mem_is_sample_memory(const void *p) { (void)p; return 0; }
 
 /* The models' vertices the WAD converter registers (port/ultra/memory.c's model data): the ranges, unsorted. */
 static struct { uintptr_t start, end; } g_model_data[64];

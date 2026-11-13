@@ -197,7 +197,7 @@ details differ:
   places now use `uintptr_t`, with the N64's tokens unchanged:
   - `groups.c`'s `sound_start_song_in_group`/`sound_start_song`;
   - `hardware.c`'s two `>> 32` tests;
-  - `rom_tu.h`'s `pc_mem_register_be` declaration;
+  - `rom_tu.h`'s `pc_mem_register_be` declaration (`pc_mem_register_samples` since [NATIVE.md](NATIVE.md) step 14);
   - overlay B's `(unsigned long)&gFrameSeconds`, through `N64_ULONG`.
 - *How they were found.* Diffing the `-Wpointer-to-int-cast`, `-Wint-to-pointer-cast` and `-Wshift-count-overflow`
   warnings of a full Windows game build against Linux's found these four, and one more: `hardware.c:1719`

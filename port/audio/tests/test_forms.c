@@ -91,8 +91,8 @@ int main(void)
             a[2 * i] = (uint8_t)((uint16_t)book[i] >> 8);
             a[2 * i + 1] = (uint8_t)book[i];
         }
-        pc_mem_register_be(p, PCM_LEN * 2 + 64);
-        pc_mem_register_be(a, 256);
+        pc_mem_register_samples(p, PCM_LEN * 2 + 64);
+        pc_mem_register_samples(a, 256);
         pcm_be = p;
         adpcm = a;
         pcm_native = (const uint8_t *)n;

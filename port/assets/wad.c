@@ -21,11 +21,11 @@
  * contents and its record chunks stay as the file has them: the game no longer reads them there. The paths' points
  * are read where they are, through the paths' pts, so they are swapped in place.
  *
- * The display lists (the models' in OBJS, the texture loads in TXLD) and the vertices they load are built again beside
- * the file too, in the PC's own form, with host pointers (the display lists' section below); the records point at
- * them, and the game and the renderer read only those. The texels and TLUTs (IMAG) stay in the file in the N64's
- * formats, which the renderer decodes: the whole block is one pc_mem_register_be range (port/ultra's PI DMA and
- * decompressors registered the file already, so this only makes the range cover the block).
+ * The display lists (the models' in OBJS, the texture loads in TXLD) and the vertices, matrices and viewports they load
+ * are built again beside the file too, in the PC's own form, with host pointers (the display lists' section below);
+ * the records point at them, and the game and the renderer read only those. The texels and TLUTs (IMAG) stay in the
+ * file in the formats the N64's RDP reads, which hold no address and which the renderer decodes: IMAG is the file's
+ * texel memory (pc_mem_register_texels, the texels' section below).
  *
  * Release: the game's heap reports every block it frees (pc_heap_block_freed, from DeallocateMemoryInternal), and
  * pc_wave_released drops a wave's block on request; the records and the lists go with it (records.c). The game frees
@@ -72,6 +72,7 @@ typedef struct {
     uint8_t *buf;
     size_t size;
     int wave;
+    uint8_t *texels;   /* the first byte of its texel memory, NULL: none */
 } WadBlock;
 
 static WadBlock g_blocks[128];
@@ -79,12 +80,13 @@ static size_t g_nblocks;
 
 static void drop_block(size_t i)
 {
-    pc_mem_unregister_be(g_blocks[i].buf);
+    if (g_blocks[i].texels)
+        pc_mem_unregister_texels(g_blocks[i].texels);
     g_blocks[i] = g_blocks[--g_nblocks];
 }
 
 /* Drops the blocks inside [p, p + size): a block freed without a release (or a sub-heap freed whole) must not
- * leave a big-endian range over memory the game reuses for native data. */
+ * leave texel memory over memory the game reuses for its own data. */
 static void drop_blocks_in(const uint8_t *p, size_t size)
 {
     for (size_t i = 0; i < g_nblocks;)
@@ -94,7 +96,8 @@ static void drop_blocks_in(const uint8_t *p, size_t size)
             i++;
 }
 
-static void add_block(int wave, uint8_t *buf, size_t size)
+/* Keeps the WAD at buf (its block size bytes) and registers [texels, texels + texels_size) as its texel memory. */
+static void add_block(int wave, uint8_t *buf, size_t size, uint8_t *texels, size_t texels_size)
 {
     for (size_t i = 0; i < g_nblocks;)   /* a stale block that overlaps this one */
         if (g_blocks[i].buf < buf + size && buf < g_blocks[i].buf + g_blocks[i].size)
@@ -105,8 +108,9 @@ static void add_block(int wave, uint8_t *buf, size_t size)
         fprintf(stderr, "rush2049pc: wad: more than %zu WAD blocks registered\n", g_nblocks);
         abort();
     }
-    g_blocks[g_nblocks++] = (WadBlock){buf, size, wave};
-    pc_mem_register_be(buf, size);
+    g_blocks[g_nblocks++] = (WadBlock){buf, size, wave, texels_size ? texels : NULL};
+    if (texels_size)
+        pc_mem_register_texels(texels, texels_size);
 }
 
 void pc_assets_wave_released(int wave, uint8_t *buf)
@@ -116,8 +120,7 @@ void pc_assets_wave_released(int wave, uint8_t *buf)
             drop_block(i);
             return;
         }
-    (void)wave;
-    pc_mem_unregister_be(buf);   /* another format's file, registered by the PI DMA or a decompressor */
+    (void)wave;   /* another format's file: nothing of it was registered here */
 }
 
 void pc_assets_wad_block_freed(uint8_t *p, size_t size)
@@ -382,8 +385,13 @@ static void build_paths(int wave, struct pc_wad_records *w, uint8_t *buf, size_t
  * run mirror_vertex_texcoords walks from a level's first VTX (to the vertex whose flag has no 0x8000). Bytes two of
  * them share are one copy, and each run of the file's bytes stays in one piece, with 16 bytes of zeros after it (a
  * vertex that ends any walk past it). They are registered as model data (pc_mem_register_model_data), which the high
- * frame rate pairs a model's transforms by. The texels and TLUTs stay in the file, in the N64's formats, which the
- * renderer decodes; so do the matrices and the lights a MTX or MOVEMEM may load, which it reads big-endian there. */
+ * frame rate pairs a model's transforms by.
+ *
+ * The matrices and viewports: a MTX's w1, and a MOVEMEM's that loads a viewport or a matrix, points at a copy of what
+ * it loads in the host's byte order (Mtx: 16 words, each its two 16-bit halves; Vp: 8 s16), made beside the lists, one
+ * per command, as the renderer reads every matrix and viewport (the game's own are built so). A MOVEMEM of anything
+ * else (a light: bytes) points into the file. The texels and TLUTs stay in the file, in the formats the N64's RDP
+ * reads, which the renderer decodes: the file's texel memory (the texels' section below). */
 
 /* The F3DEX2 opcodes the walks know (port/gfx/gfx_gbi.h has them all). */
 #define OP_VTX 0x01
@@ -406,6 +414,11 @@ static void build_paths(int wave, struct pc_wad_records *w, uint8_t *buf, size_t
 #define VTX_MORE 0x8000       /* a vertex's flag: another vertex of the run follows (mirror_vertex_texcoords.c) */
 #define RCP_OFFSET 0xFFFFFFu  /* the 24 bits of an address the N64's relocation kept */
 #define PROBLEMS_SAID 20      /* a file's display-list problems said, at most */
+#define MV_INDEX(w0) ((w0) & 0xFF)   /* a MOVEMEM's index: what it loads (port/gfx/gfx_gbi.h's G_MV_*) */
+#define MV_VIEWPORT 8         /* a viewport, Vp: 8 s16 */
+#define MV_MATRIX 14          /* a matrix, Mtx (gSPForceMatrix) */
+#define MTX_SIZE 64           /* Mtx: 16 words, each two 16-bit halves (integer parts, then fractions) */
+#define VP_SIZE 16
 
 /* The commands with no address: the RDP's and most of the RSP's, which the N64's relocations skip. */
 static int no_address(unsigned op)
@@ -441,6 +454,8 @@ typedef struct {
     size_t ntodo, todo_room;
     Span *runs;                 /* the vertices the lists use: [start, end) in the file */
     size_t nruns, runs_room;
+    uint8_t *data;              /* where the next matrix or viewport copy goes (kept->data) */
+    Span loads;                 /* the places the lists' SETTIMGs load texels from: the lowest, the highest + 1 */
 } Lists;
 
 #ifdef __MINGW_PRINTF_FORMAT   /* mingw-w64: the printf vsnprintf is (gnu_printf with its ANSI stdio: %zu) */
@@ -668,13 +683,15 @@ static int run_cmp(const void *a, const void *b)
     return x->start < y->start ? -1 : x->start > y->start ? 1 : (x->end > y->end) - (x->end < y->end);
 }
 
-/* What the converter keeps for a WAD: the records the game reads, and the native lists and vertices they point at. */
+/* What the converter keeps for a WAD: the records the game reads, and the native lists, vertices, matrices and
+ * viewports they point at. */
 typedef struct {
     struct pc_wad_records r;    /* first: pc_wad_records hands out its address */
     PcGfxWords *commands;       /* the lists' commands in the file's order, then one G_ENDDL */
     size_t numCommands;
     uint8_t *vertices;          /* the vertices the lists load, native */
     size_t verticesSize;
+    uint8_t *data;              /* the matrices and viewports the lists load, native: one copy per command */
 } WadKept;
 
 /* The vertices: the runs merged where they meet, each copied in one piece with its vertices swapped to the host's
@@ -764,6 +781,44 @@ static const char *op_name(unsigned op)
     }
 }
 
+/* The bytes a MTX or a MOVEMEM loads that the converter copies native: a matrix's or a viewport's (0: none, the file's
+ * place is used as it is). */
+static size_t loaded_size(unsigned op, uint32_t w0)
+{
+    if (op == OP_MTX || (op == OP_MOVEMEM && MV_INDEX(w0) == MV_MATRIX))
+        return MTX_SIZE;
+    if (op == OP_MOVEMEM && MV_INDEX(w0) == MV_VIEWPORT)
+        return VP_SIZE;
+    return 0;
+}
+
+/* The copy, in the host's byte order, of the matrix or viewport the command at off loads from `to` in the file: a
+ * matrix's 16 words, each its two 16-bit halves, or a viewport's 8 s16. Bytes past the file's end are zeros (said). */
+static void *native_copy(Lists *L, uint32_t off, unsigned op, uint32_t w0, uint32_t to)
+{
+    size_t n = loaded_size(op, w0), have = L->size - to < n ? L->size - to : n;
+    uint8_t *copy = L->data;
+
+    L->data += n;
+    memcpy(copy, L->buf + to, have);
+    if (have < n)
+        problem(L, "the %s at 0x%X loads 0x%zX bytes from 0x%X, past the file's end", op_name(op), off, n, to);
+    if (n == VP_SIZE)
+        pc_swap16_n(copy, VP_SIZE / 2);
+    else
+        pc_swap32_n(copy, MTX_SIZE / 4);
+    return copy;
+}
+
+/* A SETTIMG at `to`: the lowest and highest places the lists load texels from. */
+static void note_load(Lists *L, uint32_t to)
+{
+    if (to < L->loads.start)
+        L->loads.start = to;
+    if (to + 1 > L->loads.end)
+        L->loads.end = to + 1;
+}
+
 /* The native command for the file's command at off. */
 static void build_command(Lists *L, WadKept *kept, const uint32_t *native, uint32_t off, PcGfxWords *cmd)
 {
@@ -795,21 +850,27 @@ static void build_command(Lists *L, WadKept *kept, const uint32_t *native, uint3
         p = vertices_for(L, kept, native, off, to);
     else if (op == OP_DL || op == OP_SPNOOP || (op == OP_RDPHALF_1 && next == OP_BRANCH_Z))
         p = command_for(L, kept, to);
-    else if (to < L->size)
+    else if (to < L->size && loaded_size(op, w0))
+        p = native_copy(L, off, op, w0, to);
+    else if (to < L->size) {
         p = (void *)(L->buf + to);
+        if (op == OP_SETTIMG)   /* texels: the file's texel memory must hold where they start */
+            note_load(L, to);
+    }
     if (!p && op != OP_VTX)
         problem(L, "the %s at 0x%X names 0x%X, beyond the file", op_name(op), off, to);
     cmd->w1 = (uintptr_t)p;
 }
 
-/* The display lists and their vertices built native for the file, and the records pointed at them. */
-static void build_lists(int wave, WadKept *kept, uint8_t *buf, size_t size, Chunk imag, Chunk txld)
+/* The display lists and their vertices, matrices and viewports built native for the file, and the records pointed at
+ * them. *loads: the places the lists' SETTIMGs load texels from, the lowest and the highest + 1 (start > end: none). */
+static void build_lists(int wave, WadKept *kept, uint8_t *buf, size_t size, Chunk imag, Chunk txld, Span *loads)
 {
     struct pc_wad_records *w = &kept->r;
-    Lists L = {wave, buf, size, imag, NULL, 0, 0, NULL, 0, 0, NULL, 0, 0};
+    Lists L = {wave, buf, size, imag, NULL, 0, 0, NULL, 0, 0, NULL, 0, 0, NULL, {UINT32_MAX, 0}};
     uint32_t *native = NULL, to;
     char what[40];
-    size_t n = 0;
+    size_t n = 0, copies = 0;
     int64_t at;
 
     L.slot = calloc(size / 8 + 1, sizeof *L.slot);
@@ -840,6 +901,13 @@ static void build_lists(int wave, WadKept *kept, uint8_t *buf, size_t size, Chun
                 add_run(&L, to, end);
         }
     build_vertices(&L, kept, &native);
+    /* Room for the matrices and viewports the commands load, a copy each. */
+    for (uint32_t off = 0; off + 8 <= size; off += 8)
+        if (L.slot[off / 8].command && address_at(&L, off, &to) == 0 && to < size)
+            copies += loaded_size(buf[off], pc_be32(buf + off));
+    if (copies && !(kept->data = calloc(1, copies)))
+        abort();
+    L.data = kept->data;
     /* The commands, in the file's order, and one G_ENDDL after them. */
     for (uint32_t off = 0; off + 8 <= size; off += 8)
         if (L.slot[off / 8].command)
@@ -862,8 +930,9 @@ static void build_lists(int wave, WadKept *kept, uint8_t *buf, size_t size, Chun
         if (!(w->textures[i].flags & TEXTURE_TEXELS) && w->textures[i].texBase)
             w->textures[i].texBase = command_for(&L, kept, (uint32_t)((uint8_t *)w->textures[i].texBase - buf));
     if (verbose())
-        fprintf(stderr, "rush2049pc: wad %d: %zu display-list commands built, %zu runs of vertices (0x%zX bytes)\n",
-                wave, n, L.nruns, kept->verticesSize);
+        fprintf(stderr, "rush2049pc: wad %d: %zu display-list commands built, %zu runs of vertices (0x%zX bytes), "
+                "0x%zX bytes of matrices and viewports\n", wave, n, L.nruns, kept->verticesSize, copies);
+    *loads = L.loads;
     free(native);
     free(L.slot);
     free(L.todo);
@@ -883,7 +952,94 @@ static void release_wad(void *records)
     if (kept->vertices)
         pc_mem_unregister_model_data(kept->vertices);
     free(kept->vertices);
+    free(kept->data);
     free(kept);
+}
+
+/* ---------------------------------------------------------------- the texels (docs/port/NATIVE.md 19) */
+
+/* A WAD's texels and TLUTs are IMAG, in the formats the N64's RDP reads (4- and 8-bit texels, 16-bit RGBA and IA,
+ * 32-bit RGBA; RGBA16 TLUT entries), each texel of 16 or 32 bits high byte first. They hold no address, and a 16-bit
+ * load may carry 4- or 8-bit texels, so they stay as they are: IMAG is the file's texel memory
+ * (pc_mem_register_texels), where the renderer decodes them so. The game reads and writes a TLUT's colours there
+ * through pc_tlut_get and pc_tlut_set (the texture animation, the car paint's copy).
+ *
+ * IMAG runs from its offset to the next chunk's, the table of contents' or the file's end, whichever comes first (as
+ * rush2049pc_assetcheck takes it). The texel memory covers every texel the records and the lists name, too: each
+ * texture's texels (TXHD, texBase, width x height at its size), each palette's entries (PLHD, palBase, end - start + 1
+ * of them) and, for the lists' SETTIMGs, the places they load from (a place before IMAG from there on, a place after
+ * it to the file's end, as no list says how far its load goes). A file that places texels outside IMAG (a mod's may)
+ * is said ("texels: ... not in IMAG", which rush2049pc_assetcheck counts as a failure: a cartridge's files must keep
+ * them in IMAG) and drawn as every WAD always was. */
+
+/* Where the chunk at off ends: at the next chunk's offset, the table of contents' or the file's end. */
+static uint32_t chunk_end(const uint8_t *buf, size_t size, long n, uint32_t off)
+{
+    uint32_t end = (uint32_t)size, toc = pc_be32(buf);
+    const uint8_t *e = buf + toc;
+
+    for (long i = 0; i < n; i++, e += 12)
+        if (pc_be32(e + 4) > off && pc_be32(e + 4) < end)
+            end = pc_be32(e + 4);
+    if (toc > off && toc < end)
+        end = toc;
+    return end;
+}
+
+/* Widens the texel memory *t to hold [start, end), and says so when that isn't inside IMAG (im; empty: none). */
+static void cover(int wave, Span *t, Span im, uint32_t start, uint32_t end, const char *what, int i, unsigned *said)
+{
+    if (start >= end)
+        return;
+    if (t->start >= t->end)
+        *t = (Span){start, end};
+    if (start < t->start)
+        t->start = start;
+    if (end > t->end)
+        t->end = end;
+    if ((start < im.start || end > im.end) && (*said)++ < 4)
+        fprintf(stderr, "rush2049pc: wad %d: texels: %s %d at 0x%X-0x%X is not in IMAG (0x%X-0x%X); its texel memory "
+                "covers it\n", wave, what, i, start, end, im.start, im.end);
+}
+
+/* The file's texel memory: IMAG, widened to every texel the records and the lists name (loads: the lists' SETTIMG
+ * places). Empty when the file has no texels. */
+static Span texel_memory(int wave, const struct pc_wad_records *w, const uint8_t *buf, size_t size, long n, Chunk imag,
+                         Span loads)
+{
+    Span im = {0, 0}, t;
+    unsigned said = 0;
+
+    if (imag.found && imag.off < size)
+        im = (Span){imag.off, chunk_end(buf, size, n, imag.off)};
+    t = im;
+    for (int i = 0; i < w->numTextures; i++) {
+        const struct tTexture *x = &w->textures[i];
+        if ((x->flags & TEXTURE_TEXELS) && x->texBase) {
+            uint32_t at = (uint32_t)((const uint8_t *)x->texBase - buf);
+            uint64_t end = at + (((uint64_t)x->width * x->height << (x->size & 3)) + 1) / 2;
+            cover(wave, &t, im, at, end < size ? (uint32_t)end : (uint32_t)size, "texture", i, &said);
+        }
+    }
+    for (int i = 0; i < w->numPalettes; i++) {
+        const struct tPaletteDef *p = &w->palettes[i];
+        if (p->palBase) {
+            uint32_t at = (uint32_t)((const uint8_t *)p->palBase - buf);
+            uint64_t end = at + 2ull * (p->end >= p->start ? p->end - p->start + 1u : 1u);
+            cover(wave, &t, im, at, end < size ? (uint32_t)end : (uint32_t)size, "palette", i, &said);
+        }
+    }
+    if (loads.start < loads.end && im.start >= im.end)   /* no IMAG: from the first place on */
+        cover(wave, &t, im, loads.start, (uint32_t)size, "the lists' SETTIMGs", 0, &said);
+    else if (loads.start < loads.end) {
+        if (loads.start < im.start)
+            cover(wave, &t, im, loads.start, im.start, "the lists' first SETTIMG", 0, &said);
+        if (loads.end > im.end)
+            cover(wave, &t, im, im.end, (uint32_t)size, "the lists' last SETTIMG", 0, &said);
+    }
+    if (said > 4)
+        fprintf(stderr, "rush2049pc: wad %d: texels: %u places not in IMAG in all\n", wave, said);
+    return t;
 }
 
 void pc_assets_wad(int wave, uint8_t *buf, size_t size)
@@ -894,6 +1050,7 @@ void pc_assets_wad(int wave, uint8_t *buf, size_t size)
     Chunk imag = find_chunk(buf, n, TAG_IMAG), txld = find_chunk(buf, n, TAG_TXLD);
     WadKept *kept = calloc(1, sizeof *kept);
     struct pc_wad_records *w;
+    Span loads, texels;
 
     if (!kept)
         abort();
@@ -901,10 +1058,11 @@ void pc_assets_wad(int wave, uint8_t *buf, size_t size)
     build_models(wave, w, buf, size, find_chunk(buf, n, TAG_OBHD));
     build_textures(wave, w, buf, size, find_chunk(buf, n, TAG_TXHD), imag);
     build_palettes(wave, w, buf, size, find_chunk(buf, n, TAG_PLHD), imag);
-    build_lists(wave, kept, buf, size, imag, txld);   /* before the paths' points are swapped: the file as it is */
+    build_lists(wave, kept, buf, size, imag, txld, &loads);   /* before the paths' points are swapped: the file as is */
     build_paths(wave, w, buf, size, find_chunk(buf, n, TAG_PTHD));
     pc_records_keep(buf, size, PC_RECORDS_WAD, kept, release_wad);
-    add_block(wave, buf, size);
+    texels = texel_memory(wave, w, buf, size, n, imag, loads);
+    add_block(wave, buf, size, buf + texels.start, texels.end - texels.start);
     if (verbose())
         fprintf(stderr, "rush2049pc: wad %d: %ld chunks, %d models, %d textures, %d palettes, %d paths at %p\n", wave,
                 n, w->numModels, w->numTextures, w->numPalettes, w->numPaths, (void *)buf);

@@ -32,6 +32,11 @@ the same layout). Messages: a chunk that doesn't fit the file gives no records (
 trigger that is no path record, a model with more than 4 levels, a display list that isn't an 8-aligned place in the
 file, a texture without IMAG say so.
 
+Since [NATIVE.md](NATIVE.md) step 10 the display lists and vertices are built native beside the file, and since step
+14 the matrices and viewports a list loads too; what stays in the file in the N64's formats is IMAG, the texels and
+TLUTs, which the converter registers as the file's texel memory (`pc_mem_register_texels`; widened, and said with
+`texels:`, where a record or a list places texels outside IMAG). The PI DMA and the decompressors register nothing.
+
 The rest of this section is the converter as it was written on 2026-10-27.
 
 ### The converter (2026-10-27)
@@ -54,9 +59,9 @@ In place, keeping every N64 record size (the game indexes records by hard-coded 
 - Pointer fields (`displayList`, `vtxList`, `texBase`, `palBase`, `trigPtr`, `pts`, `parent`) are swapped as u32.
   They are offsets in the file (IMAG-relative for `texBase`/`palBase`), and `SetupWaveModel` adds the file's or the
   IMAG chunk's window address. `trigPtr`'s target has no reader and is left as it is.
-- The whole heap block is one `pc_mem_register_be` range. port/ultra's PI DMA and decompressors have registered the
-  file already. The native records inside the range don't matter: port/gfx only asks about display lists, vertices,
-  matrices, texels and TLUTs.
+- The whole heap block was one `pc_mem_register_be` range (since [NATIVE.md](NATIVE.md) step 14 only IMAG is texel
+  memory). port/ultra's PI DMA and decompressors had registered the file already. The native records inside the
+  range didn't matter: port/gfx only asked about display lists, vertices, matrices, texels and TLUTs.
 - A block that doesn't hold a WAD (a TOC outside the block, already relocated, a blank cartridge's empty file) is
   left alone and not registered. A chunk that runs past the block is left big-endian and reported.
 - `RUSH_TRACE_WAVES=1` logs each conversion.
@@ -65,10 +70,10 @@ In place, keeping every N64 record size (the game indexes records by hard-coded 
 
 - Every free goes through `DeallocateMemoryInternal` (`src/blob/groups/heap_release/group.c`). Its first step poisons the
   freed block, and under `TARGET_PC` that call also reports the block to `pc_heap_block_freed` (`assets.c`).
-  That drops the WAD blocks inside it (wad.c keeps a list) and the range a PI DMA or decompressor registered at its
-  start. This covers `UnloadWaveInstance`, `ClearMemory`'s compaction and a sub-heap freed whole (the font heap).
+  That drops the WAD blocks inside it (wad.c keeps a list) with their texel memory, and the native records kept for
+  the files in it. This covers `UnloadWaveInstance`, `ClearMemory`'s compaction and a sub-heap freed whole (the font heap).
 - `pc_wave_released(wave, buf)` drops one wave's block on request.
-- A WAD loaded over a block whose release was missed replaces the stale registration.
+- A WAD loaded over a block whose release was missed replaces the stale registration (its texel memory).
 - WAD blocks never move. Compaction moves only handle blocks, and the only waves loaded as handles are the font data
   (38–53, `LoadWave(font + 38, .., handle = 1)`).
 

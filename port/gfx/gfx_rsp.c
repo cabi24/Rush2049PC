@@ -21,26 +21,40 @@ GfxState pcgfx;
 
 /* ---------------------------------------------------------------- memory */
 
-uint16_t pcgfx_rd16(const void *p, int be) {
+uint16_t pcgfx_rd16(const void *p, int high_first) {
     const uint8_t *b = (const uint8_t *)p;
     uint16_t v;
-    if (be)
+    if (high_first)
         return (uint16_t)(b[0] << 8 | b[1]);
     memcpy(&v, p, 2);
     return v;
 }
 
-uint32_t pcgfx_rd32(const void *p, int be) {
+uint32_t pcgfx_rd32(const void *p, int high_first) {
     const uint8_t *b = (const uint8_t *)p;
     uint32_t v;
-    if (be)
+    if (high_first)
         return (uint32_t)b[0] << 24 | (uint32_t)b[1] << 16 | (uint32_t)b[2] << 8 | b[3];
     memcpy(&v, p, 4);
     return v;
 }
 
-int pcgfx_is_be(const void *p) {
-    return p != NULL && pc_mem_is_be(p);
+int pcgfx_is_texel_memory(const void *p) {
+    return p != NULL && pc_mem_is_texel_memory(p);
+}
+
+/* A value of a matrix or a viewport: in the host's byte order, as the game builds them and the WAD converter copies a
+ * file's (port/assets/wad.c). */
+static uint16_t host16(const uint8_t *p) {
+    uint16_t v;
+    memcpy(&v, p, 2);
+    return v;
+}
+
+static uint32_t host32(const uint8_t *p) {
+    uint32_t v;
+    memcpy(&v, p, 4);
+    return v;
 }
 
 /* Addresses (docs/port/GFX.md "Command formats and addresses"). Every address a list holds is a host pointer: the
@@ -74,12 +88,12 @@ static void mtx_ident(float m[4][4]) {
 }
 
 /* Mtx: 16 s15.16 values, integer halves in the first 32 bytes, fractions in the last 32, two per 32-bit word.
- * guMtxF2L writes 32-bit words, so native matrices are read as native words. */
-static void mtx_read(const uint8_t *p, int be, float f[4][4]) {
+ * guMtxF2L writes 32-bit words, and the WAD converter copies a file's matrix as words, so they are read as words. */
+static void mtx_read(const uint8_t *p, float f[4][4]) {
     int k;
     for (k = 0; k < 8; k++) {
-        uint32_t ip = pcgfx_rd32(p + 4 * k, be);
-        uint32_t fp = pcgfx_rd32(p + 32 + 4 * k, be);
+        uint32_t ip = host32(p + 4 * k);
+        uint32_t fp = host32(p + 32 + 4 * k);
         int32_t e0 = (int32_t)((ip & 0xFFFF0000u) | (fp >> 16));
         int32_t e1 = (int32_t)((ip << 16) | (fp & 0xFFFFu));
         f[(2 * k) >> 2][(2 * k) & 3] = (float)e0 * (1.0f / 65536.0f);
@@ -780,18 +794,16 @@ static void moveword(uint32_t w0, uintptr_t w1) {
 static void movemem(uint32_t w0, uintptr_t w1) {
     const uint8_t *p = pcgfx_resolve(w1);
     unsigned ofs = ((w0 >> 8) & 0xFF) * 8;
-    int be;
     if (p == NULL)
         return;
-    be = pcgfx_is_be(p);
     switch (w0 & 0xFF) {
     case G_MV_VIEWPORT:
-        pcgfx.vp_scale[0] = (int16_t)pcgfx_rd16(p + 0, be) / 4.0f;
-        pcgfx.vp_scale[1] = (int16_t)pcgfx_rd16(p + 2, be) / 4.0f;
-        pcgfx.vp_scale[2] = (int16_t)pcgfx_rd16(p + 4, be);
-        pcgfx.vp_trans[0] = (int16_t)pcgfx_rd16(p + 8, be) / 4.0f;
-        pcgfx.vp_trans[1] = (int16_t)pcgfx_rd16(p + 10, be) / 4.0f;
-        pcgfx.vp_trans[2] = (int16_t)pcgfx_rd16(p + 12, be);
+        pcgfx.vp_scale[0] = (int16_t)host16(p + 0) / 4.0f;
+        pcgfx.vp_scale[1] = (int16_t)host16(p + 2) / 4.0f;
+        pcgfx.vp_scale[2] = (int16_t)host16(p + 4);
+        pcgfx.vp_trans[0] = (int16_t)host16(p + 8) / 4.0f;
+        pcgfx.vp_trans[1] = (int16_t)host16(p + 10) / 4.0f;
+        pcgfx.vp_trans[2] = (int16_t)host16(p + 12);
         pcgfx.vp_ord++;
         pcgfx.dz_dirty = 1;
         if (pcgfx_rec != NULL)
@@ -807,7 +819,7 @@ static void movemem(uint32_t w0, uintptr_t w1) {
         break;
     }
     case G_MV_MATRIX:   /* gSPForceMatrix: load MP directly */
-        mtx_read(p, be, pcgfx.mp);
+        mtx_read(p, pcgfx.mp);
         pcgfx.persp = is_persp(pcgfx.mp);
         pcgfx.mp_dirty = 0;
         pcgfx.dz_dirty = 1;
@@ -825,7 +837,7 @@ static void matrix(uint32_t w0, uintptr_t w1) {
     float m[4][4];
     if (p == NULL)
         return;
-    mtx_read(p, pcgfx_is_be(p), m);
+    mtx_read(p, m);
     pcgfx.xf_gen++;
     if (pcgfx.mp_forced)   /* the depth map was off for a forced MP (gfx_detail.c) */
         pcgfx.dz_dirty = 1;

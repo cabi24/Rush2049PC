@@ -2,11 +2,11 @@
  * PLHD and PTHD records come out native beside the file, every field with host pointers where the file has offsets
  * (into the file, past IMAG, to another path record), path points shared by two paths are swapped once; the display
  * lists come out native beside the file too, command for command, with host pointers to the lists, vertices and
- * texels they name (the models' from the file's start, the texture loads' from IMAG's), and their vertices native
- * and registered as model data; the file's table of contents, records and big-endian payload are untouched and
- * registered, the release paths drop the records, the lists and the registrations, and files that aren't WADs are
- * left as they are. No window: the records hold host pointers into a block anywhere (docs/port/NATIVE.md steps 7
- * and 10). */
+ * texels they name (the models' from the file's start, the texture loads' from IMAG's), their vertices native and
+ * registered as model data, and the matrices and viewports they load copied native; the file's table of contents,
+ * records and payload are untouched; IMAG is the file's texel memory, widened to texels the records place past it;
+ * the release paths drop the records, the lists and the registrations, and files that aren't WADs are left as they
+ * are. No window: the records hold host pointers into a block anywhere (docs/port/NATIVE.md steps 7, 10 and 19). */
 #include <string.h>
 
 #include "assets.h"
@@ -133,31 +133,62 @@ int main(void)
     /* A WAD in its block. */
     size_t size = wad_build(g_orig);
     memcpy(g_buf, g_orig, size);
-    test_be_reset();
+    test_texel_reset();
     pc_wave_loaded(101, g_buf, sizeof g_buf);
     check_converted(g_buf);
-    CHECK(test_be_range_count() == 1 && test_model_data_count() == 1);
-    CHECK(pc_mem_is_be(g_buf + W_DL0) && pc_mem_is_be(g_buf + W_TLUT) && pc_mem_is_be(g_buf + sizeof g_buf - 1));
-    CHECK(!pc_mem_is_be(g_buf + sizeof g_buf));
+    CHECK(test_texel_range_count() == 1 && test_model_data_count() == 1);
+    /* Texel memory: IMAG, and on to the block's end, where textures 0 and 2 run (32 x 16 at 8 bits, 128 x 18 at 32);
+     * not the records, the lists or the vertices before it. */
+    CHECK(pc_mem_is_texel_memory(g_buf + W_IMAG) && pc_mem_is_texel_memory(g_buf + W_TLUT));
+    CHECK(pc_mem_is_texel_memory(g_buf + sizeof g_buf - 1) && !pc_mem_is_texel_memory(g_buf + sizeof g_buf));
+    CHECK(!pc_mem_is_texel_memory(g_buf + W_IMAG - 1) && !pc_mem_is_texel_memory(g_buf + W_DL0) &&
+          !pc_mem_is_texel_memory(g_buf + W_TXLD) && !pc_mem_is_texel_memory(g_buf));
 
     /* UnloadWaveInstance's release, and the heap's free: the records go too */
     pc_wave_released(101, g_buf);
-    CHECK(test_be_range_count() == 0 && test_model_data_count() == 0);
+    CHECK(test_texel_range_count() == 0 && test_model_data_count() == 0);
     CHECK(pc_records_find(g_buf, PC_RECORDS_WAD) == NULL);
     memcpy(g_buf, g_orig, size);
     pc_wave_loaded(30, g_buf, sizeof g_buf);   /* a font texture WAD */
     check_converted(g_buf);
     pc_heap_block_freed(g_buf, sizeof g_buf);
-    CHECK(test_be_range_count() == 0 && test_model_data_count() == 0);
+    CHECK(test_texel_range_count() == 0 && test_model_data_count() == 0);
     CHECK(pc_records_find(g_buf, PC_RECORDS_WAD) == NULL);
 
-    /* The PI DMA registered the file already (port/ultra/pi.c): one range still, and the free drops it. */
+    /* Textures that fit in IMAG: the texel memory is IMAG, to the table of contents that follows it. */
     memcpy(g_buf, g_orig, size);
-    pc_mem_register_be(g_buf, size);
+    for (int t = 0; t < 3; t++) {
+        test_put16(g_buf + W_TXHD + 0x24 * t + 0x10, 4);   /* 4 x 4 */
+        test_put16(g_buf + W_TXHD + 0x24 * t + 0x12, 4);
+    }
     pc_wave_loaded(60, g_buf, sizeof g_buf);
-    CHECK(test_be_range_count() == 1);
+    CHECK(test_texel_range_count() == 1);
+    CHECK(pc_mem_is_texel_memory(g_buf + W_IMAG) && pc_mem_is_texel_memory(g_buf + W_TOC - 1));
+    CHECK(!pc_mem_is_texel_memory(g_buf + W_IMAG - 1) && !pc_mem_is_texel_memory(g_buf + W_TOC));
     pc_heap_block_freed(g_buf, sizeof g_buf);
-    CHECK(test_be_range_count() == 0);
+    CHECK(test_texel_range_count() == 0);
+
+    /* A matrix (MTX, model 1's list) and a viewport (MOVEMEM, model 0's level 1) in the file: copied in the host's
+     * byte order, as the renderer reads every matrix and viewport; the N64's relocation agrees. */
+    memcpy(g_buf, g_orig, size);
+    wad_cmd(g_buf + W_DL_M1, 0xDA380003u, W_IMAG);                         /* gSPMatrix: IMAG's first 64 bytes */
+    wad_cmd(g_buf + W_DL_M1 + 8, 0xDF000000u, 0);
+    wad_cmd(g_buf + W_DL1, 0xDC080008u, W_IMAG + 0x40);                    /* gSPViewport: 16 bytes */
+    memcpy(g_orig + 0x800, g_buf, size);                                   /* the file as the cartridge has it */
+    pc_wave_loaded(101, g_buf, sizeof g_buf);
+    {
+        const struct pc_wad_records *w = pc_wad_records(g_buf);
+        const PcGfxWords *m1 = LIST(w->models[1].lod[0].displayList), *dl1 = LIST(w->models[0].lod[1].displayList);
+        const uint8_t *m = m1 ? (const uint8_t *)m1[0].w1 : NULL, *vp = dl1 ? (const uint8_t *)dl1[0].w1 : NULL;
+        CHECK(m != NULL && vp != NULL && (m < g_buf || m >= g_buf + sizeof g_buf));
+        for (int k = 0; m && k < 16; k++)
+            CHECK(n32(m + 4 * k) == pc_be32(g_buf + W_IMAG + 4 * k));
+        for (int k = 0; vp && k < 8; k++)
+            CHECK((uint16_t)ns16(vp + 2 * k) == pc_be16(g_buf + W_IMAG + 0x40 + 2 * k));
+        CHECK(!pc_mem_is_texel_memory(m) && wad_lists_check(g_buf, g_orig + 0x800, W_SIZE, w, "matrix WAD") == 0);
+    }
+    pc_wave_released(101, g_buf);
+    memset(g_orig + 0x800, 0, 0x800);
 
     /* Two WADs in a sub-heap that is freed whole. */
     {
@@ -168,9 +199,9 @@ int main(void)
         pc_wave_loaded(89, heap + 0x1200, 0x1000);
         check_converted(heap + 0x100);
         check_converted(heap + 0x1200);
-        CHECK(test_be_range_count() == 2 && test_model_data_count() == 2);
+        CHECK(test_texel_range_count() == 2 && test_model_data_count() == 2);
         pc_heap_block_freed(heap, sizeof heap);
-        CHECK(test_be_range_count() == 0 && test_model_data_count() == 0);
+        CHECK(test_texel_range_count() == 0 && test_model_data_count() == 0);
         CHECK(pc_records_find(heap + 0x100, PC_RECORDS_WAD) == NULL && pc_records_find(heap + 0x1200, PC_RECORDS_WAD) == NULL);
     }
 
@@ -180,10 +211,10 @@ int main(void)
     memcpy(g_buf + 0x20, g_orig, size);
     pc_wave_loaded(102, g_buf + 0x20, sizeof g_buf - 0x20);
     check_converted(g_buf + 0x20);
-    CHECK(test_be_range_count() == 1 && test_model_data_count() == 1);
+    CHECK(test_texel_range_count() == 1 && test_model_data_count() == 1);
     CHECK(pc_records_find(g_buf, PC_RECORDS_WAD) == NULL);
     pc_wave_released(102, g_buf + 0x20);
-    CHECK(test_be_range_count() == 0 && test_model_data_count() == 0);
+    CHECK(test_texel_range_count() == 0 && test_model_data_count() == 0);
 
     /* A world WAD keeps its WAD's records beside its world's (the same file's records of two kinds). */
     memcpy(g_buf, g_orig, size);
@@ -205,7 +236,7 @@ int main(void)
         test_put32(b + 4, 3);
         pc_wave_loaded(54, b, sizeof b);
         CHECK(pc_be32(b) == 0x40 && pc_be32(b + 4) == 3);
-        CHECK(test_be_range_count() == 0);
+        CHECK(test_texel_range_count() == 0);
         CHECK(pc_records_find(b, PC_RECORDS_WAD) == NULL);
         CHECK(pc_wad_records(b)->models == NULL && pc_wad_records(b)->numTextures == 0);
     }
@@ -217,7 +248,7 @@ int main(void)
     CHECK(pc_wad_records(g_buf)->numModels == 0 && pc_wad_records(g_buf)->models != NULL);
     CHECK(pc_wad_records(g_buf)->numTextures == 3 && pc_wad_records(g_buf)->textures[0].flags == 0x08010000u);
     pc_wave_released(101, g_buf);
-    CHECK(test_be_range_count() == 0);
+    CHECK(test_texel_range_count() == 0);
 
     /* A path whose trigger is no path record has none; one with a level of detail past 4 keeps 4. */
     memcpy(g_buf, g_orig, size);

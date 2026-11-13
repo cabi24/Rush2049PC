@@ -1,9 +1,9 @@
 /* port/ultra/selftest.c: rush2049pc --selftest. Exercises the PC libultra without the ROM: thread priorities
  * and preemption, blocking and non-blocking message calls, jam, stop/start, osSetThreadPri, yield, events,
- * the VI retrace, timers, busy-wait yields, the game heap's block and big-endian ranges, and the PIF with the
- * game's own osContInit / osContStartReadData / osPfsInitPak / osMotorInit C (src/rom), with an accessory on each
- * port. Runs on the real main loop; with --fast, on the virtual clock (timer.c), where the same bounds hold and the
- * whole run takes a fraction of the time. */
+ * the VI retrace, timers, busy-wait yields, the game heap's block and the texel and sample memory ranges, and the
+ * PIF with the game's own osContInit / osContStartReadData / osPfsInitPak / osMotorInit C (src/rom), with an
+ * accessory on each port. Runs on the real main loop; with --fast, on the virtual clock (timer.c), where the same
+ * bounds hold and the whole run takes a fraction of the time. */
 #define _GNU_SOURCE
 #include <pthread.h>
 #include <stdio.h>
@@ -409,19 +409,24 @@ static void t_memory(void)
                                                 in_block(gTrophyMat, "gTrophyMat"), d);
 
     static uint8_t buf[256];
-    pc_mem_register_be(buf, 100);
-    pc_mem_register_be(buf + 50, 100);   /* overlaps: one range 0-150 */
-    pc_mem_register_be(buf + 10, 20);    /* inside: no change */
-    pc_mem_register_be(buf + 200, 10);
-    pc_mem_register_be(buf + 210, 10);   /* adjacent: its own range */
-    int ok = pc_mem_is_be(buf) && pc_mem_is_be(buf + 149) && !pc_mem_is_be(buf + 150) && pc_mem_is_be(buf + 205) &&
-             pc_mem_is_be(buf + 219) && !pc_mem_is_be(buf + 220);
-    pc_mem_unregister_be(buf + 60);      /* drops all of 0-150 */
-    ok = ok && !pc_mem_is_be(buf) && !pc_mem_is_be(buf + 120) && pc_mem_is_be(buf + 200);
-    pc_mem_unregister_be(buf + 200);
-    ok = ok && !pc_mem_is_be(buf + 200) && pc_mem_is_be(buf + 210);
-    pc_mem_unregister_be(buf + 210);
-    check("big-endian ranges", ok && !pc_mem_is_be(buf), NULL);
+    pc_mem_register_texels(buf, 100);
+    pc_mem_register_texels(buf + 50, 100);   /* overlaps: one range 0-150 */
+    pc_mem_register_texels(buf + 10, 20);    /* inside: no change */
+    pc_mem_register_texels(buf + 200, 10);
+    pc_mem_register_texels(buf + 210, 10);   /* adjacent: its own range */
+    pc_mem_register_samples(buf + 230, 10);  /* the other set */
+    int ok = pc_mem_is_texel_memory(buf) && pc_mem_is_texel_memory(buf + 149) && !pc_mem_is_texel_memory(buf + 150) &&
+             pc_mem_is_texel_memory(buf + 205) && pc_mem_is_texel_memory(buf + 219) &&
+             !pc_mem_is_texel_memory(buf + 220) && !pc_mem_is_texel_memory(buf + 230) &&
+             pc_mem_is_sample_memory(buf + 239) && !pc_mem_is_sample_memory(buf + 219);
+    pc_mem_unregister_texels(buf + 60);      /* drops all of 0-150 */
+    ok = ok && !pc_mem_is_texel_memory(buf) && !pc_mem_is_texel_memory(buf + 120) && pc_mem_is_texel_memory(buf + 200);
+    pc_mem_unregister_texels(buf + 200);
+    ok = ok && !pc_mem_is_texel_memory(buf + 200) && pc_mem_is_texel_memory(buf + 210);
+    pc_mem_unregister_texels(buf + 210);
+    pc_mem_unregister_samples(buf + 230);
+    check("texel and sample memory ranges", ok && !pc_mem_is_texel_memory(buf) && !pc_mem_is_sample_memory(buf + 230),
+          NULL);
 }
 
 static void t_pif(void)

@@ -31,7 +31,7 @@ bytes were read: the formats below are what the game's code reads, and the tests
 
 | Step | Where | What |
 |---|---|---|
-| load | `_ReadWave` (`waves.c`) → `pc_wave_loaded` → `pc_assets_musyx` | the file, in a locked heap block, converted once per read; the read's big-endian registration is dropped |
+| load | `_ReadWave` (`waves.c`) → `pc_wave_loaded` → `pc_assets_musyx` | the file, in a locked heap block, converted once per read (until [NATIVE.md](NATIVE.md) step 14 the read registered it big-endian and the converter dropped that) |
 | addresses kept | `AudioInitSys` | `musyx_project` project, `musyx_pool` pool, `musyx_sdir` sample directory (pointers), `musyx_samples` the sample bank's ROM offset (`SAMPLE_BANK_ROM_OFFSET`, a u32) |
 | push | `sound_push_group` (sndPushGroup) | walks the project's groups; registers the group's macros, tables, keymaps, layers (pool entries), samples (directory records) and sfx table by id |
 | registries | `registry.c` BSS (own storage) | `ResourceRecord {void *payload; u16 id; u16 references}`: macros `sound_macros` (in 512 buckets by `id >> 6`), tables `sound_tables`, keymaps `sound_keymaps`; `LayerRecord` (+ count): layers `sound_layers`; sfx tables `sound_sfx_tables`, sample directories `sound_sample_directories` (`{records, cart_base, count}`); groups pushed `sound_groups` |
@@ -156,7 +156,8 @@ that through `(s32)`, sign-extended).
   `rush2049pc: musyx: wave N: <record> at 0x... doesn't parse; that walk stops there`.
   `RUSH_TRACE_WAVES=1` adds a line per file with its record counts.
 - Pool order: macros first, since their steps say which tables are envelopes.
-- The block's big-endian registration (made by the PI DMA or the decompressor) is dropped after conversion.
+- Nothing is registered for the block: the PI DMA and the decompressor register nothing since [NATIVE.md](NATIVE.md)
+  step 14 (until then they marked it big-endian, and the converter dropped that).
 - Blank cartridge: `--no-rom` gives every wave a 0x200-byte raw file of zeros (`blank_files` in `port/main.c`),
   instead of zero-size blocks that alias the next heap block. An all-zero MusyX file, which no real one is
   (sndPushGroup would loop on it), becomes the empty file of its kind: project `FFFFFFFF`, pool four offsets to

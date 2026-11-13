@@ -8,8 +8,8 @@ filled), [LOADERS.md](LOADERS.md) (ROM files), [GFX.md](GFX.md) (what the render
 
 ## 1. The rule
 
-- **Memory keeps the N64's byte order wherever the game reads bytes.** A colour is R, G, B, A in memory, as the
-  model draw (`prim[4]`, `env[4]`), the fill and font colours (`BlitRect`, `BlitColors`) and the renderer
+- **Where the game reads bytes, they stay in the order the cartridge has them.** A colour is R, G, B, A in memory,
+  as the model draw (`prim[4]`, `env[4]`), the fill and font colours (`BlitRect`, `BlitColors`) and the renderer
   take it. A word that only moves a colour around (a copy, an equality test) is then right as it is; a word that is
   built or interpreted as a number must be converted.
 - **A value held as a word and read back in parts must take its parts from where the PC keeps them.** The low half
@@ -148,7 +148,7 @@ found none; the only constant is 0xFFFFFFFF, which is the same in any order).
 | `pause_gPlayerRects` gPlayerRects | `animRumbleText/animRumbleText.c` `TPos` | 18 pad bytes and an s16 `x` at +18 (the s32 centre's low half) | pause.c's s32 layout; `x` is the whole centre, which the s16 local takes the same |
 | `hud_playerPaneColors` playerPaneColors | `hud_text_anims/animResults.c` | `Pos {s32 x, y}` | R,G,B,A bytes (ChangePaneColor reads bytes) |
 | `carscr_buttonInfo` front-end button slots | `ovl_a/anim_car_color_marker.c`, `carscr_animNewSlider.c` `MenuSlot` | `float matrix[16]` chosen: the alpha byte at +0x3C swapped as part of an f32 | the record's fields (as cleanup_colortrace's `Slot`) |
-| `startscr_buttonInfo`, `trackscr_buttonInfo` the start and track screens' buttons | include/game's `StartScreenButton`, `TrackScreenButton` | `u8 unknown0C[36]` over the matrix, left in the ROM's order (the cartridge's are zeros, the same either way) | the records' fields: MAT3 startscr.c's, and `MenuButton` (`tMenuButton`) for the track screen's ([NATIVE.md](NATIVE.md) step 14) |
+| `startscr_buttonInfo`, `trackscr_buttonInfo` the start and track screens' buttons | include/game's `StartScreenButton`, `TrackScreenButton` | `u8 unknown0C[36]` over the matrix, left in the ROM's order (the cartridge's read the same either way, DATA.md 8) | the records' fields: MAT3 startscr.c's, and `MenuButton` (`tMenuButton`) for the track screen's ([NATIVE.md](NATIVE.md) step 14) |
 | `cont_bit_pattern`, `gResetLastKeyTime`, `gIgnoreCount` | `controlsys/group.c` | s32 | u8, s8, u8: the osContInit bit pattern (the boot waits while it reads 0x80), gResetTick, gSkipFrames |
 | `gStopAllEffects` | `audiosfx_play/group.c` | s32 | s8, as every other file |
 | `vp1`..`vplr` split-screen viewports | `ZOID_SplitScreen.c`, `ZOID_SplitMenuScreen.c` | s32: the first two halves swapped together, the other 12 bytes left big-endian | `Vp` (s16 scale[4], translate[4]) |

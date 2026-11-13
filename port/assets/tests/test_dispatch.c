@@ -41,6 +41,6 @@ int main(void)
         pc_wave_loaded(wave, buf, sizeof buf);
         pc_wave_released(wave, buf);
     }
-    CHECK(test_be_range_count() == 0);
+    CHECK(test_texel_range_count() == 0);
     return TEST_DONE();
 }

@@ -9,8 +9,8 @@
 
 #include "pc_port.h"
 
-size_t test_be_range_count(void);   /* ranges registered with pc_mem_register_be */
-void test_be_reset(void);
+size_t test_texel_range_count(void);   /* ranges registered with pc_mem_register_texels */
+void test_texel_reset(void);
 size_t test_model_data_count(void); /* ranges registered with pc_mem_register_model_data (the WADs' vertices) */
 extern int test_mx_voices;          /* [audio] voices: pc_mx_voices() (32) */
 extern unsigned long long test_snd_count[];   /* pc_snd_count's, by PC_SND_* */
