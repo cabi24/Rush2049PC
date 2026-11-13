@@ -30,15 +30,6 @@ typedef struct MultiBlit {char *name;s16 x,y,width,height,top,bottom,left,right;
 VIEW(void *[48], gCarMatrices);
 #define gCarMatrices gCarMatrices_view
 
-
-VIEW(s8[][13], car_color_choice_a);
-#define car_color_choice_a car_color_choice_a_view
-VIEW(s8[][13], car_color_choice_b);
-#define car_color_choice_b car_color_choice_b_view
-VIEW(s8[][13], car_color_choice_c);
-#define car_color_choice_c car_color_choice_c_view
-
-
 /* A profile's per-car settings (GetPlayerCarSetting, SavePlayerCarSetting; a ghost's SaveHeader.settings). */
 #define CAR_SETTING_HANDLING 0
 #define CAR_SETTING_ENGINE 1

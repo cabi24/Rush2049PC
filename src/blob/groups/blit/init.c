@@ -62,7 +62,7 @@ void BlitInit(void)
         blitXmax = screen_width - 1;
         blitYmax = screen_height - 1;
         blitZDist = 0;
-        blitPrimColor.a = 255;
+        blitPrimColor.prim.a = 255;
         blit_cache_image = 0;
         blit_cache_tile = 0;
         if (++blitDLnum >= 2) blitDLnum = 0;

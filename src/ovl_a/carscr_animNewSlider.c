@@ -52,10 +52,10 @@ s32 carscr_animNewSlider(Blit *blt)
         blt->Bot+=(blt->Height/4);
         switch (opt) {
         case CAR_OPT_FRONT_TIRE_SCALE:
-            blt->Right=(gFrontTireScale_players[p][gThisCar[p]]-.75f)/carscr_front_tire_scale_step*(blt->Width-1)/15.0f;
+            blt->Right=(gFrontTireScale[p + 1][gThisCar[p]]-.75f)/carscr_front_tire_scale_step*(blt->Width-1)/15.0f;
             break;
         case CAR_OPT_REAR_TIRE_SCALE:
-            blt->Right=(gRearTireScale_players[p][gThisCar[p]]-.75f)/carscr_rear_tire_scale_step*(blt->Width-1)/15.0f;
+            blt->Right=(gRearTireScale[p + 1][gThisCar[p]]-.75f)/carscr_rear_tire_scale_step*(blt->Width-1)/15.0f;
             break;
         }
     }

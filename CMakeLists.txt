@@ -215,7 +215,7 @@ set_target_properties(game_decls PROPERTIES PC_NO_SANITIZE ON EXPORT_COMPILE_COM
 # executable, from the objects linked (game_objects.txt).
 # The arenas whose data are objects of their own, one per datum (docs/port/DATA.md 3, NATIVE.md step 13); the others
 # stay blocks in the N64's layout.
-set(RUSH_DATA_OBJECTS "" CACHE STRING
+set(RUSH_DATA_OBJECTS "boot,game" CACHE STRING
     "The arenas whose data are objects of their own: boot, game, ovl_a, ovl_b (comma-separated) or all")
 add_custom_command(
     OUTPUT ${PC_DATA_DIR}/data.c ${PC_DATA_DIR}/data_layout.txt ${PC_DATA_DIR}/data_layout.json

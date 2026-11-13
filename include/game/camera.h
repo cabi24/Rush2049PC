@@ -13,8 +13,10 @@ extern f32 view1_eye_z;
 extern f32 view1_accel_filter;
 extern f32 view1_spring_filter;
 extern f32 lastSwitch[EXTENT(4)];
-extern f32 camera_nextSwitch[EXTENT(3)];
-extern f32 FSCLS_from_one[EXTENT(1)];
+/* Each window's next demo camera switch, seconds (CheckCameraView, init_views). The N64 declared three and the fourth
+ * window's took the place of the 1.0 the frame scales started with (FSCLS_from_one), which nothing read: the four are
+ * one table now, and the frame scales are FSCLS.fscls. */
+extern f32 camera_nextSwitch[4];
 extern PcFscls FSCLS;
 extern struct Respawn *trackSpots[EXTENT(6)];
 extern f32 steady_leg_duration[EXTENT(2)];   /* the steady camera's two legs, seconds (MAT3 legDuration) */

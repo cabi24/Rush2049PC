@@ -214,11 +214,10 @@ extern s32 build_time_text;
 extern s32 gAudioMenuSelect;
 extern s32 exitAudioScreen;
 extern s32 gLastSong;
-extern f32 gFrontTireScale_players[EXTENT(4)][13];
-extern f32 gRearTireScale_players[EXTENT(4)][13];
-extern s8 car_color_choice_a[EXTENT(13)];
-extern s8 car_color_choice_b[EXTENT(13)];
-extern s8 car_color_choice_c[EXTENT(13)];
+/* The paint's three colour choices, rows and columns as the car settings' (include/game/cars.h). */
+extern s8 car_color_choice_a[5][13];
+extern s8 car_color_choice_b[5][13];
+extern s8 car_color_choice_c[5][13];
 extern char *controls_buttonNames[EXTENT(11)];
 extern MenuButton controls_buttonInfo[EXTENT(4)][17];
 extern f32 controls_gButtonZoom;

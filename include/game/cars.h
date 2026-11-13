@@ -113,28 +113,29 @@ extern f32 gCarBraking[EXTENT(13)];
 extern f32 gCarMass[EXTENT(13)];
 extern f32 gCollisionMass[EXTENT(14)];
 extern f32 gCrashThreshold[EXTENT(13)];
-extern s8 gCarTrans[EXTENT(1)][13];
+/* The car settings chosen (MAT3 [5][13] tables: gCarTrans ... gCarHorn, gTireRims, the paint choices in frontend.h): row
+ * 0 the cars' own, row 1 + player each player's, a column per car type. */
+extern s8 gCarTrans[5][13];
 extern f32 carTransGearRatio[EXTENT(8)][6];
-extern s8 gCarHandling[EXTENT(1)][13];
-extern s8 gCarEngines[EXTENT(1)][13];
+extern s8 gCarHandling[5][13];
+extern s8 gCarEngines[5][13];
 extern f32 carEngineTorque[EXTENT(9)][3];
-extern s8 gCarTires[EXTENT(1)][13];
+extern s8 gCarTires[5][13];
 extern f32 gTireDrift[EXTENT(5)][3];
 extern f32 gTireSideForce[EXTENT(5)];
-extern s8 gCarFrame[EXTENT(1)][13];
+extern s8 gCarFrame[5][13];
 extern f32 carDurability[EXTENT(6)];
-extern s8 gCarWings[EXTENT(1)][13];
+extern s8 gCarWings[5][13];
 extern f32 gWingSizes[EXTENT(3)];
-extern f32 gFrontTireScale[EXTENT(1)][13];
-extern f32 gRearTireScale[EXTENT(1)][13];
+extern f32 gFrontTireScale[5][13];
+extern f32 gRearTireScale[5][13];
 extern s8 gCarDifferential[EXTENT(124)];
 extern const struct _tSusp *carSuspensions[EXTENT(3)];
 extern s8 gCarSuspensions[EXTENT(16)];
-/* The tire rims chosen (MAT3 gTireRims[5][13]): row 0 the cars' own, row 1 + player each player's, a column per car.
- * Declared flat as the data loader lays it out (68 bytes, to the next datum); TIRE_RIMS(row) is a row. */
-extern s8 gTireRims[EXTENT(68)];
-#define TIRE_RIMS(row) (&gTireRims[(row) * 13])
-extern s8 gCarHorn[EXTENT(1)][13];
+/* The tire rims chosen (MAT3 gTireRims[5][13]); TIRE_RIMS(row) is a row. */
+extern s8 gTireRims[5][13];
+#define TIRE_RIMS(row) (gTireRims[row])
+extern s8 gCarHorn[5][13];
 extern Tune44 gTune[EXTENT(3)];
 extern u8 gDirtColor[EXTENT(4)];
 extern f32 gCarMiddles[EXTENT(13)];

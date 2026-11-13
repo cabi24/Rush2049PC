@@ -49,7 +49,7 @@ void BlitRect(s32 x0, s32 y0, s32 x1, s32 y1, u8 *color) {
     }
     gDPPipeSync(blit_dl++);
     gDPSetPrimColor(blit_dl++, 0, 0, color[0], color[1], color[2], color[3]);
-    blitPrimColor.a = color[3];
+    blitPrimColor.prim.a = color[3];
     BlitColors(color, -1, -1, 0);
     blit_set_mode(BLIT_MODE_TEXTURE);
     BlitSetAttribute(BLIT_ATTR_FILL);

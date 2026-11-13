@@ -34,15 +34,15 @@ void Interpolate(f32 *a, f32 *b, s16 n, f32 lo, f32 hi, f32 t, f32 *out) {
         out[i] = (b[i] - a[i]) * k + a[i];
     }
 }
-/* Moves car `car`'s scene object to position `pos` and orientation `uvs`, its up axis squashed by the frame scale
- * (FSCLS_from_one: the N64's display aspect). */
+/* Moves car `car`'s scene object to position `pos` and orientation `uvs`, its up axis squashed by the frame scale cheat's
+ * factor (gFrameScale 1 to 3: FSCLS.fscls; 0, none). */
 void update_car_object(struct tCarData *car, f32 *pos, void *uvs) {
     f32 m[9];
     CopyUV(uvs, m);
     if (gFrameScale != 0) {
-        m[1] *= FSCLS_from_one[gFrameScale];
-        m[4] *= FSCLS_from_one[gFrameScale];
-        m[7] *= FSCLS_from_one[gFrameScale];
+        m[1] *= FSCLS.fscls[gFrameScale - 1];
+        m[4] *= FSCLS.fscls[gFrameScale - 1];
+        m[7] *= FSCLS.fscls[gFrameScale - 1];
     }
     if (car->objnum >= 0) {
         ZOID_UpdateObject(car->objnum, pos, m);

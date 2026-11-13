@@ -23,10 +23,13 @@ extern f32 gRetraceTime;
 extern s32 screen_width;
 extern s32 screen_height;
 extern s16 video_offset_bounds[EXTENT(2)][8];
-extern s16 video_default_extra_width[EXTENT(1)];
-extern s16 video_default_extra_height[EXTENT(1)];
-extern s16 video_default_x[EXTENT(9)];
-extern s16 video_default_y[EXTENT(9)];
+/* The picture's default adjustments by TV type, which video_set_mode takes the first time: a row per osTvType (0 PAL,
+ * 1 NTSC, 2 MPAL). */
+typedef struct VideoDefault {
+    s16 extra_width, extra_height;   /* added to the picture's width and height */
+    s16 x, y;                        /* the picture's offset */
+} VideoDefault;
+extern VideoDefault video_defaults[3];
 extern s16 video_pending_frames;
 extern struct OSViMode *video_adjusted_mode;
 extern s8 gInitFlag;

@@ -82,8 +82,8 @@ int16_t gNumPlayers;
 volatile int16_t gNumCars;         /* the cars in the race (TargetCollTrigger's cars from 8 on) */
 volatile uint8_t gNumModels = 2;
 uint16_t gObjList[1024];   /* textures: the camera record names 361 */
-float unitmatrix[9] = {1, 0, 0, 0, 1, 0, 0, 0, 1};
-float zero_velocity[3], velrot_gravity[3] = {0.0f, -0.25f, 0.0f}, unitmatrix_origin[3];
+float unitmatrix[12] = {1, 0, 0, 0, 1, 0, 0, 0, 1};   /* the identity rotation, then the zero vector */
+float zero_velocity[3], velrot_gravity[3] = {0.0f, -0.25f, 0.0f};
 float cactus_frame_time = 0.75f, fence_frame_time = 1.25f;
 volatile float gFrameSeconds = 0.5f;
 int8_t gGameSoundsEnabled;
@@ -579,14 +579,14 @@ static void test_reckon(void)
     NF(body, 0, float) = -10.0f, NF(body, 4, float) = 10.0f, NF(body, 8, float) = 10.0f;
     NF(body, 12, float) = -10.0f, NF(body, 16, float) = 10.0f, NF(body, 20, float) = -10.0f;
     NF(body, 24, float) = 5.0f, NF(body, 28, float) = 4.0f;   /* radius, weight */
-    memcpy(rec + 4, unitmatrix, sizeof unitmatrix);
+    memcpy(rec + 4, unitmatrix, 9 * sizeof(float));
     memset(rec + 0x28, 0, 24);
     obj->owner = 0;                                            /* its model: gBBoxModelStructs[0] */
     CHECK(NF(rec, 0, int32_t) == 2);
     memset(m, 0, sizeof(struct pc_model));
     NF(m, MODEL_OFS(0x7EA), int8_t) = 1, NF(m, MODEL_OFS(0x654), float) = 3.0f, NF(m, MODEL_OFS(0x640), int8_t) = 1;
-    memcpy(m + MODEL_OFS(0x798), unitmatrix, sizeof unitmatrix);
-    memcpy(m + MODEL_OFS(0x7A0), unitmatrix, sizeof unitmatrix);
+    memcpy(m + MODEL_OFS(0x798), unitmatrix, 9 * sizeof(float));
+    memcpy(m + MODEL_OFS(0x7A0), unitmatrix, 9 * sizeof(float));
     /* The car is inside the record's box and already pushed (+0x640): setMiniFBCollisionForce hands it to MiniForceApart. */
     g_hit_other = NULL;
     TargetCollBBox(obj, &index, NULL, 0);

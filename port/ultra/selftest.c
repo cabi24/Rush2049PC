@@ -65,12 +65,10 @@ int32_t osDpSetNextBuffer(void *buf, uint64_t size);
 int32_t osAiSetFrequency(uint32_t hz);
 int32_t osAiSetNextBuffer(void *buf, uint32_t len);
 
-/* libultra's boot parameters the game reads (misc.c's variables), and data in the arenas' blocks (port/data: boot data
+/* libultra's boot parameters the game reads (misc.c's variables), and data in objects of their own (port/data: boot data
  * gWaveSizes, game data, runtime image A's BSS), where the data loader's tables put each by name. */
 extern uint32_t osTvType, osMemSize;
 extern uint8_t gWaveSizes[], wave_rom_offsets[], gTrophyMat[];
-/* The page gen_data.py aligns the arenas' blocks to (its ARENA_PAGE): a datum keeps its N64 address's offset in it. */
-#define ARENA_PAGE 0x1000u
 
 #define MS(n) ((uint64_t)(n) * PC_COUNT_HZ / 1000)
 /* How late a loaded host (parallel ctest, CI runners) may wake a thread. Lower bounds stay exact: nothing may
@@ -367,14 +365,12 @@ static void t_spin(void)
     check("busy-wait, lower writer", ms > 150 && ms < 2000, d);
 }
 
-/* A datum of an arena (port/data, docs/port/DATA.md 3): where the loader's tables put its N64 address (its arena's
- * block + the offset), at its N64 address's offset in a page, as aligned as on the N64. The block is the executable's
- * BSS. */
-static int in_block(const uint8_t *p, const char *name)
+/* A datum of an arena (port/data, docs/port/DATA.md 3): an object of its own in the executable, where the loader's
+ * tables put its N64 address, at least as aligned as the N64 aligned that address (to 64 bytes). */
+static int in_object(const uint8_t *p, const char *name)
 {
-    uint32_t a = pc_data_addr_of(&pc_data_tables, name);
-    return a && p == pc_data_host_of(&pc_data_tables, a, -1) &&
-           ((uintptr_t)p & (ARENA_PAGE - 1)) == (a & (ARENA_PAGE - 1));
+    uint32_t a = pc_data_addr_of(&pc_data_tables, name), al = a & -a;
+    return a && p == pc_data_host_of(&pc_data_tables, a, -1) && ((uintptr_t)p & ((al < 64 ? al : 64) - 1)) == 0;
 }
 
 /* An N64 address the guard's checks take: 4 KiB into KSEG0, where the N64's RDRAM was. */
@@ -404,9 +400,9 @@ static void t_memory(void)
         check("N64 guard: an N64 address noted", n > 0 && strstr(note, probe) != NULL, d);
     }
     snprintf(d, sizeof d, "%p, %p, %p", (void *)gWaveSizes, (void *)wave_rom_offsets, (void *)gTrophyMat);
-    check("game data in its arena's block", in_block(gWaveSizes, "gWaveSizes") &&
-                                                in_block(wave_rom_offsets, "wave_rom_offsets") &&
-                                                in_block(gTrophyMat, "gTrophyMat"), d);
+    check("game data in objects of its own", in_object(gWaveSizes, "gWaveSizes") &&
+                                                 in_object(wave_rom_offsets, "wave_rom_offsets") &&
+                                                 in_object(gTrophyMat, "gTrophyMat"), d);
 
     static uint8_t buf[256];
     pc_mem_register_be(buf, 100);

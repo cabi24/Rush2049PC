@@ -12,15 +12,19 @@
 #define UV_AT(p, row, col) (*((f32 *) (((s8 *) (p)) + ((row) * 3 + (col)) * 4)))
 
 /* Data */
-/* The identity rotation (MAT3 unitmatrix, the rows of its tUVMatrix). unitmatrix_origin, the zero vector right after
- * it, is its fourth row, the position: together they are MAT3's float unitmatrix[4][3], which some code copies or
- * points to whole (48 bytes). */
-extern f32 unitmatrix[3][3];
+/* The identity transform (MAT3 float unitmatrix[4][3]): the identity rotation's three rows (a tUVMatrix), then the
+ * position, the zero vector (unitmatrix_origin). Code copies the rotation (36 bytes) or the whole (48 bytes), or
+ * points to the zero vector. */
+extern f32 unitmatrix[4][3];
+#define unitmatrix_origin (unitmatrix[3])   /* its fourth row: the zero vector */
 extern f32 uvector[EXTENT(3)];
 extern f32 rvector[EXTENT(3)];
 extern s32 rand_seed;
 extern void *video_gTitlePane;
-extern u8 blit_ia_palette[EXTENT(4)];
+/* The IA blits' colours, eight bytes as BlitColors reads them for that format (ZOID_EndFrame): the primitive colour,
+ * whose alpha is the blit's, then the environment colour, which nothing sets: on the N64 it is the first two of
+ * blit_tile_lines after it, and the two share their storage as there, so it still is. */
+extern u8 blit_ia_palette[8];
 extern u16 blit_tile_lines[EXTENT(258)];
 extern Vtx cull_box_vertices_a[EXTENT(8)];
 extern Vtx cull_box_vertices_b[EXTENT(8)];

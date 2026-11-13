@@ -43,7 +43,16 @@
 /* Data */
 extern u8 default_blit_image[EXTENT(4)];
 extern tBlitSet gPaneBlits[EXTENT(16)];
-extern BlitColor blitPrimColor;
+/* The colours BlitXLU loads for a translucent blit, as BlitColors reads an intensity texture's: the primitive colour,
+ * whose alpha is the blit's, then the environment colour. Nothing sets the environment colour: on the N64 its bytes
+ * are the first word of the Controller Pak names' table after it (gPS_PakName, an address there), and the data loader
+ * fills them with that word as the image has it, byte-swapped as the table's words, the bytes the game always drew
+ * with (a note in tools/port/gen_data.py's OVERLAPS_REVIEWED). */
+typedef struct BlitXluColors {
+    BlitColor prim;
+    BlitColor env;
+} BlitXluColors;
+extern BlitXluColors blitPrimColor;
 extern u16 rumble_duty_masks[EXTENT(10)];
 extern u32 blitAttribute;
 extern s32 blitXmin;

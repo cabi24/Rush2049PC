@@ -42,8 +42,10 @@ void RemoveObjectTree(s16 objnum, s32 removeChildren, s32 removeNext)
     n->child = -1;
     n->next = -1;
     if (objnum + 1 == gNumObjects) {
+        /* (The count is tested before the node below it: the N64's order read ObjInstanceList[-1] once the count
+         * reached 0, whose value the test then ignored.) */
         do {
             gNumObjects--;
-        } while (ObjInstanceList[gNumObjects - 1].index == 0xFFFF && gNumObjects > 0);
+        } while (gNumObjects > 0 && ObjInstanceList[gNumObjects - 1].index == 0xFFFF);
     }
 }

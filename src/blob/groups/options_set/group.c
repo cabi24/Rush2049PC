@@ -16,7 +16,7 @@ void SetOptions(void)
 {
     s32 i, setting;
     s8 configuration_mode;
-    CircuitTrackSlot *options;
+    const CircuitTrackSlot *options;
     Player *player;
     if (!(gGameState & GS_DEMO)) {
         for (i = 0; i < gNumPlayers; i++) {
@@ -104,7 +104,7 @@ void SetOptions(void)
         case 3:
             gNumLaps = 3;
             gNumDrones = 5;
-            options = &gCircuitTracks[gCircuitTrack];
+            options = CurrentCircuitTrack();
             gBackwards = options->backward;
             gMirrorWaves = options->mirror;
             gMirrorControls = 0;

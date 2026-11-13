@@ -55,7 +55,7 @@ int32_t gWhichGoldCoin, gWhichSilverCoin;
 uint8_t gNumModels = 1;
 int16_t gNumPlayers;                                           /* no players: the coin is released at once */
 char coin_glow_object_name[] = "COIN_GLOWG1", gold_coin_object_name[] = "GOLDCOIN", silver_coin_object_name[] = "SILVERCOIN";
-float unitmatrix[3][3];
+float unitmatrix[4][3];
 struct pc_car pc_cars[PC_CAR_SLOTS];            /* the car records (pc_game_types.h) */
 volatile float gFrameSeconds;
 int32_t gTargetList;

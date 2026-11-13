@@ -45,7 +45,7 @@ uint32_t gContLevels[8], gContEdges[8], gAutoEdges[8];
 struct { float h, v; } gContStick[8];
 int32_t gGameState, gRace;
 int8_t gOptions[41] = {[13] = 10};   /* the game options: [13] the effects volume, [31] the circuit's death option */
-float unitmatrix_origin[3], unitmatrix[3][3];
+float unitmatrix[4][3];
 int8_t gDefaultControls[10], gNewControls[8][10], gControlsSet[8];
 uint32_t gControlTable[32];
 void *gJustPlayers[8];

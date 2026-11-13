@@ -34,8 +34,8 @@ extern f32 steer_change_up;
 extern f32 steer_change_down;
 extern f32 brake_stick_dead_zone;
 extern s8 gControlsSet[EXTENT(8)];
-extern s8 gNewControls[EXTENT(4)][10];
-extern s32 gDefaultControls;
+extern s8 gNewControls[4][10];   /* each controller's control layout: the index in gControlTable of each control's buttons */
+extern s8 gDefaultControls[10];   /* the default control layout (SetDefaultControls) */
 extern s8 gMirrorControls;
 extern s8 gNoBrakes;
 extern u32 gRealLevels[EXTENT(4)];

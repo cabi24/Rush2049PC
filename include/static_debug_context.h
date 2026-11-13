@@ -33,8 +33,11 @@ extern s16 video_v_start, video_v_end;
 extern s16 video_extra_width, video_extra_height;
 extern s16 video_offset_x, video_offset_y, video_width, video_height;
 extern s16 video_pending_frames;
-extern s16 video_default_extra_width[], video_default_extra_height[];
-/* video_default_x/Y retain their accepted existing m2c declarations. */
+/* The picture's default adjustments, a row per TV type (include/game/system.h's VideoDefault, video_set_mode). */
+typedef struct VideoDefault {
+    s16 extra_width, extra_height, x, y;
+} VideoDefault;
+extern VideoDefault video_defaults[3];
 extern s16 video_offset_bounds[][8];
 extern OSViMode *video_base_mode, *video_adjusted_mode;
 extern OSViMode osViModeTable[], video_adjusted_modes[];

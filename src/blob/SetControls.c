@@ -3,8 +3,6 @@
 #include "game/game.h"
 
 extern tPadState gPlayers[];
-VIEW(s8[10], gDefaultControls);
-#define gDefaultControls gDefaultControls_view
 
 /* For each player: takes the default layout (resetToDefault) or the layout chosen for their controller
  * (gNewControls); if the controls screen changed that controller's layout (gControlsSet), saves it in the player's

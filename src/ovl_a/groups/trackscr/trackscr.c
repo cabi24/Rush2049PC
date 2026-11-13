@@ -397,7 +397,7 @@ void trackscr_InitScreen(void)
     currentTrackMap = -1;
     trackscr_gNumOptions = 0; for (i = 0; i < TRACK_OPTS; i++) if (OptionValid(i)) trackscr_gOpts[trackscr_gNumOptions++] = i;
     buildTrackMaps();
-    if (gRace == kCircuit) oldTrack = gTrackNum = gCircuitTracks[gCircuitTrack].trackNum;
+    if (gRace == kCircuit) oldTrack = gTrackNum = CurrentCircuitTrack()->trackNum;
     else {
         if (gRace == kStunt) oldTrack = gTrackNum = GetPlayerTrack(gPlayers[0].save, gRace) + TRACK_STUNT_FIRST;
         else if (gRace == kObstacle) oldTrack = gTrackNum = GetPlayerTrack(gPlayers[0].save, gRace) + TRACK_OBSTACLE;
@@ -669,7 +669,7 @@ void buildTrackMap(void)
             dlSize = (kNumMapSects * 5 + 7) * sizeof(Gfx);
             memcpy(map_display_list_blocks[MAP_LOD_SELECTED], map_display_list_blocks[desiredTrackMap], dlSize);
             gfx = (Gfx *)mapObj[MAP_LOD_SELECTED].displayList;   /* the selected map's display list */
-            if ((gRace == kCircuit && gCircuitTracks[gCircuitTrack].mirror == 1)
+            if ((gRace == kCircuit && CurrentCircuitTrack()->mirror == 1)
                 || (gRace != kCircuit && gOptions[28])) {
                 gSPTexture(gfx++, 0xFFFF, 0xFFFF, 0, 0, 0);
                 gDPPipeSync(gfx++);
@@ -756,7 +756,7 @@ void trackscr_animTrackMap(void)
         mapTransition * trackMap[currentTrackMap].scale_to + trackMap[currentTrackMap].scale_from * (1.0f - mapTransition));
     ScaleUV(unitmatrix, trackMap[TRACK_MAP_SELECTED].matrix,
         mapTransition * trackMap[currentTrackMap].scale_to + trackMap[currentTrackMap].scale_from * (1.0f - mapTransition));
-    if ((gRace == kCircuit && gCircuitTracks[gCircuitTrack].mirror == 1)
+    if ((gRace == kCircuit && CurrentCircuitTrack()->mirror == 1)
         || (gRace != kCircuit && gRace != kStunt && gRace != kBattle && gRace != kObstacle && gOptions[28])) {
         ScaleUVXYZ((f32 (*)[3])trackMapMat, (f32 (*)[3])trackMapMat, -1.0f, 1.0f, 1.0f);
         ScaleUVXYZ(trackMap[TRACK_MAP_SELECTED].matrix, trackMap[TRACK_MAP_SELECTED].matrix, -1.0f, 1.0f, 1.0f);

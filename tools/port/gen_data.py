@@ -1222,6 +1222,12 @@ OVERLAPS_REVIEWED = {
     ("modescr_validOption_biased", "modescr_blit"): "read as [n][i] for n = 1..4 players, after modescr_blit; row 0 never",
     ("gPlayerRects_biased", "playerscr_buttonInfo"): "read as [n][0] for n = 1..4 players; row 0's first 16 bytes are the model slots' "
                                   "last (extents.txt), which keep theirs",
+    ("blitPrimColor", "gPS_PakName"): "BlitXLU's environment colour (blitPrimColor.env), which nothing sets: the bytes of "
+                                      "gPS_PakName's first word as the table's words are swapped, as the game always drew "
+                                      "with (include/game/blit.h)",
+    ("blit_ia_palette", "blit_tile_lines"): "the IA blits' environment colour (blit_ia_palette[4..7]), which nothing sets: "
+                                            "blit_tile_lines' first two u16s, one storage as on the N64 "
+                                            "(include/game/maths.h)",
 }
 
 

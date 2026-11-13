@@ -73,10 +73,10 @@ void video_set_mode(s32 tv, s32 mode, s32 width, s32 height) {
     video_v_start = (video_base_mode->fldRegs[0].vStart >> 16) & 0x3FF;
     video_v_end = video_base_mode->fldRegs[0].vStart & 0x3FF;
     if (video_adjusted_mode == NULL) {
-        video_extra_width = ((s16 (*)[4])video_default_extra_width)[video_tv_type][0];
-        video_extra_height = ((s16 (*)[4])video_default_extra_height)[video_tv_type][0];
-        video_offset_x = ((s16 (*)[4])video_default_x)[video_tv_type][0];
-        video_offset_y = ((s16 (*)[4])video_default_y)[video_tv_type][0];
+        video_extra_width = video_defaults[video_tv_type].extra_width;
+        video_extra_height = video_defaults[video_tv_type].extra_height;
+        video_offset_x = video_defaults[video_tv_type].x;
+        video_offset_y = video_defaults[video_tv_type].y;
     } else {
         zoid_scale_windows((float)width / (float)video_width, (float)height / (float)video_height);
     }
@@ -106,14 +106,14 @@ void video_restore_base_mode(void) { osViSetMode(video_base_mode); }
 
 /* The TV type's default offsets into *x and *y. */
 void video_get_default_offset(register s32 *x, register s32 *y) {
-    *x = ((s16 (*)[4])video_default_x)[video_tv_type][0];
-    *y = ((s16 (*)[4])video_default_y)[video_tv_type][0];
+    *x = video_defaults[video_tv_type].x;
+    *y = video_defaults[video_tv_type].y;
 }
 
 /* The player's offsets from the default into *x and *y. */
 void video_get_offset(register s32 *x, register s32 *y) {
-    *x = video_offset_x - ((s16 (*)[4])video_default_x)[video_tv_type][0];
-    *y = video_offset_y - ((s16 (*)[4])video_default_y)[video_tv_type][0];
+    *x = video_offset_x - video_defaults[video_tv_type].x;
+    *y = video_offset_y - video_defaults[video_tv_type].y;
 }
 
 /* Sets the player's offsets from the default (the video screen's centring), each only if the picture's edges stay
@@ -126,10 +126,10 @@ void video_set_offset(s32 x, s32 y) {
     right = video_h_end + x + video_extra_width;
     bottom = video_v_end + y + video_extra_height;
     if (left > video_offset_bounds[video_tv_type][0] && left < video_offset_bounds[video_tv_type][1] && right > video_offset_bounds[video_tv_type][2] && right < video_offset_bounds[video_tv_type][3]) {
-        video_offset_x = ((s16 (*)[4])video_default_x)[video_tv_type][0] + x;
+        video_offset_x = video_defaults[video_tv_type].x + x;
     }
     if (top > video_offset_bounds[video_tv_type][4] && top < video_offset_bounds[video_tv_type][5] && bottom > video_offset_bounds[video_tv_type][6] && bottom < video_offset_bounds[video_tv_type][7]) {
-        video_offset_y = ((s16 (*)[4])video_default_y)[video_tv_type][0] + y;
+        video_offset_y = video_defaults[video_tv_type].y + y;
     }
     video_build_adjusted_mode();
 }

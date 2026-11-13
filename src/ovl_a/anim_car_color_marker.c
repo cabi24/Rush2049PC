@@ -20,9 +20,9 @@ typedef struct Color { u8 r,g,b,a; } Color;
  * carscr_marker_colors[player][channel]. Always 1. */
 s32 anim_car_color_marker(Blit *blt)
 {
-    s8 (*color_a)[13] = (s8 (*)[13]) car_color_choice_a;
-    s8 (*color_b)[13] = (s8 (*)[13]) car_color_choice_b;
-    s8 (*color_c)[13] = (s8 (*)[13]) car_color_choice_c;
+    s8 (*color_a)[13] = car_color_choice_a;
+    s8 (*color_b)[13] = car_color_choice_b;
+    s8 (*color_c)[13] = car_color_choice_c;
     s32 player=blt->AnimID&15;
     s32 marker=(blt->AnimID>>16)&255;
     MenuButton *slot;

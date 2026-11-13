@@ -66,18 +66,6 @@ extern u8 __osPfsPifRam[64];
 extern s32 __osContRamWrite(OSMesgQueue *mq, s32 channel, u16 address,
                              u8 *buffer, s32 force);
 
-/* --- Viewport offset tables (src/game/display.c territory, but this
- * dynamic-code copy indexes them directly): video_default_x/Y are read
- * with the viewport index scaled by 8 bytes (4 s16s) per symbol_addrs.us.txt,
- * which also documents adjacent video_default_extra_width/YExtra 4 bytes
- * earlier in the same table. */
-/* PC: the table at video_default_extra_width is s16[3][4], a row per TV type (video_tv_type = osTvType, 0-2), up to
- * video_pending_frames. These two are its columns 2 and 3, read at [i][0], so 9 s16s reach the
- * last one read. Declared s16[32], they ran over video_pending_frames, video_adjusted_mode, gInitFlag and
- * decompress_lock_ready, and the PC loader swapped those flags with their neighbour bytes (docs/port/DATA.md 1). */
-extern s16 video_default_x[9];
-extern s16 video_default_y[9];
-
 /* --- Decompression DMA sync helpers (src/util/dma.c, not visible to m2c's
  * type context since that's a .c file, not a header). */
 extern s32 acquire_decompress_lock(s32 blocking);

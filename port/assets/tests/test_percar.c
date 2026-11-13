@@ -51,7 +51,7 @@ float pc_finish_cam_time[PC_MAX_LINKS];
 struct eng_layer { int32_t object; uint16_t r0, r1, b0, b1, b2; uint8_t padE[2]; float p0, p1, p2; uint8_t pad1C[4]; };
 struct eng_layer gEngineSpecs[13][2];
 int8_t gGameSoundsEnabled = 1;
-float unitmatrix_origin[3];
+float unitmatrix[4][3];   /* the identity transform; its fourth row the zero vector (unitmatrix_origin) */
 struct { int32_t handle; float v[4]; } gRoadNoises[4][3];   /* the humans' sounds (4 players) */
 int32_t gBogSounds[4], gHornSounds[4], gScrapes[4];
 uint8_t gBump[4][120];

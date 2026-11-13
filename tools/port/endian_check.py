@@ -2161,8 +2161,8 @@ LOADER_EXPECT += [(sym, off, 1) for sym in (
     "arrowColors", "arrow_base_color", "hudextra_playerColor", "stunt_coin_color", "weapon_icon_color", "hitColor", "carscr_solidColor", "carscr_normalColor",
     "circuitscr_init_button_color", "circuitscr_button_color", "loadTrackScreen_backColor", "race_map_vertex_color", "trackscr_init_button_color", "trackscr_update_button_color") for off in (0x0, 0x3)]
 LOADER_EXPECT += [("flashColors", 0x4, 1), ("flashColors", 0x7, 1), ("arrowColors", 0x10, 1), ("cull_box_vertices_a", 0x0, 2),
-                  ("cull_box_vertices_a", 0xC, 1), ("rdp_init_dl", 0x0, 4), ("video_default_x", 0x0, 2),
-                  ("video_default_x", 0x10, 2), ("video_default_y", 0x10, 2), ("video_pending_frames", 0x0, 2),
+                  ("cull_box_vertices_a", 0xC, 1), ("rdp_init_dl", 0x0, 4), ("video_defaults", 0x4, 2),
+                  ("video_defaults", 0x14, 2), ("video_defaults", 0x16, 2), ("video_pending_frames", 0x0, 2),
                   ("gInitFlag", 0x0, 1), ("gInitFlag", 0x1, 1), ("decompress_lock_ready", 0x0, 1)]
 
 

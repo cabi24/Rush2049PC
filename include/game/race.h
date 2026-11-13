@@ -138,7 +138,7 @@ extern s8 gBackwards;
 extern s8 gEndGame;
 extern s16 gNumLaps;
 extern u8 gCircuitPlayer;
-extern CircuitTrackSlot gCircuitTracks[EXTENT(1)];
+extern CircuitTrackSlot gCircuitTracks[24];   /* a circuit's races, gCircuitSize of them (4 x 6 tracks at most) */
 extern tCircuitCar gCircuitCars[EXTENT(1)];
 extern s8 gCircuitTrack;
 extern s8 gCircuitSize;
@@ -204,6 +204,7 @@ void CheckMulti(void);
 void CheckRoll(s32 idx);
 void CheckSpin(s32 idx);
 void ContinueCircuit(void);
+const CircuitTrackSlot *CurrentCircuitTrack(void);   /* gCircuitTracks[gCircuitTrack], also before a circuit begins */
 void CountDown(void);
 void CrashedStunt(s32 idx);
 struct ShotObj *CreateShotObject(s32 idx, s32 parent, u32 flags, s32 o2);

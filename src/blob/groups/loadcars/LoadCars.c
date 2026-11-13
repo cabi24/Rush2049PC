@@ -32,9 +32,9 @@ again:
    for(j=0;j<i;j++) {
     if(PC_LINK_CAR(i)==PC_LINK_CAR(j))goto again;
    }
-   PC_LINK_COLOR0(i)=car_color_choice_a[PC_LINK_CAR(i)];
-   PC_LINK_COLOR1(i)=car_color_choice_b[PC_LINK_CAR(i)];
-   PC_LINK_COLOR2(i)=car_color_choice_c[PC_LINK_CAR(i)];
+   PC_LINK_COLOR0(i)=car_color_choice_a[0][PC_LINK_CAR(i)];
+   PC_LINK_COLOR1(i)=car_color_choice_b[0][PC_LINK_CAR(i)];
+   PC_LINK_COLOR2(i)=car_color_choice_c[0][PC_LINK_CAR(i)];
    if(heap_total_free(0)<gWaveSizes[PC_LINK_CAR(i)+CAR_WAVE]+CAR_PALETTE_BYTES) { pc_heap_short("LoadCars, a drone's car", gWaveSizes[PC_LINK_CAR(i)+CAR_WAVE]+CAR_PALETTE_BYTES);
     for(j=0;j<13;j++) {
      if(FindWaveInstance(PC_LINK_CAR(i)+CAR_WAVE)<0 &&

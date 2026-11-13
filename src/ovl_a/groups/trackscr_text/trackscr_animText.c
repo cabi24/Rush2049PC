@@ -145,7 +145,7 @@ void trackscr_animButtonText(void)
                 break;
             case TRACK_OPT_MIRROR:
                 if (gRace == kCircuit) {
-                    TB_DrawText(x, y, gText.taba[gText.tab[TEXT_OFF_ON] + (gCircuitTracks[gCircuitTrack].mirror == 0 ? 0 : 1)]);
+                    TB_DrawText(x, y, gText.taba[gText.tab[TEXT_OFF_ON] + (CurrentCircuitTrack()->mirror == 0 ? 0 : 1)]);
                 } else if (gOptions[kOptMirror] == MIRROR_SECRET) {
                     TB_DrawText(x, y, gText.taba[gText.tab[TEXT_MIRROR_SECRET] + 2]);
                 } else {

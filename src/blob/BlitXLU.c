@@ -5,10 +5,10 @@
  * RDP's primitive and environment colours (BlitColors with the I format), and BLIT_ATTR_XLU is set. A new alpha
  * forgets the colour cache first, so BlitColors loads it even though the colour's address is the same. */
 void BlitXLU(u16 alpha) {
-    if (blitPrimColor.a != alpha) {
-        blitPrimColor.a = alpha;
+    if (blitPrimColor.prim.a != alpha) {
+        blitPrimColor.prim.a = alpha;
         blitColors = 0;
     }
-    BlitColors(&blitPrimColor, 4, 1, 0);
+    BlitColors((u8 *)&blitPrimColor, 4, 1, 0);
     BlitSetAttribute(BLIT_ATTR_XLU);
 }

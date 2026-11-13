@@ -79,7 +79,7 @@ int16_t gNumPlayers = 1, gBlastMatCnt;
 int32_t gPauseState, rand_seed = 1, start_water_sentinel, gGameState;
 uint8_t gNumModels = 1;
 volatile float gFrameSeconds = 1.0f / 60;
-float gModelTime, resurrectTime = 1.0f, gCarMiddles[13], unitmatrix[3][3], unitmatrix_origin[3], skid_lift = 0.8f, skid_min_length_sq = 0.1f;
+float gModelTime, resurrectTime = 1.0f, gCarMiddles[13], unitmatrix[4][3], skid_lift = 0.8f, skid_min_length_sq = 0.1f;
 float gSeconds[4], gDummyVtx[16];
 uint16_t gFireTexs[6], gObjList[220], gTexList[10];   /* the smoke, fire and spray models from 195; the skid texture, 8 */
 char *FireTexNames[6];

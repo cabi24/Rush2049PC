@@ -150,3 +150,22 @@ void ContinueCircuit(void) {
     for (i = 0; i < 6; i++)
         gCircuitCars[idx[i]].totalPlace = i;
 }
+
+/* The circuit's current race slot, gCircuitTracks[gCircuitTrack], as the game reads it. Before ContinueCircuit has
+ * set up a circuit's races gCircuitTrack can be -1 (the track select of a circuit not begun), and the game then read
+ * the five bytes before the table, which on the PC are the bytes the N64's layout put there: the last byte of
+ * audio_cursorSpeed as memory holds it (on a little-endian PC its top byte, where the N64 had its lowest), the circuit
+ * player's number (gCircuitPlayer) and three bytes of padding, zero. That slot is built from those here, so the game
+ * reads what it did. */
+const CircuitTrackSlot *CurrentCircuitTrack(void) {
+    static CircuitTrackSlot before;
+    if (gCircuitTrack >= 0) {
+        return &gCircuitTracks[gCircuitTrack];
+    }
+    before.trackNum = ((const u8 *)&audio_cursorSpeed)[sizeof audio_cursorSpeed - 1];
+    before.backward = gCircuitPlayer;
+    before.mirror = 0;
+    before.fog = 0;
+    before.wind = 0;
+    return &before;
+}

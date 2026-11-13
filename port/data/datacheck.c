@@ -142,7 +142,7 @@ static const struct {
     {"hudextra_playerColor, image B's player colours", "hudextra_playerColor", 0, 16, 3, 1},
     {"stunt_coin_color and weapon_icon_color", "stunt_coin_color", 0, 8, 3, 1},
     {"hitColor", "hitColor", 0, 4, 3, 1},
-    {"video_default_extra_width.., the viewport offsets, s16[3][4]", "video_default_extra_width", 0, 24, 0, 2},
+    {"video_defaults, the picture's default adjustments, s16[3][4]", "video_defaults", 0, 24, 0, 2},
     {"video_pending_frames", "video_pending_frames", 0, 2, 0, 2},
     {"gInitFlag and the byte after it", "gInitFlag", 0, 2, 0, 1},
     {"decompress_lock_ready and the byte after it", "decompress_lock_ready", 0, 2, 0, 1},
