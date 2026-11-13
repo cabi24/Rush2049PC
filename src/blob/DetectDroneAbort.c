@@ -61,7 +61,8 @@ typedef struct {
     u8 pad368[0x380 - 0x368]; void *input; u8 pad368_384[0x3B8 - 0x384];
 } tCarData;
 
-extern tPadState gPlayers[];   /* the players' input records */
+extern tPadState gPlayers[];   /* the players' input records: one per controller, four */
+#define PAD_RECORDS 4
 
 /* Abort cars that fell out of the world or are stuck, and measure each human's wrong-way angle.
  *
@@ -130,7 +131,11 @@ void DetectDroneAbort(void) {
                         m->stuck_time = m->modelTime;
                     } else {
                         wait_time = 1;
-                        if (gPlayers[node].levels & gPlayers[node].controls[CONTROL_REVERSE]) {
+                        /* A car whose controller holds reverse waits twice as long. Only the four controllers have
+                         * an input record, but the game read gPlayers[node] for every car this machine runs: for a
+                         * drone in slot 4 or up, past the records (on the N64 into blitMode and the car models after
+                         * them; on the PC into whichever object came next). Such a car holds no reverse. */
+                        if (node < PAD_RECORDS && (gPlayers[node].levels & gPlayers[node].controls[CONTROL_REVERSE])) {
                             wait_time = 2;
                         }
                         if (wait_time != 4) {   /* always: wait_time is 1 or 2 */

@@ -8,8 +8,9 @@ VIEW(List, obscenities);
 #define obscenities obscenities_view
 
 /* Overwrite with '!' every word of the list that name contains (fixword does one word, letting its letters be
- * doubled or spaced out). Returns non-zero if it changed anything. */
-u8 censor(u8 *name) {
+ * doubled or spaced out). name is a row of a table that ends at end, where fixword's search stops. Returns non-zero
+ * if it changed anything. */
+u8 censor(u8 *name, const u8 *end) {
     u8 changed;
     u8 **word;
     List list;
@@ -17,7 +18,7 @@ u8 censor(u8 *name) {
     changed = 0;
     word = list.p;
     for (; **word != 0; word++) {
-        changed |= fixword(*word, name);
+        changed |= fixword(*word, name, end);
     }
     return changed;
 }

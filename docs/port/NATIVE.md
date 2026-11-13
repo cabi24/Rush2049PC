@@ -2023,6 +2023,8 @@ every arena's data in objects, run over all 65 synthetic paths, then each fix's 
 | `ZOID_EndFrame` → `BlitColors` | the IA blits' environment colour, the 4 bytes after `blit_ia_palette`: `blit_tile_lines`' first two u16s | ASan, `battle2p`, `battlequit` | `blit_ia_palette[8]`, one storage with `blit_tile_lines` (`OVERLAPS_REVIEWED`) |
 | `StartSmoke` | `gCarWings[slot + 1]` for every car: for a drone (slot 4 and up, more cars than players) the rows past the table's five, on into `gWingSizes` and `gFrontTireScale`, read as wing types | UBSan's `bounds` in CI's ASan test set (`assets_fxcars`, 12 cars); no synthetic path's smoke reaches it | `gCarWings[13][13]` (12 cars' rows), one storage with `gWingSizes` and `gFrontTireScale` (`OVERLAPS_REVIEWED`): the bytes as the PC had them |
 | `sound_macro_get_variable`, `_set_variable` | the global macro variables as 32 bytes past `sound_seq_current_index` | reading the code (docs/code/audio.md); no path runs a macro with a global variable | `sound_global_variables[index - 16]` |
+| `fixword` (the name censor: the player screen's new names, the high-score names) | between two letters of a word it skips everything but letters and digits, the name's NUL too: a name ending partway through a word read on through the later rows of `gCreatePlayerNames` (`gScoreName`) and past the table | the lead's retail scripts under ASan on the Pi (`ghost`, `profile`: a new profile's name) | `censor(name, end)`: the search stops at its table's end as at a byte that ends the name and matches no letter, so it gives what the original gave wherever that stayed in the table |
+| `DetectDroneAbort` | a stuck car's wait doubles while its controller holds reverse, read from `gPlayers[node]` for every car this machine runs: a drone in slot 4 or up read past the four input records (on the N64 `blitMode` and the car models; before this step the next own storage's host pointers) | the lead's retail scripts under ASan (`t0m`, `t4m`: a drone stuck on a mirrored track) | a car past the four records holds no reverse |
 
 The two environment colours and a drone's wing type for its smoke are what the game always had, garbage of the N64's
 layout kept byte for byte (the gate's screenshots); a change of them is a visible change, for the lead to decide.
@@ -2057,7 +2059,9 @@ so one run lists every site.
   next. Known and left as the N64 does them: a player without a controller (5) reads `gNewControls[5]`, past the
   four layouts (SetControls, controls_validControl, animControls: on the N64 the bytes of `gFrontDistance` and what
   follows); `CheckCameraView` indexes the switch times by a car's camera (under 4 on every path); the ghost race reads
-  `gGhosts[m->slot]`. The retail cartridge's scripts under ASan on the Pi are the net for the rest.
+  `gGhosts[m->slot]`. The retail cartridge's scripts under ASan on the Pi are the net for the rest: the lead's run
+  of the 44 scripts on the merged tree found two (`fixword`, `DetectDroneAbort`, the last rows of 18.2), fixed before
+  the push, and none of these three.
 - **The circuit's slot before its first race** (18.2) is built from `audio_cursorSpeed`'s last byte in memory: on a
   little-endian PC its top byte, where the N64 read its lowest. After the audio options screen, the PC (before this
   step and after it) reads 0x43 there for a circuit not begun, where the N64 read 0. Kept as it was; the lead's to

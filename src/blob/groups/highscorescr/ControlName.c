@@ -80,7 +80,7 @@ void ControlName(s32 player)
                 gScoreName[player][highscore_gNameLen[player]] = 0;
             }
             name = gScoreName[player];
-            censor(name);
+            censor(name, (u8 *)gScoreName[4]);   /* the search stops at the table's end */
             gDrawName[player] = 0;
             gThisPlayer[player] = gLastPlayer[input->controller] = FindTempNameIdx(name);
             for (row = 0; row < 3; row++) {

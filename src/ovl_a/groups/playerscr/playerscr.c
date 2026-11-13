@@ -865,7 +865,7 @@ void controlCreatePlayer(s32 p)
                 playerscr_gNameLen[p]--;
                 gCreatePlayerNames[p][playerscr_gNameLen[p]] = 0;
             }
-            censor(gCreatePlayerNames[p]);
+            censor(gCreatePlayerNames[p], gCreatePlayerNames[4]);   /* the search stops at the table's end */
             if (gCreatePlayerNames[p][0]) {
                 player = CreatePlayer(playerscr_gSelectPakIdx[p], gCreatePlayerNames[p]);
                 if (player) {
