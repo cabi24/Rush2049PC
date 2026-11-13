@@ -1,9 +1,6 @@
 /* The options screen's text: its options and values, the chosen one flashing (MAT3 optionscr.c). */
 #include "game/game.h"
 
-/* A colour (MAT3 tRGBA): include/game's TextColor, the flashing colours' type. */
-typedef TextColor Color;   /* the file's name for include/game's TextColor */
-
 #define TEXT_OFF_ON 16            /* gText.tab[]: the options' values: off, on ... */
 
 typedef struct ButtonInfo {

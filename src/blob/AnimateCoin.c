@@ -42,7 +42,7 @@ void AnimateCoin(struct pc_visual *v, s16 op)
     f32 spin[3];
     s32 number, i, foundByAll;
     struct pc_car *car;
-    u32 goldGlow[1], silverGlow[1];
+    tRGBA goldGlow, silverGlow;
     f32 *angV;
 
     if (!op) {
@@ -60,8 +60,8 @@ void AnimateCoin(struct pc_visual *v, s16 op)
         return;
     }
     if (!(t->Flags & TARGET_SET_UP)) {
-        goldGlow[0] = PC_RGBA(coin_gold_glow_color);
-        silverGlow[0] = PC_RGBA(coin_silver_glow_color);
+        goldGlow = coin_gold_glow_color;
+        silverGlow = coin_silver_glow_color;
         if (t->Flags & TARGET_GOLD) {
             number = gWhichGoldCoin + 8;
             coin->whichcoin = number;
@@ -81,10 +81,10 @@ void AnimateCoin(struct pc_visual *v, s16 op)
         coin->pos[2] = t->mat.pos[2];
         if (t->Flags & TARGET_GOLD) {
             coin->dlIdx.handle = ZOID_AddObject(MBOX_FindObject_WORK(gold_coin_object_name, 0, gNumModels[0] - 1, 1), coin->uvs, -1, 0x40000);
-            ZOID_SetColor(GLOW_INDEX(t), goldGlow);
+            ZOID_SetColor(GLOW_INDEX(t), &goldGlow);
         } else {
             coin->dlIdx.handle = ZOID_AddObject(MBOX_FindObject_WORK(silver_coin_object_name, 0, gNumModels[0] - 1, 1), coin->uvs, -1, 0x40000);
-            ZOID_SetColor(GLOW_INDEX(t), silverGlow);
+            ZOID_SetColor(GLOW_INDEX(t), &silverGlow);
         }
         coin->cameras = 0;
         foundByAll = 1;

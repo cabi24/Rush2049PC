@@ -2,9 +2,8 @@
  * name and value beside its 3D buttons. */
 #include "game/game.h"
 
-typedef TextColor Color4;   /* the flashing colours (include/game's TextColor) */
 
-VIEW(Color4, flashColors_at_1);
+VIEW(tRGBA, flashColors_at_1);
 #define flashColors_at_1 flashColors_at_1_view
 
 extern int sprintf(char *,const char *,...);

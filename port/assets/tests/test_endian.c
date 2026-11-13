@@ -3,9 +3,9 @@
  * - scene-node handles: MBOX_NewObject's s32 result is kept whole and read back as its low s16 half through a
  *   union (the coin updater's Id and EntityHdr views, the car parts' Handle in SetupCarColor). On the N64 the
  *   low half is the second s16; here it must be the first;
- * - colours: the coin's gold and silver are R,G,B,A bytes in the ROM, which the PC loader swaps as the u32s they are
- *   declared; the scene node's colour, read as bytes by the model draw, must come out R,G,B,A again. A car's colour
- *   (SetFrameColor) goes to the six nodes its parts' handles name.
+ * - colours: the coin's gold and silver are R,G,B,A bytes in the ROM, which the PC loader leaves as they are (the
+ *   game declares them as colours, tRGBA); the scene node's colour, read as bytes by the model draw, must come out
+ *   R,G,B,A. A car's colour (SetFrameColor) goes to the six nodes its parts' handles name.
  * game: src/blob/AnimateCoin.c src/blob/groups/SetupCarColor/SetupCarColor.c src/blob/SetFrameColor.c
  * game: src/blob/ZOID_SetColor.c src/blob/ZOID_SetObjectDef.c
  */
@@ -50,7 +50,8 @@ typedef struct {   /* the coin's visual (struct pc_visual): its data the coin's 
 void AnimateCoin(CoinNode *node, int16_t update);
 
 int32_t gPauseState;
-uint32_t coin_gold_glow_color = 0xFFC800FF, coin_silver_glow_color = 0xC8E6FFFF;   /* gold and silver as the PC loader leaves them */
+/* the game's tRGBA: gold and silver as the PC loader leaves them, R, G, B, A */
+union { uint8_t c[4]; uint32_t rgba; } coin_gold_glow_color = {{0xFF, 0xC8, 0x00, 0xFF}}, coin_silver_glow_color = {{0xC8, 0xE6, 0xFF, 0xFF}};
 int32_t gWhichGoldCoin, gWhichSilverCoin;
 uint8_t gNumModels = 1;
 int16_t gNumPlayers;                                           /* no players: the coin is released at once */

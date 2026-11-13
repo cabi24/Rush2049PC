@@ -6,7 +6,6 @@
  * drawn on the view's edge instead, pointing the way to turn. */
 #include "game/game.h"
 
-typedef union tRGBA {struct {u8 r,g,b,a;} c;u32 rgba;} tRGBA;
 /* A car visual (MAT3 tVisual). PC: 0x28 bytes: next, data and func are pointer-sized (struct pc_visual,
  * docs/port/CARS.md 3). */
 typedef struct tVisual {

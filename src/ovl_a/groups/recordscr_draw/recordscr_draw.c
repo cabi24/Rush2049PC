@@ -3,7 +3,6 @@
  * ReadPlayerData) or, for the machine's totals, the gTotal*Stats tables AddPlayerStats fills. */
 #include "game/game.h"
 
-typedef TextColor Color4;   /* the flashing colours (include/game's TextColor) */
 /* A pak file record (MAT3 tPS_File) in its PC layout (pc_prelude.h PSF_OFS, docs/port/POINTERS.md 9.10): pak is
  * the pak it is on. */
 typedef struct FileInfo { void *next, *prev; void (*RemoveFile)(void *), (*MoveFile)(void *, void *); u8 pak; } FileInfo;
@@ -92,7 +91,7 @@ typedef struct SaveData {
 #define kSelectMenuPakStatus 2
 #define kSelectMenuSelectPlayer 3
 
-VIEW(Color4, flashColors_at_1);
+VIEW(tRGBA, flashColors_at_1);
 #define flashColors_at_1 flashColors_at_1_view
 extern Player gPlayers[];
 

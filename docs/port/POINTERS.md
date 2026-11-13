@@ -439,8 +439,9 @@ have PC versions. 18 views agree. Test: `assets_pak`.
   texture name: InitBlit looks the name up at 0xFFFFFFFF. The loader should sign-extend -1 in pointer fields
   (port/data, not changed here). `assets_blit` uses the value the loader should produce.
 - **Colours as words.** Nodes and sprites keep RGBA in a u32 that some writers fill from words and the model draw
-  reads as bytes (`prim[4]`). Copies of byte-built colours are fine; the words that came from the ROM are now
-  `PC_RGBA`, and colour unions in initialized data are the loader's union rule ([ENDIAN.md](ENDIAN.md) 3.2, 4).
+  reads as bytes (`prim[4]`). Copies of byte-built colours are fine; the words that came from the ROM were
+  `PC_RGBA` until [NATIVE.md](NATIVE.md) step 14 declared them as colours (`tRGBA`), and colour unions in initialized
+  data are the loader's union rule ([ENDIAN.md](ENDIAN.md) 3.2, 4).
 - **Records that still disagreed in race-time code**: the level-object kinds `targetInfo`, the ZOID windows
   `ZoidWinInfo` (named here after two of their users, car lights and exhaust), the level-object node pool
   `gTargetList`, the frame records `frame_records`, the texture-animation frames `texture_swap_shared_frames` and the input records

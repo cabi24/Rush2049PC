@@ -8,7 +8,6 @@
  * ends. The fireball and the ring keep their state per car in pc_blasts and pc_blast_rings. */
 #include "game/game.h"
 
-typedef union tRGBA { unsigned char c[4]; unsigned int rgba; } tRGBA;
 typedef struct tUVMatrix { float uvs[3][3]; float pos[3]; } tUVMatrix;
 /* One of a fireball's four flame balls (MAT3 tBlastObj; PC: struct pc_blast_obj). */
 typedef struct tBlastObj {

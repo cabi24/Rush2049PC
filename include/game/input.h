@@ -23,7 +23,7 @@ extern s8 gInitControls;
 extern u32 gLastKeyTime;
 extern s8 gResetLastKeyTime;
 extern u8 gIgnoreCount;
-extern s32 controls_updateButtonColor;
+extern tRGBA controls_updateButtonColor;
 extern u32 n64_button_map[EXTENT(19)];
 extern char controls_selected_texture_name[EXTENT(16)];
 extern char controls_unselected_texture_name[EXTENT(28)];

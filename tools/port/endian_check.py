@@ -2157,7 +2157,10 @@ LOADER_EXPECT = [("gBackRects", 0x0, 4), ("gBackRects", 0xC, 4), ("gCheatState",
 LOADER_EXPECT += [(sym, off, 1) for sym in (
     "flashColors", "options_buttonColor", "gFlashColor1", "gFlashColor2", "gShadowColor", "SheenColors", "Track1Colors",
     "arrowColors", "arrow_base_color", "hudextra_playerColor", "stunt_coin_color", "weapon_icon_color", "hitColor", "carscr_solidColor", "carscr_normalColor",
-    "circuitscr_init_button_color", "circuitscr_button_color", "loadTrackScreen_backColor", "race_map_vertex_color", "trackscr_init_button_color", "trackscr_update_button_color") for off in (0x0, 0x3)]
+    "circuitscr_init_button_color", "circuitscr_button_color", "loadTrackScreen_backColor", "race_map_vertex_color", "trackscr_init_button_color", "trackscr_update_button_color",
+    # colours declared as colours (tRGBA) since NATIVE.md step 14, where the game took them as words through PC_RGBA
+    "smoke_white", "smoke_wing_color1", "smoke_wing_color2", "smoke_wing_color3", "smoke_road_color", "smoke_dirt_color",
+    "controls_initButtonColor", "controls_updateButtonColor", "coin_gold_glow_color", "coin_silver_glow_color") for off in (0x0, 0x3)]
 LOADER_EXPECT += [("flashColors", 0x4, 1), ("flashColors", 0x7, 1), ("arrowColors", 0x10, 1), ("cull_box_vertices_a", 0x0, 2),
                   ("cull_box_vertices_a", 0xC, 1), ("rdp_init_dl", 0x0, 4), ("video_default_x", 0x0, 2),
                   ("video_default_x", 0x10, 2), ("video_default_y", 0x10, 2), ("video_pending_frames", 0x0, 2),

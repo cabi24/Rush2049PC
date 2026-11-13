@@ -24,12 +24,6 @@ static __inline__ void pc_tlut_set(void *entry, unsigned short colour) {
     b[1] = (unsigned char)colour;
 }
 
-/* A colour word as the N64 holds it in a register, 0xRRGGBBAA: the word whose bytes in host memory are R, G, B, A.
- * That is how the game's byte readers (the model draw's prim and env, the fill and font colours) and the renderer
- * take a colour. For a word the game stores into colour storage that is read as bytes: a constant, or a colour read
- * from data the PC loader swapped as a u32 (docs/port/ENDIAN.md). */
-#define PC_RGBA(x) __builtin_bswap32(x)
-
 /* The game heap (port/ultra/heap.c, docs/port/MEMORY.md 4): pc_heap_memory is the memory the main heap manages on a
  * console with mem_size bytes of RDRAM (osMemSize), its size in *size (locate_main_heap). The allocator says when the
  * heap is made and after each block it takes, under the heap's lock; an allocation no free block can hold, and the

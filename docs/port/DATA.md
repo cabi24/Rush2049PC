@@ -86,13 +86,15 @@ game's data declarations.
 **Unions.** A union with a member made only of bytes (a `u8` array or a struct of `u8`s) that covers all of it is
 copied as bytes, unless a member has a pointer or a `long` (whose host layout needs that member). Any other union
 is laid out by its largest member with the most non-byte elements. The first kind is the game's colours
-(`TextColor`, `tRGBA`, `RGBA`, `Color`, `Color4`: `{ u8 c[4]; u32 rgba; }` or `{ u32 word; struct { u8 r, g, b, a; }
-rgba; }`): the ROM holds R, G, B, A, the game reads those bytes, and swapped as a u32 they came out A, B, G, R. Every
+(`tRGBA`, include/game's, then also `TextColor`, `RGBA`, `Color`, `Color4`: `{ u8 c[4]; u32 rgba; }` or `{ u32 word;
+struct { u8 r, g, b, a; } rgba; }`): the ROM holds R, G, B, A, the game reads those bytes, and swapped as a u32 they
+came out A, B, G, R. Every
 union in the layout was checked against the game's reads (`endian_check.py`'s accesses and value flow,
 [ENDIAN.md](ENDIAN.md) 4). The 22 colour symbols in initialized data are read as bytes; their words are only
 copied (into locals, scene nodes, the car records, by value) or tested for equality, and no code shifts them,
-compares them with a constant or stores a word constant into them. So none is read both ways and none needs
-`PC_RGBA`. The other unions keep their layout: `Vtx` (`{ Vtx_t v; long long }`: s16s and the `cn` bytes), `Gfx`,
+compares them with a constant or stores a word constant into them. So none is read both ways. (Ten colours more,
+declared as words until [NATIVE.md](NATIVE.md) step 14 and swapped back by the game's `PC_RGBA`, are `tRGBA` since:
+[ENDIAN.md](ENDIAN.md) 3.2.) The other unions keep their layout: `Vtx` (`{ Vtx_t v; long long }`: s16s and the `cn` bytes), `Gfx`,
 `MenuSlot` (whose byte member is shorter than it), and the BSS ones (`__OSInodeUnit` is copied as bytes now too, but
 BSS is zeroed). Loaded as bytes now, listed in `data_layout.txt` ("Unions copied as bytes"):
 

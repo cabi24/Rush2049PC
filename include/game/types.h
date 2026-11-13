@@ -273,7 +273,6 @@ struct z_stream_s;
 union Color;
 union InputSequence;
 union tAudioMsg;
-union tRGBA;
 
 /* ---- ultra: libultra and the RSP microcode: the N64 OS interface port/ultra implements */
 
@@ -1287,10 +1286,14 @@ typedef struct PcText4 { /* 0x4 bytes */
     char c[4]; /* 0x0 */
 } PcText4;
 
-typedef union TextColor { /* 0x4 bytes */
+/* A colour (MAT3 tRGBA): its bytes red, green, blue and alpha, c[0] to c[3], in that order in memory. That is how the
+ * cartridge holds a colour, how the data loader leaves a tRGBA (its bytes as they are) and how the scene draw
+ * (ObjInstanceList[].color), the fills, the text and the renderer read one. rgba moves the four bytes at once, as
+ * they are: a container to copy or compare, not a number to build or take apart. */
+typedef union tRGBA { /* 0x4 bytes */
     u8 c[4];
     u32 rgba;
-} TextColor;
+} tRGBA;
 
 /* The strings of one language (MAT3 text.c's sections, gText): the text bank's six sections, each a count and a
  * table. Declared in pc_game_types.h, where the text bank's converter builds one for each bank it loads

@@ -4,7 +4,6 @@
  * car (52), gCarParts its scene objects. */
 #include "game/game.h"
 
-typedef union tRGBA {u8 c[4];u32 rgba;} tRGBA;      /* MAT3 rush_types.h */
 typedef struct Transform {f32 matrix[3][3],position[3];} Transform;
 /* A car model's description (gCarModels, MAT3 _tCar): the tyres' places, after their constants (pointers). */
 typedef struct ModelDescription {u8 unaccessed[0x60];TireDesc *tires[4];f32 tireR[4][3];} ModelDescription;

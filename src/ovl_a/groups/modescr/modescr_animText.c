@@ -1,11 +1,10 @@
 /* modescr_animText: the mode menu's text (MAT3 modescr.c animText). */
 #include "game/game.h"
 
-typedef TextColor Color4;   /* the flashing colours (include/game's TextColor) */
 typedef struct Slot { f32 x,y,angle; u8 unknown0C[36]; f32 position[3]; u8 unknown3C[4]; } Slot;
 
 
-VIEW(Color4, flashColors_at_1);
+VIEW(tRGBA, flashColors_at_1);
 #define flashColors_at_1 flashColors_at_1_view
 
 #define TEXT_MODE_TITLE 40          /* gText.single[]: the screen's title */
