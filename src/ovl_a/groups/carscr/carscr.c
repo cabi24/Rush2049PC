@@ -913,19 +913,22 @@ typedef union Color4 {u8 c[4];u32 word;} Color4;
 
 extern void *memcpy(void *,const void *,u32);
 
+/* The buttons' zoom (MAT3's function-local static of initButtons; image A's data: a load of the image puts back its
+ * 1, docs/port/DATA.md 5). */
+f32 carscr_zoom = 1.0f;
+
 /* Make player p's buttons (carscr_buttonInfo[p], 64-byte MAT3 tMenuButton records): each that doesn't exist yet is
  * its type's model (carscr_buttonNames; types 0-2 see-through, 0x42000), white, shown only in p's window. Then the
  * title (shown in every window in a ghost race), the cursor, and the A and B icons with their arrows at the
  * window's foot, a little lower with more than one window. MAT3 has 40 buttons (17 options a side); the N64 44 (19
- * a side). zoom is MAT3's function-local static; it stays 1. */
+ * a side). carscr_zoom stays 1. */
 void carscr_initButtons(s8 p)
 {
     Color4 buttonColor={{255,255,255,255}};
     void *tex;
     u16 texIdx;
     s32 buttonIdx;
-    static f32 zoom=1.0f;
-    if(gNumWindows==1)zoom=1.0;
+    if(gNumWindows==1)carscr_zoom=1.0;
     for(buttonIdx=0;buttonIdx<CAR_BUTTONS;buttonIdx++) {
         if(carscr_buttonInfo[p][buttonIdx].handle==-1) {
             memcpy(carscr_buttonInfo[p][buttonIdx].matrix,unitmatrix,36);
@@ -945,9 +948,9 @@ void carscr_initButtons(s8 p)
     carscr_buttonInfo[p][CAR_BUTTON_TITLE].position[0]=0.0f;
     carscr_buttonInfo[p][CAR_BUTTON_TITLE].position[1]=gNumWindows>1 ? 105.0f : 115.0f;
     carscr_buttonInfo[p][CAR_BUTTON_TITLE].position[2]=200.0f;
-    carscr_buttonInfo[p][CAR_BUTTON_TITLE].position[0]=(1.0f/zoom)*carscr_buttonInfo[p][CAR_BUTTON_TITLE].position[0];
-    carscr_buttonInfo[p][CAR_BUTTON_TITLE].position[1]=(1.0f/zoom)*carscr_buttonInfo[p][CAR_BUTTON_TITLE].position[1];
-    carscr_buttonInfo[p][CAR_BUTTON_TITLE].position[2]=(1.0f/zoom)*carscr_buttonInfo[p][CAR_BUTTON_TITLE].position[2];
+    carscr_buttonInfo[p][CAR_BUTTON_TITLE].position[0]=(1.0f/carscr_zoom)*carscr_buttonInfo[p][CAR_BUTTON_TITLE].position[0];
+    carscr_buttonInfo[p][CAR_BUTTON_TITLE].position[1]=(1.0f/carscr_zoom)*carscr_buttonInfo[p][CAR_BUTTON_TITLE].position[1];
+    carscr_buttonInfo[p][CAR_BUTTON_TITLE].position[2]=(1.0f/carscr_zoom)*carscr_buttonInfo[p][CAR_BUTTON_TITLE].position[2];
     if(gRace==kGhost)MBOX_ShowObject(carscr_buttonInfo[p][CAR_BUTTON_TITLE].handle,0,15);
     tex=MBOX_FindTexture_WORK(carscr_cursor_texture_name,&texIdx,0,gNumModels[0]-1,1);
     ZOID_SetTexture((s16)carscr_buttonInfo[p][CAR_BUTTON_CURSOR].handle,tex,-1);
@@ -972,18 +975,18 @@ void carscr_initButtons(s8 p)
     carscr_buttonInfo[p][CAR_BUTTON_B_ICON].position[0]=-75.1f;
     carscr_buttonInfo[p][CAR_BUTTON_B_ICON].position[1]=gNumWindows>1 ? 50.2f : 55.2f;
     carscr_buttonInfo[p][CAR_BUTTON_B_ICON].position[2]=100.0f;
-    carscr_buttonInfo[p][CAR_BUTTON_B_ICON].position[0]=(1.0f/zoom)*carscr_buttonInfo[p][CAR_BUTTON_B_ICON].position[0];
-    carscr_buttonInfo[p][CAR_BUTTON_B_ICON].position[1]=(1.0f/zoom)*carscr_buttonInfo[p][CAR_BUTTON_B_ICON].position[1];
-    carscr_buttonInfo[p][CAR_BUTTON_B_ICON].position[2]=(1.0f/zoom)*carscr_buttonInfo[p][CAR_BUTTON_B_ICON].position[2];
+    carscr_buttonInfo[p][CAR_BUTTON_B_ICON].position[0]=(1.0f/carscr_zoom)*carscr_buttonInfo[p][CAR_BUTTON_B_ICON].position[0];
+    carscr_buttonInfo[p][CAR_BUTTON_B_ICON].position[1]=(1.0f/carscr_zoom)*carscr_buttonInfo[p][CAR_BUTTON_B_ICON].position[1];
+    carscr_buttonInfo[p][CAR_BUTTON_B_ICON].position[2]=(1.0f/carscr_zoom)*carscr_buttonInfo[p][CAR_BUTTON_B_ICON].position[2];
     ScaleUV(carscr_buttonInfo[p][CAR_BUTTON_B_ICON].matrix,carscr_buttonInfo[p][CAR_BUTTON_B_ICON].matrix,0.5f);
     memcpy(carscr_buttonInfo[p][CAR_BUTTON_B_ARROW].matrix,unitmatrix,36);
     WPitchUV(-1.5707964f,carscr_buttonInfo[p][CAR_BUTTON_B_ARROW].matrix);
     carscr_buttonInfo[p][CAR_BUTTON_B_ARROW].position[0]=-87.1f;
     carscr_buttonInfo[p][CAR_BUTTON_B_ARROW].position[1]=gNumWindows>1 ? 50.2f : 55.2f;
     carscr_buttonInfo[p][CAR_BUTTON_B_ARROW].position[2]=100.0f;
-    carscr_buttonInfo[p][CAR_BUTTON_B_ARROW].position[0]=(1.0f/zoom)*carscr_buttonInfo[p][CAR_BUTTON_B_ARROW].position[0];
-    carscr_buttonInfo[p][CAR_BUTTON_B_ARROW].position[1]=(1.0f/zoom)*carscr_buttonInfo[p][CAR_BUTTON_B_ARROW].position[1];
-    carscr_buttonInfo[p][CAR_BUTTON_B_ARROW].position[2]=(1.0f/zoom)*carscr_buttonInfo[p][CAR_BUTTON_B_ARROW].position[2];
+    carscr_buttonInfo[p][CAR_BUTTON_B_ARROW].position[0]=(1.0f/carscr_zoom)*carscr_buttonInfo[p][CAR_BUTTON_B_ARROW].position[0];
+    carscr_buttonInfo[p][CAR_BUTTON_B_ARROW].position[1]=(1.0f/carscr_zoom)*carscr_buttonInfo[p][CAR_BUTTON_B_ARROW].position[1];
+    carscr_buttonInfo[p][CAR_BUTTON_B_ARROW].position[2]=(1.0f/carscr_zoom)*carscr_buttonInfo[p][CAR_BUTTON_B_ARROW].position[2];
     carscr_buttonsInited[p]=1;
     carscr_buttonsJustInited[p]=1;
     ZeroCameras();
@@ -992,16 +995,19 @@ void carscr_initButtons(s8 p)
 extern f32 fabsf(f32);
 #pragma intrinsic(fabsf)
 
+/* The cursor's and the list's speeds, per player (MAT3's function-local statics of updateButtons; image A's data:
+ * a load of the image zeroes them, docs/port/DATA.md 5). */
+f32 carscr_cursorSpeed[4] = {0.0f};
+f32 carscr_scrollSpeed[4] = {0.0f};
+
 /* Lay player p's buttons out for this frame (once they exist). The selected option's place on the list (the list
  * squeezed to fit between maxY and minY when it is long) sets where the list scrolls to; the cursor spins beside it
  * and eases there (its speed follows the distance, within 180 to 540 a second, scaled). Each option's label and
  * value buttons turn to show their selected face when the option is selected (a half turn at 4 pi a second),
- * scroll at most scrollSpeed, fade over one button's height past the list's ends, and hide when not offered, past
- * the ends or once the car is locked. The A icon hides once the car is locked, the B icon once everyone is. */
+ * scroll at most carscr_scrollSpeed, fade over one button's height past the list's ends, and hide when not offered,
+ * past the ends or once the car is locked. The A icon hides once the car is locked, the B icon once everyone is. */
 void carscr_updateButtons(s8 p)
 {
-    static f32 cursorSpeed[4];
-    static f32 scrollSpeed[4];
     s32 buttonIdx;
     f32 prevPos[3];
     f32 buttonY;
@@ -1022,16 +1028,16 @@ void carscr_updateButtons(s8 p)
     carscr_buttonInfo[p][CAR_BUTTON_CURSOR].position[1]=selectedPos*carscr_cursorZ/carscr_buttonZ;
     carscr_buttonInfo[p][CAR_BUTTON_CURSOR].position[2]=carscr_cursorZ;
     if(!carscr_buttonsJustInited[p]) {
-        if(cursorSpeed[p]<fabsf(carscr_buttonInfo[p][CAR_BUTTON_CURSOR].position[1]-prevPos[1])*60.0f*carscr_gButtonScale/10.0f) {
-            cursorSpeed[p]=fabsf(carscr_buttonInfo[p][CAR_BUTTON_CURSOR].position[1]-prevPos[1])*60.0f*carscr_gButtonScale/10.0f;
-            cursorSpeed[p]=cursorSpeed[p]<540.0f*carscr_gButtonScale ? cursorSpeed[p] : 540.0f*carscr_gButtonScale;
-            cursorSpeed[p]=cursorSpeed[p]>180.0f*carscr_gButtonScale ? cursorSpeed[p] : 180.0f*carscr_gButtonScale;
+        if(carscr_cursorSpeed[p]<fabsf(carscr_buttonInfo[p][CAR_BUTTON_CURSOR].position[1]-prevPos[1])*60.0f*carscr_gButtonScale/10.0f) {
+            carscr_cursorSpeed[p]=fabsf(carscr_buttonInfo[p][CAR_BUTTON_CURSOR].position[1]-prevPos[1])*60.0f*carscr_gButtonScale/10.0f;
+            carscr_cursorSpeed[p]=carscr_cursorSpeed[p]<540.0f*carscr_gButtonScale ? carscr_cursorSpeed[p] : 540.0f*carscr_gButtonScale;
+            carscr_cursorSpeed[p]=carscr_cursorSpeed[p]>180.0f*carscr_gButtonScale ? carscr_cursorSpeed[p] : 180.0f*carscr_gButtonScale;
         }
-        if(carscr_buttonInfo[p][CAR_BUTTON_CURSOR].position[1]>prevPos[1]+gFrameSeconds*cursorSpeed[p])
-            carscr_buttonInfo[p][CAR_BUTTON_CURSOR].position[1]=prevPos[1]+gFrameSeconds*cursorSpeed[p];
-        else if(carscr_buttonInfo[p][CAR_BUTTON_CURSOR].position[1]<prevPos[1]-gFrameSeconds*cursorSpeed[p])
-            carscr_buttonInfo[p][CAR_BUTTON_CURSOR].position[1]=prevPos[1]-gFrameSeconds*cursorSpeed[p];
-        else cursorSpeed[p]=180.0f*carscr_gButtonScale;
+        if(carscr_buttonInfo[p][CAR_BUTTON_CURSOR].position[1]>prevPos[1]+gFrameSeconds*carscr_cursorSpeed[p])
+            carscr_buttonInfo[p][CAR_BUTTON_CURSOR].position[1]=prevPos[1]+gFrameSeconds*carscr_cursorSpeed[p];
+        else if(carscr_buttonInfo[p][CAR_BUTTON_CURSOR].position[1]<prevPos[1]-gFrameSeconds*carscr_cursorSpeed[p])
+            carscr_buttonInfo[p][CAR_BUTTON_CURSOR].position[1]=prevPos[1]-gFrameSeconds*carscr_cursorSpeed[p];
+        else carscr_cursorSpeed[p]=180.0f*carscr_gButtonScale;
     }
     ScaleUV(unitmatrix,carscr_buttonInfo[p][CAR_BUTTON_CURSOR].matrix,carscr_gButtonScale*0.4f);
     WRollUV(carscr_buttonInfo[p][CAR_BUTTON_CURSOR].angle,carscr_buttonInfo[p][CAR_BUTTON_CURSOR].matrix);
@@ -1052,16 +1058,16 @@ void carscr_updateButtons(s8 p)
         carscr_buttonInfo[p][buttonIdx].position[1]=buttonY;
         carscr_buttonInfo[p][buttonIdx].position[2]=carscr_buttonZ;
         if(!carscr_buttonsJustInited[p]) {
-            if(scrollSpeed[p]<fabsf(carscr_buttonInfo[p][buttonIdx].position[1]-prevPos[1])*60.0f/10.0f) {
-                scrollSpeed[p]=fabsf(carscr_buttonInfo[p][buttonIdx].position[1]-prevPos[1])*60.0f/10.0f;
-                scrollSpeed[p]=scrollSpeed[p]<540.0f*carscr_gButtonScale ? scrollSpeed[p] : 540.0f*carscr_gButtonScale;
-                scrollSpeed[p]=scrollSpeed[p]>180.0f*carscr_gButtonScale ? scrollSpeed[p] : 180.0f*carscr_gButtonScale;
+            if(carscr_scrollSpeed[p]<fabsf(carscr_buttonInfo[p][buttonIdx].position[1]-prevPos[1])*60.0f/10.0f) {
+                carscr_scrollSpeed[p]=fabsf(carscr_buttonInfo[p][buttonIdx].position[1]-prevPos[1])*60.0f/10.0f;
+                carscr_scrollSpeed[p]=carscr_scrollSpeed[p]<540.0f*carscr_gButtonScale ? carscr_scrollSpeed[p] : 540.0f*carscr_gButtonScale;
+                carscr_scrollSpeed[p]=carscr_scrollSpeed[p]>180.0f*carscr_gButtonScale ? carscr_scrollSpeed[p] : 180.0f*carscr_gButtonScale;
             }
-            if(carscr_buttonInfo[p][buttonIdx].position[1]>prevPos[1]+gFrameSeconds*scrollSpeed[p]) {
-                carscr_buttonInfo[p][buttonIdx].position[1]=prevPos[1]+gFrameSeconds*scrollSpeed[p];
+            if(carscr_buttonInfo[p][buttonIdx].position[1]>prevPos[1]+gFrameSeconds*carscr_scrollSpeed[p]) {
+                carscr_buttonInfo[p][buttonIdx].position[1]=prevPos[1]+gFrameSeconds*carscr_scrollSpeed[p];
                 clearScrollSpeed=0;
-            } else if(carscr_buttonInfo[p][buttonIdx].position[1]<prevPos[1]-gFrameSeconds*scrollSpeed[p]) {
-                carscr_buttonInfo[p][buttonIdx].position[1]=prevPos[1]-gFrameSeconds*scrollSpeed[p];
+            } else if(carscr_buttonInfo[p][buttonIdx].position[1]<prevPos[1]-gFrameSeconds*carscr_scrollSpeed[p]) {
+                carscr_buttonInfo[p][buttonIdx].position[1]=prevPos[1]-gFrameSeconds*carscr_scrollSpeed[p];
                 clearScrollSpeed=0;
             }
         }
@@ -1116,7 +1122,7 @@ void carscr_updateButtons(s8 p)
         MBOX_ShowObject(carscr_buttonInfo[p][CAR_BUTTON_B_ICON].handle,0,mask);
         MBOX_ShowObject(carscr_buttonInfo[p][CAR_BUTTON_B_ARROW].handle,0,mask);
     }
-    if(clearScrollSpeed==1)scrollSpeed[p]=0.0f;
+    if(clearScrollSpeed==1)carscr_scrollSpeed[p]=0.0f;
     carscr_buttonsJustInited[p]=0;
 }
 

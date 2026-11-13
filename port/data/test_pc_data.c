@@ -107,7 +107,8 @@ static void *P[15];
 static uint32_t T[2];
 static Q_t Q[2];
 static void *A1, *B1;
-static uint32_t cvar;   /* game-C data of image A */
+static uint32_t cvar;   /* game-C data of image A, with an N64 address: in the tables' symbols and C data */
+static const PcDataCData cdata[1] = {{2, &cvar, sizeof cvar}};
 
 static const PcDataRun runs[] = {
     /* 0-3 boot arena: u16[2] @0, u32 @4, f32 @8, f64 @0x10 */
@@ -166,7 +167,7 @@ static const PcDataInit inits[] = {
 static PcDataState state;
 /* The "heap" starts at TEST_HEAP, as the game's does at the end of its BSS. */
 static const PcDataTables tables = {images, 4, arenas, 5, syms, 7, runs, sizeof runs / sizeof runs[0], funcs, 4,
-                                    names, 3, TEST_HEAP, &state, NULL, 0, NULL, 0, inits, 2, objs, 3};
+                                    names, 3, TEST_HEAP, &state, cdata, 1, NULL, 0, inits, 2, objs, 3};
 
 static void build_rom(void)
 {
@@ -251,7 +252,7 @@ static void reset_state(void)
 {
     for (int i = 0; i < 8; i++)
         free(state.owned[i]);
-    for (uint32_t i = 0; state.snapshot && i < tables.n_syms; i++)
+    for (uint32_t i = 0; state.snapshot && i < tables.n_cdata; i++)
         free(state.snapshot[i]);
     free(state.snapshot);
     memset(&state, 0, sizeof state);

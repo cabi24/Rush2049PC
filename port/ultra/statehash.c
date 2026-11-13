@@ -177,7 +177,7 @@ enum {
     K_OWN = 1,         /* own storage: its symbol's N64 address and the N64 offset in it */
     K_FUNC = 2,        /* a game function: its N64 address */
     K_DECOUPLED = 3,   /* a decoupled item: its index << 24 and the offset */
-    K_CRANGE = 4,      /* a runtime image's C data: the offset in its range */
+    K_CRANGE = 4,      /* a runtime image's C datum: its index << 24 and the offset */
     K_IMAGE = 5,       /* elsewhere in the image: nothing more */
     K_HOST = 6,        /* host memory outside the image and the heap (a table the loader copied, a converted file) */
     K_ARENA = 7,       /* an arena's datum: its N64 address alone (canonical gives no tag) */
@@ -377,9 +377,13 @@ static void pointers_build(void)
                        (int32_t)i);
     for (int i = 0; i < N_DECOUPLED; i++)
         add_target((uintptr_t)g_decoupled[i].p, g_decoupled[i].size, (uint32_t)i << 24, K_DECOUPLED, 0, -1);
-    for (uint32_t i = 0; i < t->n_cranges; i++)
-        add_target((uintptr_t)t->cranges[i].start, (size_t)(t->cranges[i].end - t->cranges[i].start), 0, K_CRANGE,
-                   t->cranges[i].image, -1);
+    for (uint32_t i = 0; i < t->n_cdata; i++) {   /* a runtime image's C datum: its index in the tables << 24 */
+        int named = 0;   /* (game-C data with an N64 address: named by it, above) */
+        for (uint32_t k = 0; k < t->n_syms && !named; k++)
+            named = t->syms[k].host == t->cdata[i].host;
+        if (!named)
+            add_target((uintptr_t)t->cdata[i].host, t->cdata[i].size, i << 24, K_CRANGE, t->cdata[i].image, -1);
+    }
     /* The arenas' data: a block, its N64 range (an untagged N64 address); a datum's object, as own storage is named (its
      * N64 address and the offset, tagged as own storage's: an arena datum's layout is the N64's, so the offset is) */
     chunks_build(t);

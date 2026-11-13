@@ -19,13 +19,16 @@ VIEW(u8, gBlocksNeeded);
  * are read by drawWarningScreen (warningscr_animText) by their addresses, so they are the image A arena's bytes. */
 #define numPaksFound num_paks_found
 
+/* The warning's blit while it is up (MAT3's function-local static; image A's data: a load of the image clears it,
+ * docs/port/DATA.md 5). */
+Blit *warningscr_blit = 0;
+
 void updateWarningScreen(void)
 {
-    static Blit *sBlit = 0;       /* D_803B83C8 */
     s32 numPaks;
     s32 i;
 
-    if (!sBlit) {
+    if (!warningscr_blit) {
         gPakScr = 0;
         pak_recognize_error_seen = 0;
     }
@@ -43,8 +46,8 @@ void updateWarningScreen(void)
             }
             numPaksFound = numPaks;
             if (numPaksFound > 0 || !pak_recognize_error_seen) {
-                if (!sBlit) {
-                    sBlit = NewMultiBlit(0, 0, warningscr_blits, 1);
+                if (!warningscr_blit) {
+                    warningscr_blit = NewMultiBlit(0, 0, warningscr_blits, 1);
                     SetControllerActive(-1, 1);
                     SetControllerStickEdges(-1, 1);
                 }
@@ -62,9 +65,9 @@ void updateWarningScreen(void)
         }
     }
 done:
-    if (sBlit) {
-        RemoveBlit(sBlit);
-        sBlit = 0;
+    if (warningscr_blit) {
+        RemoveBlit(warningscr_blit);
+        warningscr_blit = 0;
     }
     gBlocksNeeded = PS_GetBlocks(0x810);
     setGameState(gPakScr ? 0x4000000 : 4);

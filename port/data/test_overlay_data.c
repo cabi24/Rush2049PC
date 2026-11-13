@@ -1,10 +1,10 @@
 /* port/data/test_overlay_data.c: a runtime image's data put back on each load of the image (docs/port/DATA.md 5),
- * through the real pieces: the loader (pc_data.c) with tables of its own whose C ranges are port/data/overlays.ld's,
- * linked with that script, and two objects it takes as runtime-image C by their paths:
+ * through the real pieces: the loader (pc_data.c) with tables of its own that list two objects' C data datum by datum,
+ * as gen_data.py lists the game's (pc_cdata):
  *
- *   - image A: test_overlay/src/ovl_a/statics.c, a stand-in with file-local and function-local statics;
- *   - image B: the game's weapons.c, built as the game is. Its global table weaponOffsets is initialized data in its C
- *     range. Its muzzle-flash records and current weapons (gCurWeaponType, gGattMuzzleObjs, gCannMuzzleObjs) are image B's BSS,
+ *   - image A: test_overlay/src/ovl_a/statics.c, a stand-in with the kinds of data the images' C has;
+ *   - image B: the game's weapons.c, built as the game is. Its global table weaponOffsets is initialized C data. Its
+ *     muzzle-flash records and current weapons (gCurWeaponType, gGattMuzzleObjs, gCannMuzzleObjs) are image B's BSS,
  *     which this test's tables give an arena (in host memory) as the game's do: they start out zero,
  *     so the first _RemoveCannMFlash / _RemoveGattMFlash of a slot removes its models and marks them -1, and a
  *     second one finds nothing.
@@ -65,7 +65,9 @@ float ovl_test_speeds(void);
 
 /* ---------------------------------------------------------------- tables: the two runtime images, raw */
 
-extern uint8_t pc_ovl_a_start[], pc_ovl_a_end[], pc_ovl_b_start[], pc_ovl_b_end[];
+/* image A's stand-in's data (statics.c) */
+extern int ovl_test_count, *ovl_test_where, ovl_test_calls;
+extern float ovl_test_speeds_table[4], ovl_test_scale;
 #define IMAGE_SIZE (ARENA_B_LO - N64_OVERLAY_BASE)   /* image B's data ends where its BSS arena starts */
 static uint8_t rom[2 * IMAGE_SIZE];
 static const PcDataImage images[2] = {
@@ -76,15 +78,14 @@ static const PcDataImage images[2] = {
  * the end of its BSS, game_bss_end). */
 #define TEST_HEAP (N64_KSEG0 + 0x17A640u)
 static PcDataArena arenas[1] = {{1, ARENA_B_LO, ARENA_B_LO, ARENA_B_HI, pc_test_arena_b, 0, 0}};
-static const PcDataCRange cranges[2] = {{0, pc_ovl_a_start, pc_ovl_a_end}, {1, pc_ovl_b_start, pc_ovl_b_end}};
+static const PcDataCData cdata[] = {
+    {0, &ovl_test_count, sizeof ovl_test_count}, {0, ovl_test_speeds_table, sizeof ovl_test_speeds_table},
+    {0, &ovl_test_where, sizeof ovl_test_where}, {0, &ovl_test_calls, sizeof ovl_test_calls},
+    {0, &ovl_test_scale, sizeof ovl_test_scale}, {1, weaponOffsets, sizeof weaponOffsets},
+};
 static PcDataState state;
 static const PcDataTables tables = {images, 2, arenas, 1, NULL, 0, NULL, 0, NULL, 0, NULL, 0, TEST_HEAP, &state,
-                                    cranges, 2};
-
-static int in(const void *p, const uint8_t *lo, const uint8_t *hi)
-{
-    return (const uint8_t *)p >= lo && (const uint8_t *)p < hi;
-}
+                                    cdata, sizeof cdata / sizeof cdata[0]};
 
 static int removed_cann(int16_t slot)
 {
@@ -102,11 +103,6 @@ static int removed_gatt(int16_t slot)
 
 int main(void)
 {
-    /* the C ranges: weapons.c's data in image B's, the stand-in's statics in image A's, the program's in neither */
-    CHECK(in(weaponOffsets, pc_ovl_b_start, pc_ovl_b_end) && in(&weaponOffsets[7][12][2], pc_ovl_b_start, pc_ovl_b_end));
-    CHECK(pc_ovl_a_end > pc_ovl_a_start && !in(weaponOffsets, pc_ovl_a_start, pc_ovl_a_end));
-    CHECK(!in(&g_removed, pc_ovl_a_start, pc_ovl_b_end) && !in(pc_test_arena_b, pc_ovl_a_start, pc_ovl_b_end));
-
     CHECK(pc_data_load_all(&tables, rom, sizeof rom, "") == 0);
     CHECK(weaponOffsets[0][0][1] == 2.5f && weaponOffsets[7][12][2] == -1.11f);
     CHECK(ovl_test_counter() == 5 && ovl_test_speeds() == 0.0f);
@@ -118,7 +114,7 @@ int main(void)
     CHECK(ovl_test_step() == 1 && ovl_test_step() == 3);
     CHECK(ovl_test_counter() == 6 && ovl_test_speeds() == 3.0f);
 
-    /* a load of image A puts back its statics, file-local and function-local, and leaves image B alone */
+    /* a load of image A puts back its data, and leaves image B alone */
     CHECK(pc_data_load_image(&tables, 0) == 0);
     CHECK(ovl_test_counter() == 5 && ovl_test_speeds() == 0.0f);
     CHECK(ovl_test_step() == 1 && ovl_test_counter() == 6);

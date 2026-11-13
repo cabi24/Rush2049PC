@@ -11,8 +11,8 @@
  *   3. each symbol with its own storage: convert from the image through its runs, turning N64 pointers into host
  *      pointers (functions, own storage, game-C data, an arena datum's object + the offset, the game heap's block +
  *      the offset: pc_data_set_heap);
- *   4. game-C data in an overlay: put back the bytes it had at startup (or zero it), the symbols the tables name and
- *      the image's C ranges, which hold the statics no table can name;
+ *   4. a runtime image's own C data (its objects' globals, game-C data with an N64 address among them): put back
+ *      the bytes each datum had at startup;
  *   5. the arenas' objects: each datum's bytes copied from its arena's layout.
  *
  * Nothing is at its N64 address (docs/port/NATIVE.md steps 5, 12 and 13): each datum, arena and the heap is host
@@ -896,17 +896,12 @@ int pc_data_load_image(const PcDataTables *t, int image)
         const PcDataSym *s = &t->syms[i];
         if (s->image != image || !s->host)
             continue;
-        if (s->flags & PC_SYM_OWN) {
-            if (s->flags & PC_SYM_BSS)
-                memset(s->host, 0, s->host_size);
-            else
-                convert_sym(t, s, img, img_size, image);
-        } else if ((s->flags & PC_SYM_CDEF) && is_overlay(t, image) && st->loaded) {
-            if (s->flags & PC_SYM_BSS)
-                memset(s->host, 0, s->host_size);
-            else if (st->snapshot && st->snapshot[i])
-                memcpy(s->host, st->snapshot[i], s->host_size);
-        }
+        if (!(s->flags & PC_SYM_OWN))
+            continue;   /* game-C data: a runtime image's is put back with its C data, below */
+        if (s->flags & PC_SYM_BSS)
+            memset(s->host, 0, s->host_size);
+        else
+            convert_sym(t, s, img, img_size, image);
     }
     /* Decoupled data the image initializes: its N64 bytes converted into the first elements, the rest continued. */
     for (uint32_t i = 0; i < t->n_inits; i++) {
@@ -922,10 +917,11 @@ int pc_data_load_image(const PcDataTables *t, int image)
         for (uint32_t o = d->host_init; d->period && o < d->host_size; o++)
             h[o] = h[o - d->period];
     }
-    for (uint32_t i = 0; is_overlay(t, image) && st->loaded && st->crange_snapshot && i < t->n_cranges; i++) {
-        const PcDataCRange *r = &t->cranges[i];
-        if (r->image == image && st->crange_snapshot[i])
-            memcpy(r->start, st->crange_snapshot[i], (size_t)(r->end - r->start));
+    /* A runtime image's own C data, datum by datum: back to the bytes it had at startup. */
+    for (uint32_t i = 0; is_overlay(t, image) && st->loaded && st->snapshot && i < t->n_cdata; i++) {
+        const PcDataCData *c = &t->cdata[i];
+        if (c->image == image && c->host && st->snapshot[i])
+            memcpy(c->host, st->snapshot[i], c->size);
     }
     if (t->n_reach && image < 8)
         reach_image(t, image);
@@ -970,23 +966,13 @@ int pc_data_load_all(const PcDataTables *t, const uint8_t *rom, size_t rom_size,
                           "# reach, which a rule of port/data/reached.txt converted\n");
     memset(&g_stats, 0, sizeof g_stats);
     memset(g_logged, 0, sizeof g_logged);
-    /* Startup bytes of the game C's overlay data, put back on every overlay load. */
-    if (!st->snapshot && t->n_syms)
-        st->snapshot = calloc(t->n_syms, sizeof *st->snapshot);
-    for (uint32_t i = 0; st->snapshot && i < t->n_syms; i++) {
-        const PcDataSym *s = &t->syms[i];
-        if ((s->flags & PC_SYM_CDEF) && !(s->flags & PC_SYM_BSS) && s->host && is_overlay(t, s->image)
-            && !st->snapshot[i] && (st->snapshot[i] = malloc(s->host_size)) != NULL)
-            memcpy(st->snapshot[i], s->host, s->host_size);
-    }
-    /* ... and of the runtime images' own C data, statics included. */
-    if (!st->crange_snapshot && t->n_cranges)
-        st->crange_snapshot = calloc(t->n_cranges, sizeof *st->crange_snapshot);
-    for (uint32_t i = 0; st->crange_snapshot && i < t->n_cranges; i++) {
-        const PcDataCRange *r = &t->cranges[i];
-        size_t n = r->end > r->start ? (size_t)(r->end - r->start) : 0;
-        if (n && !st->crange_snapshot[i] && (st->crange_snapshot[i] = malloc(n)) != NULL)
-            memcpy(st->crange_snapshot[i], r->start, n);
+    /* The startup bytes of the runtime images' own C data, put back on every load of its image. */
+    if (!st->snapshot && t->n_cdata)
+        st->snapshot = calloc(t->n_cdata, sizeof *st->snapshot);
+    for (uint32_t i = 0; st->snapshot && i < t->n_cdata; i++) {
+        const PcDataCData *c = &t->cdata[i];
+        if (c->host && c->size && !st->snapshot[i] && (st->snapshot[i] = malloc(c->size)) != NULL)
+            memcpy(st->snapshot[i], c->host, c->size);
     }
     g_scan = 1;
     for (uint32_t i = 0; i < t->n_images; i++) {

@@ -140,10 +140,10 @@ static const f32 ShotOffsets[10][3] = {
     0.01f, 2.04f, 0.28f, 0.0f, 0.0f, 0.0f, -0.04f, 0.61f, 0.23f, 0.0f, 1.25f, 0.0f,
     0.0f, 1.5f, 2.0f, 0.0f, 0.0f, 0.0f
 };
-static f32 gShieldSizes[13] = {
+static const f32 gShieldSizes[13] = {   /* each car type's shield size */
     0.85f, 0.8f, 0.75f, 0.77f, 0.83f, 0.85f, 0.75f, 0.75f, 0.65f, 0.85f, 1.1f, 0.8f, 0.73f
 };
-static s32 sWeaponFx[10] = { 92, 87, 90, 88, 91, 93, 94, 95, 89, -1 };
+static const s32 sWeaponFx[10] = { 92, 87, 90, 88, 91, 93, 94, 95, 89, -1 };   /* each weapon's sound */
 /* game.frame_rate 60 (docs/port/FRAMERATE.md 7): a weapon's reload counts down by the time of the 30 Hz frames
  * completed, so it ends on the frame the N64's would: a reload is set afresh at each shot, and counted by the frame
  * time at 60 it ended up to a retrace sooner than the N64's frames of two (0.0666667 s: 5 retraces against 6, a

@@ -1,30 +1,30 @@
-/* port/data/test_overlay/src/ovl_a/statics.c: runtime-image C for test_overlay_data.c. Its path has src/ovl_a/ in
- * it, so port/data/overlays.ld takes its data for image A's, as it takes the game's objects from src/ovl_a: a
- * file-local static and a pointer to it (.data, .data.rel), a BSS array, and two function-local statics, the kinds
- * the game's runtime-image C has (cursorSpeed.1, del.0, ...). */
-static int counter = 5;
-static float speeds[4];
-static int *where = &counter;
+/* port/data/test_overlay/src/ovl_a/statics.c: runtime-image C for test_overlay_data.c, a stand-in for image A's own C
+ * data, of the kinds the game's has (docs/port/DATA.md 5): an initialized global, a BSS array, a pointer to data
+ * (.data.rel), and the state a function keeps between calls (MAT3's function-local statics, globals in the images:
+ * carscr_cursorSpeed, trackscr_mapPos, ...). */
+int ovl_test_count = 5;
+float ovl_test_speeds_table[4];
+int *ovl_test_where = &ovl_test_count;
+int ovl_test_calls;
+float ovl_test_scale = 0.5f;
 
-/* Counts its calls (from 1 after each load) and moves the file's statics along. */
+/* Counts its calls (from 1 after each load) and moves the data along. */
 int ovl_test_step(void)
 {
-    static int calls;
-    static float scale = 0.5f;
-    calls++;
-    scale *= 2.0f;
-    speeds[calls & 3] += scale;
-    (*where)++;
-    where = &calls;
-    return calls;
+    ovl_test_calls++;
+    ovl_test_scale *= 2.0f;
+    ovl_test_speeds_table[ovl_test_calls & 3] += ovl_test_scale;
+    (*ovl_test_where)++;
+    ovl_test_where = &ovl_test_calls;
+    return ovl_test_calls;
 }
 
-/* What the statics hold: counter, then speeds[1] + speeds[2]. */
+/* What the data holds: the count, then speeds[1] + speeds[2]. */
 int ovl_test_counter(void)
 {
-    return counter;
+    return ovl_test_count;
 }
 float ovl_test_speeds(void)
 {
-    return speeds[1] + speeds[2];
+    return ovl_test_speeds_table[1] + ovl_test_speeds_table[2];
 }

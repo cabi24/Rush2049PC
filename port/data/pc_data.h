@@ -92,8 +92,8 @@ typedef struct {
 } PcDataObj;
 
 /* A symbol with its own host storage (PC_SYM_OWN: filled from the image through its runs, or zeroed if
- * PC_SYM_BSS), or one the game C defines (PC_SYM_CDEF: listed so pointers to it resolve, and, in an overlay,
- * restored on load: PC_SYM_BSS zeroes it, otherwise its startup bytes are put back). Sorted by n64_addr. */
+ * PC_SYM_BSS), or one the game C defines (PC_SYM_CDEF: listed so pointers to it resolve; in a runtime image it is
+ * C data, PcDataCData, too). Sorted by n64_addr. */
 enum { PC_SYM_OWN = 1, PC_SYM_CDEF = 2, PC_SYM_BSS = 4 };
 typedef struct {
     const char *name;
@@ -119,14 +119,15 @@ typedef struct {
     const char *name;
 } PcDataName;
 
-/* The writable data an image's own C defines, file-local and function-local statics included, as one host range
- * (the game's: port/data/overlays.ld gathers each runtime image's objects' .data and .bss). No table can name a
- * static, so the loader takes the range's bytes at startup and puts them back on every later load of the image, as
- * the N64's load of the image does. */
+/* A writable datum a runtime image's own C defines (the image's objects' globals: no image keeps file-local or
+ * function-local statics, which no table could name). The N64's load of the image put it back to its first value, so
+ * the loader takes its bytes at startup and puts them back on every later load of the image, datum by datum. host is
+ * NULL when it is not linked in. */
 typedef struct {
     uint8_t image;
-    uint8_t *start, *end;
-} PcDataCRange;
+    void *host;
+    uint32_t size;
+} PcDataCData;
 
 /* A table that only pointers reach (port/data/reached.txt, docs/port/DATA.md 7): no symbol describes it, so without
  * a rule it would keep the ROM's byte order and the N64 layout. A root rule takes every pointer of a symbol with its
@@ -175,8 +176,7 @@ typedef struct {
     size_t rom_size;
     uint8_t *image[8];          /* inflated images (raw images point into the ROM) */
     uint8_t *owned[8];          /* buffers to free */
-    void **snapshot;            /* per symbol: startup bytes of PC_SYM_CDEF overlay data */
-    void **crange_snapshot;     /* per C range: its startup bytes */
+    void **snapshot;            /* per runtime-image C datum (cdata): its startup bytes */
     int loaded;
     void *reached[8];           /* per image: the host storage its rules made on its last load (a list) */
     uint8_t *layout[8];         /* per arena with objects: the arena laid out as on the N64, which its objects are
@@ -199,8 +199,8 @@ typedef struct {
     uint32_t heap_lo;           /* the N64 heap's first byte: pointers at or above it, outside the runtime images,
                                  * are into the heap (pc_data_set_heap) */
     PcDataState *state;
-    const PcDataCRange *cranges;   /* runtime images' C data, restored on their loads (may be none) */
-    uint32_t n_cranges;
+    const PcDataCData *cdata;   /* runtime images' C data, put back on their loads (may be none) */
+    uint32_t n_cdata;
     const PcDataReach *reach;   /* tables only pointers reach (may be none) */
     uint32_t n_reach;
     const PcDataInit *inits;    /* decoupled data the images initialize (may be none) */

@@ -215,7 +215,7 @@ set_target_properties(game_decls PROPERTIES PC_NO_SANITIZE ON EXPORT_COMPILE_COM
 # executable, from the objects linked (game_objects.txt).
 # The arenas whose data are objects of their own, one per datum (docs/port/DATA.md 3, NATIVE.md step 13); the others
 # stay blocks in the N64's layout.
-set(RUSH_DATA_OBJECTS "boot,game" CACHE STRING
+set(RUSH_DATA_OBJECTS "all" CACHE STRING
     "The arenas whose data are objects of their own: boot, game, ovl_a, ovl_b (comma-separated) or all")
 add_custom_command(
     OUTPUT ${PC_DATA_DIR}/data.c ${PC_DATA_DIR}/data_layout.txt ${PC_DATA_DIR}/data_layout.json
@@ -373,28 +373,12 @@ target_link_libraries(rush2049pc PRIVATE ${PC_PORT_OBJECT_LIBS} pcnet ZLIB::ZLIB
 foreach(lib ${PC_PORT_ARCHIVES})
     target_link_libraries(rush2049pc PRIVATE "$<LINK_LIBRARY:WHOLE_ARCHIVE,${lib}>")
 endforeach()
-# Each runtime image's C data (its objects' .data and .bss, statics included) in one range, which the loader puts
-# back on every load of the image as the N64's load does (port/data/overlays.ld, docs/port/DATA.md 5). data.c names
-# the ranges, so every program that links it links this too.
-set(PC_OVERLAYS_LD ${CMAKE_SOURCE_DIR}/port/data/overlays.ld)
-# A program's linker scripts: the given implicit ones (symbol assignments) and overlays.ld with -T. On Windows they
-# are one -T script: binutils 2.44+ tells a -T script from the others by stat, and Windows' stat gives every file
-# inode 0, so MSYS2's ld takes any second script for the -T one given twice. overlays.ld goes first there, since
-# its INSERT moves the statements before it.
+# A program's implicit linker scripts, symbol assignments: aliases.ld (gen_stubs.py) and on Windows data.c's weak
+# references (weak.ld, tools/port/gen_data.py).
 function(pc_link_scripts target)
-    if(WIN32)
-        set(out ${CMAKE_BINARY_DIR}/link/${target}.ld)
-        add_custom_command(OUTPUT ${out}
-            COMMAND ${CMAKE_COMMAND} -DOUT=${out} "-DIN=$<JOIN:${PC_OVERLAYS_LD};${ARGN},|>"
-                    -P ${CMAKE_SOURCE_DIR}/cmake/concat.cmake
-            DEPENDS ${PC_OVERLAYS_LD} ${ARGN} ${CMAKE_SOURCE_DIR}/cmake/concat.cmake VERBATIM)
-        add_custom_target(${target}_ld DEPENDS ${out})
-        add_dependencies(${target} ${target}_ld)
-        target_link_options(${target} PRIVATE "LINKER:-T,${out}")
-        set_property(TARGET ${target} APPEND PROPERTY LINK_DEPENDS ${out})
-    else()
-        target_link_options(${target} PRIVATE ${ARGN} "LINKER:-T,${PC_OVERLAYS_LD}")
-        set_property(TARGET ${target} APPEND PROPERTY LINK_DEPENDS ${ARGN} ${PC_OVERLAYS_LD})
+    if(ARGN)
+        target_link_options(${target} PRIVATE ${ARGN})
+        set_property(TARGET ${target} APPEND PROPERTY LINK_DEPENDS ${ARGN})
     endif()
 endfunction()
 pc_link_scripts(rush2049pc ${PC_DATA_DIR}/aliases.ld ${PC_DATA_PE_OUTPUTS})   # PE: data.c's weak references
@@ -1284,8 +1268,8 @@ add_custom_command(TARGET rush2049pc_datacheck POST_BUILD
 add_test(NAME pc_data_rom COMMAND rush2049pc_datacheck)
 add_test(NAME pc_data_synthetic COMMAND rush2049pc_datacheck --synthetic)
 # pc_data_overlay: runtime image B's weapons.c built as the game is (its BSS state and its global table) and a
-# stand-in for image A's C with statics, linked through overlays.ld, written to, then reloaded with the loader
-# (port/data/test_overlay_data.c). The stand-in's path has src/ovl_a/ in it, which is how the script tells image A's.
+# stand-in for image A's C data, written to, then reloaded with the loader
+# (port/data/test_overlay_data.c), its tables listing their data datum by datum as gen_data.py lists the game's.
 add_library(test_overlay_data_game OBJECT src/ovl_b/groups/weapons/weapons.c
     port/data/test_overlay/src/ovl_a/statics.c)
 target_link_libraries(test_overlay_data_game PRIVATE game_flags)

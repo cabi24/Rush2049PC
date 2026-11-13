@@ -463,6 +463,11 @@ extern void *memcpy(void *,const void *,u32);
 extern f32 fabsf(f32);
 #pragma intrinsic(fabsf)
 
+/* The cursor's and the list's speeds (MAT3's function-local statics of updateButtons; image A's data: a load of the
+ * image zeroes them, docs/port/DATA.md 5). */
+f32 circuitscr_cursorSpeed = 0.0f;
+f32 circuitscr_scrollSpeed = 0.0f;
+
 /* Lay the buttons out for this frame. With the trophy up only the title and the A and B icons show. Otherwise each
  * of the four rows' buttons turns to its selected face when selected, the list scrolls to the selection (at most
  * 540 a second) and fades over a button's height past the top or bottom; rows not offered are hidden, and with the
@@ -470,8 +475,6 @@ extern f32 fabsf(f32);
  * cursor spins beside the selected row and eases towards it. */
 void circuitscr_updateButtons(void)
 {
-    static f32 cursorSpeed;
-    static f32 scrollSpeed;
     s32 buttonIdx;
     f32 prevPos[3];
     f32 buttonY;
@@ -526,16 +529,16 @@ void circuitscr_updateButtons(void)
             circuitscr_buttonInfo[buttonIdx].position[1] = buttonY;
             circuitscr_buttonInfo[buttonIdx].position[2] = circuitscr_buttonZ;
             if (!circuitscr_buttonsJustInited) {
-                if (scrollSpeed < fabsf(circuitscr_buttonInfo[buttonIdx].position[1] - prevPos[1]) * 60.0f / 10.0f) {
-                    scrollSpeed = fabsf(circuitscr_buttonInfo[buttonIdx].position[1] - prevPos[1]) * 60.0f / 10.0f;
-                    scrollSpeed = scrollSpeed < 540.0f * circuitscr_gButtonScale ? scrollSpeed : 540.0f * circuitscr_gButtonScale;
-                    scrollSpeed = scrollSpeed > 180.0f * circuitscr_gButtonScale ? scrollSpeed : 180.0f * circuitscr_gButtonScale;
+                if (circuitscr_scrollSpeed < fabsf(circuitscr_buttonInfo[buttonIdx].position[1] - prevPos[1]) * 60.0f / 10.0f) {
+                    circuitscr_scrollSpeed = fabsf(circuitscr_buttonInfo[buttonIdx].position[1] - prevPos[1]) * 60.0f / 10.0f;
+                    circuitscr_scrollSpeed = circuitscr_scrollSpeed < 540.0f * circuitscr_gButtonScale ? circuitscr_scrollSpeed : 540.0f * circuitscr_gButtonScale;
+                    circuitscr_scrollSpeed = circuitscr_scrollSpeed > 180.0f * circuitscr_gButtonScale ? circuitscr_scrollSpeed : 180.0f * circuitscr_gButtonScale;
                 }
-                if (circuitscr_buttonInfo[buttonIdx].position[1] > prevPos[1] + scrollSpeed * gFrameSeconds) {
-                    circuitscr_buttonInfo[buttonIdx].position[1] = prevPos[1] + scrollSpeed * gFrameSeconds;
+                if (circuitscr_buttonInfo[buttonIdx].position[1] > prevPos[1] + circuitscr_scrollSpeed * gFrameSeconds) {
+                    circuitscr_buttonInfo[buttonIdx].position[1] = prevPos[1] + circuitscr_scrollSpeed * gFrameSeconds;
                     clearScrollSpeed = 0;
-                } else if (circuitscr_buttonInfo[buttonIdx].position[1] < prevPos[1] - scrollSpeed * gFrameSeconds) {
-                    circuitscr_buttonInfo[buttonIdx].position[1] = prevPos[1] - scrollSpeed * gFrameSeconds;
+                } else if (circuitscr_buttonInfo[buttonIdx].position[1] < prevPos[1] - circuitscr_scrollSpeed * gFrameSeconds) {
+                    circuitscr_buttonInfo[buttonIdx].position[1] = prevPos[1] - circuitscr_scrollSpeed * gFrameSeconds;
                     clearScrollSpeed = 0;
                 }
             }
@@ -611,17 +614,17 @@ void circuitscr_updateButtons(void)
     circuitscr_buttonInfo[CIRCUIT_BUTTON_CURSOR].position[1] = selectedPos * circuitscr_cursorZ / circuitscr_buttonZ;
     circuitscr_buttonInfo[CIRCUIT_BUTTON_CURSOR].position[2] = circuitscr_cursorZ;
     if (!circuitscr_buttonsJustInited) {
-        if (cursorSpeed < fabsf(circuitscr_buttonInfo[CIRCUIT_BUTTON_CURSOR].position[1] - prevPos[1]) * 60.0f / 10.0f) {
-            cursorSpeed = fabsf(circuitscr_buttonInfo[CIRCUIT_BUTTON_CURSOR].position[1] - prevPos[1]) * 60.0f / 10.0f;
-            cursorSpeed = cursorSpeed < 540.0f * circuitscr_gButtonScale ? cursorSpeed : 540.0f * circuitscr_gButtonScale;
-            cursorSpeed = cursorSpeed > 180.0f * circuitscr_gButtonScale ? cursorSpeed : 180.0f * circuitscr_gButtonScale;
+        if (circuitscr_cursorSpeed < fabsf(circuitscr_buttonInfo[CIRCUIT_BUTTON_CURSOR].position[1] - prevPos[1]) * 60.0f / 10.0f) {
+            circuitscr_cursorSpeed = fabsf(circuitscr_buttonInfo[CIRCUIT_BUTTON_CURSOR].position[1] - prevPos[1]) * 60.0f / 10.0f;
+            circuitscr_cursorSpeed = circuitscr_cursorSpeed < 540.0f * circuitscr_gButtonScale ? circuitscr_cursorSpeed : 540.0f * circuitscr_gButtonScale;
+            circuitscr_cursorSpeed = circuitscr_cursorSpeed > 180.0f * circuitscr_gButtonScale ? circuitscr_cursorSpeed : 180.0f * circuitscr_gButtonScale;
         }
-        if (circuitscr_buttonInfo[CIRCUIT_BUTTON_CURSOR].position[1] > prevPos[1] + cursorSpeed * gFrameSeconds)
-            circuitscr_buttonInfo[CIRCUIT_BUTTON_CURSOR].position[1] = prevPos[1] + cursorSpeed * gFrameSeconds;
-        else if (circuitscr_buttonInfo[CIRCUIT_BUTTON_CURSOR].position[1] < prevPos[1] - cursorSpeed * gFrameSeconds)
-            circuitscr_buttonInfo[CIRCUIT_BUTTON_CURSOR].position[1] = prevPos[1] - cursorSpeed * gFrameSeconds;
+        if (circuitscr_buttonInfo[CIRCUIT_BUTTON_CURSOR].position[1] > prevPos[1] + circuitscr_cursorSpeed * gFrameSeconds)
+            circuitscr_buttonInfo[CIRCUIT_BUTTON_CURSOR].position[1] = prevPos[1] + circuitscr_cursorSpeed * gFrameSeconds;
+        else if (circuitscr_buttonInfo[CIRCUIT_BUTTON_CURSOR].position[1] < prevPos[1] - circuitscr_cursorSpeed * gFrameSeconds)
+            circuitscr_buttonInfo[CIRCUIT_BUTTON_CURSOR].position[1] = prevPos[1] - circuitscr_cursorSpeed * gFrameSeconds;
         else
-            cursorSpeed = 180.0f * circuitscr_gButtonScale;
+            circuitscr_cursorSpeed = 180.0f * circuitscr_gButtonScale;
     }
     ScaleUV(unitmatrix, circuitscr_buttonInfo[CIRCUIT_BUTTON_CURSOR].matrix, circuitscr_gButtonScale * 0.4f);
     WRollUV(circuitscr_buttonInfo[CIRCUIT_BUTTON_CURSOR].angle, circuitscr_buttonInfo[CIRCUIT_BUTTON_CURSOR].matrix);
@@ -634,7 +637,7 @@ void circuitscr_updateButtons(void)
         MBOX_ShowObject(circuitscr_buttonInfo[CIRCUIT_BUTTON_A_BACK].handle, 0, 15);
     }
     if (clearScrollSpeed == 1)
-        scrollSpeed = 0.0f;
+        circuitscr_scrollSpeed = 0.0f;
     circuitscr_buttonsJustInited = 0;
 }
 
@@ -809,7 +812,6 @@ void circuitscr_animButtonText(void)
     str = gText.single[42];
     TB_DrawText(TB_CenterText(str, x), y, str);
     if (gEnterCircuitCode) {
-        static u8 *del = circuitscr_del_text;
         TB_SetJust(kTB_JustLeft, kTB_JustTop);
         HAL_SetFont(11);
         y = 59;
@@ -848,7 +850,7 @@ void circuitscr_animButtonText(void)
         }
         x += 12;
         TB_SetTextColor(gCodeSelect == CODE_SEL_DELETE ? kTB_FlashText : kTB_WhiteText);
-        TB_DrawText(TB_CenterText(del, x + 5), y, del);
+        TB_DrawText(TB_CenterText(circuitscr_del_text, x + 5), y, circuitscr_del_text);
         if (circuitscr_pane)
             ChangePaneSize(circuitscr_pane, 80, 55, 240, 165);
     } else if (gConfirmNewCircuit) {

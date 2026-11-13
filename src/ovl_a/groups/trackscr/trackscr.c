@@ -474,14 +474,27 @@ void trackscr_UninitScreen(void)
 }
 
 typedef struct UVMatrix { f32 uvs[3][3]; f32 pos[3]; } UVMatrix;   /* tUVMatrix */
+
+/* The screen's moving parts, MAT3's function-local statics (image A's data: a load of the image puts back their first
+ * values, docs/port/DATA.md 5): the carousel's spin and the fog's place (showTrackSelect), the fog texture's tile
+ * (BlowFog), the highlighted map's places and spin (trackscr_animTrackMap), the maps' place (animTrackMaps), and the
+ * list's and the cursor's speeds (trackscr_updateButtons). */
+f32 trackscr_carouselAngle = 0.0f;
+f32 trackscr_fogPos[3] = {0.0f};
+TileSize trackscr_fogTileSize = {0};
+f32 trackscr_mapCityPos[3] = { -100.0f, 30.0f, 200.0f };
+f32 trackscr_mapPos[3] = { 50.0f, -15.0f, 100.0f };
+f32 trackscr_mapRotAngle = 0.0f;
+f32 trackscr_mapsPos[3] = { -100.0f, 30.0f, 200.0f };
+f32 trackscr_scrollSpeed = 0.0f;
+f32 trackscr_cursorSpeed = 0.0f;
+
 /* The carousel's frame (and the buttons'): the offered options listed again; a spin angle that turns a degree a 30 Hz
  * frame (the other way for a backwards or mirrored race); each track sliding a tenth of the way to its place a
  * frame, the places moving by 100 as the highlight moves, wrapping at the ends; and the fog's height easing to the
  * highlighted track's (yFog). MAT3 draws a spinning model with the angle; the N64 computes it and draws nothing. */
 void showTrackSelect(void)
 {
-    static f32 angle = 0.0f;
-    static f32 fogPos[3];
     UVMatrix fogMat;
     f32 uv[3][3];
     f32 speed;
@@ -493,11 +506,11 @@ void showTrackSelect(void)
     for (trackscr_gNumOptions = 0, i = 0; i < TRACK_OPTS; i++) if (OptionValid(i)) trackscr_gOpts[trackscr_gNumOptions++] = i;
     frames = gFrameSeconds * 30.0f;
     if ((gBackwards && !gMirrorWaves) || (!gBackwards && gMirrorWaves)) {
-        angle -= 0.01745329238474369f * frames;
-        if (angle < 0.0f) angle += 6.2831854820251465f;
+        trackscr_carouselAngle -= 0.01745329238474369f * frames;
+        if (trackscr_carouselAngle < 0.0f) trackscr_carouselAngle += 6.2831854820251465f;
     } else {
-        angle += 0.01745329238474369f * frames;
-        if (angle >= 6.2831854820251465f) angle -= 6.2831854820251465f;
+        trackscr_carouselAngle += 0.01745329238474369f * frames;
+        if (trackscr_carouselAngle >= 6.2831854820251465f) trackscr_carouselAngle -= 6.2831854820251465f;
     }
     speed = frames * ((gTracks[gTrack].targetPos - gTracks[gTrack].pos[0]) / 10.0f);
     for (i = 0; i < gNumTracks; i++) {
@@ -519,9 +532,9 @@ void showTrackSelect(void)
             }
         }
     }
-    fogPos[1] += ((yFog[gTracks[gTrack].gTrackNum] - 5.0f - fogPos[1]) / 10.0f) * frames;
+    trackscr_fogPos[1] += ((yFog[gTracks[gTrack].gTrackNum] - 5.0f - trackscr_fogPos[1]) / 10.0f) * frames;
     CopyUV(unitmatrix, uv);
-    YawUV(angle, uv);
+    YawUV(trackscr_carouselAngle, uv);
     ScaleUVXYZ(uv, uv, 2.0f, 1.0f, 2.5f);
 }
 
@@ -602,8 +615,7 @@ void SetFogIntensity(s32 initialize)
  * isn't given to anything here (MAT3 sets the fog's tile size with it). */
 void BlowFog(void)
 {
-    static TileSize fogTileSize;
-    TileSize *tile = &fogTileSize;
+    TileSize *tile = &trackscr_fogTileSize;
     s32 s;
     s32 speed;
     speed = gWind ? gWind * 5 : 1;
@@ -722,11 +734,8 @@ void clearTrackMap(void)
  * mirrored for a mirrored race. */
 void trackscr_animTrackMap(void)
 {
-    static f32 cityPos[3] = { -100.0f, 30.0f, 200.0f };
-    static f32 mapPos[3] = { 50.0f, -15.0f, 100.0f };
-    static f32 rotAngle = 0.0f;
-    rotAngle += gFrameSeconds * 6.2831854820251465f / 10.0f;
-    if (rotAngle > 6.2831854820251465f) rotAngle -= 6.2831854820251465f;
+    trackscr_mapRotAngle += gFrameSeconds * 6.2831854820251465f / 10.0f;
+    if (trackscr_mapRotAngle > 6.2831854820251465f) trackscr_mapRotAngle -= 6.2831854820251465f;
     if (currentTrackMap != desiredTrackMap) {
         mapTransition -= gFrameSeconds * 4.0f;
         if (mapTransition < 0.0f) {
@@ -738,17 +747,17 @@ void trackscr_animTrackMap(void)
         mapTransition += gFrameSeconds * 4.0f;
         if (mapTransition > 1.0f) mapTransition = 1.0f;
     }
-    trackMap[TRACK_MAP_SELECTED].position[0] = cityPos[0];
-    trackMap[TRACK_MAP_SELECTED].position[1] = cityPos[1];
-    trackMap[TRACK_MAP_SELECTED].position[2] = cityPos[2];
+    trackMap[TRACK_MAP_SELECTED].position[0] = trackscr_mapCityPos[0];
+    trackMap[TRACK_MAP_SELECTED].position[1] = trackscr_mapCityPos[1];
+    trackMap[TRACK_MAP_SELECTED].position[2] = trackscr_mapCityPos[2];
     trackMap[TRACK_MAP_SELECTED].position[0] += trackMap[currentTrackMap].offset_x;
     trackMap[TRACK_MAP_SELECTED].position[1] += trackMap[currentTrackMap].offset_y;
     trackMap[TRACK_MAP_SELECTED].position[0] *= 1.0f - mapTransition;
     trackMap[TRACK_MAP_SELECTED].position[1] *= 1.0f - mapTransition;
     trackMap[TRACK_MAP_SELECTED].position[2] *= 1.0f - mapTransition;
-    trackMap[TRACK_MAP_SELECTED].position[0] += mapPos[0] * mapTransition;
-    trackMap[TRACK_MAP_SELECTED].position[1] += mapPos[1] * mapTransition;
-    trackMap[TRACK_MAP_SELECTED].position[2] += mapPos[2] * mapTransition;
+    trackMap[TRACK_MAP_SELECTED].position[0] += trackscr_mapPos[0] * mapTransition;
+    trackMap[TRACK_MAP_SELECTED].position[1] += trackscr_mapPos[1] * mapTransition;
+    trackMap[TRACK_MAP_SELECTED].position[2] += trackscr_mapPos[2] * mapTransition;
     trackMapMat[9] = trackMap[TRACK_MAP_SELECTED].position[0];
     trackMapMat[10] = trackMap[TRACK_MAP_SELECTED].position[1];
     trackMapMat[11] = trackMap[TRACK_MAP_SELECTED].position[2];
@@ -761,9 +770,9 @@ void trackscr_animTrackMap(void)
         ScaleUVXYZ((f32 (*)[3])trackMapMat, (f32 (*)[3])trackMapMat, -1.0f, 1.0f, 1.0f);
         ScaleUVXYZ(trackMap[TRACK_MAP_SELECTED].matrix, trackMap[TRACK_MAP_SELECTED].matrix, -1.0f, 1.0f, 1.0f);
     }
-    WYawUV(rotAngle * mapTransition + trackMap[currentTrackMap].angle * (1.0f - mapTransition), (f32 (*)[3])trackMapMat);
+    WYawUV(trackscr_mapRotAngle * mapTransition + trackMap[currentTrackMap].angle * (1.0f - mapTransition), (f32 (*)[3])trackMapMat);
     WPitchUV(-0.5235987901687622f * mapTransition + (1.0f - mapTransition) * -1.5707963705062866f, (f32 (*)[3])trackMapMat);
-    WYawUV(rotAngle * mapTransition + trackMap[currentTrackMap].angle * (1.0f - mapTransition), trackMap[TRACK_MAP_SELECTED].matrix);
+    WYawUV(trackscr_mapRotAngle * mapTransition + trackMap[currentTrackMap].angle * (1.0f - mapTransition), trackMap[TRACK_MAP_SELECTED].matrix);
     WPitchUV(-0.5235987901687622f * mapTransition + (1.0f - mapTransition) * -1.5707963705062866f, trackMap[TRACK_MAP_SELECTED].matrix);
 }
 
@@ -1034,7 +1043,6 @@ typedef struct MapVtx { s16 ob[3]; u16 flag; s16 tc[2]; u8 cn[4]; } MapVtx;
  * band that runs along the track once in 5 seconds (the other way for a backwards race). */
 void animTrackMaps(void)
 {
-    static f32 mapPos[3] = { -100.0f, 30.0f, 200.0f };
     s32 trackIdx;
     s32 pointIdx;
     MapVtx *pStrip;
@@ -1049,9 +1057,9 @@ void animTrackMaps(void)
                     ScaleUV(unitmatrix, trackMap[trackIdx].matrix, trackMap[trackIdx].scale_from);
                     WPitchUV(-1.5707963705062866f, trackMap[trackIdx].matrix);
                     WRollUV(-trackMap[trackIdx].angle, trackMap[trackIdx].matrix);
-                    trackMap[trackIdx].position[0] = mapPos[0];
-                    trackMap[trackIdx].position[1] = mapPos[1];
-                    trackMap[trackIdx].position[2] = mapPos[2];
+                    trackMap[trackIdx].position[0] = trackscr_mapsPos[0];
+                    trackMap[trackIdx].position[1] = trackscr_mapsPos[1];
+                    trackMap[trackIdx].position[2] = trackscr_mapsPos[2];
                     trackMap[trackIdx].position[0] += trackMap[trackIdx].offset_x;
                     trackMap[trackIdx].position[1] += trackMap[trackIdx].offset_y;
                     if (trackIdx == gTrackNum) {
@@ -1203,8 +1211,6 @@ void trackscr_uninitButtons(void)
  * the buttons fading over one button's height past the list's ends. */
 void trackscr_updateButtons(void)
 {
-    static f32 scrollSpeed;
-    static f32 cursorSpeed;
     s32 buttonIdx;
     f32 prevPos[3];
     f32 buttonY;
@@ -1224,16 +1230,16 @@ void trackscr_updateButtons(void)
         trackscr_buttonInfo[TRACK_BUTTON_CURSOR].position[1] = selectedPos * trackscr_cursorZ / trackscr_buttonZ;
         trackscr_buttonInfo[TRACK_BUTTON_CURSOR].position[2] = trackscr_cursorZ;
         if (!trackscr_buttonsJustInited) {
-            if (60.0f * fabsf(trackscr_buttonInfo[TRACK_BUTTON_CURSOR].position[1] - prevPos[1]) / 10.0f > cursorSpeed) {
-                cursorSpeed = 60.0f * fabsf(trackscr_buttonInfo[TRACK_BUTTON_CURSOR].position[1] - prevPos[1]) / 10.0f;
-                cursorSpeed = cursorSpeed < 540.0f * trackscr_gButtonScale ? cursorSpeed : 540.0f * trackscr_gButtonScale;
-                cursorSpeed = cursorSpeed > 180.0f * trackscr_gButtonScale ? cursorSpeed : 180.0f * trackscr_gButtonScale;
+            if (60.0f * fabsf(trackscr_buttonInfo[TRACK_BUTTON_CURSOR].position[1] - prevPos[1]) / 10.0f > trackscr_cursorSpeed) {
+                trackscr_cursorSpeed = 60.0f * fabsf(trackscr_buttonInfo[TRACK_BUTTON_CURSOR].position[1] - prevPos[1]) / 10.0f;
+                trackscr_cursorSpeed = trackscr_cursorSpeed < 540.0f * trackscr_gButtonScale ? trackscr_cursorSpeed : 540.0f * trackscr_gButtonScale;
+                trackscr_cursorSpeed = trackscr_cursorSpeed > 180.0f * trackscr_gButtonScale ? trackscr_cursorSpeed : 180.0f * trackscr_gButtonScale;
             }
-            if (trackscr_buttonInfo[TRACK_BUTTON_CURSOR].position[1] > prevPos[1] + cursorSpeed * gFrameSeconds)
-                trackscr_buttonInfo[TRACK_BUTTON_CURSOR].position[1] = prevPos[1] + cursorSpeed * gFrameSeconds;
-            else if (trackscr_buttonInfo[TRACK_BUTTON_CURSOR].position[1] < prevPos[1] - cursorSpeed * gFrameSeconds)
-                trackscr_buttonInfo[TRACK_BUTTON_CURSOR].position[1] = prevPos[1] - cursorSpeed * gFrameSeconds;
-            else cursorSpeed = 180.0f * trackscr_gButtonScale;
+            if (trackscr_buttonInfo[TRACK_BUTTON_CURSOR].position[1] > prevPos[1] + trackscr_cursorSpeed * gFrameSeconds)
+                trackscr_buttonInfo[TRACK_BUTTON_CURSOR].position[1] = prevPos[1] + trackscr_cursorSpeed * gFrameSeconds;
+            else if (trackscr_buttonInfo[TRACK_BUTTON_CURSOR].position[1] < prevPos[1] - trackscr_cursorSpeed * gFrameSeconds)
+                trackscr_buttonInfo[TRACK_BUTTON_CURSOR].position[1] = prevPos[1] - trackscr_cursorSpeed * gFrameSeconds;
+            else trackscr_cursorSpeed = 180.0f * trackscr_gButtonScale;
         }
         ScaleUV(unitmatrix, trackscr_buttonInfo[TRACK_BUTTON_CURSOR].matrix, trackscr_gButtonScale * 0.4f);
         WRollUV(trackscr_buttonInfo[TRACK_BUTTON_CURSOR].angle, trackscr_buttonInfo[TRACK_BUTTON_CURSOR].matrix);
@@ -1256,16 +1262,16 @@ void trackscr_updateButtons(void)
             trackscr_buttonInfo[buttonIdx].position[1] = buttonY;
             trackscr_buttonInfo[buttonIdx].position[2] = trackscr_buttonZ;
             if (!trackscr_buttonsJustInited) {
-                if (60.0f * fabsf(trackscr_buttonInfo[buttonIdx].position[1] - prevPos[1]) / 10.0f > scrollSpeed) {
-                    scrollSpeed = 60.0f * fabsf(trackscr_buttonInfo[buttonIdx].position[1] - prevPos[1]) / 10.0f;
-                    scrollSpeed = scrollSpeed < 540.0f * trackscr_gButtonScale ? scrollSpeed : 540.0f * trackscr_gButtonScale;
-                    scrollSpeed = scrollSpeed > 180.0f * trackscr_gButtonScale ? scrollSpeed : 180.0f * trackscr_gButtonScale;
+                if (60.0f * fabsf(trackscr_buttonInfo[buttonIdx].position[1] - prevPos[1]) / 10.0f > trackscr_scrollSpeed) {
+                    trackscr_scrollSpeed = 60.0f * fabsf(trackscr_buttonInfo[buttonIdx].position[1] - prevPos[1]) / 10.0f;
+                    trackscr_scrollSpeed = trackscr_scrollSpeed < 540.0f * trackscr_gButtonScale ? trackscr_scrollSpeed : 540.0f * trackscr_gButtonScale;
+                    trackscr_scrollSpeed = trackscr_scrollSpeed > 180.0f * trackscr_gButtonScale ? trackscr_scrollSpeed : 180.0f * trackscr_gButtonScale;
                 }
-                if (trackscr_buttonInfo[buttonIdx].position[1] > prevPos[1] + scrollSpeed * gFrameSeconds) {
-                    trackscr_buttonInfo[buttonIdx].position[1] = prevPos[1] + scrollSpeed * gFrameSeconds;
+                if (trackscr_buttonInfo[buttonIdx].position[1] > prevPos[1] + trackscr_scrollSpeed * gFrameSeconds) {
+                    trackscr_buttonInfo[buttonIdx].position[1] = prevPos[1] + trackscr_scrollSpeed * gFrameSeconds;
                     clearScrollSpeed = 0;
-                } else if (trackscr_buttonInfo[buttonIdx].position[1] < prevPos[1] - scrollSpeed * gFrameSeconds) {
-                    trackscr_buttonInfo[buttonIdx].position[1] = prevPos[1] - scrollSpeed * gFrameSeconds;
+                } else if (trackscr_buttonInfo[buttonIdx].position[1] < prevPos[1] - trackscr_scrollSpeed * gFrameSeconds) {
+                    trackscr_buttonInfo[buttonIdx].position[1] = prevPos[1] - trackscr_scrollSpeed * gFrameSeconds;
                     clearScrollSpeed = 0;
                 }
             }
@@ -1304,7 +1310,7 @@ void trackscr_updateButtons(void)
                 buttonY -= trackscr_gButtonSpace * trackscr_gButtonScale;
             }
         }
-        if (clearScrollSpeed == 1) scrollSpeed = 0.0f;
+        if (clearScrollSpeed == 1) trackscr_scrollSpeed = 0.0f;
         trackscr_buttonsJustInited = 0;
     }
 }

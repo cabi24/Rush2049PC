@@ -1081,10 +1081,25 @@ def generate(a):
     # The runtime images' C data as the executable has it: an optimized object may have fewer statics.
     linked = a.link_objects_list.read_text().split() if a.link_objects_list else objects
     ovl_data = {img: [(Path(o).name.replace('.c.obj', '.c').replace('.c.o', '.c'), n, k) for o in linked
-                      if n64syms.object_image(o) == img for n, k in image_data(o, a.nm)] for img in OVL_RANGES}
+                      if n64syms.object_image(o) == img for n, k in image_data(o, a.nm)] for img in OVL_IMAGES}
+    # Each is put back datum by datum on a load of its image, by name: a file-local or function-local static can't
+    # be named, so the images keep none (docs/port/DATA.md 5).
+    local = sorted(f"{img} {f}: {n}" for img, v in ovl_data.items() for f, n, k in v if k in "db")
+    if local:
+        sys.exit("gen_data: a runtime image's writable data the loader can't name (make it global, docs/port/DATA.md "
+                 "5): " + ", ".join(local))
+    cnames = sorted({n for v in ovl_data.values() for _, n, k in v if k in "DB"})
+    cfound, ctags = read_variables(objects, a.readelf, set(cnames))
+    cdata = []   # (image, name, host size): each runtime image's own C data
+    for img, v in ovl_data.items():
+        for n in sorted({n for _, n, k in v if k in "DB"}):
+            sizes = {host_size(complete(t, ctags)) for _, t, _, is_def in cfound.get(n, ()) if is_def}
+            if len(sizes) != 1 or not next(iter(sizes)):
+                sys.exit(f"gen_data: {img}'s C datum {n}: no one size in the DWARF ({sorted(map(str, sizes))})")
+            cdata.append((img, n, next(iter(sizes))))
     syms_by_name = {n: s for s in ordered for n in s.names}
     reach = reach_rules(root / "port" / "data" / "reached.txt", tags, syms_by_name, ordered)
-    emit(a, syms, ordered, arena_runs, funcs, defined_in, thunks, nmtab, obj_image, ovl_data, reach, decoupled)
+    emit(a, syms, ordered, arena_runs, funcs, defined_in, thunks, nmtab, obj_image, ovl_data, reach, decoupled, cdata)
 
     # Report.
     own = [s for s in ordered if s.own and s.parent is None and not s.cdef]
@@ -1157,9 +1172,8 @@ def generate(a):
         section(f"Not placed: {k}", [x if isinstance(x, str) else f"{x[0]} 0x{x[1]:08X}" for x in v])
     for k, v in report.items():
         section(k, v)
-    section("Runtime-image C data, put back on each load of its image (its C range, port/data/overlays.ld)",
-            sorted(f"{img} {f}: {n}{'' if k in 'db' else ' (global)'}" for img, v in ovl_data.items()
-                   for f, n, k in v if k in "dbDB"))
+    section("Runtime-image C data, put back datum by datum on each load of its image (pc_cdata)",
+            sorted(f"{img} {f}: {n}" for img, v in ovl_data.items() for f, n, k in v if k in "DB"))
     section("Runtime-image C data that is read-only (never changes)",
             sorted(f"{img} {f}: {n}" for img, v in ovl_data.items() for f, n, k in v if k in "rR"))
     (a.out.parent / "data_layout.txt").write_text("\n".join(L) + "\n")
@@ -1300,8 +1314,8 @@ def test_tables(a):
     a.out.write_text("\n".join(L))
 
 
-# Each runtime image's C range (port/data/overlays.ld): its first and one-past-last symbols.
-OVL_RANGES = {"ovl_a": ("pc_ovl_a_start", "pc_ovl_a_end"), "ovl_b": ("pc_ovl_b_start", "pc_ovl_b_end")}
+# The runtime images, whose own C data a load puts back (docs/port/DATA.md 5).
+OVL_IMAGES = ("ovl_a", "ovl_b")
 
 
 def image_data(obj, nm):
@@ -1472,7 +1486,7 @@ def arena_objects(ordered, split, decoupled=()):
 
 
 def emit(a, syms, ordered, arena_runs, funcs, defined_in, thunks, nmtab, obj_image, ovl_data, reach=(),
-         decoupled=()):
+         decoupled=(), cdata=()):
     arenas = n64syms.ARENAS
     own = [s for s in ordered if s.own and s.parent is None and not s.cdef]
     cdefs = [s for s in ordered if s.cdef]
@@ -1542,8 +1556,7 @@ def emit(a, syms, ordered, arena_runs, funcs, defined_in, thunks, nmtab, obj_ima
               "objects": [[sorted(m[0].names)[0], lo, size, max(32 if size >= 32 else 16, min(64, lo & -lo))]
                           for _, lo, size, m in objects if m], "object_names": [],
               "sets": [], "own": [],
-              "ovl_data": {img: sorted(n for _, n, k in v if k in "dbDB") for img, v in ovl_data.items()},
-              "ovl_ranges": OVL_RANGES,
+              "ovl_data": {img: sorted(n for _, n, k in v if k in "DB") for img, v in ovl_data.items()},
               "decoupled": [[d.pc, d.host_size, d.retired] for d in decoupled]}
     if decoupled:
         L += ["", "/* Game data the PC owns, with no N64 address (port/data/decoupled.txt, docs/port/DECOUPLE.md): zero at",
@@ -1626,13 +1639,17 @@ def emit(a, syms, ordered, arena_runs, funcs, defined_in, thunks, nmtab, obj_ima
         L.append(f"PC_WEAK({wid}, {c_str(host)})")
     for s in cdefs:
         L.append(f"PC_WEAK({cweak[id(s)]}, {c_str(sorted(s.names)[0])})")
+    cweak_name = {}
+    for _, n, _ in cdata:
+        cweak_name[n] = f"pc_cd_{len(cweak_name)}"
+        L.append(f"PC_WEAK({cweak_name[n]}, {c_str(n)})")
     L.append("")
     if a.weak_script:
         W = ["/* weak.ld: generated by tools/port/gen_data.py. data.c's weak references on PE (docs/port/WINDOWS.md):",
              " * pc_weak.<name> is the symbol when something linked in defines it, else 0, as an undefined weak",
              " * reference is on ELF. An absolute 0 gets no base relocation, so it stays 0 when the image moves. */"]
         W += [f"PROVIDE({n64syms.PE_WEAK_PREFIX}{n} = DEFINED({n}) ? {n} : 0);"
-              for n in [*weak, *(sorted(s.names)[0] for s in cdefs)]]
+              for n in dict.fromkeys([*weak, *(sorted(s.names)[0] for s in cdefs), *(n for _, n, _ in cdata)])]
         a.weak_script.parent.mkdir(parents=True, exist_ok=True)
         a.weak_script.write_text("\n".join(W) + "\n")
 
@@ -1719,12 +1736,10 @@ def emit(a, syms, ordered, arena_runs, funcs, defined_in, thunks, nmtab, obj_ima
     L.append(f"static const PcDataName pc_names[{max(len(names), 1)}] = {{")
     L += [f"    {{0x{ad:08X}, {c_str(n)}}}," for ad, n in names]
     L += ["};", ""]
-    L += ["/* Each runtime image's C data, file-local statics included (port/data/overlays.ld, linked with -T):",
-          " * put back on every load of the image. */"]
-    L += [f"extern uint8_t {lo}[] __asm__(N64_SYM(\"{lo}\")), {hi}[] __asm__(N64_SYM(\"{hi}\"));"
-          for lo, hi in OVL_RANGES.values()]
-    L.append(f"static const PcDataCRange pc_cranges[{len(OVL_RANGES)}] = {{")
-    L += [f"    {{{IMAGE_INDEX[img]}, {lo}, {hi}}}," for img, (lo, hi) in OVL_RANGES.items()]
+    L += ["/* Each runtime image's own C data (its objects' globals): image, storage (a weak reference above), size;",
+          " * put back datum by datum on every load of the image. */"]
+    L.append(f"static const PcDataCData pc_cdata[{max(len(cdata), 1)}] = {{")
+    L += [f"    {{{IMAGE_INDEX[img]}, {cweak_name[n]}, {size}}}," for img, n, size in cdata]
     L += ["};", ""]
     L.append("/* Tables only pointers reach (port/data/reached.txt, docs/port/DATA.md 7). */")
     L.append(f"static const PcDataReach pc_reach[{max(len(reach_rows), 1)}] = {{")
@@ -1742,7 +1757,7 @@ def emit(a, syms, ordered, arena_runs, funcs, defined_in, thunks, nmtab, obj_ima
           f"    pc_syms, {len(sym_rows)}, pc_runs, {len(runs)}, pc_funcs, {len(funcs)}, pc_names, {len(names)},",
           f"    0x{HEAP_LO:08X},   /* the game heap starts at the end of the game's BSS (docs/port/ASSETS.md) */",
           "    &pc_state,",
-          f"    pc_cranges, {len(OVL_RANGES)},",
+          f"    pc_cdata, {len(cdata)},",
           f"    pc_reach, {len(reach_rows)},"]
     L.append(f"    pc_inits, {len(init_rows)}," if init_rows else "    NULL, 0,")
     L.append(f"    pc_objs, {len(objects)},")
@@ -1827,19 +1842,17 @@ def check(exe, layout_path, nm, pe=False):
     # Nothing at an N64 address: an absolute symbol in KSEG0 or KSEG1 would be one (aliases.ld's were, until step 12).
     n64 = sorted(n for n, x in addr.items() if letter[n] in "Aa" and n64syms.KSEG0 <= x < n64syms.KSEG2)
     bad += [f"{n}: absolute at 0x{addr[n]:X}, an N64 address" for n in n64]
-    # Each runtime image's C data inside its C range (overlays.ld), which the loader puts back on the image's loads:
-    # as many symbols of each name inside it as the image's objects define.
+    # Each runtime image's C data, which the loader puts back datum by datum on the image's loads: each name defined, a
+    # global (a file-local static of the same name would be another datum, which nothing puts back).
     n_ovl = 0
     for img, names in layout.get("ovl_data", {}).items():
-        lo_name, hi_name = layout["ovl_ranges"][img]
-        if lo_name not in addr or hi_name not in addr:
-            bad.append(f"{img}: no C range ({lo_name}, {hi_name}): link with port/data/overlays.ld")
-            continue
-        for name, want in collections.Counter(names).items():
-            got = sum(1 for x in every.get(name, ()) if addr[lo_name] <= x < addr[hi_name])
-            n_ovl += min(got, want)
-            if got < want:
-                bad.append(f"{img} {name}: {want - got} of {want} outside its C range")
+        for name in names:
+            if name not in addr or letter[name] not in "DdBb":
+                bad.append(f"{img} {name}: not in the executable as data")
+            elif len(every.get(name, ())) > 1:
+                bad.append(f"{img} {name}: {len(every[name])} definitions of the name: one is put back")
+            else:
+                n_ovl += 1
     # Decoupled data: in the executable at its host size, relocatable; no retired N64 name defined.
     for name, n, retired in layout.get("decoupled", []):
         if name not in addr:
@@ -1854,7 +1867,7 @@ def check(exe, layout_path, nm, pe=False):
     print(f"gen_data check: {len(layout.get('arena_names', []))} in {len(layout.get('blocks', []))} arenas' blocks, "
           f"{len(layout.get('object_names', []))} in {len(layout.get('objects', []))} objects of their own, "
           f"{len(layout['sets'])} inside own storage, {len(layout['own'])} own in N64 order, "
-          f"{n_ovl} runtime-image C data in their C ranges, {len(layout.get('decoupled', []))} decoupled, "
+          f"{n_ovl} runtime-image C data, {len(layout.get('decoupled', []))} decoupled, "
           f"nothing at an N64 address: {'OK' if not bad else f'{len(bad)} errors'}")
     return 1 if bad else 0
 
