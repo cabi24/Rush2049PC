@@ -180,7 +180,11 @@ def reports_main(a, b, symbols):
         for o in offs:
             print(f"  heap+0x{o:X}: {A[o:o + 4].hex()} against {B[o:o + 4].hex()}")
         total += len(offs) + size
-    fa, fb = Path(a + ".arenas"), Path(b + ".arenas")
+    # The game's data without pointers: each datum's object (A.data), or the arenas' blocks (A.arenas, before
+    # docs/port/NATIVE.md step 13); the report's `arena IMAGE N64 OFFSET SIZE` lines place each in the file.
+    fa, fb = Path(a + ".data"), Path(b + ".data")
+    if not fa.exists():
+        fa, fb = Path(a + ".arenas"), Path(b + ".arenas")
     if fa.exists() and fb.exists():
         A, B = fa.read_bytes(), fb.read_bytes()
         for line in Path(a).read_text().splitlines():   # arena NAME N64 OFFSET SIZE

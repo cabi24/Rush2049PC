@@ -63,17 +63,33 @@ typedef struct {
     uint32_t n64_base;          /* N64 address of the image's first byte */
 } PcDataImage;
 
-/* One image's data and BSS in N64 layout: [n64_lo, n64_init) is initialized from the image, [n64_init,
- * n64_hi) is zeroed. The runs byte-swap the known elements in place. host is the arena's first byte in host memory:
- * the game's are blocks data.c defines (pc_arena_<image>, docs/port/DATA.md 3), each datum at
- * host + (its N64 address - n64_lo). A runtime image's arena is cleared again after the first load: on the N64 it is
- * game-heap memory until the game loads the image. */
+/* One image's data and BSS without pointers, as the N64 laid it out: [n64_lo, n64_init) is initialized from the
+ * image, [n64_init, n64_hi) is zeroed, and the runs (offsets from n64_lo) byte-swap the described elements. Where the
+ * bytes go:
+ *   - objs: each datum is an object of its own (data.c defines one per datum, docs/port/DATA.md 3), obj_count of them
+ *     from obj_first in the tables' objs, by address. The loader lays the arena out in a buffer of its own, swaps it,
+ *     and copies each datum's bytes into its object. A pointer into the arena is its datum's object + the offset;
+ *   - host (obj_count 0): the whole arena in one block of host memory, each datum at host + (its N64 address -
+ *     n64_lo). The loader's unit tests use it.
+ * A runtime image's arena is cleared again after the first load: on the N64 it is game-heap memory until the game
+ * loads the image. */
 typedef struct {
     uint8_t image;
     uint32_t n64_lo, n64_init, n64_hi;
     uint8_t *host;
     uint32_t run_first, run_count;
+    uint32_t obj_first, obj_count;
 } PcDataArena;
+
+/* A datum of an arena in storage of its own: n64_size bytes from n64_addr, laid out as on the N64 (it has no pointer),
+ * at host. Data whose N64 extents overlap (a name inside another's table) share one object. The objects of an arena
+ * cover it whole but for own storage's, game-C data's and decoupled data's places: a datum's object runs to the next
+ * datum, so bytes no declaration covers stay with the datum before them, as in the N64's layout (text after a table,
+ * a table's rows past its declared extent), and those with no datum before them are an object of their own. */
+typedef struct {
+    uint32_t n64_addr, n64_size;
+    uint8_t *host;
+} PcDataObj;
 
 /* A symbol with its own host storage (PC_SYM_OWN: filled from the image through its runs, or zeroed if
  * PC_SYM_BSS), or one the game C defines (PC_SYM_CDEF: listed so pointers to it resolve, and, in an overlay,
@@ -163,6 +179,8 @@ typedef struct {
     void **crange_snapshot;     /* per C range: its startup bytes */
     int loaded;
     void *reached[8];           /* per image: the host storage its rules made on its last load (a list) */
+    uint8_t *layout[8];         /* per arena with objects: the arena laid out as on the N64, which its objects are
+                                 * copied from (kept for the runtime images, which load again) */
 } PcDataState;
 
 typedef struct {
@@ -187,6 +205,8 @@ typedef struct {
     uint32_t n_reach;
     const PcDataInit *inits;    /* decoupled data the images initialize (may be none) */
     uint32_t n_inits;
+    const PcDataObj *objs;      /* the arenas' data in objects of their own, each arena's by address (may be none) */
+    uint32_t n_objs;
 } PcDataTables;
 
 /* Pointer resolution results, for the report. rdram: heap addresses kept as their value. raw: not an RDRAM
@@ -201,6 +221,9 @@ typedef struct {
     uint32_t undescribed;       /* arena pointers to initialized bytes no element describes: kept in N64 order */
     uint32_t text_in_words;     /* arena pointers to text inside an element wider than a byte, which swaps it */
     uint32_t reached, reached_elems;   /* tables the reach rules converted, and their elements */
+    uint32_t adjacent;          /* pointers to a datum's first byte that is also the end of the datum before it in
+                                 * the N64's layout, which has storage of its own: the report lists them, since code
+                                 * that took the pointer for that datum's end would now walk past it */
 } PcDataStats;
 
 /* The loader (pc_data.c). load_all: inflate every image from the ROM and fill all of them, then write the
@@ -217,6 +240,10 @@ const PcDataStats *pc_data_stats(void);
 int pc_data_peek(const PcDataTables *t, const uint8_t *rom, size_t rom_size, uint32_t n64_addr, void *out, uint32_t n);
 /* Host address for an N64 address with the tables' symbols (NULL if none); for checks and tools. */
 void *pc_data_host_of(const PcDataTables *t, uint32_t n64_addr, int image);
+/* The host address of N64 address a in arena `arena` of the tables: its datum's object + the offset, or the block's
+ * place; NULL when no object holds it (own storage's, game-C data's or a decoupled datum's place). For the state hash
+ * and the checks. */
+uint8_t *pc_data_arena_host(const PcDataTables *t, uint32_t arena, uint32_t a);
 /* The N64 address of the symbol called `name` (own storage, game-C data the tables list, an arena's symbol or a
  * function), or 0 when the tables have none of that name. The PC layer's way to a game symbol's N64 address: by its
  * name, from the tables, rather than a copy of the number (the symbol tables, asm/us/<image>/symbols.json, are the one

@@ -744,7 +744,17 @@ def main():
     ap.add_argument("--decls", type=Path, action="append", default=[],
                     help="the object of the canonical data declarations (port/data/game_decls.c, compiled -O0 -g "
                          "-fno-eliminate-unused-debug-symbols): a datum it declares takes its type from it alone")
+    ap.add_argument("--objects", default="",
+                    help="the arenas whose data are objects of their own, one per datum, comma-separated (boot, game, "
+                         "ovl_a, ovl_b, or all); the others are blocks in the N64's layout (docs/port/DATA.md 3)")
     a = ap.parse_args()
+    names = [img for img, _, _, _ in n64syms.ARENAS]
+    want = [x for x in a.objects.replace(";", ",").split(",") if x]
+    if "all" in want:
+        want = names
+    if set(want) - set(names):
+        ap.error(f"--objects: {', '.join(sorted(set(want) - set(names)))} is no arena ({', '.join(names)}, all)")
+    a.objects = {names.index(x) for x in want}
     if a.check:
         sys.exit(check(a.check, a.layout, a.nm, a.pe))
     if a.test_tables:
@@ -1405,6 +1415,56 @@ def reach_rules(path, tags, syms_by_name, ordered):
     return rules
 
 
+def arena_objects(ordered, split, decoupled=()):
+    """[[arena, N64 first byte, size, [Sym, ...]]]: the data of the arenas in `split` (indices of n64syms.ARENAS), each
+    in an object of its own, by address, and together covering each arena but where own storage, game-C data and the
+    decoupled data's retired ranges are (those have storage elsewhere).
+    - A datum's object starts at its N64 address and holds its extent (its N64 size, as its declaration and extent give
+      it). Data whose extents overlap (a name inside another's table: the cheat flags inside gCheatState, a screen's
+      title button inside its buttons) share one, named by the first, the others inside it at their offsets.
+    - It runs on to the next datum (or what has storage elsewhere, or the arena's end): bytes no declaration covers
+      stay with the datum before them, as in the N64's layout. They are text after a table, constants no C reads, a
+      table's rows past what its declaration says (the loader's report lists the pointers into them as undescribed).
+    - Bytes with no datum before them (at an arena's start, after own storage) are an object of their own, with no
+      name ([] for its symbols)."""
+    out = []
+    for ai in sorted(split):
+        _, lo, _, hi = n64syms.ARENAS[ai]
+        # (start, end, Syms): the data groups of this arena, and what has storage elsewhere (no Syms: None)
+        held = [(d.lo, d.lo + d.size, None) for d in decoupled if lo <= d.lo < hi]
+        groups = []
+        for s in ordered:
+            if s.arena != ai or s.end_marker or s.parent is not None:
+                continue
+            end = s.addr + max(s.n64_size, 1)
+            if s.own or s.cdef:
+                held.append((s.addr, end, None))
+            elif groups and s.addr < groups[-1][1]:
+                groups[-1][1] = max(groups[-1][1], end)
+                groups[-1][2].append(s)
+            else:
+                groups.append([s.addr, end, [s]])
+        pos, last = lo, None   # last: the object the bytes at pos may join (the one that ended there)
+        for start, end, members in sorted([tuple(g) for g in groups] + held, key=lambda x: (x[0], x[2] is None)):
+            if start > pos:   # bytes no declaration covers: the datum's before them, or an object of their own
+                if last is not None:
+                    last[2] = max(last[2], start - last[1])
+                else:
+                    out.append([ai, pos, start - pos, []])
+            if members is None:
+                last = None
+            else:
+                last = [ai, start, end - start, members]
+                out.append(last)
+            pos = max(pos, end)
+        if pos < hi:
+            if last is not None:
+                last[2] = max(last[2], hi - last[1])
+            else:
+                out.append([ai, pos, hi - pos, []])
+    return out
+
+
 def emit(a, syms, ordered, arena_runs, funcs, defined_in, thunks, nmtab, obj_image, ovl_data, reach=(),
          decoupled=()):
     arenas = n64syms.ARENAS
@@ -1423,32 +1483,58 @@ def emit(a, syms, ordered, arena_runs, funcs, defined_in, thunks, nmtab, obj_ima
          "#if defined(_WIN32)   /* weak.ld defines pc_weak.<name> as the symbol, or 0 (docs/port/WINDOWS.md) */",
          f"#define PC_WEAK(id, name) extern char id[] __asm__(\"{n64syms.PE_WEAK_PREFIX}\" name);", "#else",
          "#define PC_WEAK(id, name) extern char id[] __asm__(N64_SYM(name)) __attribute__((weak));", "#endif", ""]
+    split = set(getattr(a, "objects", None) or ())
+    objects = arena_objects(ordered, split, decoupled)
     kib = ARENA_PAGE // 1024
-    L += ["/* The arenas: each image's data and BSS, laid out as on the N64, in a block of host memory of its",
-          f" * own (docs/port/DATA.md 3). A block is aligned to {kib} KiB and starts at the {kib} KiB page of its",
-          " * arena's first N64 address, so a datum keeps its N64 address's offset in the page: it is as aligned",
-          " * as on the N64. A name in an arena is its block + (its N64 address - the block's first N64 address).",
-          " * The loader (port/data/pc_data.c) fills each block from the image, through the tables below:"]
     blocks = []
-    for i, (img, lo, init, hi) in enumerate(arenas):
-        block, page = arena_block(i)
-        blocks.append((block, page, hi - page))
-        L.append(f" *   {img}: 0x{lo:08X}-0x{hi:08X} (data to 0x{init:08X}), {block} from 0x{page:08X}")
-    L.append(" */")
+    if len(split) < len(arenas):
+        L += ["/* The arenas kept as blocks: each image's data and BSS, laid out as on the N64, in a block of host memory",
+              f" * of its own (docs/port/DATA.md 3). A block is aligned to {kib} KiB and starts at the {kib} KiB page of",
+              " * its arena's first N64 address, so a datum keeps its N64 address's offset in the page: it is as aligned",
+              " * as on the N64. A name in such an arena is its block + (its N64 address - the block's first N64",
+              " * address). The loader (port/data/pc_data.c) fills each block from the image, through the tables below:"]
+        for i, (img, lo, init, hi) in enumerate(arenas):
+            if i in split:
+                continue
+            block, page = arena_block(i)
+            blocks.append((block, page, hi - page))
+            L.append(f" *   {img}: 0x{lo:08X}-0x{hi:08X} (data to 0x{init:08X}), {block} from 0x{page:08X}")
+        L.append(" */")
     for block, page, size in blocks:
         L.append(f"__attribute__((aligned({ARENA_PAGE}))) uint8_t {block}[0x{size:X}] "
                  f"__asm__(N64_SYM({c_str(block)}));")
+    if objects:
+        L += ["", "/* The data of the arenas whose data are objects of their own (docs/port/DATA.md 3): each datum, laid out",
+              " * as on the N64 (it holds no pointer), in storage of its own, from its N64 address to the next datum's",
+              " * (the bytes after its extent that no declaration covers are its, as in the N64's layout); data whose N64",
+              " * extents overlap share one. Bytes with no datum before them are an object of their own (static). Aligned",
+              " * as own storage, and at least as the N64 aligned the address (to 64 bytes). The loader fills each from",
+              " * the image through the arena's runs (pc_objs, pc_arenas). */"]
+    for k, (ai, lo, size, members) in enumerate(objects):
+        al = max(32 if size >= 32 else 16, min(64, lo & -lo))
+        if not members:
+            L.append(f"__attribute__((aligned({al}))) static uint8_t pc_datum_{k}[{size}];"
+                     f"   /* N64 0x{lo:08X}: bytes no declaration covers */")
+            continue
+        base = sorted(members[0].names)[0]
+        L.append(f"__attribute__((aligned({al}))) uint8_t pc_datum_{k}[{size}] __asm__(N64_SYM({c_str(base)}));"
+                 f"   /* N64 0x{lo:08X}: {members[0].disp}, {members[0].n64_size} B"
+                 f"{' and ' + str(len(members) - 1) + ' more' if len(members) > 1 else ''} */")
     L += ["", "/* Own storage: host layout. Aligned as a common symbol of that size can be (x86-64 GCC aligns",
           " * aggregates of 32 bytes or more to 32), so the game C's tentative definitions agree with it. */"]
     for s in own:
         al = 32 if s.host_size >= 32 else 16
         L.append(f"__attribute__((aligned({al}))) uint8_t {own_var[id(s)]}[{max(s.host_size, 1)}] "
                  f"__asm__(N64_SYM({c_str(sorted(s.names)[0])}));   /* N64 0x{s.addr:08X}, {s.n64_size} B: {s.disp} */")
-    sets = []   # (name, base symbol, offset, size)
-    # "arena_names": [name, block, offset, N64 address] of each name in an arena's block; "absolute" what data.c
-    # places at an N64 address itself: nothing (kept for the tools that read the file, window_census.py).
+    sets = []   # (name, base symbol, offset, size, kind): kind "own" (inside own storage), "block", "object"
+    # "arena_names": [name, block, offset, N64 address] of each name in an arena's block; "objects": [base, N64 address,
+    # size, alignment] of each datum's object, "object_names": [name, base, offset, N64 address] of each name in one;
+    # "absolute" what data.c places at an N64 address itself: nothing (kept for the tools that read the file,
+    # window_census.py).
     layout = {"arenas": [[lo, hi] for _, lo, _, hi in arenas], "absolute": [],
               "blocks": [[b, page, size] for b, page, size in blocks], "arena_page": ARENA_PAGE, "arena_names": [],
+              "objects": [[sorted(m[0].names)[0], lo, size, max(32 if size >= 32 else 16, min(64, lo & -lo))]
+                          for _, lo, size, m in objects if m], "object_names": [],
               "sets": [], "own": [],
               "ovl_data": {img: sorted(n for _, n, k in v if k in "dbDB") for img, v in ovl_data.items()},
               "ovl_ranges": OVL_RANGES,
@@ -1463,32 +1549,46 @@ def emit(a, syms, ordered, arena_runs, funcs, defined_in, thunks, nmtab, obj_ima
         how = (f", from the image{f' with a period of {d.period}' if d.period else ''}" if d.init else "")
         L.append(f"__attribute__((aligned({al}))) uint8_t pc_decoupled_{i}[{d.host_size}] __asm__(N64_SYM({c_str(d.pc)}));"
                  f"   /* {d.disp}; was {d.n64} at 0x{d.lo:08X}, {d.size} B{how} */")
+    in_object = {id(s): (sorted(m[0].names)[0], s.addr - lo) for _, lo, _, m in objects for s in m}
     for s in ordered:
         if s.cdef:
             continue
         if s.parent is not None:
-            base, off = sorted(s.parent.names)[0], s.parent_off
+            base, off, kind = sorted(s.parent.names)[0], s.parent_off, "own"
             names = sorted(s.names)
         elif s.own:
-            base, off = sorted(s.names)[0], 0
+            base, off, kind = sorted(s.names)[0], 0, "own"
             names = sorted(s.names)[1:]
             layout["own"].append([base, max(s.host_size, 1)])
+        elif id(s) in in_object:   # its datum's object (the object's own name is its definition's)
+            (base, off), kind = in_object[id(s)], "object"
+            names = [n for n in sorted(s.names) if n != base]
+            layout["object_names"] += [[n, base, off, s.addr] for n in sorted(s.names)]
         else:
             block, page = arena_block(s.arena)
-            base, off = block, s.addr - page
+            base, off, kind = block, s.addr - page, "block"
             names = sorted(s.names)
             layout["arena_names"] += [[n, block, off, s.addr] for n in names]
         for n in names:
-            sets.append((n, base, off, s.host_size))
+            sets.append((n, base, off, s.host_size, kind))
     for s in sorted(syms.values(), key=lambda x: x.addr):
-        if s.end_marker:   # one past an overlay's BSS, its block's end (the loaders pass it as bssEnd)
-            block, page = arena_block(s.arena)
-            layout["arena_names"] += [[n, block, s.addr - page, s.addr] for n in sorted(s.names)]
-            sets += [(n, block, s.addr - page, 0) for n in sorted(s.names)]
-    layout["sets"] = [[n, base, off] for n, base, off, _ in sets if not base.startswith("pc_arena_")]
+        if not s.end_marker:   # one past an overlay's BSS (the loaders pass it as bssEnd)
+            continue
+        if s.arena in split:   # one past the datum that ends there
+            ends = [(sorted(m[0].names)[0], size) for ai, lo, size, m in objects if m and ai == s.arena and lo + size == s.addr]
+            if not ends:
+                sys.exit(f"gen_data: {sorted(s.names)[0]} (0x{s.addr:08X}), one past the arena's data: no datum ends there")
+            layout["object_names"] += [[n, ends[0][0], ends[0][1], s.addr] for n in sorted(s.names)]
+            sets += [(n, ends[0][0], ends[0][1], 0, "object") for n in sorted(s.names)]
+            continue
+        block, page = arena_block(s.arena)   # its block's end
+        layout["arena_names"] += [[n, block, s.addr - page, s.addr] for n in sorted(s.names)]
+        sets += [(n, block, s.addr - page, 0, "block") for n in sorted(s.names)]
+    layout["sets"] = [[n, base, off] for n, base, off, _, kind in sets if kind == "own"]
     if sets:
-        L += ["", "/* Each name in its arena's block, or at the matching offset in own storage. */", "__asm__("]
-        for n, base, off, size in sets:
+        L += ["", "/* Each name in its arena's block, at the matching offset in own storage, or in its datum's object (a",
+              " * second name of the datum, or a name inside a table whose extent covers it). */", "__asm__("]
+        for n, base, off, size, _ in sets:
             value = f"\" N64_SYM(\"{base}\") \" + 0x{off:X}"
             L.append(f"    \".globl \" N64_SYM(\"{n}\") \"\\n.set \" N64_SYM(\"{n}\") \", {value}\""
                      f" PC_SIZE(\"{n}\", {size}) \"\\n\"")
@@ -1589,13 +1689,21 @@ def emit(a, syms, ordered, arena_runs, funcs, defined_in, thunks, nmtab, obj_ima
         L.append(f"    {{{c_str(name)}, {'PC_IMG_RAW' if storage == 'raw' else 'PC_IMG_DEFLATE'}, 0x{rom_off:X}, "
                  f"{rom_len}, {size}, 0x{base:08X}}},")
     L += ["};", ""]
-    L.append("/* host: the arena's first byte, in its block. */")
+    L.append("/* host: the arena's first byte in its block, or NULL when its data are objects of their own (pc_objs). */")
     L.append("static const PcDataArena pc_arenas[] = {")
+    obj_first = {}
+    for k, (ai, _, _, _) in enumerate(objects):
+        obj_first.setdefault(ai, [k, 0])[1] += 1
     for i, (img, lo, init, hi) in enumerate(arenas):
         f, n = arena_first[i]
         block, page = arena_block(i)
-        L.append(f"    {{{IMAGE_INDEX[img]}, 0x{lo:08X}, 0x{init:08X}, 0x{hi:08X}, {block} + 0x{lo - page:X}, "
-                 f"{f}, {n}}},")
+        host = "NULL" if i in split else f"{block} + 0x{lo - page:X}"
+        of, oc = obj_first.get(i, (0, 0))
+        L.append(f"    {{{IMAGE_INDEX[img]}, 0x{lo:08X}, 0x{init:08X}, 0x{hi:08X}, {host}, {f}, {n}, {of}, {oc}}},")
+    L += ["};", ""]
+    L.append("/* The arenas' data in objects of their own: N64 address, N64 size, storage; each arena's by address. */")
+    L.append(f"static const PcDataObj pc_objs[{max(len(objects), 1)}] = {{")
+    L += [f"    {{0x{lo:08X}, {size}, pc_datum_{k}}}," for k, (_, lo, size, _) in enumerate(objects)]
     L += ["};", ""]
     L.append(f"static const PcDataFunc pc_funcs[{max(len(funcs), 1)}] = {{")
     for (addr, img), host in sorted(funcs.items()):
@@ -1630,8 +1738,8 @@ def emit(a, syms, ordered, arena_runs, funcs, defined_in, thunks, nmtab, obj_ima
           "    &pc_state,",
           f"    pc_cranges, {len(OVL_RANGES)},",
           f"    pc_reach, {len(reach_rows)},"]
-    if init_rows:
-        L.append(f"    pc_inits, {len(init_rows)},")
+    L.append(f"    pc_inits, {len(init_rows)}," if init_rows else "    NULL, 0,")
+    L.append(f"    pc_objs, {len(objects)},")
     L += ["};", "",
           "/* pc_port.h entry points. The loader is weak here so the link test (which leaves it out) still links. */",
           "int pc_data_load_all(const PcDataTables *t, const uint8_t *rom, size_t rom_size, const char *report_path)",
@@ -1679,11 +1787,19 @@ def check(exe, layout_path, nm, pe=False):
             bad.append(f"block {block}: {letter[block]} 0x{addr[block]:X}, expected storage aligned to 0x{page:X}")
         elif size.get(block) != n and not pe:
             bad.append(f"block {block}: size {size.get(block)} != 0x{n:X}")
-    for name, block, off, _ in layout.get("arena_names", []):
+    for name, block, off, _ in layout.get("arena_names", []) + layout.get("object_names", []):
         if name not in addr or block not in addr:
             bad.append(f"{name}: not in the executable")
         elif letter[name] in "Aa" or addr[name] - addr[block] != off:
             bad.append(f"{name}: {letter[name]} 0x{addr[name]:X}, expected {block}+0x{off:X}")
+    # Each datum of an arena whose data are objects of their own: its object, of its size and alignment.
+    for name, _, n, al in layout.get("objects", []):
+        if name not in addr:
+            bad.append(f"object {name}: not in the executable")
+        elif letter[name] in "Aa" or addr[name] % al:
+            bad.append(f"object {name}: {letter[name]} 0x{addr[name]:X}, expected storage aligned to {al}")
+        elif size.get(name) != n and not pe:
+            bad.append(f"object {name}: size {size.get(name)} != {n}")
     prev = None
     for name, n in layout["own"]:
         if name not in addr:
@@ -1730,6 +1846,7 @@ def check(exe, layout_path, nm, pe=False):
     for b in bad[:50]:
         print("gen_data check:", b)
     print(f"gen_data check: {len(layout.get('arena_names', []))} in {len(layout.get('blocks', []))} arenas' blocks, "
+          f"{len(layout.get('object_names', []))} in {len(layout.get('objects', []))} objects of their own, "
           f"{len(layout['sets'])} inside own storage, {len(layout['own'])} own in N64 order, "
           f"{n_ovl} runtime-image C data in their C ranges, {len(layout.get('decoupled', []))} decoupled, "
           f"nothing at an N64 address: {'OK' if not bad else f'{len(bad)} errors'}")

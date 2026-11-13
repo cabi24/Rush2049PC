@@ -13,9 +13,10 @@
  * view of one element; a union no byte member covers is swapped; interleaved s16 columns declared to their true
  * size leave the flag after them alone; and a table declared too long is listed for running over its flag.
  *
- * The arenas are blocks of host memory, as the game's are (data.c's pc_arena_<image>, docs/port/DATA.md 3): a pointer
- * into one is its block + the offset, a word holding an arena's N64 address can't reach it, and a runtime image's
- * arena, which on the N64 lies in the "heap", stays clear after the first load until the image is loaded. */
+ * The boot arena's data are objects of their own, as the game's are (data.c's pc_datum_<i>, docs/port/DATA.md 3): a
+ * pointer into it is its datum's object + the offset. The others are blocks of host memory (the loader's other form): a
+ * pointer into one is its block + the offset. A word holding an arena's N64 address can't reach it, and a runtime
+ * image's arena, which on the N64 lies in the "heap", stays clear after the first load until the image is loaded. */
 #define _GNU_SOURCE
 #include "pc_data.h"
 #include "test_pc_data_gen.h"
@@ -74,11 +75,23 @@ static PcDataImage images[4] = {
     {"ovl_b", PC_IMG_DEFLATE, 0x5000, 0, 0x80, TEST_OVL},
 };
 
-/* The arenas' blocks. Image B's arena (OVL(0x40) to OVL(0x80)) is inside image A's code; the two runtime images'
+/* The other arenas' blocks. Image B's arena (OVL(0x40) to OVL(0x80)) is inside image A's code; the two runtime images'
  * arenas are disjoint, as the game's are. */
-static uint8_t a_boot[0xC0], a_game[0x200], a_ovl_a[0x100], a_ovl_b[0x40], a_gen[PC_TEST_GEN_HI - PC_TEST_GEN_LO];
+static uint8_t a_game[0x200], a_ovl_a[0x100], a_ovl_b[0x40], a_gen[PC_TEST_GEN_HI - PC_TEST_GEN_LO];
+/* The boot arena's data are objects of their own, as the game's are (docs/port/DATA.md 3): its two words and halves, its
+ * float (and the padding after it, which stays with it), and its double, the text after it and the BSS. */
+static uint8_t b_vals[8], b_float[8], b_rest[0xB0];
+static const PcDataObj objs[3] = {{BOOT(0x80), 8, b_vals}, {BOOT(0x88), 8, b_float}, {BOOT(0x90), 0xB0, b_rest}};
+/* The host byte of the boot arena's byte at offset off, in its object. */
+static uint8_t *boot_at(uint32_t off)
+{
+    for (int i = 2; i >= 0; i--)
+        if (BOOT(0x80) + off >= objs[i].n64_addr)
+            return objs[i].host + (BOOT(0x80) + off - objs[i].n64_addr);
+    return NULL;
+}
 static const PcDataArena arenas[5] = {
-    {0, BOOT(0x80), BOOT(0x100), BOOT(0x140), a_boot, 0, 4},
+    {0, BOOT(0x80), BOOT(0x100), BOOT(0x140), NULL, 0, 4, 0, 3},   /* its data in objects */
     {1, GAME(0x100), GAME(0x200), GAME(0x300), a_game, 4, 1},
     {2, OVL(0x80), OVL(0x100), OVL(0x180), a_ovl_a, 5, 1},
     {3, OVL(0x40), OVL(0x60), OVL(0x80), a_ovl_b, 0, 0},
@@ -153,7 +166,7 @@ static const PcDataInit inits[] = {
 static PcDataState state;
 /* The "heap" starts at TEST_HEAP, as the game's does at the end of its BSS. */
 static const PcDataTables tables = {images, 4, arenas, 5, syms, 7, runs, sizeof runs / sizeof runs[0], funcs, 4,
-                                    names, 3, TEST_HEAP, &state, NULL, 0, NULL, 0, inits, 2};
+                                    names, 3, TEST_HEAP, &state, NULL, 0, NULL, 0, inits, 2, objs, 3};
 
 static void build_rom(void)
 {
@@ -269,16 +282,16 @@ static void run(void)
     uint32_t w;
     float f;
     double d;
-    memcpy(&h0, a_boot, 2);
-    memcpy(&h1, a_boot + 2, 2);
-    memcpy(&w, a_boot + 4, 4);
-    memcpy(&f, a_boot + 8, 4);
-    memcpy(&d, a_boot + 0x10, 8);
+    memcpy(&h0, boot_at(0), 2);
+    memcpy(&h1, boot_at(2), 2);
+    memcpy(&w, boot_at(4), 4);
+    memcpy(&f, boot_at(8), 4);
+    memcpy(&d, boot_at(0x10), 8);
     CHECK(h0 == 0x1234 && h1 == 0xABCD);
     CHECK(w == 0xDEADBEEF);
     CHECK(f == 1.5f);
     CHECK(d == 2.25);
-    CHECK(strcmp((char *)a_boot + 0x18, "HELLO") == 0);
+    CHECK(strcmp((char *)boot_at(0x18), "HELLO") == 0);
 
     /* the generated arena (test_pc_data_decls.c through gen_data's rules) */
     for (uint32_t a = GAME(0x20); a < GAME(0x2C); a++)
@@ -299,7 +312,7 @@ static void run(void)
 
     /* own struct with a different host layout */
     CHECK(S.a == 0x11223344);
-    CHECK(S.p == a_boot + 4);
+    CHECK(S.p == boot_at(4));
     CHECK(S.h == 0x5566);
     CHECK(S.fp == game_fn);
     CHECK(S.l == -5);
@@ -317,7 +330,7 @@ static void run(void)
     CHECK(P[10] == (void *)(uintptr_t)OVL(0xFF000));
     CHECK(P[11] == (void *)(intptr_t)-1);
     /* array of structs: strides differ */
-    CHECK(Q[0].x == 1 && Q[0].y == a_boot + 4);
+    CHECK(Q[0].x == 1 && Q[0].y == boot_at(4));
     CHECK(Q[1].x == 2 && Q[1].y == &S);
     /* overlay functions by image */
     CHECK(A1 == (void *)ovl_a_fn);
@@ -336,7 +349,7 @@ static void run(void)
     CHECK(st->text_in_words == 2);   /* P[13], P[14]: text under u32s, which the loader swapped */
     CHECK(P[14] == (void *)T && memcmp(T, "\0OOF", 4) == 0);
     CHECK(P[13] == (void *)(a_game + 0x90) && memcmp(P[13], "1NYS", 4) == 0);
-    CHECK(P[12] == (void *)(a_boot + 0x18) && memcmp(P[12], "HELLO", 6) == 0);
+    CHECK(P[12] == (void *)(boot_at(0x18)) && memcmp(P[12], "HELLO", 6) == 0);
     CHECK(st->func == 4);   /* S.fp, P[5], A1, B1 */
     /* both address-like words, neither of which a u32 can reach: own storage, and an arena's block */
     CHECK(st->addr_words == 2 && st->addr_words_host == 2);
@@ -367,7 +380,7 @@ static void run(void)
     /* lookups */
     CHECK(pc_data_host_of(&tables, GAME(0x108), 1) == &S.h);
     CHECK(pc_data_host_of(&tables, OVL(0x10), 3) == (void *)ovl_b_fn);
-    CHECK(pc_data_host_of(&tables, BOOT(0x88), 0) == a_boot + 8);
+    CHECK(pc_data_host_of(&tables, BOOT(0x88), 0) == boot_at(8));
     CHECK(pc_data_host_of(&tables, GAME(0x1A0), 1) == a_game + 0xA0);   /* the arena: no N64 address leads to F */
     /* by name: own storage, an arena's symbol, a function; decoupled data (F) and an unknown name have none */
     CHECK(pc_data_addr_of(&tables, "S") == GAME(0x100) && pc_data_addr_of(&tables, "game_word") == GAME(0x180));

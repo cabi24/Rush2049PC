@@ -189,10 +189,13 @@ static uint32_t check_widths(const PcDataTables *t, uint8_t *const img[])
                 printf("  %s: the tables have no symbol %s\n", known_widths[i].what, known_widths[i].name);
             continue;
         }
-        const uint8_t *host = at(a, im), *src = img[im] + (a - t->images[im].n64_base);
-        int ok = host != NULL;
-        for (uint32_t o = 0; ok && o < n; o++)
-            ok = host[o] == src[o - o % w + (w - 1 - o % w)];
+        /* byte by byte: a place may run over several data, each in its own object */
+        const uint8_t *src = img[im] + (a - t->images[im].n64_base);
+        int ok = at(a, im) != NULL;
+        for (uint32_t o = 0; ok && o < n; o++) {
+            const uint8_t *host = at(a + o, im);
+            ok = !host || *host == src[o - o % w + (w - 1 - o % w)];   /* NULL: bytes no datum covers or reaches */
+        }
         if (!ok && bad++ < 8)
             printf("  %s: not %u-byte elements as the image holds them\n", known_widths[i].what, w);
     }
@@ -252,16 +255,20 @@ static uint32_t esz(int kind, int host)
     }
 }
 
-typedef struct { void **field; void *want; } Expect;
+/* A planted pointer: where it is, and what the loader must make of it (want, or arena >= 0: the place of N64 address a
+ * in that arena, which may be storage the loader makes for bytes no datum covers, looked up after the load). */
+typedef struct { void **field; void *want; int32_t arena; uint32_t a; } Expect;
 
 /* A stand-in for the game heap's block (port/ultra/memory.c), for the loader's heap pointers: the N64 heap's memory up
  * to the runtime images' place (pc_data_set_heap). */
 static uint8_t *g_heap;
 
-/* A pointer target for data of image `img`: a value to plant and the host pointer the loader must produce. */
-static uint32_t pick_target(const PcDataTables *t, int img, void **want)
+/* A pointer target for data of image `img`: a value to plant, and the host pointer the loader must produce (want) or,
+ * for a place in an arena, the arena and N64 address to look it up by after the load (*arena >= 0). */
+static uint32_t pick_target(const PcDataTables *t, int img, void **want, int32_t *arena)
 {
     int ovl = img >= 2;
+    *arena = -1;
     for (int tries = 0; tries < 64; tries++) {
         switch (rnd() % 6) {
         case 0:
@@ -292,8 +299,9 @@ static uint32_t pick_target(const PcDataTables *t, int img, void **want)
             *want = s->host;
             return s->n64_addr;
         }
-        default: {   /* a byte in an arena that no symbol's own storage covers */
-            const PcDataArena *ar = &t->arenas[rnd() % t->n_arenas];
+        default: {   /* a byte in an arena that no symbol's own storage covers: its datum's, or bytes no datum covers */
+            uint32_t ai = rnd() % t->n_arenas;
+            const PcDataArena *ar = &t->arenas[ai];
             if (ar->image >= 2 && ar->image != img)
                 continue;
             if (!ovl && ar->image >= 2)
@@ -304,9 +312,11 @@ static uint32_t pick_target(const PcDataTables *t, int img, void **want)
                 covered = a >= t->syms[i].n64_addr && a < t->syms[i].n64_addr + (t->syms[i].n64_size ? t->syms[i].n64_size : 1);
             for (uint32_t i = 0; i < t->n_funcs && !covered; i++)
                 covered = t->funcs[i].n64_addr == a;
-            if (covered)
+            if (covered || !pc_data_arena_host(t, ai, a))   /* (no object: a decoupled datum's place, which no N64
+                                                              * pointer may reach) */
                 continue;
-            *want = ar->host + (a - ar->n64_lo);
+            *want = NULL;
+            *arena = (int32_t)ai;
             return a;
         }
         }
@@ -315,10 +325,27 @@ static uint32_t pick_target(const PcDataTables *t, int img, void **want)
     return 0;
 }
 
+/* Arena i's byte at N64 address a where the loader put it (its block, its datum's object, the loader's storage for
+ * bytes no datum covers), or NULL: bytes no datum covers that nothing reaches have no storage. */
+static uint8_t *arena_byte(const PcDataTables *t, uint32_t i, uint32_t a)
+{
+    return pc_data_arena_host(t, i, a);
+}
+
+/* Every byte of arena i that has storage set to v (a scribble before a reload). */
+static void arena_fill(const PcDataTables *t, uint32_t i, uint8_t v)
+{
+    for (uint32_t a = t->arenas[i].n64_lo; a < t->arenas[i].n64_hi; a++) {
+        uint8_t *p = arena_byte(t, i, a);
+        if (p)
+            *p = v;
+    }
+}
+
 /* Expected arena contents: the image bytes, every described element byte-reversed, BSS zero. */
 static int check_arena(const PcDataTables *t, const PcDataArena *ar, const uint8_t *img)
 {
-    uint32_t n = ar->n64_hi - ar->n64_lo, init = ar->n64_init - ar->n64_lo;
+    uint32_t n = ar->n64_hi - ar->n64_lo, init = ar->n64_init - ar->n64_lo, ai = (uint32_t)(ar - t->arenas);
     uint8_t *want = calloc(1, n);
     memcpy(want, img + (ar->n64_lo - t->images[ar->image].n64_base), init);
     for (uint32_t k = 0; k < ar->run_count; k++) {
@@ -333,7 +360,11 @@ static int check_arena(const PcDataTables *t, const PcDataArena *ar, const uint8
                 }
             }
     }
-    int bad = memcmp(want, ar->host, n) != 0;
+    int bad = 0;
+    for (uint32_t k = 0; k < n && !bad; k++) {
+        const uint8_t *p = arena_byte(t, ai, ar->n64_lo + k);
+        bad = p && *p != want[k];
+    }
     free(want);
     return bad;
 }
@@ -434,10 +465,14 @@ static int synthetic(void)
                     if (no + 4 > s->n64_size || base + no + 4 > t->images[s->image].size || ho + 8 > s->host_size)
                         continue;
                     void *want = NULL;
-                    put32(img[s->image] + base + no, root ? 0 : pick_target(t, s->image, &want));
+                    int32_t arena = -1;
+                    uint32_t v = root ? 0 : pick_target(t, s->image, &want, &arena);
+                    put32(img[s->image] + base + no, v);
                     if (n_exp == cap)
                         exp = realloc(exp, (cap *= 2) * sizeof *exp);
                     exp[n_exp].field = (void **)((uint8_t *)s->host + ho);
+                    exp[n_exp].arena = arena;
+                    exp[n_exp].a = v;
                     exp[n_exp++].want = want;
                 }
         }
@@ -464,11 +499,20 @@ static int synthetic(void)
         CHECK(n <= room, "synthetic image %s: %lu B stream fits its %u B slot", im->name, (unsigned long)n, room);
     }
     CHECK(pc_data_load_all(t, rom, rom_size, "") == 0, "pc_data_load_all on the synthetic ROM");
+    /* The pointers into arenas: their datum's object (or block) + the offset, or the storage the loader made for
+     * bytes no datum covers; all of them somewhere. */
+    uint32_t nowhere = 0;
+    for (size_t i = 0; i < n_exp; i++)
+        if (exp[i].arena >= 0)
+            nowhere += !(exp[i].want = pc_data_arena_host(t, (uint32_t)exp[i].arena, exp[i].a));
+    CHECK(nowhere == 0, "every planted pointer into an arena has a place there (%u have none)", nowhere);
     /* The runtime images' arenas are heap memory until the game loads them. */
     uint32_t dirty = 0;
     for (uint32_t i = 0; i < t->n_arenas; i++)
-        for (uint32_t k = 0; t->arenas[i].image >= 2 && k < t->arenas[i].n64_hi - t->arenas[i].n64_lo; k++)
-            dirty += t->arenas[i].host[k] != 0;
+        for (uint32_t a = t->arenas[i].n64_lo; t->arenas[i].image >= 2 && a < t->arenas[i].n64_hi; a++) {
+            const uint8_t *p = arena_byte(t, i, a);
+            dirty += p && *p;
+        }
     CHECK(dirty == 0, "the runtime images' arenas are clear until loaded (%u bytes set)", dirty);
     pc_data_overlay_load(0);
     pc_data_overlay_load(1);
@@ -516,7 +560,7 @@ static int synthetic(void)
 
     /* Overlay reload: scribble over image A, load it, check again. */
     const PcDataArena *a = &t->arenas[2];
-    memset(a->host, 0xA5, a->n64_hi - a->n64_lo);
+    arena_fill(t, 2, 0xA5);
     for (uint32_t i = 0; i < t->n_syms; i++)
         if ((t->syms[i].flags & PC_SYM_OWN) && t->syms[i].image == a->image)
             memset(t->syms[i].host, 0xA5, t->syms[i].host_size);
@@ -543,14 +587,23 @@ static int synthetic(void)
 
 int main(int argc, char **argv)
 {
-    /* The arenas are blocks of host memory, each datum at its N64 address's offset in an ARENA_PAGE page, so as aligned
-     * as on the N64. */
+    /* An arena's data are objects of their own, each at least as aligned as the N64 aligned its address (to 64 bytes),
+     * or the arena is a block of host memory, each datum at its N64 address's offset in an ARENA_PAGE page. */
     const PcDataTables *tab = &pc_data_tables;
     int placed = 1;
-    for (uint32_t i = 0; i < tab->n_arenas; i++)
-        placed &= ((uintptr_t)tab->arenas[i].host & (ARENA_PAGE - 1)) == (tab->arenas[i].n64_lo & (ARENA_PAGE - 1));
-    CHECK(placed, "%u arenas in their blocks, each datum at its N64 address's place in a page (game: %p)",
-          tab->n_arenas, (void *)tab->arenas[1].host);
+    uint32_t n_obj = 0;
+    for (uint32_t i = 0; i < tab->n_arenas; i++) {
+        const PcDataArena *ar = &tab->arenas[i];
+        if (!ar->obj_count)
+            placed &= ((uintptr_t)ar->host & (ARENA_PAGE - 1)) == (ar->n64_lo & (ARENA_PAGE - 1));
+        for (uint32_t k = 0; k < ar->obj_count; k++, n_obj++) {
+            const PcDataObj *o = &tab->objs[ar->obj_first + k];
+            uint32_t al = o->n64_addr & -o->n64_addr;
+            placed &= ((uintptr_t)o->host & ((al < 64 ? al : 64) - 1)) == 0;
+        }
+    }
+    CHECK(placed, "%u arenas: %u data in objects of their own, as aligned as on the N64, and the rest in blocks, each "
+          "datum at its N64 address's place in a page", tab->n_arenas, n_obj);
     /* Both runtime images have a function at their load address, N64_OVERLAY_BASE (image A's updateWarningScreen,
      * image B's worlddam entry), under one N64 name: each image's data must reach its own (docs/port/SYNTH.md). */
     const PcDataFunc *f_a = NULL, *f_b = NULL;
@@ -639,7 +692,10 @@ int main(int argc, char **argv)
             for (uint32_t rep = 0; rep < r->rep; rep++)
                 for (uint32_t j = 0; j < r->count; j++) {
                     float f;
-                    memcpy(&f, ar->host + r->n64_off + rep * r->n64_stride + j * 4, 4);
+                    const uint8_t *p = arena_byte(t, i, ar->n64_lo + r->n64_off + rep * r->n64_stride + j * 4);
+                    if (!p)
+                        continue;
+                    memcpy(&f, p, 4);
                     nf++;
                     good += isfinite(f) && (f == 0.0f || (fabsf(f) > 1e-6f && fabsf(f) < 1e7f));
                 }
@@ -694,14 +750,22 @@ int main(int argc, char **argv)
 
     /* Overlay reload: change image A's and B's first data words, load, compare. */
     for (int ov = 0; ov < 2; ov++) {
-        const PcDataArena *ar = &t->arenas[2 + ov];
-        uint8_t keep[64];
-        memcpy(keep, ar->host, sizeof keep);
-        memset(ar->host, 0xA5, sizeof keep);
-        ar->host[ar->n64_init - ar->n64_lo] = 0x5A;   /* first BSS byte */
+        uint32_t ai = 2 + (uint32_t)ov;
+        const PcDataArena *ar = &t->arenas[ai];
+        uint8_t keep[64], *p, *bss = NULL;
+        int same = 1;
+        for (uint32_t k = 0; k < sizeof keep; k++)   /* the first data bytes, the first BSS byte, as they have storage */
+            if ((p = arena_byte(t, ai, ar->n64_lo + k)) != NULL)
+                keep[k] = *p, *p = 0xA5;
+        for (uint32_t a = ar->n64_init; !bss && a < ar->n64_hi; a++)
+            bss = arena_byte(t, ai, a);
+        if (bss)
+            *bss = 0x5A;
         pc_data_overlay_load(ov);
-        CHECK(memcmp(keep, ar->host, sizeof keep) == 0 && ar->host[ar->n64_init - ar->n64_lo] == 0,
-              "overlay %c reload restores data and zeroes BSS", 'A' + ov);
+        for (uint32_t k = 0; k < sizeof keep; k++)
+            if ((p = arena_byte(t, ai, ar->n64_lo + k)) != NULL)
+                same &= *p == keep[k];
+        CHECK(same && (!bss || *bss == 0), "overlay %c reload restores data and zeroes BSS", 'A' + ov);
     }
     printf("datacheck: %s\n", failures ? "FAILED" : "all checks passed");
     return failures != 0;

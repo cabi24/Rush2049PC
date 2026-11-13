@@ -302,9 +302,9 @@ static void add_target(uintptr_t lo, size_t size, uint32_t id, int kind, int ima
 static void pointers_build(void);
 static void hash_exclusions_resolve(void);
 
-/* The host address of N64 address a when an arena holds it (its block + the offset; NULL otherwise), but for the
- * symbols with storage of their own inside an arena's range (port/data's own storage and game-C data): a pointer to
- * one of those is to its own storage, never to the block's bytes under it. */
+/* The host address of N64 address a when an arena holds it (its datum's object, or its block, + the offset; NULL
+ * otherwise), but for the symbols with storage of their own inside an arena's range (port/data's own storage and
+ * game-C data): a pointer to one of those is to its own storage, never to the arena's bytes under it. */
 static const uint8_t *arena_host(const PcDataTables *t, uint32_t a)
 {
     uint32_t lo = 0, hi = t->n_syms;
@@ -319,8 +319,33 @@ static const uint8_t *arena_host(const PcDataTables *t, uint32_t a)
         return NULL;
     for (uint32_t i = 0; i < t->n_arenas; i++)
         if (a >= t->arenas[i].n64_lo && a < t->arenas[i].n64_hi)
-            return t->arenas[i].host + (a - t->arenas[i].n64_lo);
+            return pc_data_arena_host(t, i, a);
     return NULL;
+}
+
+/* The arenas' data as the full hash takes them, in N64 order: an arena kept as a block whole, and each datum's object
+ * of an arena whose data are objects of their own, one by one, each with its N64 address. */
+typedef struct {
+    const uint8_t *host;
+    uint32_t n64, size;
+    uint8_t image, object;   /* object: a datum's object, not a block */
+} Chunk;
+static Chunk *g_chunks;
+static int g_nchunks, g_objects;   /* g_objects: some arena's data are objects (the region is "data", not "arenas") */
+
+static void chunks_build(const PcDataTables *t)
+{
+    g_chunks = calloc(t->n_arenas + t->n_objs + 1, sizeof *g_chunks);
+    for (uint32_t i = 0; g_chunks && i < t->n_arenas; i++) {
+        const PcDataArena *ar = &t->arenas[i];
+        if (!ar->obj_count)
+            g_chunks[g_nchunks++] = (Chunk){ar->host, ar->n64_lo, ar->n64_hi - ar->n64_lo, ar->image, 0};
+        g_objects |= ar->obj_count != 0;
+        for (uint32_t k = 0; k < ar->obj_count; k++) {   /* the tables keep them by address */
+            const PcDataObj *o = &t->objs[ar->obj_first + k];
+            g_chunks[g_nchunks++] = (Chunk){o->host, o->n64_addr, o->n64_size, ar->image, 1};
+        }
+    }
 }
 
 static pthread_once_t g_pointers_once = PTHREAD_ONCE_INIT;
@@ -355,9 +380,12 @@ static void pointers_build(void)
     for (uint32_t i = 0; i < t->n_cranges; i++)
         add_target((uintptr_t)t->cranges[i].start, (size_t)(t->cranges[i].end - t->cranges[i].start), 0, K_CRANGE,
                    t->cranges[i].image, -1);
-    for (uint32_t i = 0; i < t->n_arenas; i++)   /* each arena's block: its N64 range */
-        add_target((uintptr_t)t->arenas[i].host, t->arenas[i].n64_hi - t->arenas[i].n64_lo, t->arenas[i].n64_lo,
-                   K_ARENA, t->arenas[i].image, -1);
+    /* The arenas' data: a block, its N64 range (an untagged N64 address); a datum's object, as own storage is named (its
+     * N64 address and the offset, tagged as own storage's: an arena datum's layout is the N64's, so the offset is) */
+    chunks_build(t);
+    for (int i = 0; i < g_nchunks; i++)
+        add_target((uintptr_t)g_chunks[i].host, g_chunks[i].size, g_chunks[i].n64, g_chunks[i].object ? K_OWN : K_ARENA,
+                   g_chunks[i].image, -1);
     qsort(P.t, (size_t)P.nt, sizeof *P.t, by_lo);
     size_t records = 0;
     for (int i = 0; i < N_RECORD_ARRAYS; i++)
@@ -480,7 +508,7 @@ static uint64_t canonical(uintptr_t v)
             uint32_t off = (uint32_t)(v - g->lo);
             if (g->kind == K_ARENA)   /* the datum's N64 address itself: the arenas keep the N64 layout */
                 return g->id + off;
-            if (g->kind == K_OWN)
+            if (g->kind == K_OWN && g->sym >= 0)   /* (an arena datum's object: the N64 layout, the offset is it) */
                 off = own_n64_offset(&pc_data_tables.syms[g->sym], off);
             return (uint64_t)TAG(g->kind, g->image) << 32 | (uint32_t)(g->id + off);
         }
@@ -748,7 +776,8 @@ static uint64_t hash_region(const void *p, size_t n, uint32_t n64, uint32_t *poi
 /* ---------------------------------------------------------------- the regions */
 
 extern int32_t rand_seed;      /* the random seed: libc's LCG (NETPLAY.md 1.1) */
-extern uint32_t gGameState;   /* the state word, gNewGameState after it */
+extern uint32_t gGameState;   /* the state word */
+extern uint32_t gNewGameState;   /* the state the game moves to next */
 extern int32_t gModelIteration;      /* the model thread's tick */
 extern float gModelTime;        /* the race time */
 extern uint8_t gControllerData[];   /* 4 x 16 bytes: the controllers as ControllerUpdate read them */
@@ -758,35 +787,49 @@ typedef struct {
     const char *name;
     const void *p;
     uint32_t size;
+    uint32_t n64;   /* the N64 address of N64 data in an arena (data_n64), 0 for the PC's own C structs */
 } Curated;
+
+/* The N64 address of p, the N64 data of an arena (its datum's object, or its block): 0 for the PC's own C structs. */
+static uint32_t data_n64(const void *p)
+{
+    const PcDataTables *t = &pc_data_tables;
+    uintptr_t a = (uintptr_t)p;
+    for (uint32_t i = 0; i < t->n_arenas; i++) {
+        const PcDataArena *ar = &t->arenas[i];
+        if (!ar->obj_count && a - (uintptr_t)ar->host < ar->n64_hi - ar->n64_lo)
+            return ar->n64_lo + (uint32_t)(a - (uintptr_t)ar->host);
+        for (uint32_t k = 0; k < ar->obj_count; k++) {
+            const PcDataObj *o = &t->objs[ar->obj_first + k];
+            if (a - (uintptr_t)o->host < o->n64_size)
+                return o->n64_addr + (uint32_t)(a - (uintptr_t)o->host);
+        }
+    }
+    return 0;
+}
+
+/* The state words, gGameState and gNewGameState: two data, each in its own storage, hashed as one region of the N64
+ * data they were (gGameState's N64 address) from a copy that curated() refreshes. */
+static uint32_t g_state_words[2];
 
 static const Curated *curated(int *n)
 {
     static Curated c[9];
     if (!c[0].name) {
-        c[0] = (Curated){"models", pc_models, (uint32_t)sizeof pc_models};
-        c[1] = (Curated){"cars", pc_cars, (uint32_t)sizeof pc_cars};
-        c[2] = (Curated){"links", pc_links, (uint32_t)sizeof pc_links};
-        c[3] = (Curated){"rng", &rand_seed, 4};
-        c[4] = (Curated){"words", &gGameState, 8};   /* the state words: gGameState and gNewGameState */
-        c[5] = (Curated){"tick", &gModelIteration, 4};
-        c[6] = (Curated){"time", &gModelTime, 4};
-        c[7] = (Curated){"pads", gControllerData, 64};
-        c[8] = (Curated){"camera", gCamera, 4 * 0x98};
+        c[0] = (Curated){"models", pc_models, (uint32_t)sizeof pc_models, 0};
+        c[1] = (Curated){"cars", pc_cars, (uint32_t)sizeof pc_cars, 0};
+        c[2] = (Curated){"links", pc_links, (uint32_t)sizeof pc_links, 0};
+        c[3] = (Curated){"rng", &rand_seed, 4, data_n64(&rand_seed)};
+        c[4] = (Curated){"words", g_state_words, 8, data_n64(&gGameState)};
+        c[5] = (Curated){"tick", &gModelIteration, 4, data_n64(&gModelIteration)};
+        c[6] = (Curated){"time", &gModelTime, 4, data_n64(&gModelTime)};
+        c[7] = (Curated){"pads", gControllerData, 64, data_n64(gControllerData)};
+        c[8] = (Curated){"camera", gCamera, 4 * 0x98, data_n64(gCamera)};
     }
+    g_state_words[0] = gGameState;
+    g_state_words[1] = gNewGameState;
     *n = 9;
     return c;
-}
-
-/* The N64 address of a curated region that is N64 data, in an arena's block (0: the PC's own C structs). */
-static uint32_t data_n64(const void *p)
-{
-    const PcDataTables *t = &pc_data_tables;
-    uintptr_t a = (uintptr_t)p;
-    for (uint32_t i = 0; i < t->n_arenas; i++)
-        if (a - (uintptr_t)t->arenas[i].host < t->arenas[i].n64_hi - t->arenas[i].n64_lo)
-            return t->arenas[i].n64_lo + (uint32_t)(a - (uintptr_t)t->arenas[i].host);
-    return 0;
 }
 
 /* The word RUSH_SIM_DESYNC changes: a word of the game's data by its N64 address, where the game has it (an arena's
@@ -921,7 +964,7 @@ static void compute(uint32_t n, int full, uint8_t *keep_out)
         PcHashRegion *r = &h->region[h->n++];
         r->name = c[i].name;
         r->bytes = c[i].size;
-        r->hash = sums[i] = hash_region(c[i].p, c[i].size, data_n64(c[i].p), &ptrs, &img, keep_out);
+        r->hash = sums[i] = hash_region(c[i].p, c[i].size, c[i].n64, &ptrs, &img, keep_out);
         r->pointers = ptrs;
         r->unnamed = img;
         if (keep_out)
@@ -975,17 +1018,17 @@ static void compute(uint32_t n, int full, uint8_t *keep_out)
         d->hash = pc_xxh64_digest(&s);
         d->pointers = ptrs;
         d->unnamed = img;
-        /* The arenas: the game's data and BSS in the N64 layout, as N64 data (their N64 addresses for SCRATCH). */
+        /* The game's data and BSS without pointers, in the N64 layout, as N64 data (their N64 addresses for SCRATCH):
+         * "data", each datum's object in N64 order, or "arenas" while they are blocks. */
         PcHashRegion *ar = &h->region[h->n++];
         ptrs = img = bytes = 0;
         pc_xxh64_init(&s, 0);
-        for (uint32_t i = 0; i < t->n_arenas; i++) {
-            uint32_t size = t->arenas[i].n64_hi - t->arenas[i].n64_lo;
-            uint64_t one = hash_region_typed(t->arenas[i].host, size, -2, t->arenas[i].n64_lo, &ptrs, &img, NULL);
+        for (int i = 0; i < g_nchunks; i++) {
+            uint64_t one = hash_region_typed(g_chunks[i].host, g_chunks[i].size, -2, g_chunks[i].n64, &ptrs, &img, NULL);
             pc_xxh64_update(&s, &one, sizeof one);
-            bytes += size;
+            bytes += g_chunks[i].size;
         }
-        ar->name = "arenas";
+        ar->name = g_objects ? "data" : "arenas";
         ar->bytes = bytes;
         ar->hash = pc_xxh64_digest(&s);
         ar->pointers = ptrs;
@@ -1098,7 +1141,7 @@ int pc_hash_report(const char *path, uint32_t n)
             total += c[i].size;
         bytes = malloc(total);
         for (int i = 0, at = 0; bytes && i < nc; at += (int)c[i].size, i++)
-            hash_region(c[i].p, c[i].size, data_n64(c[i].p), &ptrs, &img, bytes + at);
+            hash_region(c[i].p, c[i].size, c[i].n64, &ptrs, &img, bytes + at);
     }
     if (bytes) {
         const uint8_t *q = bytes;
@@ -1119,19 +1162,20 @@ int pc_hash_report(const char *path, uint32_t n)
             write_file(path, ".heap", w, HB.size);
             free(w);
         }
-        fprintf(f, "\n== the arenas in %s.arenas: name, N64 address, offset in the file, bytes\n", path);
-        for (uint32_t i = 0; i < t->n_arenas; i++)
-            total += t->arenas[i].n64_hi - t->arenas[i].n64_lo;
+        const char *ext = g_objects ? ".data" : ".arenas";
+        fprintf(f, "\n== the game's data without pointers in %s%s: image, N64 address, offset in the file, bytes\n", path,
+                ext);
+        for (int i = 0; i < g_nchunks; i++)
+            total += g_chunks[i].size;
         uint8_t *a = malloc(total ? total : 1), *qa = a;
-        for (uint32_t i = 0; a && i < t->n_arenas; i++) {   /* hash_compare.py names a word by data_symbols.txt */
-            uint32_t size = t->arenas[i].n64_hi - t->arenas[i].n64_lo;
-            fprintf(f, "arena %s %08X %zu %u\n", t->arenas[i].image < t->n_images ? t->images[t->arenas[i].image].name
-                    : "image", t->arenas[i].n64_lo, (size_t)(qa - a), size);
-            hash_region_typed(t->arenas[i].host, size, -2, t->arenas[i].n64_lo, &ptrs, &img, qa);
-            qa += size;
+        for (int i = 0; a && i < g_nchunks; i++) {   /* hash_compare.py names a word by data_symbols.txt */
+            fprintf(f, "arena %s %08X %zu %u\n", g_chunks[i].image < t->n_images ? t->images[g_chunks[i].image].name
+                    : "image", g_chunks[i].n64, (size_t)(qa - a), g_chunks[i].size);
+            hash_region_typed(g_chunks[i].host, g_chunks[i].size, -2, g_chunks[i].n64, &ptrs, &img, qa);
+            qa += g_chunks[i].size;
         }
         if (a)
-            write_file(path, ".arenas", a, total);
+            write_file(path, ext, a, total);
         free(a);
         total = 0;
         fprintf(f, "\n== own storage in %s.own: name, N64 address, offset in the file, bytes\n", path);

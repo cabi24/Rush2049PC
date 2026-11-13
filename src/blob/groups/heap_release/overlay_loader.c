@@ -2,11 +2,6 @@
  * PC both images are linked in and a load resets one's data, docs/port/DATA.md). */
 #include "game/game.h"
 
-extern u8 extra_overlay_bss_end [ ];
-VIEW(u8[], extra_overlay_bss_start);
-#define extra_overlay_bss_start extra_overlay_bss_start_view
-extern u8 start_overlay_bss_end [ ];
-
 /* PC (docs/port/DATA.md): both runtime images are linked in, and a load resets the image's data to its ROM
  * values and zeroes its BSS: 0 = image A ("Start", flag start_overlay_loaded), 1 = image B ("Extra", flag
  * extra_overlay_loaded). The heap still reserves the image's block, so what fits beside it is the N64's. */
@@ -20,21 +15,15 @@ u8 *runtime_image_block(void) {
 }
 
 /* Loads a runtime image unless it is (*loaded): the heap block from dst to end is taken for it (allocate_memory_at)
- * and made purgeable, the image's data reset (pc_data_overlay_load: which image, from loaded), and *loaded set. On
- * the PC name, bssEnd, romStart, bssStart and rom are unused (the N64 inflated the image from rom there). */
-void load_overlay(u8 *dst, char *name, u8 *end, u8 *bssEnd, u8 *romStart, u8 *bssStart, s8 *loaded, u8 *rom) {
+ * and made purgeable, the image's data reset (pc_data_overlay_load: which image, from loaded), and *loaded set. The
+ * N64's loader also took the image's name, its place in the ROM and its BSS's bounds, to inflate it and clear the
+ * BSS; on the PC the data loader does both from its tables. */
+void load_overlay(u8 *dst, u8 *end, s8 *loaded) {
     void *p;
 
     if (*loaded != 0) {
         return;
     }
-    if (&name == 0) {
-        return;
-    }
-    if (dst) {}
-    if (bssEnd) {}
-    if (bssEnd) {}
-    if (bssStart) {}
     p = allocate_memory_at(dst, end - dst);
     PurgeableMemory(p, 0);
     pc_data_overlay_load(loaded == &extra_overlay_loaded);
@@ -45,14 +34,12 @@ void load_overlay(u8 *dst, char *name, u8 *end, u8 *bssEnd, u8 *romStart, u8 *bs
 void load_extra_overlay(void) {
     u8 *block = runtime_image_block();
 
-    load_overlay(block, "Extra", block + PC_RUNTIME_IMAGE_SIZE, extra_overlay_bss_end, 0, extra_overlay_bss_start,
-                 &extra_overlay_loaded, 0);
+    load_overlay(block, block + PC_RUNTIME_IMAGE_SIZE, &extra_overlay_loaded);
 }
 
 /* Loads runtime image A, the front end. */
 void load_start_overlay(void) {
     u8 *block = runtime_image_block();
 
-    load_overlay(block, "Start", block + PC_RUNTIME_IMAGE_SIZE, start_overlay_bss_end, 0, start_overlay_bss_start,
-                 &start_overlay_loaded, 0);
+    load_overlay(block, block + PC_RUNTIME_IMAGE_SIZE, &start_overlay_loaded);
 }

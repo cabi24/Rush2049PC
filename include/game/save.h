@@ -150,8 +150,6 @@ extern s8 gTeamPoints[EXTENT(4)];
 extern f32 video_buttonSlideSpeed;
 extern struct ReplaySlot *gGhosts[EXTENT(4)];
 extern PakErrorState gPakError[EXTENT(4)][2];
-extern tStatList extra_overlay_bss_start;
-extern f32 start_overlay_bss_start[EXTENT(12)];
 
 /* Functions */
 void **_ReadGhostHeader(void **fileh);
@@ -210,7 +208,7 @@ s8 IsTiresUnlocked(s32 row, s32 column);
 s32 IsTrackUnlocked(s32 idx);
 s8 IsTransUnlocked(s32 row, s32 column);
 void load_extra_overlay(void);
-void load_overlay(u8 *dst, char *name, u8 *end, u8 *bssEnd, u8 *romStart, u8 *bssStart, s8 *loaded, u8 *rom);
+void load_overlay(u8 *dst, u8 *end, s8 *loaded);
 void load_start_overlay(void);
 u8 *runtime_image_block(void);
 void MovePlayerFile(tPakHandle *from, tPakHandle *to);

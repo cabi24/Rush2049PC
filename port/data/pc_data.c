@@ -4,16 +4,18 @@
  * in the ROM, which N64 range is its data and BSS, and how every known symbol is laid out. Loading an image:
  *
  *   1. its bytes: a slice of the ROM, or a raw DEFLATE stream inflated once and kept for overlay reloads;
- *   2. each arena (the image's data and BSS in N64 layout, in its block of host memory: data.c's pc_arena_<image>):
- *      copy the initialized part, zero the BSS, and byte-swap the elements the runs describe in place (pointers stay
- *      N64 addresses there: the arenas hold the data without pointers, and the N64 form of the rest);
+ *   2. each arena (the image's data and BSS without pointers, in the N64's layout): copy the initialized part, zero
+ *      the BSS, and byte-swap the elements the runs describe in place (pointers stay N64 addresses there: the arenas
+ *      hold the data without pointers, and the N64 form of the rest), in the arena's layout: the loader's own buffer
+ *      when the arena's data are objects of their own (data.c's pc_datum_<i>, pc_objs), or the arena's block;
  *   3. each symbol with its own storage: convert from the image through its runs, turning N64 pointers into host
- *      pointers (functions, own storage, game-C data, an arena's block + the offset, the game heap's block + the
- *      offset: pc_data_set_heap);
+ *      pointers (functions, own storage, game-C data, an arena datum's object + the offset, the game heap's block +
+ *      the offset: pc_data_set_heap);
  *   4. game-C data in an overlay: put back the bytes it had at startup (or zero it), the symbols the tables name and
- *      the image's C ranges, which hold the statics no table can name.
+ *      the image's C ranges, which hold the statics no table can name;
+ *   5. the arenas' objects: each datum's bytes copied from its arena's layout.
  *
- * Nothing is at its N64 address (docs/port/NATIVE.md steps 5 and 12): each arena and the heap is a block of host
+ * Nothing is at its N64 address (docs/port/NATIVE.md steps 5, 12 and 13): each datum, arena and the heap is host
  * memory, so a pointer into one is a host pointer, and a 32-bit field can't hold it. An N64 address no table names is
  * kept as its value: nothing is mapped there, so a use of it faults.
  *
@@ -129,6 +131,72 @@ static const PcDataName *find_name(const PcDataTables *t, uint32_t a)
             hi = mid;
     }
     return lo ? &t->names[lo - 1] : NULL;
+}
+
+/* The object of arena ar that holds N64 address a, or NULL: a place no object has (own storage's, game-C data's, a
+ * decoupled datum's). */
+static const PcDataObj *find_obj(const PcDataTables *t, const PcDataArena *ar, uint32_t a)
+{
+    uint32_t lo = 0, hi = ar->obj_count;
+    const PcDataObj *objs = t->objs + ar->obj_first;
+    while (lo < hi) {   /* the first object above a */
+        uint32_t mid = (lo + hi) / 2;
+        if (objs[mid].n64_addr <= a)
+            lo = mid + 1;
+        else
+            hi = mid;
+    }
+    if (lo == 0)
+        return NULL;
+    const PcDataObj *o = &objs[lo - 1];
+    return a - o->n64_addr < (o->n64_size ? o->n64_size : 1) ? o : NULL;
+}
+
+/* Whether an object of arena ar ends exactly at N64 address a, below which it lies: a pointer to a may mean that
+ * datum's end. */
+static int obj_ends_at(const PcDataTables *t, const PcDataArena *ar, uint32_t a)
+{
+    const PcDataObj *o = a > ar->n64_lo ? find_obj(t, ar, a - 1) : NULL;
+    return o && o->n64_addr + o->n64_size == a;
+}
+
+/* The arena laid out as on the N64, which the loader fills, swaps and copies the objects from: its block, or the
+ * loader's own buffer when its data are objects (made when `make`; boot's and the game's are freed after the first
+ * load, the runtime images' kept for their later loads). */
+static uint8_t *arena_layout(const PcDataTables *t, uint32_t ai, int make)
+{
+    const PcDataArena *ar = &t->arenas[ai];
+    PcDataState *st = t->state;
+    if (!ar->obj_count)
+        return ar->host;
+    if (ai >= 8)
+        return NULL;
+    if (!st->layout[ai] && make)
+        st->layout[ai] = calloc(1, ar->n64_hi - ar->n64_lo);
+    return st->layout[ai];
+}
+
+/* An object's bytes from its arena's layout (a datum's extent may run past the arena's end: zero there). */
+static void fill_obj(const PcDataArena *ar, const uint8_t *lay, const PcDataObj *o)
+{
+    uint32_t off = o->n64_addr - ar->n64_lo, n = o->n64_size;
+    uint32_t have = off < ar->n64_hi - ar->n64_lo ? ar->n64_hi - ar->n64_lo - off : 0;
+    if (have > n)
+        have = n;
+    memcpy(o->host, lay + off, have);
+    memset(o->host + have, 0, n - have);
+}
+
+uint8_t *pc_data_arena_host(const PcDataTables *t, uint32_t ai, uint32_t a)
+{
+    const PcDataArena *ar = ai < t->n_arenas ? &t->arenas[ai] : NULL;
+    const PcDataObj *o;
+    if (!ar || a < ar->n64_lo || a >= ar->n64_hi)
+        return NULL;
+    if (!ar->obj_count)
+        return ar->host + (a - ar->n64_lo);
+    o = find_obj(t, ar, a);
+    return o ? o->host + (a - o->n64_addr) : NULL;
 }
 
 /* A runtime image (an overlay): the game's loader puts one in a block of its heap (N64_OVERLAY_BASE in the game), so
@@ -314,6 +382,42 @@ static const char *image_text(const PcDataTables *t, int image, uint32_t a)
     return n >= 3 && o + n < im->size && img[o + n] == 0 ? (const char *)img + o : NULL;
 }
 
+/* A pointer to N64 address a, the first byte of a datum (or of bytes no datum covers) and also the end of a datum of an
+ * arena whose data are objects of their own: the two are apart now, and code that took the pointer for the earlier
+ * datum's end would walk past it (docs/port/DECOUPLE.md 1). Counted and listed, for the reader to judge. */
+static void report_adjacent(const PcDataTables *t, uint32_t a, const char *where, uint32_t off, uint32_t v)
+{
+    for (uint32_t i = 0; i < t->n_arenas; i++) {
+        const PcDataArena *ar = &t->arenas[i];
+        if (!ar->obj_count || a <= ar->n64_lo || a > ar->n64_hi || !obj_ends_at(t, ar, a))
+            continue;
+        g_stats.adjacent++;
+        if (g_report) {
+            char target[96], before[96];
+            describe(t, a, target, sizeof target);
+            describe(t, a - 1, before, sizeof before);
+            fprintf(g_report, "adjacent %s+0x%X 0x%08X -> %s, also one past %s\n", where, off, v, target, before);
+        }
+        return;
+    }
+}
+
+/* Where N64 address a of arena ai is on the host: its place in the arena's block, or its datum's object + the offset.
+ * One past the arena's last byte is the end of the datum that ends there. NULL when no object holds it. */
+static uint8_t *arena_place(const PcDataTables *t, uint32_t ai, uint32_t a)
+{
+    const PcDataArena *ar = &t->arenas[ai];
+    const PcDataObj *o;
+    if (!ar->obj_count)
+        return ar->host + (a - ar->n64_lo);   /* the block keeps the N64 layout: undescribed bytes too */
+    if (a == ar->n64_hi) {
+        o = find_obj(t, ar, a - 1);
+        return o && o->n64_addr + o->n64_size == a ? o->host + o->n64_size : NULL;
+    }
+    o = find_obj(t, ar, a);   /* undescribed bytes too: they are in the object of the datum before them */
+    return o ? o->host + (a - o->n64_addr) : NULL;
+}
+
 /* N64 pointer value v, found in image `image`'s data at where+off -> host pointer. */
 static void *resolve(const PcDataTables *t, uint32_t v, int image, const char *where, uint32_t off, int quiet)
 {
@@ -365,12 +469,16 @@ static void *resolve(const PcDataTables *t, uint32_t v, int image, const char *w
                                ? image_text(t, s->image, a) : NULL;
             if (text)
                 report_text(t, where, off, v, a, text);   /* own storage converts it as wider elements too */
+            report_adjacent(t, a, where, off, v);
         }
         return (uint8_t *)s->host + ho;
     }
     for (uint32_t i = 0; i < t->n_arenas; i++) {
         const PcDataArena *ar = &t->arenas[i];
         if (a >= ar->n64_lo && a <= ar->n64_hi && (!in_ovl || !ovl_ctx || ar->image == image)) {
+            uint8_t *h = arena_place(t, i, a);
+            if (!h)
+                break;   /* nothing holds it: unresolved, below */
             if (!quiet) {
                 g_stats.arena++;
                 int kind = a < ar->n64_init ? arena_kind(t, ar, a) : -1;
@@ -386,8 +494,9 @@ static void *resolve(const PcDataTables *t, uint32_t v, int image, const char *w
                 } else if (text) {
                     report_text(t, where, off, v, a, text);
                 }
+                report_adjacent(t, a, where, off, v);
             }
-            return ar->host + (a - ar->n64_lo);   /* the block keeps the N64 layout: undescribed bytes too */
+            return h;
         }
     }
     /* 3. A function with no C yet, or another runtime image's function. */
@@ -504,9 +613,9 @@ int pc_data_peek(const PcDataTables *t, const uint8_t *rom, size_t rom_size, uin
 
 /* ---------------------------------------------------------------- filling */
 
-static void swap_arena(const PcDataTables *t, const PcDataArena *ar)
+/* The arena's described elements byte-swapped in its layout (host: its first byte). */
+static void swap_arena(const PcDataTables *t, const PcDataArena *ar, uint8_t *host)
 {
-    uint8_t *host = ar->host;
     for (uint32_t k = 0; k < ar->run_count; k++) {
         const PcDataRun *r = &t->runs[ar->run_first + k];
         uint32_t en = n64_esz(r->kind);
@@ -644,7 +753,9 @@ static int swap_in_place(const PcDataTables *t, const PcDataReach *r, uint32_t a
 {
     for (uint32_t i = 0; i < t->n_arenas; i++) {
         const PcDataArena *ar = &t->arenas[i];
-        if (a < ar->n64_lo || (uint64_t)a + (uint64_t)n * r->n64_size > ar->n64_init || arena_kind(t, ar, a))
+        uint8_t *lay;
+        if (a < ar->n64_lo || (uint64_t)a + (uint64_t)n * r->n64_size > ar->n64_init || arena_kind(t, ar, a)
+            || !(lay = arena_layout(t, i, 0)))
             continue;
         for (uint32_t e = 0; e < n; e++)
             for (uint32_t k = 0; k < r->run_count; k++) {
@@ -653,7 +764,7 @@ static int swap_in_place(const PcDataTables *t, const PcDataReach *r, uint32_t a
                 for (uint32_t x = 0; x < run->rep; x++)
                     for (uint32_t j = 0; j < run->count; j++) {
                         uint32_t no = run->n64_off + x * run->n64_stride + j * en;
-                        uint8_t *p = ar->host + (a - ar->n64_lo) + e * r->n64_size + no;
+                        uint8_t *p = lay + (a - ar->n64_lo) + e * r->n64_size + no;
                         if (no + en > r->n64_size)
                             continue;
                         if (en == 2) {
@@ -773,11 +884,12 @@ int pc_data_load_image(const PcDataTables *t, int image)
         if (ar->image != image)
             continue;
         uint32_t init = ar->n64_init - ar->n64_lo;
-        if (ar->n64_lo < img_base || ar->n64_init - img_base > img_size)
+        uint8_t *lay = arena_layout(t, i, 1);
+        if (ar->n64_lo < img_base || ar->n64_init - img_base > img_size || !lay)
             return -1;
-        memcpy(ar->host, img + (ar->n64_lo - img_base), init);
-        memset(ar->host + init, 0, ar->n64_hi - ar->n64_init);
-        swap_arena(t, ar);
+        memcpy(lay, img + (ar->n64_lo - img_base), init);
+        memset(lay + init, 0, ar->n64_hi - ar->n64_init);
+        swap_arena(t, ar, lay);
     }
     PcDataState *st = t->state;
     for (uint32_t i = 0; i < t->n_syms; i++) {
@@ -817,6 +929,13 @@ int pc_data_load_image(const PcDataTables *t, int image)
     }
     if (t->n_reach && image < 8)
         reach_image(t, image);
+    /* Each datum's object from its arena's layout, now that the rules have swapped what they reach there. */
+    for (uint32_t i = 0; i < t->n_arenas; i++) {
+        const PcDataArena *ar = &t->arenas[i];
+        const uint8_t *lay = ar->image == image && ar->obj_count ? arena_layout(t, i, 0) : NULL;
+        for (uint32_t k = 0; lay && k < ar->obj_count; k++)
+            fill_obj(ar, lay, &t->objs[ar->obj_first + k]);
+    }
     return 0;
 }
 
@@ -891,9 +1010,21 @@ int pc_data_load_all(const PcDataTables *t, const uint8_t *rom, size_t rom_size,
      * the report and the startup snapshot. */
     for (uint32_t i = 0; i < t->n_arenas; i++) {
         const PcDataArena *ar = &t->arenas[i];
-        if (is_overlay(t, ar->image))
+        if (!is_overlay(t, ar->image)) {   /* loaded once: the layout its objects came from is done with */
+            if (ar->obj_count && i < 8) {
+                free(st->layout[i]);
+                st->layout[i] = NULL;
+            }
+            continue;
+        }
+        if (!ar->obj_count)
             memset(ar->host, 0, ar->n64_hi - ar->n64_lo);
+        for (uint32_t k = 0; k < ar->obj_count; k++)
+            memset(t->objs[ar->obj_first + k].host, 0, t->objs[ar->obj_first + k].n64_size);
     }
+    if (g_report)
+        fprintf(g_report, "# data in objects of their own: %u; pointers to a datum's first byte that is the end of the datum "
+                "before it (adjacent): %u\n", t->n_objs, g_stats.adjacent);
     const PcDataStats *g = &g_stats;
     fprintf(stderr, "pc_data: %u symbols, pointers: %u own, %u C data, %u arena (%u to undescribed data, %u to text in "
             "words), %u functions, %u heap (kept), %u null, %u raw, %u unresolved, %u to functions with no C (%u "
