@@ -365,7 +365,7 @@ its table (a new assets_musyx test); the Windows build without SDL2 didn't link 
 definition). After wave 2b, CI's UBSan job found `tCarSettings.settings` typed 10 bytes where the checksum and the
 setup screen use 12. No synthetic path changes for any of them; the gate on the merged tree is 63 of 63 `same`.
 
-### Wave 3: the memory model (2026-11-09, in progress)
+### Wave 3: the memory model (2026-11-09 to 2026-11-13)
 
 The plan and each step's results are [NATIVE.md](NATIVE.md) (its census, `tools/port/window_census.py`; until wave 3.5
 its crossing counter and arena guard, section 9; since then the N64 guard, `tools/port/n64_guard.py`, section 17). Done: step 1 (the counter and the guard), wave 3.1
@@ -398,6 +398,28 @@ cartridge silent (MusyX's pitch and volume tables were zero), so the gate's `--a
 `synth_rom.py --sounds` makes a cartridge whose sound bank and a song are heard, and a step that touches the sound
 compares on it too. Wave 3.4 found the retail runs of `synth_compare --script` taking none of a script's own options,
 so their `--shots` had compared no screenshot; they do now, and the lead's retail check of step 10 compared
-screenshots of every race track forward, backward and mirrored. Left: one object per datum under ASan and the last of
-the N64's byte order (3.6).
+screenshots of every race track forward, backward and mirrored.
+
+Wave 3.6 (steps 13 and 14, two agents side by side, merged by the lead) finished the plan. Step 13: every datum of
+the images' data and BSS is an object of its own (1,599 names in 1,592 objects, and 78 unnamed for bytes no datum
+names), filled by the loader from the image's bytes or zeroed; the four arena blocks are gone, own storage keeps no
+order (`-fno-toplevel-reorder` gone), the runtime images' C data is put back datum by datum (`overlays.ld` and
+`concat.cmake` gone), and data.c and the game C's globals have ASan's redzones (`PC_NO_SANITIZE` on data.c and
+`--param asan-globals=0` removed). ASan over every synthetic path found 11 walks from one datum into the next; the
+lead's run of the retail scripts under ASan on the Pi found two more no synthetic path reaches (the name censor past
+its table, `DetectDroneAbort` reading a drone's input record past the four), each fixed in the C (NATIVE.md 18.2).
+Names inside other data fell from 12 to 4; the state hash names each datum's object (its values differ from wave
+3.5's builds). Step 14: the colour words are `tRGBA` (`PC_RGBA` gone, the census's `be.rgba.game` 10 → 0), the start
+and track screens' buttons have their fields so the loader converts them, and the big-endian ranges are texel memory
+(each WAD's texels and TLUTs, `pc_mem_register_texels`) and sample memory (the sound caches,
+`pc_mem_register_samples`): `be.ranges` 35 → 32, no registration left that doesn't hold texels or samples
+(NATIVE.md 19). The lead's check of the merged tree: the gate 64 of 64 `same` with ctest 572 of 572, the audible
+cartridge and the optimized build 64 of 64, the guard 64 of 64, ASan over all 65 paths on both cartridges with no
+report, CI's ASan set 399 of 399 and UBSan set 546 of 546 on Rocky; on the Pi, the mingw build, datacheck and
+assetcheck (no `texels:` line), the 44 retail scripts with screenshots and sound against wave 3.5's build, each
+under the guard and under ASan, a texture pack from the base's dump (1,354 textures replaced in both), and the saves
+(the game's pages byte for byte; the PC header differs only in its CRC, the version string and libultra's two unset
+directory bytes, as between any two builds). What the plan's census counted is done: what is left of N64 addresses
+is the cartridge's format (the loader's decoding of its pointers, the bus addresses of its streams, the display
+lists' segments), the heap's N64 accounting, and the guard's range.
 

@@ -92,7 +92,8 @@ static was; the runs, merged from the five area pages:
 warning, start, mode, track, car, player, records, circuit, cheat menus, the pak manager: MAT3 `*scr.c`, `eggs.c`,
 `selectcarload.c`), and image B, the HUD extras of battle, stunt and obstacle races (`worlddam.c`, `weapons.c`,
 `streaks.c`, `shots.c`, `powerups.c`, `hudextra.c`). One of them is loaded at a time into one heap block; on the PC
-both are linked in and their data are arenas.
+both are linked in, each datum an object of its own that the loader fills and puts back when the image is loaded
+again ([NATIVE.md](../port/NATIVE.md) 18).
 
 ## The headers (include/game)
 
