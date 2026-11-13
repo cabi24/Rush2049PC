@@ -125,7 +125,6 @@ struct VoiceControls;
 extern u8 sound_midi_channel_owners[8][16];
 extern u8 sound_voice_count;
 extern u16 sound_global_variables[];
-extern s16 sound_seq_current_index[];      /* only to reach sound_global_variables: see sound_macro_get_variable */
 extern u32 sound_tick_step;
 /* voices.c */
 extern int sound_alloc_voice(u8, u8, u16, u8);
@@ -1300,9 +1299,8 @@ typedef struct SynthVoiceVariablesView { SynthVoiceHead head; u8 unknown024[0x15
 #pragma pack(0)
 /* The variables of the arithmetic and comparison steps: with isController, a controller (a macro's number,
  * sound_macro_get_controller); else variable `index` & 31: 0..15 the voice's own, 16..31 the globals
- * (sound_global_variables, which SEND_FLAG sets too).
- * N64 layout: the globals are reached as 32 bytes past sound_seq_current_index, where the N64's data puts them;
- * this needs that layout (wave 3: name sound_global_variables, as sound_macro_send_flag does). */
+ * (sound_global_variables, which SEND_FLAG sets too). (The N64's code reached the globals as 32 bytes past
+ * sound_seq_current_index, the datum before them; they are named here.) */
 s16 sound_macro_get_variable(SynthVoiceVariablesView *voice, u8 isController, u8 index)
 {
     s32 value;
@@ -1310,7 +1308,7 @@ s16 sound_macro_get_variable(SynthVoiceVariablesView *voice, u8 isController, u8
         return sound_macro_get_controller((VoiceState *)voice, index);
     }
     index &= 31;
-    value = index < 16 ? voice->localVars180[index] : (&sound_seq_current_index[16])[index - 16];
+    value = index < 16 ? voice->localVars180[index] : (s16)sound_global_variables[index - 16];
     return value;
 }
 
@@ -1324,7 +1322,7 @@ void sound_macro_set_variable(SynthVoiceVariablesView *voice, u8 isController, u
         if (index < 16) {
             voice->localVars180[index] = value;
         } else {
-            (&sound_seq_current_index[16])[index - 16] = value;
+            sound_global_variables[index - 16] = value;
         }
     }
 }
