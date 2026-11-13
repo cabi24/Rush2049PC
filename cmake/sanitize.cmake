@@ -1,15 +1,13 @@
 # Sanitizer builds (docs/port/SANITIZE.md): -DRUSH_SANITIZE=address,undefined (or undefined, or thread).
 #
 #   port/ code and the test programs: the sanitizers asked for, UBSan with every check (plus float-cast-overflow);
-#   the game C (game_flags): AddressSanitizer as asked (ThreadSanitizer only with RUSH_SANITIZE_GAME_THREAD), and of
+#   the game C (game_flags): AddressSanitizer as asked, its globals with redzones as every datum's (data.c's objects,
+#     the game C's own data: docs/port/NATIVE.md 18), ThreadSanitizer only with RUSH_SANITIZE_GAME_THREAD, and of
 #     UBSan only RUSH_SANITIZE_GAME_UB,
 #     a curated set: the m2c code's views shorter than their data, wrapping arithmetic (-fwrapv) and unaligned
-#     N64 records are its design, not bugs. AddressSanitizer leaves the game's own C data alone (asan-globals=0):
-#     a runtime image's C data is one range the loader saves and puts back whole (port/data/overlays.ld), and the
-#     game walks from one symbol to the next as the N64's layout allows, so redzones between them don't belong;
+#     N64 records are its design, not bugs;
 #   targets with the PC_NO_SANITIZE property, none: the -O0 types copy, whose nm and DWARF the generators read
-#     (gen_data's tables stay the same files), and data.c, whose own storage must stay in N64 order without redzones
-#     between.
+#     (gen_data's tables stay the same files).
 #
 # AddressSanitizer runs on x86-64 and aarch64: nothing of the game is at a fixed address (docs/port/NATIVE.md 17), so
 # its shadow memory, which on x86-64 starts at 0x7FFF8000, has the low addresses to itself. ThreadSanitizer on aarch64
@@ -78,13 +76,6 @@ if(PC_SANITIZE)
     target_compile_options(game_flags INTERFACE "$<${pc_on}:SHELL:-fno-sanitize=all>")
     if(pc_game_list)
         target_compile_options(game_flags INTERFACE "$<${pc_on}:SHELL:-fsanitize=${pc_game_list}>")
-    endif()
-    if(PC_SANITIZE_ADDRESS)
-        if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
-            target_compile_options(game_flags INTERFACE "$<${pc_on}:SHELL:--param asan-globals=0>")
-        else()
-            target_compile_options(game_flags INTERFACE "$<${pc_on}:SHELL:-mllvm -asan-globals=0>")
-        endif()
     endif()
     string(REPLACE ";" "," pc_link "${PC_SANITIZE}")
     add_link_options(-fsanitize=${pc_link})

@@ -213,17 +213,14 @@ target_compile_options(game_decls PRIVATE -O0 -g -fno-eliminate-unused-debug-sym
 set_target_properties(game_decls PROPERTIES PC_NO_SANITIZE ON EXPORT_COMPILE_COMMANDS OFF)
 # Types and symbols from the -O0 objects (types_objects.txt); the runtime images' C data, which --check finds in the
 # executable, from the objects linked (game_objects.txt).
-# The arenas whose data are objects of their own, one per datum (docs/port/DATA.md 3, NATIVE.md step 13); the others
-# stay blocks in the N64's layout.
-set(RUSH_DATA_OBJECTS "all" CACHE STRING
-    "The arenas whose data are objects of their own: boot, game, ovl_a, ovl_b (comma-separated) or all")
+# Every datum of the images' data and BSS is an object of its own (--objects all: docs/port/DATA.md 3, NATIVE.md 18).
 add_custom_command(
     OUTPUT ${PC_DATA_DIR}/data.c ${PC_DATA_DIR}/data_layout.txt ${PC_DATA_DIR}/data_layout.json
            ${PC_DATA_DIR}/data_symbols.txt ${PC_DATA_PE_OUTPUTS}
     COMMAND ${PC_PYTHON} ${PORT_TOOLS}/gen_data.py --objects-list ${CMAKE_BINARY_DIR}/types_objects.txt
             --link-objects-list ${CMAKE_BINARY_DIR}/game_objects.txt --decls $<TARGET_OBJECTS:game_decls>
             --nm ${CMAKE_NM} --readelf ${PC_DWARF_TOOL} --root ${CMAKE_SOURCE_DIR} --out ${PC_DATA_DIR}/data.c
-            --objects "${RUSH_DATA_OBJECTS}" ${PC_DATA_PE_ARGS}
+            --objects all ${PC_DATA_PE_ARGS}
     DEPENDS $<TARGET_OBJECTS:${PC_TYPES_TARGET}> $<TARGET_OBJECTS:game> $<TARGET_OBJECTS:game_decls>
             ${PORT_TOOLS}/gen_data.py
             ${PORT_TOOLS}/n64syms.py ${PORT_TOOLS}/gen_stubs.py
@@ -238,18 +235,10 @@ add_custom_command(
     VERBATIM)
 add_library(pcdata OBJECT ${PC_DATA_DIR}/data.c)
 target_include_directories(pcdata PRIVATE port/data)
-target_compile_options(pcdata PRIVATE -fno-common)   # the .set names need the arenas' blocks in a section
-if(NOT RUSH_DATA_OBJECTS)
-    set_target_properties(pcdata PROPERTIES PC_NO_SANITIZE ON)   # no redzones between own storages (SANITIZE.md)
-endif()
-# Own storage in the order data.c defines it, which is N64 address order: GCC reorders top-level definitions from -O1
-# on (at -O2 it put them in reverse), and game C that walks from one symbol to the next relies on the N64's order
-# (docs/port/OPTIMIZED.md). -O0 keeps the order anyway; gen_data.py --check verifies it in the executable.
-include(CheckCCompilerFlag)
-check_c_compiler_flag(-fno-toplevel-reorder PC_HAVE_NO_TOPLEVEL_REORDER)
-if(PC_HAVE_NO_TOPLEVEL_REORDER)
-    target_compile_options(pcdata PRIVATE -fno-toplevel-reorder)
-endif()
+# The .set names inside a datum's storage (a second name, a name inside a table) need it in a section, not a common.
+# Each datum is an object of its own, in whatever order the compiler puts them (no code relies on what lies next to
+# what: docs/port/NATIVE.md 18), and a sanitizer build puts its redzones around each.
+target_compile_options(pcdata PRIVATE -fno-common)
 find_package(ZLIB REQUIRED)
 add_library(pcdata_rt OBJECT port/data/pc_data.c)
 target_include_directories(pcdata_rt PUBLIC port/data port/include)

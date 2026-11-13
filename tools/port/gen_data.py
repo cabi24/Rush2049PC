@@ -1320,10 +1320,11 @@ OVL_IMAGES = ("ovl_a", "ovl_b")
 
 def image_data(obj, nm):
     """[(name, nm letter)] of the data an object defines: file-local (d, b, r) and global (D, B, R) definitions.
-    Commons and weak copies are left out: the linker may resolve them to another file's definition."""
+    Commons and weak copies are left out: the linker may resolve them to another file's definition. So are section
+    names (COFF), labels, and AddressSanitizer's own data (an instrumented object's ODR indicators)."""
     out = subprocess.run([nm, obj], capture_output=True, text=True).stdout
     return [(p[2], p[1]) for p in (l.split() for l in out.splitlines()) if len(p) == 3 and p[1] in "dbrDBR"
-            and not p[2].startswith((".", "$", "pc_weak_anchor_"))]   # section names (COFF), labels
+            and not p[2].startswith((".", "$", "pc_weak_anchor_", "__odr_asan", "__asan_"))]
 
 
 def c_str(s):
@@ -1778,9 +1779,9 @@ def emit(a, syms, ordered, arena_runs, funcs, defined_in, thunks, nmtab, obj_ima
 
 
 def check(exe, layout_path, nm, pe=False):
-    """Verify the linked executable: each arena's block at its size and page-aligned, every name in an arena at its
-    block + its N64 offset, every symbol inside own storage at its base + offset, own storage at its host size and in
-    N64 order, and no symbol at an N64 address: nothing absolute in KSEG0 or KSEG1 (docs/port/NATIVE.md 17), every
+    """Verify the linked executable: each datum's object at its size and alignment (each arena's block at its size and
+    page-aligned, while an arena is one), every name at its object's or block's base + its offset, every symbol inside
+    own storage at its base + offset, own storage at its host size, and no symbol at an N64 address: nothing absolute in KSEG0 or KSEG1 (docs/port/NATIVE.md 17), every
     name the executable's own relocations place. PE (pe): COFF symbols have no sizes, so storage isn't size-checked."""
     layout = json.loads(Path(layout_path).read_text())
     out = subprocess.run([nm, "-S", "--defined-only", str(exe)], capture_output=True, text=True, check=True).stdout
@@ -1821,19 +1822,11 @@ def check(exe, layout_path, nm, pe=False):
             bad.append(f"object {name}: {letter[name]} 0x{addr[name]:X}, expected storage aligned to {al}")
         elif size.get(name) != n and not pe:
             bad.append(f"object {name}: size {size.get(name)} != {n}")
-    prev = None
-    for name, n in layout["own"]:
+    for name, n in layout["own"]:   # in any order: no code relies on what lies next to what (NATIVE.md 18)
         if name not in addr:
             bad.append(f"own {name}: not in the executable")
-            continue
-        if size.get(name) != n and not pe:
+        elif size.get(name) != n and not pe:
             bad.append(f"own {name}: size {size.get(name)} != {n}")
-        # In N64 address order (layout["own"]'s), as data.c defines them: game C that walks from one symbol to the
-        # next relies on it (removeBG did), and GCC reorders definitions unless -fno-toplevel-reorder.
-        if prev is not None and addr[name] <= addr[prev]:
-            bad.append(f"own {name}: at 0x{addr[name]:X}, not after {prev} (0x{addr[prev]:X}): "
-                       f"compile data.c with -fno-toplevel-reorder")
-        prev = name
     for name, base, off in layout["sets"]:
         if name not in addr or base not in addr:
             bad.append(f"{name}: not in the executable")
@@ -1866,7 +1859,7 @@ def check(exe, layout_path, nm, pe=False):
         print("gen_data check:", b)
     print(f"gen_data check: {len(layout.get('arena_names', []))} in {len(layout.get('blocks', []))} arenas' blocks, "
           f"{len(layout.get('object_names', []))} in {len(layout.get('objects', []))} objects of their own, "
-          f"{len(layout['sets'])} inside own storage, {len(layout['own'])} own in N64 order, "
+          f"{len(layout['sets'])} inside own storage, {len(layout['own'])} own, "
           f"{n_ovl} runtime-image C data, {len(layout.get('decoupled', []))} decoupled, "
           f"nothing at an N64 address: {'OK' if not bad else f'{len(bad)} errors'}")
     return 1 if bad else 0
