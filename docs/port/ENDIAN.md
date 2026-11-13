@@ -8,8 +8,8 @@ filled), [LOADERS.md](LOADERS.md) (ROM files), [GFX.md](GFX.md) (what the render
 
 ## 1. The rule
 
-- **Memory keeps the N64's byte order wherever the game reads bytes.** A colour is R, G, B, A in memory, as the
-  model draw (`prim[4]`, `env[4]`), the fill and font colours (`BlitRect`, `BlitColors`) and the renderer
+- **Where the game reads bytes, they stay in the order the cartridge has them.** A colour is R, G, B, A in memory,
+  as the model draw (`prim[4]`, `env[4]`), the fill and font colours (`BlitRect`, `BlitColors`) and the renderer
   take it. A word that only moves a colour around (a copy, an equality test) is then right as it is; a word that is
   built or interpreted as a number must be converted.
 - **A value held as a word and read back in parts must take its parts from where the PC keeps them.** The low half
@@ -18,9 +18,11 @@ filled), [LOADERS.md](LOADERS.md) (ROM files), [GFX.md](GFX.md) (what the render
   game's initialized data by the declaration gen_data chooses (DATA.md 1, 4): a view with byte pads where other
   files read words leaves those words big-endian, and a word view of bytes reverses them.
 
-`PC_RGBA(x)` (`port/include/pc_prelude.h`) is the one conversion macro: a colour word as the N64 holds it in a
-register (`0xRRGGBBAA`) to the word whose bytes in memory are R, G, B, A. It is `__builtin_bswap32` (on the N64,
-until its build was dropped, `x`).
+A colour is a `tRGBA` (MAT3's colour, `include/game/types.h`): `u8 c[4]`, red to alpha, and `u32 rgba`, which moves
+the four bytes at once as they are. Colour data is declared as one, so the loader leaves its bytes as the cartridge
+has them, and a writer copies it whole (`node.color = col.rgba`) or byte by byte. No colour is built as a number:
+since [NATIVE.md](NATIVE.md) step 14 nothing in the game C swaps bytes (`PC_RGBA`, which turned a word as the N64
+held it in a register into the word whose bytes are R, G, B, A, is gone; the census's `be.rgba.game` is 0).
 
 ## 2. The detector
 
@@ -94,8 +96,8 @@ A full run, which compiles the 1,300 game units again, takes about a minute with
 
 ## 3. What was fixed
 
-All edits are N64-neutral (`n64_neutral.py --base 09da2f0`: every file shifted, 0 FAIL): PC views under
-`#ifdef TARGET_PC` at file scope, and `PC_RGBA(x)` on existing lines.
+All edits were N64-neutral (`n64_neutral.py --base 09da2f0`: every file shifted, 0 FAIL): PC views under
+`#ifdef TARGET_PC` at file scope, and `PC_RGBA(x)` on existing lines (until step 14: 3.2).
 
 ### 3.1 Scene-node handles (`e6f3e1d`, `85e3b26`)
 
@@ -120,8 +122,8 @@ and take a handle's node as `(s16)handle`, its low half on either byte order.
 
 ### 3.2 Colour words from the ROM (`7aa03ff`)
 
-Writers that copy a scene node's colour whole from initialized data the game declares as words: the ROM holds
-R, G, B, A, the loader swaps the word, and the node got A, B, G, R.
+Writers that copy a scene node's colour whole from initialized data the game declared as words: the ROM holds
+R, G, B, A, the loader swapped the word, and the node got A, B, G, R.
 
 | Data | Reader | What |
 |---|---|---|
@@ -130,7 +132,11 @@ R, G, B, A, the loader swaps the word, and the node got A, B, G, R.
 | `controls_updateButtonColor` | `controlscr/controls_updateButtons.c` | controls screen buttons (then the alpha byte is stored over byte 3) |
 | `coin_gold_glow_color`, `coin_silver_glow_color` | `AnimateCoin.c` | gold and silver coins (0xFFC800FF, 0xC8E6FFFF) |
 
-Each read is `PC_RGBA(...)`. No game code stores a colour constant as a word into byte-read storage (the detector
+Each read was `PC_RGBA(...)`, a swap of the loaded word. Since [NATIVE.md](NATIVE.md) step 14 the ten are declared
+as colours (`tRGBA`, `include/game`): the loader copies their bytes as they are, and each writer copies the colour
+into a `tRGBA` local and stores its `rgba` (the controls screen sets `c[3]`, the alpha, first; the coins pass the
+local to `ZOID_SetColor`, which takes a `tRGBA *` as MAT3's does). `--check-loader` and datacheck's `known_widths`
+hold their widths at bytes. No game code stores a colour constant as a word into byte-read storage (the detector
 found none; the only constant is 0xFFFFFFFF, which is the same in any order).
 
 ### 3.3 Initialized data declared as the game reads it (`1db4c2e`, `34a06ec`, `85e3b26`, `9f17add`)
@@ -142,6 +148,7 @@ found none; the only constant is 0xFFFFFFFF, which is the same in any order).
 | `pause_gPlayerRects` gPlayerRects | `animRumbleText/animRumbleText.c` `TPos` | 18 pad bytes and an s16 `x` at +18 (the s32 centre's low half) | pause.c's s32 layout; `x` is the whole centre, which the s16 local takes the same |
 | `hud_playerPaneColors` playerPaneColors | `hud_text_anims/animResults.c` | `Pos {s32 x, y}` | R,G,B,A bytes (ChangePaneColor reads bytes) |
 | `carscr_buttonInfo` front-end button slots | `ovl_a/anim_car_color_marker.c`, `carscr_animNewSlider.c` `MenuSlot` | `float matrix[16]` chosen: the alpha byte at +0x3C swapped as part of an f32 | the record's fields (as cleanup_colortrace's `Slot`) |
+| `startscr_buttonInfo`, `trackscr_buttonInfo` the start and track screens' buttons | include/game's `StartScreenButton`, `TrackScreenButton` | `u8 unknown0C[36]` over the matrix, left in the ROM's order (the cartridge's read the same either way, DATA.md 8) | the records' fields: MAT3 startscr.c's, and `MenuButton` (`tMenuButton`) for the track screen's ([NATIVE.md](NATIVE.md) step 14) |
 | `cont_bit_pattern`, `gResetLastKeyTime`, `gIgnoreCount` | `controlsys/group.c` | s32 | u8, s8, u8: the osContInit bit pattern (the boot waits while it reads 0x80), gResetTick, gSkipFrames |
 | `gStopAllEffects` | `audiosfx_play/group.c` | s32 | s8, as every other file |
 | `vp1`..`vplr` split-screen viewports | `ZOID_SplitScreen.c`, `ZOID_SplitMenuScreen.c` | s32: the first two halves swapped together, the other 12 bytes left big-endian | `Vp` (s16 scale[4], translate[4]) |
@@ -170,8 +177,8 @@ found none; the only constant is 0xFFFFFFFF, which is the same in any order).
 ## 4. Left, and for other parts
 
 - **The loader's union rule: done (port/data, [DATA.md](DATA.md) 2).** gen_data laid a union out by its widest
-  member with the most non-byte elements, so the game's colour unions (`TextColor`, `tRGBA`, `RGBA`, `Color`,
-  `Color4`: `{ u8 c[4]; u32 rgba; }` or `{ u32 word; struct { u8 r, g, b, a; } c; }`) were swapped as u32, and the
+  member with the most non-byte elements, so the game's colour unions (`tRGBA`, then also `TextColor`, `RGBA`,
+  `Color`, `Color4`: `{ u8 c[4]; u32 rgba; }` or `{ u32 word; struct { u8 r, g, b, a; } c; }`) were swapped as u32, and the
   bytes the game reads came out A, B, G, R. Now a union with a member made only of bytes that covers all of it is
   copied as bytes (not with a pointer or a `long` in it). Checked against every union in the layout: the 21
   colour symbols of initialized data with such a union are read as bytes, directly or after word copies, and their
@@ -184,8 +191,7 @@ found none; the only constant is 0xFFFFFFFF, which is the same in any order).
   TB_FlashTextColors), `arrowColors` and `arrow_base_color` (arrows), `gShadowColor`, `SheenColors` and `Track1Colors` (the
   cars' shadow, sheen and IR colours, GetCarsIRColor), `options_buttonColor`, overlay B's `hudextra_playerColor`, `stunt_coin_color`/`A4`,
   `hitColor`, overlay A's `carscr_solidColor`/`58`, `circuitscr_init_button_color`/`5C`, `loadTrackScreen_backColor`, `race_map_vertex_color`, `trackscr_init_button_color`/`98`.
-  The 11 conflicts `LEFT` held for them are gone (none new), the game C needed nothing more, and none of them takes
-  `PC_RGBA`. `--check-loader` checks their widths, and `rush2049pc_datacheck` checks them against the images.
+  The 11 conflicts `LEFT` held for them are gone (none new), and the game C needed nothing more. `--check-loader` checks their widths, and `rush2049pc_datacheck` checks them against the images.
 - **gTargInfo `targetInfo`** (race logic: the level-object kinds). gen_data chooses `TargInfo`, which has byte pads
   at +0x10..0x1B and +0x20..0x2F where other views read s32 and f32 (StartCone, PlayStartSound, level_objects),
   so those stay big-endian. Its seven views also disagree on pointers (POINTERS.md 9.9); the fix belongs with that

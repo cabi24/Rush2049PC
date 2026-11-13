@@ -128,8 +128,9 @@ N64 form (the 0xA10 and 0x50 layouts with 32-bit addresses, big-endian) is the m
 
 **Byte order**:
 - ADPCM frames are bytes.
-- PCM16 sources and codebooks are big-endian inside a `pc_mem_is_be` range (checked per source range) and native
-  elsewhere.
+- PCM16 sources and codebooks are high byte first in sample memory (`pc_mem_is_sample_memory`: the sound library's
+  caches, which the DMA fills with the cartridge's bytes as they are; checked per source range) and the host's byte
+  order elsewhere (the streams the CPU fills). [NATIVE.md](NATIVE.md) 19 says why they stay so.
 - The state block and delay line are native: only the interpreter reads them.
 - Output is native interleaved s16, left first.
 
@@ -271,9 +272,10 @@ of its 10 checks.
 4. `osAiGetLength` returns `pc_audio_queued_frames() * 4`.
 5. Post `OS_EVENT_AI` whenever the queue falls below about two buffers (384 frames). The audio thread
    (`sound_hw_run_output_thread`) answers each event with one 192-frame buffer.
-6. The MusyX DMA callback (`sound_service_start_dma` → `sample_dma_next`) copies from the ROM. Register its destinations as
-   big-endian: the codebook cache `sound_codebook_cache` (`count × 256`) and the sample cache `sound_sample_cache` (`count × 1536`).
-   Do **not** register the CPU-filled stream buffers (`sound_stream_start`); they are native PCM16.
+6. The MusyX DMA callback (`sound_service_start_dma` → `sample_dma_next`) copies from the ROM. Its destinations are
+   registered as sample memory (`pc_mem_register_samples`, by the sound library when it makes them): the codebook
+   cache `sound_codebook_cache` (`count × 256`) and the sample cache `sound_sample_cache` (`count × 1536`).
+   The CPU-filled stream buffers (`sound_stream_start`) are not: they are native PCM16.
 7. main calls `pc_audio_init(backend, dump_path)` (`--dump-audio`) before the game threads start and
    `pc_audio_shutdown()` at exit. Link the `pcaudio` target. Weak no-op defaults are needed for the two new
    functions.

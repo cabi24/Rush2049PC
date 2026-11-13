@@ -669,12 +669,15 @@ along every path with no report; the gate. Depends on: 12 (ASan on x86-64). Can 
 reaches stay hidden from ASan; the static tools (`bounds_check.py`, `index_check.py`, `offset_check.py`) and the
 retail scripts under ASan on the Pi (aarch64 ASan works today, SANITIZE.md 1.1) are the rest of the net.
 
-### Step 14. The last of the N64's byte order (small)
+### Step 14. The last of the N64's byte order (small): done
 
 `PC_RGBA` and the colour words (`be.rgba.game`), the records the data sweep left in the ROM's order because every
 value read the same either way (the menu screens' button matrices, [DATA.md](DATA.md) 8 "Judged and left"), the
 big-endian ranges narrowed to the N64 texel formats and renamed for what they are. Depends on: 10. Can run with 13.
-Risk: small; `endian_check.py --check-loader` and datacheck's `known_widths` pin the widths.
+Risk: small; `endian_check.py --check-loader` and datacheck's `known_widths` pin the widths. Done 2026-11-13
+(section 19): the colours are MAT3's `tRGBA`, the start and track screens' buttons have their records' fields, the
+ranges are texel memory (a WAD's IMAG) and sample memory (the sound caches, which stay: 19.4), a file's matrices and
+viewports are copied native.
 
 ## 6. Order, waves and agents
 
@@ -2104,3 +2107,120 @@ as between any two builds whose hashes differ. A recording's header names its bu
   allocator's accounting).
 - **The decoupling recipe** ([DECOUPLE.md](DECOUPLE.md)) is now for a datum that changes its type or layout; a datum
   that only needs to be an object of its own already is.
+
+## 19. Step 14: the last of the N64's byte order (done 2026-11-13)
+
+Wave 3.6's step 14, one agent beside step 13's, on bb46fab4. Three commits, each passing ctest and the 64 synthetic
+paths `same` against the base (screenshots and sound), `endian_check.py --check-loader` and datacheck's `known_widths`:
+
+| Piece | What |
+|---|---|
+| 1 | the colour words: declared as colours (MAT3's `tRGBA`), copied as they are; `PC_RGBA` gone |
+| 2 | the start and track screens' buttons: their records' fields, so the loader converts their matrices |
+| 3 | the big-endian ranges: texel memory (a WAD's IMAG) for the renderer, sample memory (the sound caches) for the audio interpreter; a file's matrices and viewports copied native; the PI DMA and the decompressors register nothing |
+
+### 19.1 The colours
+
+One form: `tRGBA` (MAT3's colour, `include/game/types.h`): `u8 c[4]`, red to alpha, and `u32 rgba`, which moves the
+four bytes at once as they are, to copy or compare, never to build or take apart. Colour data is declared as one, so
+the loader copies its bytes as the cartridge holds them (the union rule, [DATA.md](DATA.md) 2), and a writer copies
+the colour whole into the scene node (`ObjInstanceList[].color`, read as bytes by the model draw).
+
+| Site | Data | Was | Now |
+|---|---|---|---|
+| `start_smoke/StartSmoke.c` (6) | `smoke_white`, `smoke_wing_color1`..`3`, `smoke_road_color`, `smoke_dirt_color` | `s32 wht = PC_RGBA(smoke_white)`, the node's colour `= wht` | `tRGBA wht = smoke_white`, `= wht.rgba` |
+| `controlscr/controls_initButtons.c` | `controls_initButtonColor` | `s32 color = PC_RGBA(...)` | `tRGBA color = ...`, `.color = color.rgba` |
+| `controlscr/controls_updateButtons.c` | `controls_updateButtonColor` | its own `Color { u32 word; u8 channel[4]; }`: `color.word = PC_RGBA(...)`, the alpha into `channel[3]` | `tRGBA color = ...`, the alpha into `c[3]`, `.color = color.rgba` |
+| `AnimateCoin.c` (2) | `coin_gold_glow_color`, `coin_silver_glow_color` | `u32 goldGlow[1]; goldGlow[0] = PC_RGBA(...)`, passed to `ZOID_SetColor` | `tRGBA goldGlow = ...`, `ZOID_SetColor(node, &goldGlow)` |
+
+The ten were `s32`/`u32` in include/game, so the loader swapped them as words and each reader swapped them back;
+they are `tRGBA` now, held at bytes by `LOADER_EXPECT` and `known_widths`. With them: include/game's `TextColor` (the
+same union, the flashing text's, the cars' sheen and IR colours', the arrows') is MAT3's `tRGBA` by name; the eight
+files that defined `tRGBA` for themselves (two with named bytes `c.r`, `c.red`, one with `w`) and the screens'
+`Color4` aliases use it; `ZOID_SetColor` and `ZOID_SetEnvColor` take a `tRGBA *`, as MAT3's do. Left for a later
+cleanup: include/game's other colour unions (`ArrowColor`, `HudColor`, `ButtonColor`: the same four bytes under other
+member names) and the files' own `union Color` views.
+
+### 19.2 The records left in the ROM's order
+
+[DATA.md](DATA.md) 8 "Judged and left", looked at again:
+
+| Data | Was | Now |
+|---|---|---|
+| `startscr_buttonInfo` | `StartScreenButton[18]`: `f32 x, y, angle; u8 unknown0C[36]; f32 position[3]`, the matrix in the ROM's order | MAT3 startscr.c's `anon_buttonType_objIdx_3c`: `s32 type, handle; f32 angle, matrix[3][3], position[3]` (f32, u32) |
+| `trackscr_buttonInfo` | `TrackScreenButton[48]`, the same pads, then the alpha | `MenuButton[48]` (MAT3 trackscr.c's `tMenuButton`); `TrackScreenButton` is gone |
+| `playerscr_buttonInfo` | `Slot64`'s word at +0x3C won the ranking (2026-10-28) | `MenuButton[4][22]` since wave 2's headers (one declaration per datum): its matrices f32, the alpha a byte, as every reader takes it |
+| `vp0`, `taillight_colors_dim`, `headlight_colors_night`, `gPaneBlits` | `s32` views over s16 and byte places | include/game's `PcViewport`, `tUVPair`, `tBlitSet[16]` since wave 2's headers |
+| the words after declared tables (DATA.md 8's list) | in the ROM's order, no reader | left: nothing reads them. The named ones are MAT3's function statics, which the game C defines itself, initialized in C (`countdown_polyColor`, `countdown_polyXYZ`: ShowCountdown's `polyColor`, `polyXYZ`; `trackscr_animTrackMap_cityPos`, `_mapPos`, `_rotAngle`, `trackscr_animTrackMaps_mapPos`: the track map's), so the image's copies are never read; the rest have no name and no reader, and so no known type |
+| the `undescribed` targets, the boot data, reached.txt's tables | | as DATA.md 8 says: text and bytes, port/ultra's and zlib's own, swapped in place by their rules |
+
+Every place of the cartridge's button matrices reads the same in either byte order (DATA.md 8), and the synthetic
+cartridge's are zeros: no picture changes. `LOADER_EXPECT` and `known_widths` hold the three tables' matrices at 4
+bytes and the track and player screens' alpha bytes at 1.
+
+### 19.3 Texel memory
+
+The renderer decodes texels and TLUT entries high byte first where they lie in **texel memory**, and in the host's
+byte order anywhere else (the texels and palettes the game builds: the car paint's palette copy).
+Texel memory is a file's texels and TLUTs, kept in the formats the N64's RDP reads (section 7: they hold no address,
+and a 16-bit load may carry 4- or 8-bit texels):
+
+| Piece | Where |
+|---|---|
+| `pc_mem_register_texels`, `pc_mem_unregister_texels`, `pc_mem_is_texel_memory` (were `pc_mem_register_be`, `pc_mem_unregister_be`, `pc_mem_is_be`) | port/ultra/memory.c, pc_port.h |
+| `pcgfx_is_texel_memory` (was `pcgfx_is_be`): LOADBLOCK, LOADTILE, LOADTLUT | port/gfx/gfx_rsp.c, gfx_rdp.c |
+| what is registered: each WAD's IMAG, from its offset to the next chunk's, the table of contents' or the file's end (as `rush2049pc_assetcheck` takes it), widened to every texel the records and lists name outside it (a direct texture's texels, a palette's entries, a SETTIMG's place), which the converter says (`texels: ... not in IMAG`, an assetcheck failure); dropped with the file's block | port/assets/wad.c (`texel_memory`, `add_block`) |
+
+What went, and why:
+
+| Registration | Covered | Now |
+|---|---|---|
+| the PI DMA's (`dma_read`), inflate's (`unzipdata_from_rom`), LZSS's (`lzss_decode`): every file and sample DMA'd or unpacked | every file, until its converter made it native; the sound caches' samples (again) | nothing: the converters make the files native, the WAD converter registers IMAG, the sound library its caches |
+| the WAD converter's: the whole block | the file's records, lists and vertices (native beside it since steps 7 and 10), texels and TLUTs | IMAG |
+| assets.c's release and free, the MusyX converter's two drops of the read's range | the PI's registrations | gone with them |
+| the renderer's matrices and viewports read big-endian in a range (`movemem`, `matrix`) | a matrix or viewport a file's list loads with MTX or MOVEMEM | the WAD converter copies each, in the host's byte order, beside the lists (16 words, 8 s16; a light, bytes, stays in the file), as it copies the vertices; `wad_lists_check.h` compares the copies with the file's bytes. The synthetic cartridges have none, and the renderer reads every matrix and viewport in the host's byte order |
+
+### 19.4 Sample memory: why it stays
+
+The sound library's two caches, `sound_codebook_cache` and `sound_sample_cache` (src/rom/sound/hardware.c), are
+filled by its DMA list with the cartridge's bytes, and the audio interpreter reads a PCM16 sample or a codebook
+coefficient there high byte first, as the RSP's microcode did; the streams the CPU fills are in the host's order. They
+are **sample memory** now (`pc_mem_register_samples`, `pc_mem_unregister_samples`, `pc_mem_is_sample_memory`), apart
+from texel memory. Converting them is possible but not small, and so left: a sample cache block doesn't say its
+sample's format (ADPCM blocks are bytes and must stay; PCM16 and codebooks are 16-bit), so the sound library would have
+to note each DMA entry's format and the sample DMA thread swap each copy in step with it (the copies run on that
+thread through the frame, and a block the next frame's DMA refills may still be read: a swap out of step changes what
+the interpreter reads, and the gate's sound is compared byte for byte). Like texels, samples are a format the decoder
+reads and hold no address; the game's own tasks use ADPCM voices only ([AUDIO.md](AUDIO.md) 8), whose 16-bit parts
+are the codebooks.
+
+### 19.5 The census and the audit
+
+`window_census.py` (`--no-compile`), bb46fab4 and after:
+
+| Kind | bb46fab4 | After | What |
+|---|---:|---:|---|
+| `be.rgba.game` | 10 | 0 | the ten `PC_RGBA` reads (19.1) |
+| `be.ranges` | 35 | 32 | its meaning now: data the PC keeps in the cartridge's byte order, by range. Texel memory 10 (memory.c 3, wad.c 2, gfx_rsp.c 2, gfx_rdp.c 3), sample memory 5 (memory.c 3, audio/musyx.c 2), the self-test's check of both 17 (13 before). Gone: pi.c 3, assets.c 2, assets/musyx.c 2, wad.c's whole block, the renderer's matrices and viewports 2 |
+| `be.accessors.game`, `.port` | 0 | 0 | |
+
+`n64_audit.py --baseline`: AUDIT. The census's test (`tools/port/tests/test_window_census.py`) takes the new names.
+
+### 19.6 The proof
+
+PROOF
+
+### 19.7 What is left for the lead
+
+- **The retail cartridge** (on the Pi): `rush2049pc_assetcheck` must print no `texels:` line (every WAD's texels,
+  TLUTs and SETTIMG places in its IMAG; the synthetic cartridges' are) and no `display lists:` line (a file's matrix
+  or viewport, if any, copied as the file has it); `rush2049pc_datacheck` checks `known_widths` (the ten colours at
+  bytes, the three button tables' matrices at 4 bytes) against the retail images. Then the retail scripts with
+  `--shots`, base against step: the controls screen (its buttons' colour, white, and their fading alpha), the start
+  menu and the track select (their 3D buttons: the matrices are converted now), races with tire smoke on road and
+  dirt, a car with wings (the wing trails' colours), a wreck and fire (the white fire), the stunt and obstacle tracks'
+  gold and silver coins (their glows), every track's textures and palettes, the texture animations (their TLUT
+  writes), the car paint, the fonts and the HUD, the track select's map, a mod's texture pack (`mods_texture`), with
+  `--audio` (sample memory as before).
+- **Windows**: the renamed functions (pc_port.h, the prelude, rom_tu.h), wad.c's texel memory and the gfx test's
+  renamed case (`gfx.filetexels`) build under MinGW; the lead's mingw build and CI's windows jobs run them.

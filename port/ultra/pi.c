@@ -2,9 +2,11 @@
  * (docs/port/ULTRA.md).
  *
  * The ROM is read whole, byte-swapped to big-endian (.z64) order if it is a .v64 or .n64 dump, and checked
- * against the US SHA-1 (romcheck.c says what a file is when it isn't that ROM). PI DMA has no manager thread: osPiStartDma copies at once, marks the destination as
- * big-endian ROM bytes (pc_mem_register_be) and sends the completion message, so the caller's osRecvMesg
- * returns as soon as it runs. The game passes ROM offsets as devAddr (libultra adds osRomBase); cartridge bus
+ * against the US SHA-1 (romcheck.c says what a file is when it isn't that ROM). PI DMA has no manager thread:
+ * osPiStartDma copies at once and sends the completion message, so the caller's osRecvMesg returns as soon as it
+ * runs. What it copies is the cartridge's bytes as they are; the file converters (port/assets) make the files
+ * native, and the WAD converter and the sound library mark what stays in the cartridge's formats (texel and sample
+ * memory, pc_port.h). The game passes ROM offsets as devAddr (libultra adds osRomBase); cartridge bus
  * addresses (N64_CART_PHYS and up, or through KSEG1) are accepted too.
  *
  * unzipdata_from_rom, unzipdata and lzss_decode were hand-written assembly over the PI. Natively: the game
@@ -203,7 +205,6 @@ static void dma_read(uint32_t dev, void *dst, uint32_t size)
     uint32_t off = rom_offset(dev);
     if (pc_rom_copy(off, dst, size) != 0)
         pc_log("PI DMA past the ROM: offset 0x%X, %u bytes (zero-filled)", off, size);
-    pc_mem_register_be(dst, size);
     if (pc_verbose > 2)
         pc_log("PI DMA ROM 0x%06X -> %p, %u bytes (%s)", off, dst, size, pc_os_thread_name());
 }
@@ -298,9 +299,7 @@ int32_t unzipdata_from_rom(uintptr_t src, void *dst, int32_t heap_window)
     }
     char what[32];
     snprintf(what, sizeof what, "ROM 0x%06X", off);
-    int32_t n = m ? inflate_buffer(m, avail, dst, what) : inflate_buffer(g_rom + off, g_rom_size - off, dst, what);
-    pc_mem_register_be(dst, (size_t)n);
-    return n;
+    return m ? inflate_buffer(m, avail, dst, what) : inflate_buffer(g_rom + off, g_rom_size - off, dst, what);
 }
 
 int32_t unzipdata(const void *src, int32_t size, void *dst)
@@ -348,7 +347,5 @@ int32_t lzss_decode(uintptr_t src, void *dst)
         for (unsigned i = 0; i < len; i++, out++)
             *out = out[-(long)dist];
     }
-    int32_t n = (int32_t)(out - start);
-    pc_mem_register_be(dst, (size_t)n);
-    return n;
+    return (int32_t)(out - start);
 }

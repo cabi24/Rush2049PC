@@ -40,8 +40,8 @@ Every external symbol except the `pc_gfx_*` API is `pcgfx`/`pcgfx_*`. The game h
   8-byte big-endian commands with 32-bit offsets in the ROM, are built again in this form by the WAD converter when
   the file loads (`port/assets/wad.c`, [NATIVE.md](NATIVE.md) step 10): command for command, w0 the file's, w1 a host
   pointer in the commands that carry an address (VTX, G_DL, G_RDPHALF_1 before G_BRANCH_Z, MTX, MOVEMEM, SETxIMG)
-  and the value in the rest. Until then the renderer read the ROM's lists in their N64 form, told apart by
-  `pc_mem_is_be(list)` at every list it entered.
+  and the value in the rest. Until then the renderer read the ROM's lists in their N64 form, told apart by a
+  big-endian range at every list it entered.
 - **Address values** (w1, segment bases, `pc_gfx_present`'s argument; `pcgfx_resolve`, port/gfx/gfx_rsp.c):
 
 | Value | Meaning | Host address |
@@ -59,11 +59,14 @@ Every external symbol except the `pc_gfx_*` API is `pcgfx`/`pcgfx_*`. The game h
 - **Vertices** are always the host's byte order: the game's, and a model's, which the WAD converter swaps when the file
   loads. A model's are registered as model data (`pc_mem_register_model_data`, `port/ultra/memory.c`): data that stays
   put while its file is loaded, which the high frame rate's recorder asks about ("High frame rate" below).
-- **Data byte order.** Matrices, the viewport, 16-bit texels and TLUT entries are read big-endian when
-  `pc_mem_is_be(ptr)` is true (a file's: its texels and TLUTs stay in the N64's formats, and so would a matrix its list
-  loads), and native otherwise.
-  - Native matrices are read as 32-bit words, as `guMtxF2L` writes them.
-  - Native 32-bit texels are `0xRRGGBBAA` words.
+- **Data byte order.** Matrices and viewports are always the host's: the game builds them so, and the WAD converter
+  copies a matrix or viewport a file's list loads, in the host's byte order ([NATIVE.md](NATIVE.md) 19). Texels and
+  TLUT entries are read high byte first in **texel memory** (`pc_mem_is_texel_memory`, `pcgfx_is_texel_memory`: a
+  file's texels and TLUTs, its WAD's IMAG chunk, which keep the formats the N64's RDP reads, `pc_mem_register_texels`
+  in port/assets/wad.c), and in the host's byte order elsewhere (the texels and palettes the game builds: the car
+  paint's palette copy).
+  - Matrices are read as 32-bit words, as `guMtxF2L` writes them.
+  - 32-bit texels in host memory are `0xRRGGBBAA` words.
   - Lights, 4-bit and 8-bit texels are bytes.
 - **16-bit loads from native memory.** A 16b load may carry 4b/8b data (`gDPLoadTextureBlock` loads 8-bit textures as
   16b). So TMEM keeps raw bytes plus a flag per 64-bit word. A 16-bit texel fetch byte-swaps flagged words. TMEM
@@ -686,7 +689,7 @@ times a second, vt in retraces, and it shows the frame for that moment. Added 20
     its parent (the transform one level up with the modelview this one was pushed from), the bounds of its vertices
     and a signature: the view and each load's source address and size. Each load is a model's (its vertices are model
     data, `pc_mem_is_model_data`: they stay put while the file is loaded) or the game's own, made each frame (until
-    [NATIVE.md](NATIVE.md) step 10 a model's were told by their big-endian range);
+    [NATIVE.md](NATIVE.md) step 10 a model's were told by the big-endian range of their file);
   - a triangle: its three vertices, the draw state and texture units it was drawn with, and its `GfxTriCtx` (the
     viewport, culling, smooth shading, depth source, where the viewport lands in widescreen). Triangles the frame
     rejects (outside, behind, back faces) are recorded too when the draw state in effect is still theirs
@@ -901,8 +904,8 @@ by w in double for every triangle that uses it; computing that once a vertex at 
     and colors from `poly` this way, so it needs a swap if `poly` comes from ROM data.
   - Lights written as raw words need the byte layout `col[3], pad, colc[3], pad, dir[3], pad`.
 - **The files' lists.** The WAD converter builds them, and the vertices they load, in the PC's form
-  ([NATIVE.md](NATIVE.md) step 10; [ASSETS.md](ASSETS.md) 3.2); texels and TLUTs stay big-endian in the file's
-  registered range. The game's
+  ([NATIVE.md](NATIVE.md) step 10; [ASSETS.md](ASSETS.md) 3.2), and the matrices and viewports they load (step
+  14); texels and TLUTs stay in the file, in its texel memory (IMAG). The game's
   walkers over the lists read and write `Gfx` and `Vtx` as they are: `prepare_model_dl` (the race's LOD markers),
   `display_list_traverse`, the mirror winding flip (`flip_triangle_winding`), the vertex flag pass
   (`mirror_vertex_texcoords`) and the texture animation's `displaylist_*` helpers.
@@ -1007,7 +1010,7 @@ build/gfx/gfx_test texrect --png /tmp/out
   ([TEXTURES.md](TEXTURES.md) "Tests").
 - **How the test works.** `gfx_test` builds display lists with its own encoders (`tests/test_gbi.h`, written from
   the SDK formats and not from the renderer's decoder). It renders them headless and checks pixels against values
-  worked out from the N64 rules. It provides its own `pc_mem_is_be` and `pc_mem_is_model_data`, and keeps its data
+  worked out from the N64 rules. It provides its own `pc_mem_is_texel_memory` and `pc_mem_is_model_data`, and keeps its data
   in host buffers (until [NATIVE.md](NATIVE.md) step 12 an 8 MB RDRAM array behind its own `pc_n64_ptr`).
 - **Cases.** 27, one CTest each:
 
@@ -1024,7 +1027,7 @@ build/gfx/gfx_test texrect --png /tmp/out
 | `twocycle` | a TEXEL0/TEXEL1 lerp, then a lerp toward env by the primitive LOD fraction |
 | `lod` | G_TL_LOD with four mip levels (level 1 striped a texel wide, to check its coordinates), point sampled, quads with their corners on whole N64 pixels (a projection exact in fixed point) at steps of 0.5-16 texels an N64 pixel: the first level magnified, level 1 and 2 exactly, halfway between levels, the last level from its power on, 3 across and 0.5 down and the other way round (each axis at its own scale); without G_TL_LOD, tile 0. Every internal pixel inside a quad against the N64's levels and fraction for its step and the texels at its own centre (those within 1/16 texel of a stripe's side left out) |
 | `dualtile` | CI8 read as CI4 |
-| `bedata` | the frame list calling a list in a host buffer through a host segment, inside a big-endian range (a kept LOD marker, a big-endian matrix and texels, native vertices), and a list in RDRAM at a K0 address (a big-endian matrix, native vertices at a physical address and through a segment set from that list); a K0 texture in the frame list. Since [NATIVE.md](NATIVE.md) step 10 every list is the PC's form (until then `belist`, with N64-form lists) |
+| `filetexels` | the frame list calling a list in a host buffer through a host segment (a kept LOD marker, a matrix, the buffer's texels in texel memory, vertices), and a list in a second buffer by its pointer (a matrix, vertices by pointer and through a segment set from that list); a texture by its pointer in the frame list. Since [NATIVE.md](NATIVE.md) step 10 every list is the PC's form (until then `belist`, with N64-form lists); until step 14, `bedata`, with big-endian matrices in big-endian ranges |
 | `matrix` | push/mul/pop |
 | `cull` | front/back, mirrored modelview, CULLDL |
 | `branchz` | BRANCH_Z |

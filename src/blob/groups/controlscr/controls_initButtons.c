@@ -7,7 +7,7 @@ typedef struct NameEntry NameEntry;
  * and 10 draw see-through, 0x42000), white, shown only in that player's window. Then texture and place the title,
  * cursor and B icon, the title and icon a little lower with more than one window. */
 void controls_initButtons(s8 player) {
-    s32 color;
+    tRGBA color;
     s16 tex;
     s32 i;
     s32 mask;
@@ -16,7 +16,7 @@ void controls_initButtons(s8 player) {
     s32 h;
     f32 scale;
 
-    color = PC_RGBA(controls_initButtonColor);
+    color = controls_initButtonColor;
     scale = 1.0f;
     none = -1;
     if (player < 0) {}
@@ -28,7 +28,7 @@ void controls_initButtons(s8 player) {
             h = ZOID_AddObject(MBOX_FindObject_WORK(controls_buttonNames[e->type], 0, (s8)(gNumModels[0] - 1), 1), e->matrix, none,
                                       (e->type == 0 || e->type == 1 || e->type == 2 || e->type == 9 || e->type == 10) ? 0x42000 : 0);
             e->handle = h;
-            ObjInstanceList[h].color = color;
+            ObjInstanceList[h].color = color.rgba;
             MBOX_HideObject(h, 1, 15);
             MBOX_ShowObject(e->handle, 0, mask);
         }

@@ -1,9 +1,8 @@
 /* The start menu's text and which rows it offers (MAT3 startscr.c animText, animButtonText and optionValid). */
 #include "game/game.h"
 
-typedef TextColor Color4;   /* the flashing colours (include/game's TextColor) */
 
-VIEW(Color4, flashColors_at_1);
+VIEW(tRGBA, flashColors_at_1);
 #define flashColors_at_1 flashColors_at_1_view
 
 /* PC: game.pc_setup (port/config/start_menu.c, docs/port/FRONTEND.md "PC SETUP"): option slot 8 is PC SETUP while it

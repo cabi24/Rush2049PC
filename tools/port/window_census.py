@@ -40,8 +40,8 @@ Where each count comes from:
   (game_bss_end, overlay_base, osMemSize as an address, allocate_memory_at, RUNTIME_IMAGE_*, N64_OVERLAY_*); the PC
   layer's rule that a value below 4 GiB is an N64 address, and the renderer's and the audio interpreter's reads of
   RDRAM by such a value; the window's mapping (MAP_FIXED, MapViewOfFileEx, the GOT fix-up); data still in the N64's
-  byte order (pc_be16/32 accessors, the big-endian ranges, PC_RGBA, byte swaps in game C); comments in the game C
-  that still speak of window, K0 or physical addresses.
+  byte order (pc_be16/32 accessors, the ranges of texel and sample memory, PC_RGBA, byte swaps in game C); comments
+  in the game C that still speak of window, K0 or physical addresses.
 - The compiler (--build, unless --no-compile): every game C file of compile_commands.json compiled again with
   -fsyntax-only and the warnings the build turns off, as tools/port/n64_audit.py does (its helpers are reused):
   casts between a pointer and an integer of another size, and implicit conversions between them.
@@ -132,7 +132,9 @@ KINDS = [
     # byte order
     ("be.accessors.game", "big-endian reads and writes in game C (pc_be16/32_get/set): N64-form data"),
     ("be.accessors.port", "the same in the PC layer (programs)"),
-    ("be.ranges", "big-endian ranges: pc_mem_register_be / unregister, pc_mem_is_be, pcgfx_is_be (programs)"),
+    ("be.ranges", "data the PC keeps in the cartridge's byte order, by range: texel memory (a file's texels and TLUTs: "
+                  "pc_mem_register_texels / unregister, pc_mem_is_texel_memory, pcgfx_is_texel_memory) and sample memory "
+                  "(the sound caches: pc_mem_register_samples / unregister, pc_mem_is_sample_memory) (programs)"),
     ("be.rgba.game", "PC_RGBA and byte swaps in game C (colour words in the N64's register order)"),
     # the words
     ("text.window.game", "game C comment lines about window, N64, K0 or physical addresses and RDRAM"),
@@ -187,7 +189,8 @@ N64_READS = re.compile(r"\brdram\s*\(|\bn64ptr\s*\(")
 MAPPING = re.compile(r"\bMAP_FIXED\w*|\bMapViewOfFileEx\b|\bpc_mem_fix_absolute\b|\bpc_mem_fixed\s*\(")
 RDRAM_BASE = re.compile(r"\bPC_RDRAM_(?:BASE|SIZE|MAX)\b")
 BE_ACCESS = re.compile(r"\bpc_be(?:16|32)_(?:get|set)\s*\(")
-BE_RANGE = re.compile(r"\bpc_mem_(?:register_be|unregister_be|is_be)\s*\(|\bpcgfx_is_be\s*\(")
+BE_RANGE = re.compile(r"\bpc_mem_(?:(?:un)?register_(?:texels|samples)|is_(?:texel|sample)_memory)\s*\(|"
+                      r"\bpcgfx_is_texel_memory\s*\(")
 RGBA = re.compile(r"\bPC_RGBA\s*\(|__builtin_bswap(?:16|32|64)\s*\(")
 WINDOW_WORDS = re.compile(r"window address|N64 address|\bRDRAM\b|\bKSEG[01]\b|\bK0 address|physical address", re.I)
 LIT = n64_audit.LIT   # 0x8xxxxxxx..0xBxxxxxxx

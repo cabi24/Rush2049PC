@@ -1,6 +1,5 @@
 #include "game/game.h"
 
-typedef TextColor Color4;   /* the flashing colours (include/game's TextColor) */
 typedef struct FileInfo FileInfo;
 typedef struct Profile Profile;
 struct Profile { Profile **next, **previous; FileInfo **file; u32 id0, id1; u8 name[24]; u8 **stats; };
@@ -14,10 +13,10 @@ extern Player gPlayers[];
 
 VIEW(Record **[4], gGhosts);
 #define gGhosts gGhosts_view
-VIEW(Color4, flashColors_at_1);
+VIEW(tRGBA, flashColors_at_1);
 #define flashColors_at_1 flashColors_at_1_view
 
-extern void TB_FlashTextColors(TextColor first, TextColor second);
+extern void TB_FlashTextColors(tRGBA first, tRGBA second);
 
 static void animButtonText(s32 p);
 static void drawOptions(s32 p);

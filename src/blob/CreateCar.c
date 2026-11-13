@@ -4,9 +4,6 @@
  * and colour them; StartCar then gives them their animators. */
 #include "game/game.h"
 
-/* A colour (MAT3 tRGBA): gTrackColors' entries, read as a word. */
-typedef union tRGBA { unsigned char c[4]; unsigned int rgba; } tRGBA;
-
 
 /* Make the scene objects of car slot `slot`, shown in the windows of mask `camlink`: the frame (the root), the hood
  * and the sheen from the slot's part definitions (OBJLIST_CAR_PARTS), the four tires, and in a race (`for_game`) the

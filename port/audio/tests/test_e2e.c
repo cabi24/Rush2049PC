@@ -82,7 +82,7 @@ int main(void)
         adpcm[2 * i] = (uint8_t)((uint16_t)book[i] >> 8);
         adpcm[2 * i + 1] = (uint8_t)book[i];
     }
-    pc_mem_register_be(adpcm, sizeof adpcm);
+    pc_mem_register_samples(adpcm, sizeof adpcm);
     {
         uint16_t rate = (uint16_t)lrint(32000.0 / 22050 * 4096);   /* 5944 */
         TbVoice tv = {adpcm, 3, LEN - 64, 640, 3200, 10.0, rate, {0}, 1};
@@ -97,7 +97,7 @@ int main(void)
         pcm_be[2 * k] = (uint8_t)((uint16_t)v >> 8);
         pcm_be[2 * k + 1] = (uint8_t)v;
     }
-    pc_mem_register_be(pcm_be, sizeof pcm_be);
+    pc_mem_register_samples(pcm_be, sizeof pcm_be);
     {
         uint16_t rate = (uint16_t)lrint(24000.0 / 22050 * 4096);   /* 4458 */
         TbVoice tv = {pcm_be, 0, LEN - 64, 100, 3200, 0.0, rate, {0}, 1};

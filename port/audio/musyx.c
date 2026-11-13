@@ -259,7 +259,8 @@ static size_t cat_bytes(uint8_t *dst, size_t cap, const Cat *c)
     return n;
 }
 
-/* The same as s16 samples: big-endian inside a pc_mem_is_be() range, native elsewhere. */
+/* The same as s16 samples: high byte first in sample memory (the sound library's caches of the cartridge's samples,
+ * pc_mem_register_samples), the host's byte order elsewhere (the streams the CPU fills). */
 static void cat_s16(int16_t *dst, size_t cap, const Cat *c)
 {
     size_t n = 0;
@@ -272,7 +273,7 @@ static void cat_s16(int16_t *dst, size_t cap, const Cat *c)
             n += len;
             continue;
         }
-        if (pc_mem_is_be(p)) {
+        if (pc_mem_is_sample_memory(p)) {
             for (size_t i = 0; i < len; i++)
                 dst[n + i] = (int16_t)(p[2 * i] << 8 | p[2 * i + 1]);
         } else {
@@ -393,7 +394,7 @@ static void render_voice(Mix *m, const Voice *v, int16_t last[4])
     } else {                   /* ADPCM */
         int16_t book[128];
         uint8_t raw[RAW_MAX];
-        int be = v->book && pc_mem_is_be(v->book);
+        int be = v->book && pc_mem_is_sample_memory(v->book);   /* the codebook cache's, as the cartridge has it */
         for (int i = 0; i < 128; i++)
             book[i] = v->book ? (int16_t)ld16(v->book + 2 * i, be) : 0;
         unsigned f0 = v->frames[0] > BUF / 32 ? BUF / 32 : v->frames[0];
@@ -701,7 +702,7 @@ static uint32_t cap_region(const void *src, size_t size, int swap16)
             memcpy(dst, (const uint8_t *)src - lead, n);
         else
             memcpy(dst + lead, src, size);
-        if (swap16 && !pc_mem_is_be(src))
+        if (swap16 && !pc_mem_is_sample_memory(src))
             for (size_t i = 0; i + 1 < n; i += 2) {
                 uint8_t t = dst[i];
                 dst[i] = dst[i + 1];

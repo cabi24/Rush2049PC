@@ -6,8 +6,9 @@
  * Each of the 183 waves is taken from the file table as _ReadWave takes it (ROM offset wave_rom_offsets, size
  * gWaveSizes, storage wave_storage_kinds: raw, LZSS or DEFLATE), put in a 32-byte-rounded block (of the tests' memory,
  * as the game's heap gives one) and passed to pc_wave_loaded. Then:
- *   - no converter may report a file it refused or cut ("runs past", "outside", "doesn't parse", ...), or a display
- *     list it couldn't build as the N64 relocated it ("display lists:");
+ *   - no converter may report a file it refused or cut ("runs past", "outside", "doesn't parse", ...), a display
+ *     list it couldn't build as the N64 relocated it ("display lists:"), or texels a WAD's records or lists place
+ *     outside its IMAG chunk, which its texel memory then has to cover ("texels:", docs/port/NATIVE.md 19);
  *   - WADs (the records the converter built beside the file, against the file's own): each record chunk's count fits
  *     before the next chunk; OBHD radii and LOD radii are finite, every level below lodCount has its native display
  *     list, and a level past lodCount has none in the file (the mirror pass reads all four); texture and palette
@@ -449,7 +450,7 @@ static void check_font(size_t block)
 static void convert(int wave, uint8_t *buf, size_t block)
 {
     static const char *const bad[] = {"runs past", "outside", "no WHDR", "doesn't parse", "not converted",
-                                      "display lists:", "left as is", "need 0x"};
+                                      "display lists:", "texels:", "left as is", "need 0x"};
     FILE *log = tmpfile();
     char line[512];
     int saved;

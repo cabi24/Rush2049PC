@@ -292,7 +292,7 @@ How each disagreement was settled (from the code, the N64's instructions in the 
 | a cartridge offset the definition typed `void *` | `lzss_decompress`, `inflate_decompress` | harmless (positive offsets); `u32` now |
 | more arguments than the definition reads | `dotireforce` (13: the N64 reads no 14th), `setFBCollisionForce` (5), `MBOX_FindPalette_WORK` (4), `AudioSongStop` (none), `CountdownTimeOut` (none), `sound_set_volume` (2), `sound_key_off` (1), `sound_seq_stop` (1) | harmless: the extras go |
 | fewer arguments than the definition reads | `ShowPakError`'s `poll()`: MAT3 and the N64 pass the pak | harmless on the PC (`%edi` still held it); `poll(row)` now |
-| a file's own view or its own forward declaration only | `AddStunt`, `relocate_texture_loads`, `musyx_submit_audio_task`, `zoid_load_palette`, `zoid_load_texture`, `zoid_draw_object`, `Traverse`, `SetupTarget` (its `fromWorld` flag is `s32`, MAT3's), `TB_FlashTextColors` (a `TextColor` by value; options_anim's copy `TB_FlashTextColors_AEAC` is gone) | agree now |
+| a file's own view or its own forward declaration only | `AddStunt`, `relocate_texture_loads`, `musyx_submit_audio_task`, `zoid_load_palette`, `zoid_load_texture`, `zoid_draw_object`, `Traverse`, `SetupTarget` (its `fromWorld` flag is `s32`, MAT3's), `TB_FlashTextColors` (a `tRGBA`, then called `TextColor`, by value; options_anim's copy `TB_FlashTextColors_AEAC` is gone) | agree now |
 
 `proto_check.py` (section 1, its table in section 2) went from 156 benign views of 69 functions (26
 unprototyped) to 37 of 24 (5 unprototyped), all of them now the PC layer's, libultra's or the C library's. None

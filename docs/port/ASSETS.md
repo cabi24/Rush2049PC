@@ -38,7 +38,9 @@ Function names are the repository's (often historical labels); the real role is 
   Loaded records keep their N64 sizes, with their pointer fields declared `u32` under `TARGET_PC`. The converting
   loader only byte-swaps scalar fields in place, by format, in one hook in `_ReadWave` before `SetupWaveModel`. Display lists,
   vertices, texels and TLUTs stay big-endian, and the wave buffer is registered with `pc_mem_register_be`.
-  About 12 game functions that walk or patch that payload get big-endian accessors.
+  About 12 game functions that walk or patch that payload get big-endian accessors. (That was the plan of
+  2026-10; wave 3 of the PC-only work made the records, lists and vertices native and left the texels and TLUTs in
+  texel memory: [NATIVE.md](NATIVE.md) 13, 15, 19.)
 
 ## 2. Load paths
 
@@ -141,9 +143,10 @@ Wave numbers come from the call sites [C]. Names come from the MAT3 call site at
 1. Kind 0: `memcpy` from `pc_rom_bytes() + wave_rom_offsets[n]`, `gWaveSizes[n]` bytes. Kind 1: C LZSS. Kind 2: zlib raw
    inflate.
 2. Call the converting loader (§5) by wave range, before `SetupWaveModel`.
-3. For WADs, `pc_mem_register_be(buffer, size)`. `UnloadWaveInstance` (`UnloadWaveInstance`, 0x80096130) and heap
-   compaction must unregister or move the registration. Only handle waves move, and those are font data, which has
-   no big-endian payload.
+3. For WADs, the converter registers the file's texels and TLUTs, its IMAG chunk, as texel memory
+   (`pc_mem_register_texels`, [NATIVE.md](NATIVE.md) 19). `UnloadWaveInstance` (`UnloadWaveInstance`, 0x80096130)
+   and the heap's frees drop the registration. Only handle waves move, and those are font data, which has no
+   texels.
 
 ## 3. Formats
 
@@ -226,7 +229,9 @@ pointer-sized w1), command for command:
   ≥ 0xFD) was made an address once, by the file's origin or IMAG's. Its w1 then points at
   `(origin + w1) & 0xFFFFFF` in the file, where the renderer read the relocated word (the file's RDRAM address plus the offset, in 24 bits): at the
   native command that starts there (G_DL, the E1 of a branch, a LOD marker's section end), at the native vertices
-  (VTX), or into the file (SETTIMG, MTX, MOVEMEM: texels, TLUTs and matrices stay in the file, big-endian). A word the
+  (VTX), at a copy of the matrix or viewport in the host's byte order (MTX, and MOVEMEM of a matrix or a viewport,
+  since [NATIVE.md](NATIVE.md) step 14), or into the file (SETTIMG, MOVEMEM of a light: texels and TLUTs stay in the
+  file, in its texel memory; a light is bytes). A word the
   N64 made an address not exactly once (a list no relocation walked, two walks over one command) pointed into no file:
   the converter says so (`display lists:` in the log) and leaves it NULL. Every other w1 is the file's word.
 - **The vertices**: the runs the VTX commands load, and the run `mirror_vertex_texcoords` walks from a level's first
@@ -411,7 +416,7 @@ hook in `_ReadWave` just before its `SetupWaveModel` call (`waves.c:254`), keyed
 | PLHD | WADs | side: done since NATIVE.md step 7 (before: swap) | 16 at 0x12; 32 at 0x14 | `struct tPaletteDef` in every reader, the car palettes too |
 | PTHD + PATH points | 101–119 | side (the records) and swap (the points): done since NATIVE.md step 7 | §3.1 | `struct tBasicTargetPath`; a path target's record names its path by index |
 | TXLD, OBJS DLs, Vtx | WADs | side: done since NATIVE.md step 10, the lists in the PC's form with host pointers, the vertices native (before: BE in the registered buffer) | §3.2 | §4 #6–11: `Gfx` and `Vtx` in the walkers |
-| IMAG texels and TLUTs | WADs | BE (the N64's texel formats, which the renderer decodes) | none; register the buffer | the TLUT colours by `pc_tlut_get`/`pc_tlut_set` |
+| IMAG texels and TLUTs | WADs | the N64's texel formats, which the renderer decodes (no address in them, and a 16-bit load may carry 4- or 8-bit texels) | none; IMAG registered as texel memory ([NATIVE.md](NATIVE.md) 19) | the TLUT colours by `pc_tlut_get`/`pc_tlut_set` |
 | WHDR | 120–138 | swap + side: done, `port/assets/world.c` ([LOADERS.md](LOADERS.md)): the name table native beside the file | u32 count, u32 woff | §4 #12–13 |
 | World nodes (WOBJ) | 120–138 | swap: done | 12 f32, u32, 4 × s16, s32, 6 f32 per 0x68 | none |
 | GDAT | 120–138 | swap: done | s16 at 0, 4 × f32, 4 × u16 | none |
@@ -625,9 +630,10 @@ Game C files changed: `src/ovl_a/titlescr_animText.c`, `src/blob/texcmp.c` (both
   (`MirrorWaveInstance`) over that wave in that window would walk them with big-endian accessors. Mirror passes come from `LoadWave` of a loaded
   wave whose mirror state changed and from `input_aux` (wave 54), and the mirror state is set at race set-up. No path
   to one during track select was found, so this is left open, not guarded.
-- **Converted blocks stay in the big-endian registry** (wad.c registers the block; the PI DMA and decompressors
-  register every file). Only port/gfx and port/audio ask, and only about display lists, vertices, texels, TLUTs and
-  samples, never about the records.
+- **Texel memory is a WAD's IMAG** (since [NATIVE.md](NATIVE.md) step 14; until then the whole block was in the
+  big-endian registry, and the PI DMA and the decompressors registered every file they wrote). Only the renderer
+  asks, and only about texels and TLUTs; the audio interpreter asks about sample memory, the sound library's
+  caches.
 - **Latent declarations:** `game_types.h`'s `CountdownState` and `game_globals.h`'s `D_8017A4EC`/`D_8017A4F0` read
   gText at N64 offsets but have no live user. `options_anim.c`'s `TextHdr` indexes past its declared 64 entries. The weak
   `Pair {s32, s32}` views of `gTexDefPtrs` would be wrong if one became strong.

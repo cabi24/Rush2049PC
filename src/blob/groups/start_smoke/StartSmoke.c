@@ -56,12 +56,12 @@ void StartSmoke(s16 slot, u32 type, s32 water, f32 *smkoffset)
     s16 first;
     s32 howmany;
     s32 howmanydone;
-    s32 wht = PC_RGBA(smoke_white);
-    s32 wg1 = PC_RGBA(smoke_wing_color1);
-    s32 wg2 = PC_RGBA(smoke_wing_color2);
-    s32 wg3 = PC_RGBA(smoke_wing_color3);
-    s32 rdClr = PC_RGBA(smoke_road_color);
-    s32 dtClr = PC_RGBA(smoke_dirt_color);
+    tRGBA wht = smoke_white;
+    tRGBA wg1 = smoke_wing_color1;
+    tRGBA wg2 = smoke_wing_color2;
+    tRGBA wg3 = smoke_wing_color3;
+    tRGBA rdClr = smoke_road_color;
+    tRGBA dtClr = smoke_dirt_color;
 
     if (!gGoodFrameRate && type < 4 && !water) return;
     /* PC: game.frame_rate 60: smoke only on the frames that complete a 30 Hz frame (pc_game_fps.h), but fire */
@@ -309,9 +309,9 @@ void StartSmoke(s16 slot, u32 type, s32 water, f32 *smkoffset)
             MBOX_HideObject(smk->mbIdx.handle, 0, 1 << car->camera);
         if (type >= SMOKE_WING0) {
             switch (gCarWings[slot + 1][m->body_type]) {
-            case 0: { s16 h = smk->mbIdx.handle; ObjInstanceList[h].color = wg1; } break;
-            case 1: { s16 h = smk->mbIdx.handle; ObjInstanceList[h].color = wg2; } break;
-            case 2: { s16 h = smk->mbIdx.handle; ObjInstanceList[h].color = wg3; } break;
+            case 0: { s16 h = smk->mbIdx.handle; ObjInstanceList[h].color = wg1.rgba; } break;
+            case 1: { s16 h = smk->mbIdx.handle; ObjInstanceList[h].color = wg2.rgba; } break;
+            case 2: { s16 h = smk->mbIdx.handle; ObjInstanceList[h].color = wg3.rgba; } break;
             }
         } else if (type == SMOKE_WRECK) {
             OBJ_COLOR(ObjInstanceList[smk->mbIdx.handle].color)[0] = gCarBlastSmokeClr[slot];
@@ -320,9 +320,9 @@ void StartSmoke(s16 slot, u32 type, s32 water, f32 *smkoffset)
             OBJ_COLOR(ObjInstanceList[smk->mbIdx.handle].color)[3] = 255;
             gCarBlastSmokeClr[slot] -= 3;
             if (gCarBlastSmokeClr[slot] < 53) gCarBlastSmokeClr[slot] = 53;
-        } else if (type == SMOKE_FIRE) { s16 h = smk->mbIdx.handle; ObjInstanceList[h].color = wht; }
-        else if (surface == SURF_VIS_DIRT) { s16 h = smk->mbIdx.handle; ObjInstanceList[h].color = dtClr; }
-        else { s16 h = smk->mbIdx.handle; ObjInstanceList[h].color = rdClr; }
+        } else if (type == SMOKE_FIRE) { s16 h = smk->mbIdx.handle; ObjInstanceList[h].color = wht.rgba; }
+        else if (surface == SURF_VIS_DIRT) { s16 h = smk->mbIdx.handle; ObjInstanceList[h].color = dtClr.rgba; }
+        else { s16 h = smk->mbIdx.handle; ObjInstanceList[h].color = rdClr.rgba; }
         smk->pos[0] = pos[0];
         smk->pos[1] = pos[1];
         smk->pos[2] = pos[2];

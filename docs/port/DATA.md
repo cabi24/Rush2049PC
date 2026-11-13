@@ -87,13 +87,15 @@ game's data declarations.
 **Unions.** A union with a member made only of bytes (a `u8` array or a struct of `u8`s) that covers all of it is
 copied as bytes, unless a member has a pointer or a `long` (whose host layout needs that member). Any other union
 is laid out by its largest member with the most non-byte elements. The first kind is the game's colours
-(`TextColor`, `tRGBA`, `RGBA`, `Color`, `Color4`: `{ u8 c[4]; u32 rgba; }` or `{ u32 word; struct { u8 r, g, b, a; }
-rgba; }`): the ROM holds R, G, B, A, the game reads those bytes, and swapped as a u32 they came out A, B, G, R. Every
+(`tRGBA`, include/game's, then also `TextColor`, `RGBA`, `Color`, `Color4`: `{ u8 c[4]; u32 rgba; }` or `{ u32 word;
+struct { u8 r, g, b, a; } rgba; }`): the ROM holds R, G, B, A, the game reads those bytes, and swapped as a u32 they
+came out A, B, G, R. Every
 union in the layout was checked against the game's reads (`endian_check.py`'s accesses and value flow,
 [ENDIAN.md](ENDIAN.md) 4). The 22 colour symbols in initialized data are read as bytes; their words are only
 copied (into locals, scene nodes, the car records, by value) or tested for equality, and no code shifts them,
-compares them with a constant or stores a word constant into them. So none is read both ways and none needs
-`PC_RGBA`. The other unions keep their layout: `Vtx` (`{ Vtx_t v; long long }`: s16s and the `cn` bytes), `Gfx`,
+compares them with a constant or stores a word constant into them. So none is read both ways. (Ten colours more,
+declared as words until [NATIVE.md](NATIVE.md) step 14 and swapped back by the game's `PC_RGBA`, are `tRGBA` since:
+[ENDIAN.md](ENDIAN.md) 3.2.) The other unions keep their layout: `Vtx` (`{ Vtx_t v; long long }`: s16s and the `cn` bytes), `Gfx`,
 `MenuSlot` (whose byte member is shorter than it), and the BSS ones (`__OSInodeUnit` is copied as bytes now too, but
 BSS is zeroed). Loaded as bytes now, listed in `data_layout.txt` ("Unions copied as bytes"):
 
@@ -470,17 +472,21 @@ generator refuses each of the three with its old declaration, so `synth_rom` fai
 **Judged and left.**
 
 - Image A's button and model slots `startscr_buttonInfo`, `trackscr_buttonInfo`, `playerscr_buttonInfo` (pass 1). A view with byte pads
-  (`ButtonInfo`, settings_values' `Slot`: `u8 unknown0C[36]` over the 3x3 matrix) ties with the record (`ButtonInfo`,
-  `tMenuButton`, `Slot64`) and wins by its name. That is the cheat codes' mistake with a struct that isn't all
-  bytes. So the matrices, and `Slot64`'s word at +0x3C, stay in the ROM's order. On the cartridge every one of those
+  (`ButtonInfo`, settings_values' `Slot`: `u8 unknown0C[36]` over the 3x3 matrix) tied with the record (`ButtonInfo`,
+  `tMenuButton`, `Slot64`) and won by its name. That is the cheat codes' mistake with a struct that isn't all
+  bytes. So the matrices, and `Slot64`'s word at +0x3C, stayed in the ROM's order. On the cartridge every one of those
   places (162, 432 and 88 elements) reads the same in either byte order. The screens' init also copies the unit
-  matrix into each slot whose handle is -1 before using it. If they ever need fixing, the fix is the records' fields
-  in the padded views, as `carscr_buttonInfo`'s (ENDIAN.md 3.3), not a ranking rule. A rule that prefers more bytes in wider
-  elements would rank settings_bar's `MenuSlot` (`float matrix[16]`) over the record, and swap the alpha byte at
-  +0x3C, `carscr_buttonInfo`'s first bug.
+  matrix into each slot whose handle is -1 before using it. **Fixed** since: wave 2's headers declare each datum once
+  (no ranking), `playerscr_buttonInfo` as `MenuButton[4][22]` (MAT3's `tMenuButton`: its matrix f32, its alpha a
+  byte, which every reader takes; no reader takes a word at +0x3C), and [NATIVE.md](NATIVE.md) step 14 gave the other
+  two their records' fields: `startscr_buttonInfo` a `StartScreenButton[18]` (MAT3 startscr.c's
+  `anon_buttonType_objIdx_3c`: type, handle, angle, matrix, position), `trackscr_buttonInfo` a `MenuButton[48]`
+  (MAT3 trackscr.c's `tMenuButton`), where `u8 unknown0C[36]` lay over their matrices. The loader converts the
+  matrices as f32 now; `--check-loader` and `known_widths` hold all three.
 - Pass 1's others: the colour unions `flashColors`, `flashColors_at_1`, `SheenColors` (bytes by design, section 2);
-  `taillight_colors_dim` and `headlight_colors_night` (`tUVPair`, read as u16) and `vp0` (a viewport, s16), whose `s32` views only
-  take the address; `gPaneBlits`, an `s32` view over a byte place that is neutral; `gPlayerRects_biased` (section 3).
+  `taillight_colors_dim` and `headlight_colors_night` and `vp0`, whose `s32` views only took the address, are
+  include/game's `tUVPair` (u16) and `PcViewport` (s16) since wave 2's headers, so the loader converts them as the
+  game reads them; `gPaneBlits` is a `tBlitSet[16]` in storage of its own; `gPlayerRects_biased` (section 3).
 - The report: no `text-in-words`. The `undescribed` targets that aren't text are those BRINGUP.md "What's next"
   lists: `gTrackColors` to the colours `Track1Colors` (bytes); pointer tables of short labels shorter
   than the text mark (`gDefaultNames`, `obscenities`, `cStrCreditNames`, `cStrLanguageNames`, `gPS_PakName`, `targetInfo`); and the
@@ -489,7 +495,13 @@ generator refuses each of the three with its old declaration, so `synth_rom` fai
   after `gSongNames` (`gSongNames`, 12 used: `songIdx < 12`), a table of string pointers with no name and no pointer
   to it; after `placePos`, `res_last_time`, `controls_updateButtonColor` (the asm's `countdown_polyColor`, `countdown_polyXYZ`), `no_rumble_pane_colors` (the
   asm's `D_801161B8`, `D_801161BC`), `carTransTraction_by_gear`, `fog_viewable_distance`, and image A's `carscr_msgPos`, `buildTrackMap_mapPos`,
-  `buildBattleTrackMaps_mapPos`. A C reader added later must declare them.
+  `buildBattleTrackMaps_mapPos`. A C reader added later must declare them. Looked at again for [NATIVE.md](NATIVE.md)
+  step 14, which converts what is left in the ROM's order only because nothing described it: these stay, as nothing
+  reads them. The named ones are MAT3's function statics, which the game C defines itself, initialized in C:
+  `countdown_polyColor` and `countdown_polyXYZ` are ShowCountdown's `polyColor` and `polyXYZ`, and the symbol file's
+  `trackscr_animTrackMap_cityPos`, `_mapPos`, `_rotAngle` and `trackscr_animTrackMaps_mapPos` (after the two map
+  positions) are trackscr.c's statics of the track map's animation; the image's copies are never read. The rest have
+  no name and no reader, so no type for them is known; an unread byte has no order.
 - f32 elements not plausible as loaded: -1 handles under f32 views (a word either way), the car descriptors'
   `tire_info` words (then inside `steady_leg_duration`, QA.md round 3; since 2026-11-09 `car_descriptors`, whose
   `tires` are pointers, [CARS.md](CARS.md) 4), and read-only constants.

@@ -8,7 +8,6 @@ typedef struct Blit Blit;
 /* A 3D menu button (MAT3 tMenuButton without its alpha): its type (startscr_buttonNames), its scene object, its
  * turn, its matrix (uvs[3] its position). */
 typedef struct ButtonInfo { s32 buttonType; s32 objIdx; f32 angle; f32 uvs[4][3]; } ButtonInfo;
-typedef union tRGBA { u8 c[4]; u32 w; } tRGBA;
 typedef struct MultiBlit MultiBlit;
 
 /* gcc rejects arrays of an incomplete type, which IDO accepts. Layouts as in src/blob/NewMultiBlit.c (MultiBlit)

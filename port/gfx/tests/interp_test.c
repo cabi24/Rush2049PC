@@ -31,29 +31,30 @@ float pc_gfx_parse_aspect(const char *text, int *ok);
 static struct {
     const uint8_t *p;
     size_t n;
-} s_be[8];
+} s_texels[8];
 
-void pc_mem_register_be(const void *start, size_t size) {
+void pc_mem_register_texels(const void *start, size_t size) {
     int i;
     for (i = 0; i < 8; i++)
-        if (s_be[i].p == NULL) {
-            s_be[i].p = (const uint8_t *)start;
-            s_be[i].n = size;
+        if (s_texels[i].p == NULL) {
+            s_texels[i].p = (const uint8_t *)start;
+            s_texels[i].n = size;
             return;
         }
 }
 
-void pc_mem_unregister_be(const void *start) {
+void pc_mem_unregister_texels(const void *start) {
     int i;
     for (i = 0; i < 8; i++)
-        if (s_be[i].p == start)
-            s_be[i].p = NULL;
+        if (s_texels[i].p == start)
+            s_texels[i].p = NULL;
 }
 
-int pc_mem_is_be(const void *p) {
+int pc_mem_is_texel_memory(const void *p) {
     int i;
     for (i = 0; i < 8; i++)
-        if (s_be[i].p != NULL && (const uint8_t *)p >= s_be[i].p && (const uint8_t *)p < s_be[i].p + s_be[i].n)
+        if (s_texels[i].p != NULL && (const uint8_t *)p >= s_texels[i].p &&
+            (const uint8_t *)p < s_texels[i].p + s_texels[i].n)
             return 1;
     return 0;
 }
@@ -225,7 +226,7 @@ static void make_models(void) {
     for (i = 0; i < 16 * 16; i++)   /* a 16 x 16 RGBA16 checker */
         be16(s_models + 0x1000 + 2 * i, ((i & 15) / 4 + i / 64) & 1 ? rgba16(255, 255, 255, 1) : rgba16(255, 0, 255, 1));
     pc_mem_register_model_data(s_models, 0x1000);        /* the vertices */
-    pc_mem_register_be(s_models + 0x1000, 0x1000);       /* the texels */
+    pc_mem_register_texels(s_models + 0x1000, 0x1000);   /* the texels: a file's, in texel memory */
 }
 
 /* Two frame buffers, as the game alternates its frame records: matrices, viewports, lists and native vertices. */

@@ -3,7 +3,6 @@
 #include "game/game.h"
 
 typedef struct Item { s32 type, handle; f32 angle, matrix[3][3], position[3]; u8 alpha, pad[3]; } Item;
-typedef union Color { u32 word; u8 channel[4]; } Color;
 /* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
 VIEW(Item[4][17], controls_buttonInfo);
 #define controls_buttonInfo controls_buttonInfo_view
@@ -37,7 +36,7 @@ void controls_updateButtons(s8 player) {
     f32 distance;
     f32 current_y;
     s16 texture;
-    Color color;
+    tRGBA color;
     struct tTexture *tex;
     s32 valid;
     s32 shown;
@@ -47,7 +46,7 @@ void controls_updateButtons(s8 player) {
     f32 top;
 
     settled = 1;
-    color.word = PC_RGBA(controls_updateButtonColor);
+    color = controls_updateButtonColor;
     if (controls_buttonsInited[player] != 0) {
         count = 0;
         before = 0;
@@ -129,9 +128,9 @@ void controls_updateButtons(s8 player) {
             else controls_buttonInfo[player][i].alpha=255;
             valid=controls_validOption(player,i);
             if(!valid)controls_buttonInfo[player][i].alpha=0;
-            color.channel[3]=controls_buttonInfo[player][i].alpha;
+            color.c[3]=controls_buttonInfo[player][i].alpha;
             handle = controls_buttonInfo[player][i].handle;
-            ObjInstanceList[handle].color=color.word;
+            ObjInstanceList[handle].color=color.rgba;
             if (i==10) {
                 controls_buttonInfo[player][12].position[0]=controls_buttonInfo[player][i].position[0];
                 controls_buttonInfo[player][12].position[1]=controls_buttonInfo[player][i].position[1];
@@ -141,7 +140,7 @@ void controls_updateButtons(s8 player) {
                 WPitchUV(controls_buttonInfo[player][i].angle-HALF_PI,controls_buttonInfo[player][12].matrix);
                 ZOID_SetTexture((s16)controls_buttonInfo[player][12].handle,tex,-1);
                 handle = controls_buttonInfo[player][12].handle;
-                ObjInstanceList[handle].color=color.word;
+                ObjInstanceList[handle].color=color.rgba;
             }
             shown=controls_validOption(player,i);
             if(!shown) {

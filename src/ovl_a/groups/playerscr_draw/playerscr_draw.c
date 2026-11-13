@@ -2,7 +2,6 @@
  * text over its 3D buttons, by the window's state. playerscr_animText is the screen's text blit callback. */
 #include "game/game.h"
 
-typedef TextColor Color4;   /* the flashing colours (include/game's TextColor) */
 /* A pak file record (MAT3 tPS_File) in its PC layout (pc_prelude.h PSF_OFS, docs/port/POINTERS.md 9.10): pak is
  * the pak it is on. */
 typedef struct FileInfo { void *next, *prev; void (*RemoveFile)(void *), (*MoveFile)(void *, void *); u8 pak; } FileInfo;
@@ -16,7 +15,7 @@ typedef struct FiveParts FiveParts;
 
 extern Player gPlayers[];
 
-VIEW(Color4, flashColors_at_1);
+VIEW(tRGBA, flashColors_at_1);
 #define flashColors_at_1 flashColors_at_1_view
 VIEW(Profile **[], gSelectedPlayer);
 #define gSelectedPlayer gSelectedPlayer_view

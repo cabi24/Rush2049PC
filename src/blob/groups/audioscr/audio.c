@@ -13,7 +13,7 @@ VIEW(ButtonInfo[], audio_buttonInfo);
 
 
 /* The two colours flashing text alternates between (MAT3 TB_text.c TB_FlashTextColors). */
-void TB_FlashTextColors(TextColor first, TextColor second)
+void TB_FlashTextColors(tRGBA first, tRGBA second)
 {
     gFlashColor1.rgba = first.rgba;
     gFlashColor2.rgba = second.rgba;

@@ -36,29 +36,30 @@ void pcgfx_gl_test_nudge(float dx, float dy);
 static struct {
     const uint8_t *p;
     size_t n;
-} s_be[32];
+} s_texels[32];
 
-void pc_mem_register_be(const void *start, size_t size) {
+void pc_mem_register_texels(const void *start, size_t size) {
     int i;
     for (i = 0; i < 32; i++)
-        if (s_be[i].p == NULL) {
-            s_be[i].p = (const uint8_t *)start;
-            s_be[i].n = size;
+        if (s_texels[i].p == NULL) {
+            s_texels[i].p = (const uint8_t *)start;
+            s_texels[i].n = size;
             return;
         }
 }
 
-void pc_mem_unregister_be(const void *start) {
+void pc_mem_unregister_texels(const void *start) {
     int i;
     for (i = 0; i < 32; i++)
-        if (s_be[i].p == start)
-            s_be[i].p = NULL;
+        if (s_texels[i].p == start)
+            s_texels[i].p = NULL;
 }
 
-int pc_mem_is_be(const void *p) {
+int pc_mem_is_texel_memory(const void *p) {
     int i;
     for (i = 0; i < 32; i++)
-        if (s_be[i].p != NULL && (const uint8_t *)p >= s_be[i].p && (const uint8_t *)p < s_be[i].p + s_be[i].n)
+        if (s_texels[i].p != NULL && (const uint8_t *)p >= s_texels[i].p &&
+            (const uint8_t *)p < s_texels[i].p + s_texels[i].n)
             return 1;
     return 0;
 }
@@ -1089,14 +1090,15 @@ static void case_dualtile(void) {
         }
 }
 
-/* Data in the N64's byte order (big-endian: a file's matrices and texels) and every address kind (GFX.md "Command
- * formats and addresses"). Every list is the PC's form, the files' too (docs/port/NATIVE.md step 10), and so are
- * vertices, wherever they lie; every address is a host pointer, or a segment's offset (docs/port/NATIVE.md 17):
- *   the frame's list --G_DL 0x06000000 (segment 6 = a host pointer)--> a list in a host buffer, inside a big-endian
- *     range: a LOD marker the race kept (a no-op), a big-endian matrix, texture image and native vertices through
- *     segment 6; then G_DL to the second buffer's list by its pointer
- *   the list in the second buffer (a big-endian range too, as a file in the game's heap): a big-endian matrix and
- *     native vertices by their pointers, a segment base set from this list (a pointer), vertices through that segment
+/* A file's texels in texel memory (high byte first, as the N64's RDP reads them: docs/port/NATIVE.md 19) beside
+ * native lists, vertices and matrices, and every address kind (GFX.md "Command formats and addresses"). Every list is
+ * the PC's form, the files' too (docs/port/NATIVE.md step 10), and so are vertices and matrices, wherever they lie;
+ * every address is a host pointer, or a segment's offset (docs/port/NATIVE.md 17):
+ *   the frame's list --G_DL 0x06000000 (segment 6 = a host pointer)--> a list in a host buffer whose texels are texel
+ *     memory: a LOD marker the race kept (a no-op), a matrix, the texture image and vertices through segment 6;
+ *     then G_DL to the second buffer's list by its pointer
+ *   the list in the second buffer (its texels texel memory too, as a file in the game's heap): a matrix and vertices
+ *     by their pointers, a segment base set from this list (a pointer), vertices through that segment
  *   the frame's list again: a texture by its pointer (a game-built list pointing at a heap texture) */
 static _Alignas(16) uint8_t s_asset[8192], s_ram[0x4000];
 
@@ -1104,41 +1106,34 @@ static void be16(uint8_t *p, uint16_t v) {
     p[0] = v >> 8;
     p[1] = v & 0xFF;
 }
-static void be32w(uint8_t *p, uint32_t v) {
-    p[0] = v >> 24;
-    p[1] = v >> 16;
-    p[2] = v >> 8;
-    p[3] = v;
-}
 /* A vertex at p (any alignment), in the host's byte order: a model's, as the WAD converter makes them. */
 static void vtx_at(uint8_t *p, int x, int y, int s, int t, uint8_t r, uint8_t g, uint8_t b) {
     Vtx v;
     vtx(&v, x, y, 0, s, t, r, g, b, 255);
     memcpy(p, &v, sizeof v);
 }
-static void be_mtx(uint8_t *p, float x, float y) {
+/* A translation matrix at p (any alignment), in the host's byte order: as the WAD converter copies a file's. */
+static void mtx_at(uint8_t *p, float x, float y) {
     Mtx m;
-    int i;
     mtx_trans(&m, x, y, 0);
-    for (i = 0; i < 16; i++)
-        be32w(p + 4 * i, m.m[i]);
+    memcpy(p, &m, sizeof m);
 }
 
-static void case_bedata(void) {
+static void case_filetexels(void) {
     uint8_t *ram = s_ram;
     int i;
     enum { DL = 0, MTX = 2048, VTX = 2304, TEX = 2560 };                     /* in s_asset */
     enum { R_DL = 0, R_MTX = 0x800, R_VTX = 0xC00, R_TEX = 0x1000, R_SEG7 = 0x2000 };   /* in s_ram */
     memset(s_asset, 0, sizeof(s_asset));
     memset(ram, 0, 0x4000);
-    be_mtx(s_asset + MTX, 100, 0);
+    mtx_at(s_asset + MTX, 100, 0);
     vtx_at(s_asset + VTX + 0, 10, 10, 0, 0, 255, 255, 255);
     vtx_at(s_asset + VTX + 16, 10, 42, 0, 32 << 5, 255, 255, 255);
     vtx_at(s_asset + VTX + 32, 42, 10, 32 << 5, 0, 255, 255, 255);
     vtx_at(s_asset + VTX + 48, 42, 42, 32 << 5, 32 << 5, 255, 255, 255);
-    for (i = 0; i < 32 * 32; i++)   /* left half red, right half yellow, BE texels */
+    for (i = 0; i < 32 * 32; i++)   /* left half red, right half yellow, texels high byte first */
         be16(s_asset + TEX + 2 * i, (i & 31) < 16 ? rgba16(255, 0, 0, 1) : rgba16(255, 255, 0, 1));
-    be_mtx(ram + R_MTX, 0, 100);
+    mtx_at(ram + R_MTX, 0, 100);
     vtx_at(ram + R_VTX + 0, 10, 10, 0, 0, 0, 0, 0);
     vtx_at(ram + R_VTX + 16, 10, 42, 0, 0, 0, 0, 0);
     vtx_at(ram + R_VTX + 32, 42, 10, 0, 0, 0, 0, 0);
@@ -1147,8 +1142,8 @@ static void case_bedata(void) {
     vtx_at(ram + R_SEG7 + 32, 92, 10, 0, 0, 0, 0, 0);
     for (i = 0; i < 8 * 8; i++)
         be16(ram + R_TEX + 2 * i, rgba16(0, 255, 255, 1));
-    pc_mem_register_be(s_asset, sizeof(s_asset));
-    pc_mem_register_be(ram, 0x4000);
+    pc_mem_register_texels(s_asset + TEX, 32 * 32 * 2);   /* each buffer's texels, as a WAD's IMAG */
+    pc_mem_register_texels(ram + R_TEX, 8 * 8 * 2);
 
     /* The list in the second buffer, reached by its pointer */
     gp = (PcGfxWords *)(void *)(ram + R_DL);
@@ -1192,11 +1187,11 @@ static void case_bedata(void) {
     cc_prim();
     gsDPFillRectangle(200, 10, 210, 20);
     frame_end();
-    pc_mem_unregister_be(s_asset);
-    pc_mem_unregister_be(ram);
-    check("seg 6: quad of BE texels, left (red)", 115, 25, 255, 0, 0, 2);
-    check("seg 6: quad of BE texels, right (yellow)", 135, 25, 255, 255, 0, 2);
-    check("a called list, BE matrix, vertices by pointer", 15, 115, 0, 255, 0, 2);
+    pc_mem_unregister_texels(s_asset + TEX);
+    pc_mem_unregister_texels(ram + R_TEX);
+    check("seg 6: quad of a file's texels, left (red)", 115, 25, 255, 0, 0, 2);
+    check("seg 6: quad of a file's texels, right (yellow)", 135, 25, 255, 255, 0, 2);
+    check("a called list, its matrix, vertices by pointer", 15, 115, 0, 255, 0, 2);
     check("segment set from a called list", 65, 115, 255, 0, 255, 2);
     check("nothing at the origin", 25, 25, 0, 0, 0, 0);
     check("the frame's list, a texture by pointer", 204, 54, 0, 255, 255, 2);
@@ -2581,7 +2576,7 @@ static const Case s_cases[] = {
     {"fill", case_fill},         {"shade", case_shade},       {"zbuf", case_zbuf},
     {"textures", case_textures}, {"texwrap", case_texwrap},   {"texrect", case_texrect},
     {"lit", case_lit},           {"fog", case_fog},           {"twocycle", case_twocycle},
-    {"lod", case_lod},           {"dualtile", case_dualtile}, {"bedata", case_bedata},
+    {"lod", case_lod},           {"dualtile", case_dualtile}, {"filetexels", case_filetexels},
     {"matrix", case_matrix},     {"cull", case_cull},         {"branchz", case_branchz},
     {"nearclip", case_nearclip}, {"eyeplane", case_eyeplane}, {"clip", case_clip},
     {"xlu", case_xlu},           {"widescreen", case_widescreen}, {"autosize", case_autosize}, {"fillwindow", case_fillwindow},

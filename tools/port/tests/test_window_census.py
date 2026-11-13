@@ -71,7 +71,7 @@ static int fixed(void) { return mmap((void *)PC_RDRAM_BASE, 8, 0, MAP_FIXED, -1,
 void *pc_n64_ptr(uint32_t a) { return (void *)(uintptr_t)(a + N64_KSEG0); }
 int high(void *p) { return (uintptr_t)p >> 32 != 0; }
 uint32_t low_memory = 0x80000300;
-void reg(void *p) { pc_mem_register_be(p, 4); }
+void reg(void *p) { pc_mem_register_texels(p, 4); }
 """,
     "port/gfx/gfx_rsp.c": """\
 static int is_host(uintptr_t a) { return a > 0xFFFFFFFFu; }

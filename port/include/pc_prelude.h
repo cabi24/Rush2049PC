@@ -24,12 +24,6 @@ static __inline__ void pc_tlut_set(void *entry, unsigned short colour) {
     b[1] = (unsigned char)colour;
 }
 
-/* A colour word as the N64 holds it in a register, 0xRRGGBBAA: the word whose bytes in host memory are R, G, B, A.
- * That is how the game's byte readers (the model draw's prim and env, the fill and font colours) and the renderer
- * take a colour. For a word the game stores into colour storage that is read as bytes: a constant, or a colour read
- * from data the PC loader swapped as a u32 (docs/port/ENDIAN.md). */
-#define PC_RGBA(x) __builtin_bswap32(x)
-
 /* The game heap (port/ultra/heap.c, docs/port/MEMORY.md 4): pc_heap_memory is the memory the main heap manages on a
  * console with mem_size bytes of RDRAM (osMemSize), its size in *size (locate_main_heap). The allocator says when the
  * heap is made and after each block it takes, under the heap's lock; an allocation no free block can hold, and the
@@ -105,9 +99,10 @@ struct pc_multiblit {
 #define TINFO_OFS(n) ((n) / 0x30 * 0x40 + ((n) % 0x30 < 0x10 ? (n) % 0x30 * 2 : (n) % 0x30 + 0x10))
 
 
-/* Ranges that hold raw big-endian ROM bytes (port/ultra, pc_port.h). */
-void pc_mem_register_be(const void *start, __SIZE_TYPE__ size);
-void pc_mem_unregister_be(const void *start);
+/* Sample memory: the sound library's caches of the cartridge's samples and codebooks, which the audio interpreter reads
+ * as the cartridge holds them (port/ultra, pc_port.h). */
+void pc_mem_register_samples(const void *start, __SIZE_TYPE__ size);
+void pc_mem_unregister_samples(const void *start);
 
 /* A wave's file is in memory, or its block goes away (port/assets, pc_port.h). */
 void pc_wave_loaded(int wave, void *buf, __SIZE_TYPE__ size);

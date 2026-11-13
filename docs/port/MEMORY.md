@@ -177,8 +177,8 @@ it (`InitWaves.c:92`), not when the heap is short. So at the N64's 8 MiB:
   (port/main.c) does exactly that for tests: `membig` loads six car files 3 MB larger than the cartridge's through
   this path at `memory = 64`.
 - **No 8 MiB limit is left on the way.** PI DMA copies any size anywhere (`pi.c`); inflate's room is the heap's end
-  from its destination (`pc_heap_room`; 8 MiB for a destination outside the heap); LZSS has no limit; the big-endian
-  registry takes any range; the converters take the block's size; the renderer and the audio interpreter take host
+  from its destination (`pc_heap_room`; 8 MiB for a destination outside the heap); LZSS has no limit; the texel and
+  sample memory registries take any range; the converters take the block's size; the renderer and the audio interpreter take host
   pointers.
 - **The room.** At `memory = 64` the heap has 62.5 MiB, 56 more than the N64's. The exit line's `free-low` and
   `largest block` say what a run left; About shows the peak while playing. A file must fit one free block (the
@@ -271,7 +271,7 @@ units the PC doesn't replace) for 0x7FFFFF, 0x3FFFFF, 0xFFFFFF, 0x00FFFFFF, 0x1F
 | `pi.c:127-129` | `rom_offset`: a device address 0x10000000-0x1FBFFFFF is the cartridge | device addresses, not RAM: right |
 | `pi.c:170-176`, `:258-266`, `:277` | PI DMA, inflate from the ROM, LZSS into any destination | no limit but inflate's |
 | `pi.c:229-237` | inflate's output room | was 8 MiB from any destination; now the window's end from a window destination, 8 MiB from a host one |
-| `pc_mem_register_be` and its users | the big-endian registry | any range: right |
+| `pc_mem_register_texels`, `pc_mem_register_samples` and their users | the texel and sample memory registries (until [NATIVE.md](NATIVE.md) step 14 the big-endian registry) | any range: right |
 | `gfx_rsp.c:45-47, 62-69` | `rdram`, `pcgfx_segment_value` | `phys & 0x1FFFFFFF` through `pc_n64_ptr`: the whole window |
 | `gfx_rsp.c:79-90` | `pcgfx_resolve`'s physical and segmented addresses | section 3's rule past 16 MiB |
 | `gfx_rsp.c:878` | `pcgfx.geom & (w0 & 0x00FFFFFF)` | geometry mode bits, not an address |

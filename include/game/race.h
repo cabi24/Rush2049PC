@@ -70,7 +70,7 @@ extern s8 gRestartGame;
 extern s8 gGamePointPlayed;
 extern u8 gFogColors[EXTENT(28)][3];   /* the fog colours (ZOID_SetFog), R G B */
 extern s32 playerTextColor[EXTENT(4)];
-extern TextColor flashColors[EXTENT(2)];
+extern tRGBA flashColors[EXTENT(2)];
 extern struct pc_multiblit idle_warning_multiblit[EXTENT(1)];
 extern void *inactiveBlit;
 extern s8 ghost_gInited;
@@ -158,7 +158,7 @@ extern s32 stunt_f;
 extern s32 stunt_okToStart;
 extern f32 stunt_GCabsW[EXTENT(3)];
 extern f32 stunt_eTime;
-extern TextColor hitColor;
+extern tRGBA hitColor;
 extern char *WprObjNames[EXTENT(10)];
 extern char *WfxObjNames[EXTENT(7)];
 extern char *MineTexNames[EXTENT(5)];

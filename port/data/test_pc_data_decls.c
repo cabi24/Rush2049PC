@@ -8,7 +8,7 @@
  * the rule this test exercises; the game's own names have their addresses in the symbol tables. */
 #include <stdint.h>
 
-/* A colour union as the game declares them (TextColor, tRGBA): R, G, B, A in memory, the word only moves them.
+/* A colour union as the game declares them (tRGBA): R, G, B, A in memory, the word only moves them.
  * A byte member covers it, so it is copied as bytes. */
 typedef union { uint8_t c[4]; uint32_t rgba; } TestColor;
 /* The other spelling (the runtime images' Color). */

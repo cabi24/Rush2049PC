@@ -121,7 +121,7 @@ static void load_block(uint32_t w0, uint32_t w1) {
         return;
     texels = lrs - uls + 1;
     src = pcgfx.timg.addr + (((size_t)ult * pcgfx.timg.width + uls) * bpp_x2(siz)) / 2;
-    be = pcgfx_is_be(src) || !host_is_le();
+    be = pcgfx_is_texel_memory(src) || !host_is_le();
     if (siz == G_IM_SIZ_32b) {
         /* RG to the low half, BA to the high half, two bytes per texel each */
         for (i = 0; i < texels && i < 1024; i++) {
@@ -170,7 +170,7 @@ static void load_tile(uint32_t w0, uint32_t w1) {
         return;
     w = sh - sl + 1;
     h = th - tl + 1;
-    be = pcgfx_is_be(pcgfx.timg.addr) || !host_is_le();
+    be = pcgfx_is_texel_memory(pcgfx.timg.addr) || !host_is_le();
     for (r = 0; r < h && r < 1024; r++) {
         const uint8_t *src = pcgfx.timg.addr + (((size_t)(tl + r) * pcgfx.timg.width + sl) * bpp_x2(siz)) / 2;
         unsigned swap = (r & 1) ? 4u : 0u, base = dst + r * line;
@@ -207,7 +207,7 @@ static void load_tlut(uint32_t w0, uint32_t w1) {
     if (n > 256)
         n = 256;
     src = pcgfx.timg.addr + ((size_t)tl * pcgfx.timg.width + sl) * 2;
-    be = pcgfx_is_be(src);
+    be = pcgfx_is_texel_memory(src);
     for (i = 0; i < n; i++) {
         uint16_t v = pcgfx_rd16(src + 2 * i, be);
         for (k = 0; k < 4; k++) {

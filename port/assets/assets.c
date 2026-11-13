@@ -1,5 +1,5 @@
 /* port/assets/assets.c: pc_wave_loaded picks a wave's converter by wave number (assets.h). The weak no-ops below
- * stand in for formats whose converter isn't written yet: those files stay big-endian. */
+ * stand in for a converter a program doesn't link (the tests'): those files stay as the cartridge has them. */
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -58,8 +58,7 @@ void pc_wave_released(int wave, void *buf)
 
 WEAK void pc_assets_wave_released(int wave, uint8_t *buf)
 {
-    (void)wave;
-    pc_mem_unregister_be(buf);
+    (void)wave, (void)buf;
 }
 
 WEAK void pc_assets_wad_block_freed(uint8_t *p, size_t size) { (void)p, (void)size; }
@@ -73,7 +72,6 @@ void pc_heap_block_freed(void *p, size_t size)
 {
     pc_assets_wad_block_freed((uint8_t *)p, size);
     pc_records_drop(p, size);  /* the native records built beside its files (records.c) */
-    pc_mem_unregister_be(p);   /* a file the PI DMA or a decompressor registered at the block's start */
 }
 
 void pc_swap16_n(void *p, size_t count)

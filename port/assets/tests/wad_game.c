@@ -49,8 +49,7 @@ int32_t osRecvMesg(void *mq, void **msg, int32_t flags) { (void)mq, (void)msg, (
 int32_t osPiStartDma(void *mb, int32_t pri, int32_t dir, uint32_t dev, void *dram, uint32_t size, void *mq)
 {
     (void)mb, (void)pri, (void)dir, (void)mq;
-    memcpy(dram, g_rom + dev, size);
-    pc_mem_register_be(dram, size);   /* as port/ultra/pi.c does */
+    memcpy(dram, g_rom + dev, size);   /* the cartridge's bytes as they are, as port/ultra/pi.c copies them */
     return 0;
 }
 void lzss_decompress(int32_t src, void *dst) { (void)src, (void)dst; abort(); }
@@ -153,9 +152,9 @@ static void check_tables(int slot, uint8_t *b)
     CHECK(dl0[0].w0 == 0x01003006u && pc_mem_is_model_data((void *)dl0[0].w1));
     CHECK(dl0[3].w0 == 0xDE000000u && dl0[3].w1 == (uintptr_t)(dl0 + 6));
     CHECK(LIST(w->textures[1].texBase)[0].w1 == (uintptr_t)(b + W_IMAG + 0x10));
-    /* The file itself: not relocated (the game no longer reads its lists), its texels and TLUTs big-endian */
+    /* The file itself: not relocated (the game no longer reads its lists), its texels and TLUTs texel memory */
     CHECK(memcmp(b + W_TXLD, g_rom + ROM_WAD + W_TXLD, W_IMAG - W_TXLD) == 0);
-    CHECK(pc_mem_is_be(b + W_TLUT));
+    CHECK(pc_mem_is_texel_memory(b + W_TLUT) && !pc_mem_is_texel_memory(b + W_TXLD));
 }
 
 int main(void)
@@ -246,7 +245,7 @@ int main(void)
     /* The heap frees the blocks: their registrations and lists go. */
     pc_heap_block_freed(block, BLOCK);
     pc_heap_block_freed(block2, BLOCK);
-    CHECK(!pc_mem_is_be(block + W_TLUT) && !pc_mem_is_be(block2 + W_TLUT));
-    CHECK(test_be_range_count() == 0 && test_model_data_count() == 0);
+    CHECK(!pc_mem_is_texel_memory(block + W_TLUT) && !pc_mem_is_texel_memory(block2 + W_TLUT));
+    CHECK(test_texel_range_count() == 0 && test_model_data_count() == 0);
     return TEST_DONE();
 }

@@ -9,8 +9,9 @@
  * lists G_DL, G_RDPHALF_1 before G_BRANCH_Z and a walked LOD marker name):
  *   - w0 is the file's;
  *   - a command the RCP reads an address from points where the N64's relocated word did: a list there, the same
- *     command the walk of the file comes to; a VTX's vertices, the file's in the host's byte order; anything else,
- *     the file's byte there; and NULL where the N64's word pointed outside the file;
+ *     command the walk of the file comes to; a VTX's vertices, the file's in the host's byte order; a MTX's matrix,
+ *     and a MOVEMEM's matrix or viewport, a copy of the file's in the host's byte order (16 words, 8 s16); anything
+ *     else, the file's byte there; and NULL where the N64's word pointed outside the file;
  *   - every other w1 is the file's word;
  *   - a command of the file the walks reach twice is one native command.
  * Stdlib only; no N64 address leaves this file. */
@@ -182,7 +183,26 @@ static void wlc_walk(WlcCheck *c)
                             break;
                         }
                     }
-            } else if (op == 0xDA || op == 0xDC || op == 0xDD || (op == 0xE1 && next == 0xDD) || op >= 0xFD) {
+            } else if (op == 0xDA || (op == 0xDC && ((w0 & 0xFF) == 8 || (w0 & 0xFF) == 14))) {
+                /* a matrix (16 words) or a viewport (8 s16), copied in the host's byte order */
+                unsigned unit = op == 0xDC && (w0 & 0xFF) == 8 ? 2 : 4, len = unit == 2 ? 16 : 64;
+                const uint8_t *m = (const uint8_t *)nat->w1;
+                if (t == ~0u ? m != NULL : m == NULL)
+                    wlc_bad(c, off, "its copy is not where the N64's word pointed (0x%X)", t);
+                for (unsigned k = 0; m && t != ~0u && k < len && t + k + unit <= c->size; k += unit) {
+                    const uint8_t *f = c->orig + t + k;
+                    uint32_t want = unit == 2 ? (uint32_t)(f[0] << 8 | f[1]) : wlc_be32(f), have = 0;
+                    uint16_t h16;
+                    if (unit == 2)
+                        memcpy(&h16, m + k, 2), have = h16;
+                    else
+                        memcpy(&have, m + k, 4);
+                    if (have != want) {
+                        wlc_bad(c, off, "its copy's bytes at +0x%X are not the file's", k);
+                        break;
+                    }
+                }
+            } else if (op == 0xDC || op == 0xDD || (op == 0xE1 && next == 0xDD) || op >= 0xFD) {
                 if (t == ~0u ? nat->w1 != 0 : nat->w1 != (uintptr_t)(c->file + t))
                     wlc_bad(c, off, "its address is not where the N64's word pointed (0x%X)", t);
             } else if (nat->w1 != (uintptr_t)raw)

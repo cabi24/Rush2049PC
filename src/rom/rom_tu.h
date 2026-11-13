@@ -5,9 +5,9 @@
 #include "PR/os_message.h"
 #include "PR/os_thread.h"
 
-/* PC layer (port/include/pc_port.h): big-endian ranges, for the MusyX DMA caches (hardware.c). */
-extern void pc_mem_register_be(const void *start, __SIZE_TYPE__ size);
-extern void pc_mem_unregister_be(const void *start);
+/* PC layer (port/include/pc_port.h): sample memory, the sample and codebook caches the DMA fills (hardware.c). */
+extern void pc_mem_register_samples(const void *start, __SIZE_TYPE__ size);
+extern void pc_mem_unregister_samples(const void *start);
 
 
 /* Additive declarations for shared src/rom/rom_tu.h; existing types suffice. */

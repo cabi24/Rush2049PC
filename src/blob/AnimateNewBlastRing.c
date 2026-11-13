@@ -20,8 +20,6 @@ typedef struct tBlastRingStruct {
     f32 incTime;            /* seconds to its next step */
 } tBlastRingStruct;
 
-typedef union tRGBA {struct {u8 red,green,blue,alpha;} c;u32 rgba;} tRGBA;
-
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 /* On the PC the blast rings are pc_blast_rings, PC_MAX_LINKS long, with no N64 address (pc_game_types.h,
@@ -67,10 +65,10 @@ release:
         }
         if(phase>=7) {
             /* ZOID_SetColor, inlined */
-            clr.c.red=255;
-            clr.c.green=255;
-            clr.c.blue=255;
-            clr.c.alpha=gBlastRingObjs[v->slot].ralpha;
+            clr.c[0]=255;
+            clr.c[1]=255;
+            clr.c[2]=255;
+            clr.c[3]=gBlastRingObjs[v->slot].ralpha;
             phase=gBlastRingObjs[v->slot].ringIdx.part.index;
             ObjInstanceList[phase].color=clr.rgba;
             if(gBlastRingObjs[v->slot].ralpha>=25) {

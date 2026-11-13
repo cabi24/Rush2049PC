@@ -148,11 +148,11 @@ int main(void)
     run_voice(&v);
     CHECK(out[0] == 1008 && out[2 * 191] == 1008 + 191, "start offset: %d", out[0]);
 
-    /* 5. Byte order: the same samples big-endian in a registered range. */
+    /* 5. Byte order: the same samples high byte first in sample memory (as the cartridge holds them). */
     main_voice(&v, (const int16_t *)ramp_be, 513, 198, 0x1000, 0);
-    pc_mem_register_be(ramp_be, sizeof ramp_be);
+    pc_mem_register_samples(ramp_be, sizeof ramp_be);
     run_voice(&v);
-    pc_mem_unregister_be(ramp_be);
+    pc_mem_unregister_samples(ramp_be);
     {
         int bad = 0;
         for (int i = 0; i < MX_SUBFRAME; i++)

@@ -2,7 +2,6 @@
  * StartShadow(), StartArrow()). */
 #include "game/game.h"
 
-typedef union tRGBA { unsigned char c[4]; unsigned int rgba; } tRGBA;
 /* A car visual (tVisual) on the PC: 0x28 bytes, next, data and func pointer-sized (struct pc_visual,
  * docs/port/CARS.md 3). */
 typedef struct tVisual {

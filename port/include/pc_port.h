@@ -35,12 +35,20 @@ size_t pc_rom_size(void);
  * has made it. */
 int pc_heap_holds(const void *p);
 
-/* Ranges that hold raw big-endian bytes from the ROM (asset buffers filled by DMA). The renderer reads matrices,
- * viewports, 16-bit texels and TLUTs in the N64's byte order there, and the audio interpreter its samples and tables
- * (port/ultra/memory.c). */
-void pc_mem_register_be(const void *start, size_t size);
-void pc_mem_unregister_be(const void *start);
-int pc_mem_is_be(const void *p);
+/* Texel memory: the files' texels and TLUTs, a WAD's IMAG chunk (port/assets/wad.c), kept in the formats the N64's
+ * RDP reads, where a 16- or 32-bit texel is high byte first. The renderer decodes texels there as they are, and
+ * anywhere else (the texels and palettes the game builds) in the host's byte order (port/ultra/memory.c,
+ * docs/port/NATIVE.md 19). */
+void pc_mem_register_texels(const void *start, size_t size);
+void pc_mem_unregister_texels(const void *start);
+int pc_mem_is_texel_memory(const void *p);
+/* Sample memory: the sound library's caches of the cartridge's samples and ADPCM codebooks (src/rom/sound/hardware.c),
+ * filled by DMA as the cartridge holds them: a PCM16 sample or a codebook coefficient high byte first. The audio
+ * interpreter decodes them there as they are, as the RSP's microcode did, and its other sources (the streams the CPU
+ * fills) in the host's byte order. */
+void pc_mem_register_samples(const void *start, size_t size);
+void pc_mem_unregister_samples(const void *start);
+int pc_mem_is_sample_memory(const void *p);
 /* Ranges that hold the models' vertices the WAD converter made native when their file loaded (port/assets/wad.c,
  * docs/port/NATIVE.md step 10): data that stays where it is while the file is loaded, where the vertices the game
  * builds each frame don't. The high frame rate pairs a model's transforms by it (gfx_interp.c). */
@@ -112,7 +120,7 @@ void pc_data_overlay_load(int overlay);
  * byte order and build its native records and display lists, by format (docs/port/ASSETS.md §5). size is the block's
  * size. */
 void pc_wave_loaded(int wave, void *buf, size_t size);
-/* The wave's block is freed or moves: drop its big-endian registrations. */
+/* The wave's block is freed or moves: drop what was kept for its file (its native records, a WAD's texel memory). */
 void pc_wave_released(int wave, void *buf);
 
 /* ---------------------------------------------------------------- graphics (port/gfx), host main thread */

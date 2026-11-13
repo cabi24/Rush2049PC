@@ -697,14 +697,14 @@ void sound_hw_advance_voice_position(SoundHwVoice *audio, unsigned short samples
     }
 }
 
-/* Allocates the codebook cache: entry_count 256-byte buffers, all on the free list. On the PC the buffer is marked
- * as holding big-endian data (the DMA copies cartridge bytes into it as they are). */
+/* Allocates the codebook cache: entry_count 256-byte buffers, all on the free list. The DMA copies the cartridge's
+ * codebooks into it as they are, so it is sample memory (pc_port.h): the audio interpreter reads them so. */
 void sound_hw_init_codebook_cache(int entry_count)
 {
     int i;
     sound_codebook_nodes = sound_services.allocate(entry_count * sizeof(AudioNode), 0);
     sound_codebook_cache = sound_services.allocate(entry_count * ADPCM_CODEBOOK_BYTES, 0);
-    osInvalDCache(sound_codebook_cache, entry_count * ADPCM_CODEBOOK_BYTES); pc_mem_register_be(sound_codebook_cache, entry_count * ADPCM_CODEBOOK_BYTES);
+    osInvalDCache(sound_codebook_cache, entry_count * ADPCM_CODEBOOK_BYTES); pc_mem_register_samples(sound_codebook_cache, entry_count * ADPCM_CODEBOOK_BYTES);
     sound_codebook_used = 0;
     sound_codebook_free = sound_codebook_nodes;
     sound_codebook_nodes[0].buffer = sound_codebook_cache;
@@ -721,7 +721,7 @@ void sound_hw_init_codebook_cache(int entry_count)
 /* Frees the codebook cache. */
 void sound_hw_free_codebook_cache(void)
 {
-    pc_mem_unregister_be(sound_codebook_cache); sound_services.release(sound_codebook_cache);
+    pc_mem_unregister_samples(sound_codebook_cache); sound_services.release(sound_codebook_cache);
     sound_services.release(sound_codebook_nodes);
 }
 
@@ -776,12 +776,12 @@ unsigned char *sound_hw_fetch_codebook(unsigned int source)
 }
 
 /* Allocates the sample cache: block_count blocks of 0x600 bytes, all on the free list and none on the LRU list.
- * On the PC the buffer is marked as holding big-endian data. */
+ * The DMA copies the cartridge's samples into it as they are: sample memory, as the codebook cache. */
 void sound_hw_init_sample_cache(unsigned short block_count)
 {
     int i;
     sound_sample_cache = sound_services.allocate(block_count * SAMPLE_BLOCK_BYTES, 0);
-    osInvalDCache(sound_sample_cache, block_count * SAMPLE_BLOCK_BYTES); pc_mem_register_be(sound_sample_cache, block_count * SAMPLE_BLOCK_BYTES);
+    osInvalDCache(sound_sample_cache, block_count * SAMPLE_BLOCK_BYTES); pc_mem_register_samples(sound_sample_cache, block_count * SAMPLE_BLOCK_BYTES);
     sound_sample_nodes = sound_services.allocate(block_count * sizeof(AudioCacheNode), 0);
     sound_sample_lru_head = 0;
     sound_sample_lru_tail = 0;
@@ -800,7 +800,7 @@ void sound_hw_init_sample_cache(unsigned short block_count)
 void sound_hw_free_sample_cache(void)
 {
     sound_services.release(sound_sample_nodes);
-    pc_mem_unregister_be(sound_sample_cache); sound_services.release(sound_sample_cache);
+    pc_mem_unregister_samples(sound_sample_cache); sound_services.release(sound_sample_cache);
 }
 
 /* Takes a sample cache block for new data and puts it at the LRU list's tail (the most recent end): a free one,

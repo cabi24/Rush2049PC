@@ -85,8 +85,8 @@ extern s8 text_lock_inited;
 extern void *pause_gTitlePane;
 extern s8 gInited_TBText;
 extern TextJust gJust;
-extern TextColor gFlashColor1;
-extern TextColor gFlashColor2;
+extern tRGBA gFlashColor1;
+extern tRGBA gFlashColor2;
 extern volatile f32 gColorCycleTime;
 extern Color8 gFontColors[EXTENT(22)];
 extern s8 text_wave_inited;
@@ -103,7 +103,7 @@ extern struct tTexture *gFontTextures[EXTENT(16)];
 extern s16 gCharMap[EXTENT(256)];
 extern s32 font_image_format;
 extern s32 font_texel_size;
-extern TextColor gFontColor;   /* the text's colour, R, G, B, A (HAL_SetTextColor) */
+extern tRGBA gFontColor;   /* the text's colour, R, G, B, A (HAL_SetTextColor) */
 extern s8 gLeading;
 extern s8 gSpacing;
 extern u32 gFontAttribute;
@@ -157,7 +157,7 @@ void TB_DrawText(s16 x, s16 y, void *text);
 void TB_DrawTextC(s16 x, s16 y, s32 color, void *text);
 void TB_DrawTextScrollBox(s16 x, s16 y, s16 width, s16 height, s16 page, s16 line, void *text);
 void TB_EllipseText(void *dst, void *src, s16 width);
-void TB_FlashTextColors(TextColor first, TextColor second);
+void TB_FlashTextColors(tRGBA first, tRGBA second);
 f32 TB_GetFlashTextCycle(void);
 s16 TB_GetFontHeight(void);
 s16 TB_GetFontLineHeight(void);
