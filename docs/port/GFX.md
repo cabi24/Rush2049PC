@@ -125,10 +125,16 @@ memory, its format and size, and the palette ([TEXTURES.md](TEXTURES.md) "A text
 texture memory carry the same values as records, so the identities, the dump's names and every pack's files are the
 same (`gfx.tex.*`, `mods_texture`).
 
-**The proof.** Stage 1 (the renderer reading records, decoded from the N64's words at the walk) and stage 2 (the
-records everywhere) each against the reference: every synthetic path the same, screenshots byte for byte
-(`synth_compare.py --same --shots`), the gfx tests (which build records with their own encoders, `tests/test_gbi.h`)
-and the converter's (`assets_wad`, `assets_wad_game`, `assets_mods`) passing.
+**The proof** (Rocky, x86-64, GCC 14; the reference is d224beab's builds). Stage 1, the renderer reading records it
+decoded from the N64's words at the walk (the decoder that became `pc_gfx_from_n64`), and stage 2, the records
+everywhere, each against the reference's Debug build: 64 of 64 synthetic paths the same (`synth_compare.py --same
+--shots --data-moved`, stage 2 with `--audio` too), screenshots and sound byte for byte. objsame, Debug and
+RelWithDebInfo: stage 1 changes no game unit; stage 2 the 22 that build or walk lists and no other; naming the render
+modes after it, none. The gfx tests (which build records with their own encoders, `tests/test_gbi.h`), the
+converter's (`assets_wad`, `assets_wad_game`, `assets_mods`), the front end's and the mods' pass. The gate on the
+final tree (`pconly_gate.sh --base` the reference `--skip realtime --data-moved`): the build, 64 of 64 paths the same
+with `--shots --audio`, ctest 570 of 572 (`assets_pools` read the frame list's end as the N64's words, and
+`render_values` wanted StartGraphics' call of `pc_gfx_list_from_n64` listed: both fixed, and passing).
 
 ## Addresses and byte order
 
@@ -1083,8 +1089,9 @@ build/gfx/gfx_test texrect --png /tmp/out
 - **Textures.** `gfx_tex_test` (`gfx.tex.*`): the PNG reader, texture identities, a pack's round trip, wrap and
   mirror seams at 2x, LOD levels at 2x, 6.75 and 2.25, cut-out edges, the worker and the disk cache
   ([TEXTURES.md](TEXTURES.md) "Tests").
-- **How the test works.** `gfx_test` builds display lists with its own encoders (`tests/test_gbi.h`, written from
-  the SDK formats and not from the renderer's decoder). It renders them headless and checks pixels against values
+- **How the test works.** `gfx_test` builds display lists with its own encoders (`tests/test_gbi.h`: the SDK's macros'
+  names, each writing the records with the values the SDK's formats give its command; the N64's words until wave 4).
+  It renders them headless and checks pixels against values
   worked out from the N64 rules. It provides its own `pc_mem_is_texel_memory` and `pc_mem_is_model_data`, and keeps its data
   in host buffers (until [NATIVE.md](NATIVE.md) step 12 an 8 MB RDRAM array behind its own `pc_n64_ptr`).
 - **Cases.** 27, one CTest each:
