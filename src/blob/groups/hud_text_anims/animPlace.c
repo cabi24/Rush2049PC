@@ -41,12 +41,12 @@ s32 animPlace(s32 blit)
     }
     w = HAL_GetCharWidth('8');
     for (i = 0; i < gNumWindows; i++) {
-        if (AreWeSolid(i) == 0 || PC_CAR_PLACE_LOCKED(i) == 1) {
+        if (AreWeSolid(i) == 0 || pc_cars[i].place_locked == 1) {
             continue;
         }
         x = placePos[gNumWindows - 1][i].x;
         y = placePos[gNumWindows - 1][i].y;
-        slash = place_digits(str, PC_CAR_PLACE(i) + 1);
+        slash = place_digits(str, pc_cars[i].place + 1);
         str[slash] = '/';
         n = slash + 1 + place_digits(str + slash + 1, gNumCars);
         x -= w * slash;

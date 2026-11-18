@@ -1,13 +1,6 @@
 /* StartFrame.c: start a car's frame visual (MAT3 visuals.c, StartFrame()). */
 #include "game/game.h"
 
-/* The car record (tCarData, N64 layout: docs/port/CARS.md 2), the fields StartFrame sets. */
-typedef struct tCarData
-{
-  u8 pad000[0x110]; struct pc_visual visuals[21]; u8 pad308[0x374 - 0x308];
-  f32 roktScale[3];             /* +0x374 the scale of the rocket car's three flames */
-} tCarData;
-
 /* Give car `slot`'s frame its visual (VIS_FRAME, animated by AnimateFrame: the body, its colour and the rocket's
  * flames) and show it. The rocket car (body 2) gets its three flame objects, with their starting scales. In a
  * battle or a stunt race (gRace 6 kBattle, 4 kStunt) with three or four players the sheen is hidden, a cost the
@@ -18,7 +11,7 @@ void StartFrame(s16 slot)
   CarParts *parts;
   u16 *objects = (u16 *) &gObjList;
   parts = &gCarParts[slot];
-  car = PC_CAR(slot);
+  car = &pc_cars[slot];
   car->visuals[VIS_FRAME].func = AnimateFrame;
   car->visuals[VIS_FRAME].objnum = (s16) parts->frame;
   car->visuals[VIS_FRAME].slot = slot;

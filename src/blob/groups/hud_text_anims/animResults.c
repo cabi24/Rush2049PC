@@ -7,7 +7,6 @@ typedef struct OSMesgQueue OSMesgQueue;
 #define TEXT_PLACE_SUFFIXES 55            /* gText.tab[]: the places' suffixes ("st", "nd" ...) */
 
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 
 extern s32 osRecvMesg(OSMesgQueue *, void **, s32), osSendMesg(OSMesgQueue *, void *, s32);
 
@@ -34,7 +33,7 @@ s32 animResults(s32 unused)
     aFinished = 0;
     for (playerIdx = 0; playerIdx < gNumWindows; playerIdx++) {
         if (gNumLaps == pc_models[playerIdx].laps) aFinished = 1;
-        if (PC_CAR_PLACE_LOCKED(pc_models[playerIdx].slot) == 1) numFinished++;
+        if (pc_cars[pc_models[playerIdx].slot].place_locked == 1) numFinished++;
     }
     HAL_SetTextDepth(0.0f);
     TB_SetJust(1, 1);
@@ -57,7 +56,7 @@ s32 animResults(s32 unused)
     TB_SetTextColor(1);
     for (playerIdx = 0; playerIdx < gNumWindows; playerIdx++) {
         if (gDeathMode && gNumLaps != pc_models[playerIdx].laps) continue;
-        if (PC_CAR_PLACE_LOCKED(pc_models[playerIdx].slot) != 1) continue;
+        if (pc_cars[pc_models[playerIdx].slot].place_locked != 1) continue;
         x = wrongWayPos[gNumWindows - 1][playerIdx].x;
         y = wrongWayPos[gNumWindows - 1][playerIdx].y;
         if (gNumWindows == 4 && playerIdx >= 2) y += 12;
@@ -78,20 +77,20 @@ s32 animResults(s32 unused)
                 u32 sec;
                 u32 thou;
 
-                min = (u32)PC_CAR_SCORE(gPlayers[playerIdx].slot);
+                min = (u32)pc_cars[gPlayers[playerIdx].slot].score;
                 min = min / 60 % 100;
-                sec = (u32)PC_CAR_SCORE(gPlayers[playerIdx].slot) % 60;
-                thou = (u32)(1000.0f * PC_CAR_SCORE(gPlayers[playerIdx].slot));
+                sec = (u32)pc_cars[gPlayers[playerIdx].slot].score % 60;
+                thou = (u32)(1000.0f * pc_cars[gPlayers[playerIdx].slot].score);
                 thou %= 1000;
                 TB_Sprintf(str, "%s\n%s %d:%02d.%03d", (*gPlayers[playerIdx].save)->name, gText.single[208],
                              min, sec, thou);
             }
         } else if (gRace == kBattle) {
-            TB_Sprintf(str, "%s\n%d %s", (*gPlayers[playerIdx].save)->name, PC_CAR_POINTS(playerIdx),
+            TB_Sprintf(str, "%s\n%d %s", (*gPlayers[playerIdx].save)->name, pc_cars[playerIdx].battle.Points,
                          gText.single[130]);
         } else {
             char str1[32], str2[32];
-            s32 place = PC_CAR_PLACE(gPlayers[playerIdx].slot);
+            s32 place = pc_cars[gPlayers[playerIdx].slot].place;
 
             TB_Sprintf(str1, gText.single[198], place + 1,
                          gText.taba[gText.tab[TEXT_PLACE_SUFFIXES] + place]);
@@ -102,10 +101,10 @@ s32 animResults(s32 unused)
                 u32 sec;
                 u32 thou;
 
-                min = (u32)PC_CAR_SCORE(gPlayers[playerIdx].slot);
+                min = (u32)pc_cars[gPlayers[playerIdx].slot].score;
                 min = min / 60 % 100;
-                sec = (u32)PC_CAR_SCORE(gPlayers[playerIdx].slot) % 60;
-                thou = (u32)(1000.0f * PC_CAR_SCORE(gPlayers[playerIdx].slot));
+                sec = (u32)pc_cars[gPlayers[playerIdx].slot].score % 60;
+                thou = (u32)(1000.0f * pc_cars[gPlayers[playerIdx].slot].score);
                 thou %= 1000;
                 TB_Sprintf(str2, "%s %d:%02d.%03d", gText.single[208], min, sec, thou);
             }

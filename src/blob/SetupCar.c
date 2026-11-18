@@ -5,17 +5,6 @@
 #include "game/game.h"
 #define OSThread OSThreadView   /* this file's own OSThread: include/game's OSThread is another type */
 
-/* The car record (tCarData, N64 layout: docs/port/CARS.md 2), the fields SetupCar uses. */
-typedef struct tCarData {
-    u8 pad000[0xE8];
-    u32 appearance;             /* +0x0E8 APPEAR_* */
-    u8 pad0EC[0xF4 - 0xEC];
-    int objnum;                 /* +0x0F4 the frame's scene object */
-    u8 pad0F8[0x110 - 0xF8]; struct pc_visual visuals[21]; u8 pad308[0x35D - 0x308];
-    s8 view;                    /* +0x35D the camera view: 1 shows the hood, 0 and 1 no tires */
-    u8 pad35E[0x380 - 0x35E]; void *player; u8 pad384[0x3B8 - 0x384];
-} tCarData;
-
 typedef struct OSThread OSThread;
 
 extern void osStopThread(OSThread *);
@@ -36,17 +25,17 @@ void SetupCar(s16 slot, u8 type, int for_game)
  u16 frame_def;
  s16 i;
  if(for_game && type!=13) {
-  if(PC_CAR_FLAGS(slot)&APPEAR_HULK) {
+  if(pc_cars[slot].appearance&APPEAR_HULK) {
    osStopThread(&model_thread);
    if(PC_LINK_OWNER(slot)!=6 || gDriveHulk[slot]==0)mask=~APPEAR_HULK;   /* owner 6: LINK_OWNER_HUMAN */
    else if(gDriveHulk[slot]==2)mask=~APPEAR_WRECK_SMOKE;
    else mask=-1;
    pc_models[slot].appearance&=mask;
-   PC_CAR_FLAGS(slot)&=mask;
+   pc_cars[slot].appearance&=mask;
    osStartThread(&model_thread);
   }
  }
- car=PC_CAR(slot);
+ car=&pc_cars[slot];
  frame_def=PickCar(slot,type);
  parts=&gCarParts[slot];
  ZOID_SetObjectDef(parts->frame,frame_def);

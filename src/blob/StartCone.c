@@ -4,14 +4,6 @@
  * gMineCones it blows up under the car. */
 #include "game/game.h"
 
-/* The car record's view (MAT3 tCarData) in the PC layout: the velocity and the picked-up-mine flag. */
-typedef struct GameCar {
-    u8 pad000[0x14];
-    f32 dr_vel[3];          /* 0x14 the velocity, feet a second */
-    u8 pad020[0x110 - 0x20]; struct pc_visual visuals[21]; u8 pad308[0x35F - 0x308];
-    u8 carMine;             /* 0x35F the car carries a cone as a mine (the gCarMines cheat) */
-    u8 pad360[0x380 - 0x360]; void *input; u8 pad384[0x3B8 - 0x384];
-} GameCar;
 
 
 #define OBJ_CONE 236            /* the cone's object (MAT3 550) */
@@ -37,11 +29,11 @@ void StartCone(tTarget *t)
     f32 tmat[4][3];
     f32 *vel;
     tTargetStructVelRot *motion;
-    GameCar *car;
+    tCarData *car;
     TargInfo *info;
 
     info = &targetInfo[t->infoIdx];
-    car = PC_CAR(t->slot);
+    car = &pc_cars[t->slot];
     if (gCarMines && info->objListIdx == OBJ_CONE) {
         car->carMine = 1;
         MBOX_HideObject(t->dlIdx, 0, 15);

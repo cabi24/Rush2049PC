@@ -70,9 +70,9 @@ release:
         ReleaseEnviron(v, 1);
         return;
     }
-    gBlastObjs[v->slot].mat.pos[0] = PC_CAR_POS(v->slot)[0];
-    gBlastObjs[v->slot].mat.pos[1] = PC_CAR_POS(v->slot)[1];
-    gBlastObjs[v->slot].mat.pos[2] = PC_CAR_POS(v->slot)[2];
+    gBlastObjs[v->slot].mat.pos[0] = pc_cars[v->slot].dr_pos[0];
+    gBlastObjs[v->slot].mat.pos[1] = pc_cars[v->slot].dr_pos[1];
+    gBlastObjs[v->slot].mat.pos[2] = pc_cars[v->slot].dr_pos[2];
     gBlastObjs[v->slot].incTime -= gFrameSeconds;
     if (gBlastObjs[v->slot].incTime <= 0.0f) {
         if (gBlastObjs[v->slot].alphaCnt == 0) gBlastObjs[v->slot].alpha -= 31;
@@ -103,9 +103,9 @@ release:
                 case 2: x = -0.5f * b->ht; y = -0.5f * b->ht; break;
                 case 3: x = -0.5f * b->ht; y = 0.5f * b->ht; break;
             }
-            b->mat.pos[0] = x + PC_CAR_POS(v->slot)[0];
-            b->mat.pos[2] = y + PC_CAR_POS(v->slot)[2];
-            b->mat.pos[1] = b->ht + PC_CAR_POS(v->slot)[1] - 3.0f;
+            b->mat.pos[0] = x + pc_cars[v->slot].dr_pos[0];
+            b->mat.pos[2] = y + pc_cars[v->slot].dr_pos[2];
+            b->mat.pos[1] = b->ht + pc_cars[v->slot].dr_pos[1] - 3.0f;
             b->ht += 0.2f;
             PitchUV(b->pitch, b->mat.uvs);
             YawUV(b->yaw, b->mat.uvs);

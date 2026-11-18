@@ -1,31 +1,6 @@
 /* init_cars.c: set the car and model records up for a race (MAT3 mdrive.c, init_cars()). */
 #include "game/game.h"
 
-/* The car record (tCarData, N64 layout: docs/port/CARS.md 2), the fields init_cars sets. */
-typedef struct tCarData {
-    u8 pad000[232];
-    s32 appearance;             /* +0x0E8 */
-    s8 data_valid;
-    u8 pad0ED[1];
-    s8 place;                   /* +0x0EE */
-    u8 pad0EF[17];
-    float distance;             /* +0x100 along the track, feet: the grid's order before the start */
-    float last_distance;
-    u8 pad108[0x110 - 0x108]; struct pc_visual visuals[21]; u8 pad308[0x309 - 0x308];
-    s8 solid;                   /* +0x309 */
-    u8 pad30A[7];
-    s8 collide_state;           /* +0x311 */
-    u8 pad312[70];
-    s8 crash_state;             /* +0x358 */
-    u8 pad359[2];
-    s8 slot;                    /* +0x35B */
-    s8 camera;                  /* +0x35C the window that follows it, -1 none */
-    s8 view;
-    s8 saveview;
-    u8 pad35F[33];
-    tPadState *player;           /* +0x380 the input record, NULL for a drone (a host pointer) */
-    u8 pad384[52];
-} tCarData;
 
 /* collsize[body]: the collision box of a car type, feet (MAT3 colfront, colrear, colside, colheight). */
 typedef struct Bounds {float front,rear,side,height;} Bounds;
@@ -57,7 +32,7 @@ void init_cars(void) {
     gNumActiveCars=0;
     for(i=0;i<gNumCars;i++) {
         m=&pc_models[i];
-        car=PC_CAR(i);
+        car=&pc_cars[i];
         dt=m->fastin.dt;
         for(j=0;j<sizeof(tModelData);j++)
             ((s8 *)m)[j]=0;
@@ -92,7 +67,7 @@ void init_cars(void) {
             car->place=PC_LINK_PLACE(i);
             m->drone_type=PC_LINK_OWNER(i)<6?1:2;   /* DRONE_TYPE_AI, DRONE_TYPE_HUMAN */
             if(m->drone_type==2) {
-                car->player=&gPlayers[i];
+                car->player=(struct tPadState *)&gPlayers[i];   /* this file reads it as its PadTrans */
                 switch(gDriveHulk[i]) {
                 case 1:
                     car->appearance=APPEAR_CRASHED;

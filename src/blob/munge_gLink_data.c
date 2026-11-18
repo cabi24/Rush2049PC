@@ -7,15 +7,6 @@
 
 #define LINK_ACTIVE 0x80        /* MAT3 LINK_FLAG_IN_GAME: the slot is in the race */
 
-/* The car record (tCarData, N64 layout: docs/port/CARS.md 2), the race fields. */
-typedef struct {
-    /* 0x000 */ u8 pad0[0xEE];
-    /* 0x0EE */ u8 place;           /* the start place */
-    /* 0x0EF */ u8 padEF[0x110 - 0xEF]; struct pc_visual visuals[21]; u8 padEF_308[0x35B - 0x308];
-    /* 0x35B */ s8 slot;
-    /* 0x35C */ u8 pad35C[0x380 - 0x35C]; void *input; u8 pad35C_384[0x3B8 - 0x384];
-} tCarData; /* 0x3B8 */
-
 /* For each of the gNumCars slots: whether this machine simulates it, and if the roster has it in the race, its
  * slot and start place, its kind (drone or human) and its place in the model records' list of active slots
  * (gNumActiveCars of them, pc_models[n].slot). The slots past gNumCars are out of the race. Then the lists: humans[]
@@ -31,7 +22,7 @@ void munge_gLink_data(void) {
     gNumActiveCars = 0;
     for (i = 0; i < gNumCars; i++) {
         m = &pc_models[i];
-        car = PC_CAR(i);
+        car = &pc_cars[i];
         m->we_control = (PC_LINK_OWNER(i) == 0);
         m->drone_type = DRONE_TYPE_NONE;
         m->in_game = (PC_LINK_FLAGS(i) & LINK_ACTIVE) != 0;

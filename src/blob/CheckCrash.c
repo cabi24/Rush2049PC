@@ -4,19 +4,6 @@
  * respawn, which UpdateModel carries out. */
 #include "game/game.h"
 
-/* The car record (tCarData, N64 layout: docs/port/CARS.md 2), the fields CheckCrash reads and sets. */
-typedef struct tCarData
-{
-  u8 pad000[0xED];
-  s8 restart;                                   /* +0x0ED -1 crashed, 1 restarted after a respawn */
-  u8 pad0EE[0x10C - 0xEE];
-  f32 crashtime;                                /* +0x10C the model time of the crash */
-  struct pc_visual visuals[21];                 /* +0x110 */
-  u8 pad308[0x358 - 0x308];
-  u8 crash_state;                               /* +0x358 CRASH_NONE, CRASH_WRECKED, CRASH_RESPAWN */
-  u8 dead;                                      /* +0x359 CAR_ABORTED, CAR_ALIVE, CAR_DYING, CAR_DEAD */
-} tCarData;
-
 /* Step car `slot`'s crash state. CRASH_NONE: a car still in the race (dead CAR_ALIVE or CAR_ABORTED) whose model
  * has crashed keeps the crash point as its respawn point (SetResurrectionData, INIT_MODE_CRASH) and the crash time,
  * and becomes CRASH_WRECKED. CRASH_WRECKED: after 2.25 seconds in a battle, 3.5 elsewhere, CRASH_RESPAWN.
@@ -25,7 +12,7 @@ void CheckCrash(s16 slot)
 {
   tCarData *car;
   tModelData *m;
-  car = PC_CAR(slot);
+  car = &pc_cars[slot];
   switch ((s8) car->crash_state)
   {
     case CRASH_NONE:

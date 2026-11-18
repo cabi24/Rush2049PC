@@ -30,11 +30,11 @@ void SetCatchup(void)
     } else {
         high_index = -1;
         for (i = 0; i < PC_RACE_CARS; i++) {
-            if (pc_models[i].in_game != 0 && PC_CAR_DEAD(i) < CAR_DEAD &&
+            if (pc_models[i].in_game != 0 && pc_cars[i].dead < CAR_DEAD &&
                 (pc_models[i].drone_type == DRONE_TYPE_HUMAN || gDifficulty == 5)) {
                 if (high_index == -1) {
                     high_index = i;
-                } else if (PC_CAR_DISTANCE(high_index) < PC_CAR_DISTANCE(i)) {
+                } else if (pc_cars[high_index].distance < pc_cars[i].distance) {
                     high_index = i;
                 }
             }
@@ -43,11 +43,11 @@ void SetCatchup(void)
         k2 = 1500.0f;    /* the distance behind that earns it, feet */
         /* Original game: with no car counting, high_index stays -1 and this reads the record before the first (MAT3
          * too); nothing uses the value then. */
-        firstdist = PC_CAR_DISTANCE(high_index);
+        firstdist = pc_cars[high_index].distance;
         for (i = 0; i < PC_RACE_CARS; i++) {
-            if (pc_models[i].in_game != 0 && PC_CAR_DEAD(i) < CAR_DEAD &&
+            if (pc_models[i].in_game != 0 && pc_cars[i].dead < CAR_DEAD &&
                 (pc_models[i].drone_type == DRONE_TYPE_HUMAN || gDifficulty == 5)) {
-                lagdist = firstdist - PC_CAR_DISTANCE(i);
+                lagdist = firstdist - pc_cars[i].distance;
                 if (lagdist > k2) {
                     target_catchup = k1 + 1.0f;
                 } else {

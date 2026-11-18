@@ -8,19 +8,6 @@
 float fabsf(float);
 #pragma intrinsic (fabsf)
 
-/* The car record (tCarData, N64 offsets; docs/port/CARS.md 2): the fields the spray starts from. */
-typedef struct tCarData {
-    u8 pad0[20];
-    f32 dr_vel[3];          /* +0x14 */
-    u8 pad20[12];
-    f32 dr_uvs0[3];         /* +0x2C the car's x axis (sideways) */
-    u8 pad38[60];
-    f32 dr_tirepos[4][3];   /* +0x74 */
-    u8 padA4[84];
-    s16 rwmph;              /* +0xF8 mph x 4 */
-    u8 padFA[0x110 - 0xFA]; struct pc_visual visuals[21]; u8 pad308[0x380 - 0x308]; void *player; u8 pad384[0x3B8 - 0x384];
-} tCarData;
-
 /* A smoke puff (MAT3 smoke.c's anon_ll_mat_58, types.h's PcPuff); the offsets are the N64's. */
 typedef struct SmokePuff {
     void *next;             /* the pool link: a puff (UpdateSmoke's SmokePuff), pointer-sized here */
@@ -64,7 +51,7 @@ void StartWater(s16 slot, u32 tire) {
     s32 snap;               /* the sentinel, for a debug check the retail build compiled out */
     f32 mat[3][3];
 
-    car = PC_CAR(slot);
+    car = &pc_cars[slot];
     snap = start_water_sentinel;
     mph = car->rwmph >> 2;
     mph2 = fabsf((f32)mph);
@@ -103,9 +90,9 @@ void StartWater(s16 slot, u32 tire) {
     smk->pos[0] = car->dr_tirepos[tire][0];
     smk->pos[1] = car->dr_tirepos[tire][1];
     smk->pos[2] = car->dr_tirepos[tire][2];
-    smk->vel[0] = car->dr_uvs0[0];
-    smk->vel[1] = car->dr_uvs0[1];
-    smk->vel[2] = car->dr_uvs0[2];
+    smk->vel[0] = car->dr_uvs[0][0];
+    smk->vel[1] = car->dr_uvs[0][1];
+    smk->vel[2] = car->dr_uvs[0][2];
     offset = Random(1.0f) - 0.5f;
     smk->tIdx = 0;
     smk->vel[0] *= offset;
@@ -134,9 +121,9 @@ void StartWater(s16 slot, u32 tire) {
     smk->pos[0] = car->dr_tirepos[tire][0];
     smk->pos[1] = car->dr_tirepos[tire][1];
     smk->pos[2] = car->dr_tirepos[tire][2];
-    smk->vel[0] = car->dr_uvs0[0];
-    smk->vel[1] = car->dr_uvs0[1];
-    smk->vel[2] = car->dr_uvs0[2];
+    smk->vel[0] = car->dr_uvs[0][0];
+    smk->vel[1] = car->dr_uvs[0][1];
+    smk->vel[2] = car->dr_uvs[0][2];
     offset = Random(1.0f) - 0.5f;
     smk->tIdx = 4;
     smk->vel[0] *= offset;

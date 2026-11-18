@@ -5,14 +5,6 @@
  * (UpdateResurrectingCar, Resurrect). */
 #include "game/game.h"
 
-/* The car record (tCarData, N64 layout: docs/port/CARS.md 2), the fields AbortCar sets. */
-typedef struct tCarData
-{
-  u8 pad000[0x110]; struct pc_visual visuals[21]; u8 pad308[0x358 - 0x308];
-  u8 crash_state;                               /* +0x358 CRASH_NONE, CRASH_WRECKED, CRASH_RESPAWN */
-  u8 dead;                                      /* +0x359 CAR_ABORTED, CAR_ALIVE, CAR_DYING, CAR_DEAD */
-} tCarData;
-
 /* Abort car `slot`: from five seconds into the race on, note the crash for the stunt score (a stunt race) or reset
  * its battle state (a battle), save where and when it crashed as its respawn point (SetResurrectionData,
  * INIT_MODE_CRASH) and ask the model thread to respawn it (crash_state CRASH_RESPAWN). `death` is set when the car
@@ -36,7 +28,7 @@ void AbortCar(s16 slot, s32 death)
       InitBattlePlayer(slot);
     }
     SetResurrectionData(INIT_MODE_CRASH, &pc_models[slot], abort_flag = 1);
-    car = PC_CAR(slot);
+    car = &pc_cars[slot];
     car->crash_state = CRASH_RESPAWN;
     if ((((s8) gDeathMode) != 0) && (death != 0))
     {

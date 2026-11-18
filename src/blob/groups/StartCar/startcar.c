@@ -2,9 +2,6 @@
  * StartBrakeLights()). */
 #include "game/game.h"
 
-/* The car's palette (256 RGBA 5551 entries): the tail lights are entries 160-167, the headlights 168-175. */
-typedef struct CarTlut { u8 paint[320]; u16 taillights[8]; u16 headlights[8]; } CarTlut;
-
 static void StartHeadLights(s16 slot);
 static void StartTire(s16 slot, u32 tire);
 static void StartBrakeLights(s16 slot);
@@ -63,7 +60,7 @@ static void StartHeadLights(s16 slot)
 static void StartTire(s16 slot, u32 tire)
 {
     struct pc_visual *v;
-    v = &PC_CAR_VISUALS(slot)[tire + VIS_TIRES];
+    v = &pc_cars[slot].visuals[tire + VIS_TIRES];
     v->func = AnimateTire;
     v->slot = slot;
     v->data = 0;
@@ -76,7 +73,7 @@ static void StartTire(s16 slot, u32 tire)
 static void StartBrakeLights(s16 slot)
 {
     struct pc_visual *v;
-    v = (struct pc_visual *)((uintptr_t)PC_CAR(slot) + 0x110);
+    v = (struct pc_visual *)((uintptr_t)&pc_cars[slot] + 0x110);
     v->func = AnimateBrakeLights;
     v->slot = slot;
 }

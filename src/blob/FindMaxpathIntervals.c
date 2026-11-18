@@ -2,18 +2,6 @@
  * got, which orders the cars (MAT3 maxpath.c). */
 #include "game/game.h"
 
-/* The car record (MAT3 tCarData; the PC's pc_car, host layout): the fields this reads and sets. */
-typedef struct Car {
-    /* 0x000 */ char pad0[0xEF];
-    /* 0x0EF */ s8 place_locked;   /* 1 once it has finished */
-    /* 0x0F0 */ char padF0[0xA];
-    /* 0x0FA */ s16 lastResPath;   /* the path of the point last found for it: an alternative path, -1 the main one */
-    /* 0x0FC */ s16 lastResIdx;    /* that point */
-    /* 0x0FE */ s16 resIdx;        /* its point on the main path, where the searches start */
-    /* 0x100 */ f32 distance;      /* how far round the race it has got, in feet (the HUD, the places) */
-    /* 0x104 */ char pad104[0x110 - 0x104]; struct pc_visual visuals[21]; char pad104_308[0x380 - 0x308]; void *input; char pad104_384[0x3B8 - 0x384];
-} Car; /* 0x3B8 */
-
 /* For each car that is solid and still racing: finds the nearest point of the resurrection path to it, looking
  * first at the 5 main-path points from its last one, then (more than 100 feet off) on along the branch it was on or
  * at the 5 from its last point, then (more than 200 feet off) through its checkpoint section of the main path,
@@ -30,7 +18,7 @@ void FindMaxpathIntervals(void)
     s32 k;
     tModelData *m;
     tModelData *m2;
-    Car *gc;
+    tCarData *gc;
     s32 idx;
     s32 limit;
     s32 bestPath;
@@ -51,7 +39,7 @@ void FindMaxpathIntervals(void)
         m = &pc_models[slot];
         m2 = &pc_models[slot];
         if (AreWeSolid(slot)) {
-            gc = PC_CAR(slot);
+            gc = &pc_cars[slot];
             if (gc->place_locked == 1) {
                 continue;
             }

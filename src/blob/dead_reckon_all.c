@@ -11,7 +11,7 @@ void dead_reckon_all(void) {
     s32 i;
     for (i = 0; i != PC_RACE_CARS; i++) {
         m = &pc_models[i];
-        if ((m->in_game != 0) && ((s8) PC_CAR_DEAD(i) < CAR_DEAD)) {
+        if ((m->in_game != 0) && ((s8) pc_cars[i].dead < CAR_DEAD)) {
             dead_reckon_posuv(m);
         }
     }

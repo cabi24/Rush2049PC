@@ -28,18 +28,17 @@ The records:
 | Record | Where | Layout | What |
 |---|---|---|---|
 | model, `tModelData` | `pc_models[12]` (include/game/modeldata.h, which physics.h includes) | MAT3's field for field, its five pointers host pointers: 0x830 bytes (the N64's 0x808) | one car's physics state: forces, velocities, position, orientation (`uvs`), the four tires, the drivetrain, the controls (`mainin`), the respawn (`resurrect`), the race state |
-| car, `tCarData` | `pc_cars[12]` (`struct pc_car`) | host: the N64's field order with the 21 visuals and the input pointer widened, 0x510 bytes | what the game thread shows: the dead-reckoned position (`dr_pos`, `dr_uvs`), `appearance`, the place, the scene node (`objnum`), the 21 visuals, the crash state, the battle block |
+| car, `tCarData` | `pc_cars[12]` (include/game/cars.h `tCarData`) | host: the N64's field order with the 21 visuals and the input pointer widened, 0x510 bytes | what the game thread shows: the dead-reckoned position (`dr_pos`, `dr_uvs`), `appearance`, the place, the scene node (`objnum`), the 21 visuals, the crash state, the battle block |
 | visual, `tVisual` | in the car record (`visuals[21]`), and the environment pool `gEnvirons[100]` | host, 0x28 bytes | one animated thing: its scene node, a data word (pointer-sized: an environment visual's target), a time and its animator `func(v, op)` |
 | car descriptor, `_tCar` (`include/game/carphys.h`) | `car_descriptors[6]`, through `gCarModels[13]` and the model's `car` | host: its tire pointers 8 bytes, 0xC8 bytes (the N64's 0xB4) | a car's fixed physics: inertia, springs, damping, the tires' constants (`tires[4]`, pointers to `frontTire`'s two `TireDesc`), the tire arms `tireR[4][3]`, the drivetrain constants |
 | tune, `tTune` (carphys.h) | `gTune[3]`, through the model's `tune` | 11 floats | the handling's scales (MAT3: diffbl, weight_scale, torque_scale, trans_scale, clutchmaxtk, shiftk, fwdfk, sidefk, skidk, antispin, drift) |
 | tire, `Tire` (carphys.h) | the model's `tires[4]` | 22 floats and a byte | a tire's constants (copied from its `TireDesc`), the brush model's coefficients for its load, and its state from step to step: spin, slip torque, forces, the friction circle's case |
 
 The model record has one declaration, `tModelData`, with all of MAT3's fields ([RECORDS.md](../port/RECORDS.md)
-2.1). Every file declares its own partial view of the car record, named `tCarData` with MAT3's field names; the car
-views write N64 offsets in their padding and put `struct pc_visual visuals[21]` at
-0x110, so the compiler lays the later fields out at their PC offsets (CARS.md 2.2). The N64's car record has 21
-visuals where MAT3's has 22, so after the visuals an N64 offset is MAT3's less 0x18, and the N64's battle block has
-one more word (at 0x39C) than MAT3's.
+2.1). The car record is one declaration too, `tCarData` in cars.h, with every field MAT3's name
+([RECORDS.md](../port/RECORDS.md) 3.1): the N64's car record has 21 visuals where MAT3's has 22, so after the visuals
+an N64 offset is MAT3's less 0x18, and its battle block's defence has one more float than MAT3's, the shield's spin
+(`shldPitch`).
 
 The **appearance bits** (`APPEAR_*`, cars.h, MAT3 rush_flags.h's names) are how the physics talks to the visuals:
 the model step sets them in the model record (a skid under a tire, sparks at a corner, the brake lights, tire smoke,

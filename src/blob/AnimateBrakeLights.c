@@ -6,8 +6,6 @@
 
 /* A car visual (tVisual) on the PC: next a host pointer (docs/port/CARS.md 3). */
 typedef struct tVisual { void *next; s16 index, objnum; s16 slot; } tVisual;
-/* The car's palette (256 RGBA 5551 entries): the tail lights are entries 160-167, the headlights 168-175. */
-typedef struct CarTlut { u8 paint[320]; u16 taillights[8]; } CarTlut;
 
 #define CP(src) do { \
     tlut->taillights[0] = (src)[0]; tlut->taillights[1] = (src)[1]; tlut->taillights[2] = (src)[2]; tlut->taillights[3] = (src)[3]; \
@@ -20,7 +18,7 @@ void AnimateBrakeLights(tVisual *v, s16 op)
 {
 s32 slot; CarTlut *tlut; s32 braking;
  slot = v->slot;
- braking = (PC_CAR_FLAGS(slot) & APPEAR_BRAKE) != 0 && (PC_CAR_FLAGS(slot) & APPEAR_HULK) == 0;
+ braking = (pc_cars[slot].appearance & APPEAR_BRAKE) != 0 && (pc_cars[slot].appearance & APPEAR_HULK) == 0;
  tlut = car_palettes[slot].palBase;
     if (op == 0 || !braking) {
         if (gTrackNum == 3 || gTrackNum == 5) { CP(taillight_colors_dim.uv); } else { CP(taillight_colors_dark); }

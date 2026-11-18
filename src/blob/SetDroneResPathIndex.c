@@ -27,7 +27,7 @@ void SetDroneResPathIndex(struct tModelData *m, s16 path, s16 idx) {
         y = (f32) gResPath.pts[idx][1];
         z = (f32) gResPath.pts[idx][2];
     }
-    ctl = &PC_CAR_NAV(m->slot);
+    ctl = &pc_cars[m->slot].mpctl;
     if (m->next_cp_index < m->last_cp_index) end = gDronePaths[ctl->path].numPts;
     else end = gCheckpoints.points[m->next_cp_index].pathPts[ctl->path + 1];
     i = gCheckpoints.points[m->last_cp_index].pathPts[ctl->path + 1];

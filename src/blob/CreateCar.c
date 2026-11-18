@@ -53,9 +53,9 @@ void CreateCar(s16 slot, s16 camlink, int for_game)
         car->bSpark = -1;
     }
     if (for_game) {
-        PC_CAR_SHEEN_ALPHA(slot) = 255;
-        PC_CAR_IR_COLOR(slot) = gTrackColors[gTrackNum][0].rgba;
-        PC_CAR_PREV_IR_COLOR(slot) = gTrackColors[gTrackNum][0].rgba;
+        pc_cars[slot].sheenAlpha = 255;
+        pc_cars[slot].IRclr.rgba = gTrackColors[gTrackNum][0].rgba;
+        pc_cars[slot].prevIRclr.rgba = gTrackColors[gTrackNum][0].rgba;
         SetupCarColor(slot, PC_LINK_CAR(slot), pc_models[slot].color[0], pc_models[slot].color[1], pc_models[slot].color[2]);
     }
     SetFrameColor(slot, &Track1Colors[0]);

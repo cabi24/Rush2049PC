@@ -257,6 +257,9 @@ add_library(pcultra OBJECT port/main.c ${PC_ULTRA_SOURCES})
 # build, or a Debug build's tests that hash it every 30 retraces take minutes.
 set_source_files_properties(port/ultra/statehash.c PROPERTIES COMPILE_OPTIONS "-O2")
 target_include_directories(pcultra PRIVATE port/include port/ultra port/config ${ZLIB_INCLUDE_DIRS})
+# The game's records the program reads (the cars' places for the run's report, their size for the state hash):
+# include/game's headers, after the port's own.
+target_include_directories(pcultra PRIVATE include)
 target_compile_options(pcultra PRIVATE -std=gnu11 -Wall -Wextra -Wno-unused-parameter)
 if(PC_SANITIZE)
     target_compile_definitions(pcultra PRIVATE PC_SANITIZE)   # the fault handler chains to the runtime's
@@ -1259,7 +1262,7 @@ target_link_libraries(test_overlay_data_game PRIVATE game_flags)
 target_compile_options(test_overlay_data_game PRIVATE -w)
 add_executable(test_overlay_data port/data/test_overlay_data.c $<TARGET_OBJECTS:test_overlay_data_game>)
 target_link_libraries(test_overlay_data PRIVATE pcdata_rt)
-target_include_directories(test_overlay_data PRIVATE include)   # the model record (game/modeldata.h)
+target_include_directories(test_overlay_data PRIVATE include)   # the model and car records it defines (game/modeldata.h, cars.h)
 pc_link_scripts(test_overlay_data)
 add_test(NAME pc_data_overlay COMMAND test_overlay_data)
 # tools/port/endian_check.py (docs/port/ENDIAN.md): the detector on its synthetic cases, and the loader's element

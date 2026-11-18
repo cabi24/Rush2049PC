@@ -5,18 +5,6 @@
 typedef f32 Vec3[3];
 typedef f32 Mat3[3][3];
 typedef struct { s32 opaque[0x1B0 / 4]; } OSThread;
-/* The car record (MAT3 tCarData; the PC's pc_car, host layout): the fields this reads. */
-typedef struct Object {
-    u8 other0[8];
-    Vec3 pos;           /* 8 */
-    u8 other20[24];
-    Mat3 uvs44;         /* 44 */
-    Mat3 uvs;           /* 80 */
-    u8 other116[0x110 - 0x74]; struct pc_visual visuals[21]; u8 other116_308[0x35B - 0x308];
-    s8 car;             /* 859 */
-    s8 slot;            /* 860 */
-    u8 view;            /* 861 */
-} Object;
 
 extern void osStopThread(OSThread *);
 extern void osStartThread(OSThread *);
@@ -35,7 +23,7 @@ extern void osStartThread(OSThread *);
  * 4 the crash (DeathCam); 5 the finish's circling (circle_camera_around_car); 6 a camera fixed by the track
  * (fix_camera_in_space); 7 the steady camera (steady_move_cam); 9 the camera over the drone path (maxpath_cam).
  * The views from 2 on build the camera in fcam and copy it to mat. */
-void update_camera(Object *object)
+void update_camera(tCarData *object)
 {
     s32 i;
     s32 j;
@@ -44,19 +32,19 @@ void update_camera(Object *object)
     tModelData *m;
     s32 slot;
 
-    m = &pc_models[object->car];
-    slot = object->slot;
-    CAM.mat.pos[0] = object->pos[0];
-    CAM.mat.pos[1] = object->pos[1];
-    CAM.mat.pos[2] = object->pos[2];
+    m = &pc_models[object->slot];
+    slot = object->camera;
+    CAM.mat.pos[0] = object->dr_pos[0];
+    CAM.mat.pos[1] = object->dr_pos[1];
+    CAM.mat.pos[2] = object->dr_pos[2];
     CAM.mat.pos[1] += 0.25f;
-    switch (object->view) {
+    switch ((u8)object->view) {   /* the view, 0-4; this file always read it unsigned */
     case 0:
-        update_car_object(object, CAM.mat.pos, object->uvs);
+        update_car_object(object, CAM.mat.pos, object->dr_car_uvs);
         pos_in[0] = 0.0f;
         pos_in[1] = view1_suscomp_offset(m) + view0_eye_height;
         pos_in[2] = view0_eye_forward;
-        CopyUV(object->uvs44, &CAM);
+        CopyUV(object->dr_uvs, &CAM);
         WorldVector(pos_in, pos_out, &CAM);
         CAM.mat.pos[0] = CAM.mat.pos[0] + pos_out[0];
         CAM.mat.pos[1] = CAM.mat.pos[1] + pos_out[1];
@@ -86,7 +74,7 @@ void update_camera(Object *object)
         pos_in[0] = view1_eye_x - cur_acc[slot][0];
         pos_in[1] = view1_eye_y - cur_acc[slot][1];
         pos_in[2] = view1_eye_z - cur_acc[slot][2];
-        CopyUV(object->uvs, &CAM);
+        CopyUV(object->dr_car_uvs, &CAM);
         WorldVector(pos_in, pos_out, &CAM);
         if (pos_out[1] < 0.0f) {
             CAM.mat.pos[1] -= pos_out[1] * 0.7f;
@@ -114,7 +102,7 @@ void update_camera(Object *object)
         pos_in[0] = CAM.mat.pos[0];
         pos_in[1] = CAM.mat.pos[1];
         pos_in[2] = CAM.mat.pos[2];
-        UpdateCarObj(object, CAM.mat.pos, &object->uvs, pos_in);
+        UpdateCarObj(object, CAM.mat.pos, &object->dr_car_uvs, pos_in);
         CopyUV(CAM.fcam.uvs, &CAM);
         CAM.mat.pos[0] = CAM.fcam.pos[0];
         CAM.mat.pos[1] = CAM.fcam.pos[1];
@@ -125,43 +113,43 @@ void update_camera(Object *object)
         pos_in[0] = CAM.mat.pos[0];
         pos_in[1] = CAM.mat.pos[1];
         pos_in[2] = CAM.mat.pos[2];
-        UpdateCarObj(object, CAM.mat.pos, &object->uvs, pos_in);
+        UpdateCarObj(object, CAM.mat.pos, &object->dr_car_uvs, pos_in);
         CopyUV(CAM.fcam.uvs, &CAM);
         CAM.mat.pos[0] = CAM.fcam.pos[0];
         CAM.mat.pos[1] = CAM.fcam.pos[1];
         CAM.mat.pos[2] = CAM.fcam.pos[2];
         break;
     case 4:
-        DeathCam(object, CAM.mat.pos, &object->uvs);
+        DeathCam(object, CAM.mat.pos, &object->dr_car_uvs);
         CAM.mat.pos[0] = CAM.fcam.pos[0];
         CAM.mat.pos[1] = CAM.fcam.pos[1];
         CAM.mat.pos[2] = CAM.fcam.pos[2];
         CopyUV(CAM.fcam.uvs, &CAM);
-        CameraCollision(CAM.mat.pos, object->pos);
+        CameraCollision(CAM.mat.pos, object->dr_pos);
         break;
     case 5:
-        circle_camera_around_car(object, CAM.mat.pos, &object->uvs);
+        circle_camera_around_car(object, CAM.mat.pos, &object->dr_car_uvs);
         CAM.mat.pos[0] = CAM.fcam.pos[0];
         CAM.mat.pos[1] = CAM.fcam.pos[1];
         CAM.mat.pos[2] = CAM.fcam.pos[2];
         CopyUV(CAM.fcam.uvs, &CAM);
         break;
     case 6:
-        fix_camera_in_space(2, object, CAM.mat.pos, &object->uvs);
+        fix_camera_in_space(2, object, CAM.mat.pos, &object->dr_car_uvs);
         CAM.mat.pos[0] = CAM.fcam.pos[0];
         CAM.mat.pos[1] = CAM.fcam.pos[1];
         CAM.mat.pos[2] = CAM.fcam.pos[2];
         CopyUV(CAM.fcam.uvs, &CAM);
         break;
     case 7:
-        steady_move_cam(2, object, CAM.mat.pos, &object->uvs);
+        steady_move_cam(2, object, CAM.mat.pos, &object->dr_car_uvs);
         CAM.mat.pos[0] = CAM.fcam.pos[0];
         CAM.mat.pos[1] = CAM.fcam.pos[1];
         CAM.mat.pos[2] = CAM.fcam.pos[2];
         CopyUV(CAM.fcam.uvs, &CAM);
         break;
     case 9:
-        maxpath_cam(2, object, CAM.mat.pos, &object->uvs);
+        maxpath_cam(2, object, CAM.mat.pos, &object->dr_car_uvs);
         CAM.mat.pos[0] = CAM.fcam.pos[0];
         CAM.mat.pos[1] = CAM.fcam.pos[1];
         CAM.mat.pos[2] = CAM.fcam.pos[2];

@@ -14,19 +14,19 @@ void StartWing(s16 slot, s16 side) {
     s32 body_type;
 
     if (gRace == kGhost || gRace == kBattle || (m = &pc_models[slot], m->we_control != 0)) {
-        PC_CAR_VISUALS(slot)[side + VIS_WINGS].func = 0;
+        pc_cars[slot].visuals[side + VIS_WINGS].func = 0;
         return;
     }
-    PC_CAR_VISUALS(slot)[side + VIS_WINGS].func = AnimateWing;
-    PC_CAR_VISUALS(slot)[side + VIS_WINGS].slot = slot;
-    PC_CAR_VISUALS(slot)[side + VIS_WINGS].data = side;
+    pc_cars[slot].visuals[side + VIS_WINGS].func = AnimateWing;
+    pc_cars[slot].visuals[side + VIS_WINGS].slot = slot;
+    pc_cars[slot].visuals[side + VIS_WINGS].data = side;
     body_type = m->body_type;
     offset[0] = 0.0f;
     offset[2] = 0.0f;
     offset[1] = wing_offsets[body_type][1];
     index = wings[slot + 1][body_type] * 4 + side + OBJLIST_WINGS;
-    PC_CAR_VISUALS(slot)[side + VIS_WINGS].objnum = InitCarObj(gObjList[index], 15, gCarParts[slot].frame, 0, slot, -1, 1);
-    ZOID_UpdateObject(PC_CAR_VISUALS(slot)[side + VIS_WINGS].objnum, offset, NULL);
-    MBOX_HideObject(PC_CAR_VISUALS(slot)[side + VIS_WINGS].objnum, 1, 15);
+    pc_cars[slot].visuals[side + VIS_WINGS].objnum = InitCarObj(gObjList[index], 15, gCarParts[slot].frame, 0, slot, -1, 1);
+    ZOID_UpdateObject(pc_cars[slot].visuals[side + VIS_WINGS].objnum, offset, NULL);
+    MBOX_HideObject(pc_cars[slot].visuals[side + VIS_WINGS].objnum, 1, 15);
     InitWingSmoke(slot, side);
 }

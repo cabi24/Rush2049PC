@@ -22,7 +22,7 @@ void StartWeapon(s16 slot)
 {
     tVisual *v;
 
-    v = &PC_CAR_VISUALS(slot)[20];
+    v = &pc_cars[slot].visuals[20];
     if (v->objnum < 0) {
         v->index = 0;
         v->func = AnimateWeapon;

@@ -5,8 +5,6 @@
 /* PC: a visual (tVisual) is 0x28 bytes: next, data and func are pointer-sized (struct pc_visual, docs/port/CARS.md 3);
  * a wing keeps its flags in the data word. */
 typedef struct Visual { void *opaque0; s16 index, object, slot, opaque10; uintptr_t flags; f32 time; void (*func)(struct Visual *v, s16 op); } Visual;
-typedef struct Player952 { u8 opaque0[232]; u32 flags; u8 opaque236[0x110 - 0xEC]; struct pc_visual visuals[21]; u8 opaque236_308[0x35C - 0x308]; s8 shift, quality, opaque862, disabled; u8 opaque864[32]; tPadState *pose; u8 opaque900[52]; } Player952;
-/* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
 
 /* PC: game.frame_rate 60 (pc_game_fps.h). The wings step out and in one sixth at a frame whose model time is past
  * v->time, set 0.015 s on: less than a frame, so a step a frame, 30 a second on the N64. At 60 the gap is 0.03 s,
@@ -53,7 +51,7 @@ void AnimateWing(Visual *v, s16 op)
     s32 reverse;
     f32 basis[3][3];
     tModelData *model;
-    Player952 *car;
+    tCarData *car;
 
     slot = v->slot;
     if (op == 0) {
@@ -118,15 +116,15 @@ grow:
     }
     if (v->flags & 0x10) {
         CopyUV(unitmatrix, basis);
-        PitchUV(PC_CAR_INPUT_AS(tPadState, slot)->analog[1] * 0.507f, basis);
+        PitchUV(((tPadState *)pc_cars[slot].player)->analog[1] * 0.507f, basis);
         ZOID_UpdateObject(v->object, 0, basis);
         if (gNumPlayers == 1) StartSmoke(slot, reverse ? 7 : 6, 0, position);
     }
-    car = PC_CAR(slot);
-    hulk = (car->flags & 0x10) != 0;
-    lucent = (gInvisibleCar != 0) || ((car->flags & 8) != 0);
-    if (CheckVisibleAll(v, !hulk && !car->disabled)) {
-        CheckVisible(v, car->quality >= 2, car->shift);
+    car = &pc_cars[slot];
+    hulk = (car->appearance & 0x10) != 0;
+    lucent = (gInvisibleCar != 0) || ((car->appearance & 8) != 0);
+    if (CheckVisibleAll(v, !hulk && !car->carMine)) {
+        CheckVisible(v, car->view >= 2, car->camera);
         if (lucent) ObjInstanceList[v->object].flags ^= 0x80000000;
         else ObjInstanceList[v->object].flags &= 0x7FFFFFFF;
     }

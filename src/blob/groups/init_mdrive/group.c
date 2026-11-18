@@ -4,8 +4,6 @@
  * Init_MDrive. */
 #include "game/game.h"
 
-/* The car record (tCarData), the fields Init_MDrive reads and writes. */
-typedef struct tCarData {u8 pad0[4];float modelTime;u8 pad8[0x110 - 0x8]; struct pc_visual visuals[21]; u8 pad308[0x358 - 0x308];s8 crash_state,dead;u8 pad35A[10];float strayAngle;u8 tail[0x380 - 0x368]; void *player; u8 tail_384[0x3B8 - 0x384];} tCarData;
 
 static void multiinit_n64(s16,s16);
 
@@ -16,7 +14,7 @@ static void multiinit_n64(s16,s16);
  * thread runs again. */
 void Init_MDrive(s16 mode,s16 slot)
 {
- tCarData *car=PC_CAR(slot);
+ tCarData *car=&pc_cars[slot];
  tModelData *m=&pc_models[slot];
  PC_LINK *link;
  if(gDeathMode && !car->dead && mode==INIT_MODE_CRASH) {
@@ -56,7 +54,7 @@ static void multiinit_n64(s16 mode,s16 slot)
   else m->initin.polepos=slot+PC_RESPAWN_BASE;
  }
  Resurrect(m);
- PC_CAR_CRASH_STATE(slot)=CRASH_NONE;   /* crash_state */
+ pc_cars[slot].crash_state=CRASH_NONE;   /* crash_state */
  for(i=0;i<4;i++) {
   m->skidIntensity[i]=0.0f;
   m->tires[i].sideforce=0.0f;

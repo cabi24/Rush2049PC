@@ -29,9 +29,9 @@ s32 animPowerupIcons(void *unused)
     s32 kind, i;
     tHudIcon *status;
     for (i = 0; i < gNumWindows; i++) {
-        if (PC_CAR_DEFENSE_ACTIVE(i)) {
-            if (PC_CAR_DEFENSE_ACTIVE(i) & 1) kind = 1;
-            else if (PC_CAR_DEFENSE_ACTIVE(i) & 2) kind = 2;
+        if (pc_cars[i].battle.defense.active) {
+            if (pc_cars[i].battle.defense.active & 1) kind = 1;
+            else if (pc_cars[i].battle.defense.active & 2) kind = 2;
         } else {
             kind = 0;
         }
@@ -67,13 +67,13 @@ s32 animWeaponIcons(void *unused)
     tRGBA color;
     s32 player_kind;
     for (i = 0; i < gNumWindows; i++) {
-        player_kind = PC_CAR_WEAPON_TYPE(i);
+        player_kind = pc_cars[i].battle.weapon.type;
         kind = weaponIcon[i].type;
         if (player_kind != kind) {
             if (weaponIcon[i].idx != -1) {
                 ZOID_RemoveObject(weaponIcon[i].idx);
                 weaponIcon[i].idx = -1;
-                player_kind = PC_CAR_WEAPON_TYPE(i);
+                player_kind = pc_cars[i].battle.weapon.type;
             }
             weaponIcon[i].type = player_kind;
             kind = weaponIcon[i].type;

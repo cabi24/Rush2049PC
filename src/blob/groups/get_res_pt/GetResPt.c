@@ -5,13 +5,6 @@
  * point, or going past its first along the pair's direction, counts. */
 #include "game/game.h"
 
-/* The car record (tCarData, N64 layout: docs/port/CARS.md 2), the field used here. */
-typedef struct tCarData {
-    u8 pad0[8];
-    f32 dr_pos[3];              /* 0x08 the position, feet */
-    u8 pad14[0x110 - 0x14]; struct pc_visual visuals[21]; u8 pad14_308[0x380 - 0x308]; void *input; u8 pad14_384[0x3B8 - 0x384];
-} tCarData; /* 0x3B8 */
-
 /* Raise car 0's obResPt to the point of the resurrection path nearest it: the pair's first point when it is
  * nearest the second (odd) one; when it is nearest the first (even) one, that point if the car is past it towards
  * the second (the dot product of the pair's direction with the car's offset from the point), else the previous
@@ -27,11 +20,11 @@ void GetResPt(void) {
     f32 delta1[3];
     f32 delta2[3];
     s16 *p;
-    tCarData *car = PC_CARS;
+    tCarData *car = pc_cars;
 
-    x = PC_CAR_POS(0)[0];
-    y = PC_CAR_POS(0)[1];
-    z = PC_CAR_POS(0)[2];
+    x = pc_cars[0].dr_pos[0];
+    y = pc_cars[0].dr_pos[1];
+    z = pc_cars[0].dr_pos[2];
     c_dist = 1e20;
     for (i = 0; i < gResPath.numPts; i++) {
         dx = gResPath.pts[i][0] - x;

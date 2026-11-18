@@ -4,15 +4,6 @@
 #define LAP_SCORES 0              /* tRaceStats.scores[0]: the best laps */
 #define AVERAGE_SCORES 1          /* scores[1]: the best average laps */
 
-/* A car's record as this reads it: its place, whether it finished, the distance driven (feet). */
-typedef struct CarRecord {
-    u8 unknown00[238];
-    s8 place;
-    s8 finished;
-    u8 unknown240[24];
-    float distance;
-    u8 unknown268[0x110 - 0x10C]; struct pc_visual visuals[21]; u8 unknown268_308[0x380 - 0x308]; void *input; u8 unknown268_384[0x3B8 - 0x384];
-} CarRecord;
 
 /* Adds each player's race to its profile's stats for the track (the backward ones when gBackwards) and to the
  * totals: every lap into the five best laps and the race's average lap into the five best averages (in the totals
@@ -26,7 +17,7 @@ void RecordRace(void)
     s32 saveTrack;
     s32 player;
     s32 phase;
-    CarRecord *car;
+    tCarData *car;
     s32 lap;
     s32 rank;
     s32 shift;
@@ -52,7 +43,7 @@ void RecordRace(void)
             } else {
                 stats = &gTotalRaceStats[course];
             }
-            car = PC_CAR(gPlayers[player].slot);
+            car = &pc_cars[gPlayers[player].slot];
             for (lap = 0; lap < gLap[player]; lap++) {
                 for (rank = 0; rank < 5; rank++) {
                     if (stats->scores[LAP_SCORES][rank] == 0.0f ||
@@ -101,7 +92,7 @@ void RecordRace(void)
                     }
                 }
             }
-            if (car->finished) {
+            if (car->place_locked) {
                 stats->totalRaces++;
                 if (car->place == 0 && gNumActiveCars >= 2) {
                     stats->total1st++;
@@ -122,7 +113,7 @@ void RecordRace(void)
             for (shift = 0; shift < gLap[player]; shift++) {
                 stats->totalTime += gLapTimes[player][shift];
             }
-            stats->totalMiles += car->distance / FEET_PER_TENTH_MILE;
+            stats->totalMiles += car->mileage / FEET_PER_TENTH_MILE;
         }
         SavePlayerStats(gPlayers[player].save, saveTrack);
     }

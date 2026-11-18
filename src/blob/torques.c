@@ -6,9 +6,6 @@
 #include "game/game.h"
 
 typedef f32 Vec3[3];
-/* The car record (tCarData), its input record (tPadState: the stick, analog[0] across and [1] up and down): a host
- * pointer on the PC (docs/port/CARS.md 2.1), NULL for a drone. */
-typedef struct tCarData { u8 pad[0x110 - 0x0]; struct pc_visual visuals[21]; u8 pad_308[0x380 - 0x308]; tPadState *player; u8 rest[52]; } tCarData;
 
 #define veccopy(a,r) {r[0]=a[0]; r[1]=a[1]; r[2]=a[2];}
 #define crossprod(a,b,r) {r[0]=a[1]*b[2]-a[2]*b[1]; r[1]=a[2]*b[0]-a[0]*b[2]; r[2]=a[0]*b[1]-a[1]*b[0];}
@@ -42,7 +39,7 @@ void torques(tModelData *m) {
     if (!(m->appearance & APPEAR_HULK) && m->airdist[0]>5.0f && m->airdist[1]>5.0f && m->airdist[2]>5.0f && m->airdist[3]>5.0f && gRace != kBattle /* kBattle */) {
         if(m->mainin.wing) m->wing=1; else m->wing=0;
         if(m->wing) {
-            car=PC_CAR(m->slot);
+            car=&pc_cars[m->slot];
             player=car->player;
             if(player) {
                 wing_effect=m->wingEffect;

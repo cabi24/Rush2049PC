@@ -49,12 +49,12 @@ void highscore_InitScreen(void)
     gHighScoreState = 0;
     highscore_inited = 1;
     circuitCode = 0;
-    if (gRace == kCircuit && PC_CAR_PLACE_LOCKED(gCircuitPlayer)) {
+    if (gRace == kCircuit && pc_cars[gCircuitPlayer].place_locked) {
         for (i = 0; i < 6; i++) {
-            ranks[i] = PC_CAR_PLACE(i);
+            ranks[i] = pc_cars[i].place;
         }
         oldCircuitTrack = gCircuitTrack;
-        UpdateCircuit(ranks, PC_CAR_SCORE(gCircuitPlayer));
+        UpdateCircuit(ranks, pc_cars[gCircuitPlayer].score);
         gCircuitTrack = oldCircuitTrack;
         if ((*gPlayers[gCircuitPlayer].save)->fileh == NULL && gCircuitTrack < gCircuitSize - 1) {
             circuitCode = 1;

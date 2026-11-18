@@ -3,16 +3,6 @@
 
 #define RADAR_RANGE 480.0f       /* the radar's reach across, feet */
 
-/* A car record as this reads it: its position and orientation. */
-typedef struct CAR_DATA {
-    u8 pad0[8];
-    f32 dr_pos[3];          /* 8 */
-    u8 pad14[44 - 20];
-    f32 dr_uvs[3][3];       /* 44 */
-    u8 pad50[0xEF - 80];
-    s8 state;
-    u8 padF0[0x110 - 0xF0]; struct pc_visual visuals[21]; u8 padF0_308[0x380 - 0x308]; void *input; u8 padF0_384[0x3B8 - 0x384];
-} CAR_DATA;
 
 /* The blip of car animID & 0xF on the radar of player (animID >> 8) & 0xF: the car's position relative to the
  * player's car, turned into the player's car's frame, scaled to the radar (RADAR_RANGE feet across; mirrored with
@@ -22,8 +12,8 @@ typedef struct CAR_DATA {
 s32 animRadarBlip(tBlit *blt) {
     s32 me;
     tModelData *m;
-    CAR_DATA *gc;
-    CAR_DATA *mc;
+    tCarData *gc;
+    tCarData *mc;
     f32 scale;
     s16 slot;
     f32 rpos[3];
@@ -41,11 +31,11 @@ s32 animRadarBlip(tBlit *blt) {
         return Hidden(blt, 1);
     }
     slot = blt->animID & 0xF;
-    if (Hidden(blt, !gShowRadar || PC_CAR_PLACE_LOCKED(me) == 1)) {
+    if (Hidden(blt, !gShowRadar || pc_cars[me].place_locked == 1)) {
         return 1;
     }
     m = &pc_models[slot];
-    gc = PC_CAR(slot);
+    gc = &pc_cars[slot];
     if (!m->in_game) {
         blt->animFunc = 0;
         return Hidden(blt, 1);
@@ -53,7 +43,7 @@ s32 animRadarBlip(tBlit *blt) {
     if (Hidden(blt, slot != me && !AreWeSolid(slot))) {
         return 1;
     }
-    mc = PC_CAR(me);
+    mc = &pc_cars[me];
     lpos[0] = gc->dr_pos[0] - mc->dr_pos[0];
     lpos[1] = gc->dr_pos[1] - mc->dr_pos[1];
     lpos[2] = gc->dr_pos[2] - mc->dr_pos[2];

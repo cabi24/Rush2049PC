@@ -3,8 +3,6 @@
  * stands between them (gFadePlayerArrow, read by the arrow's animator). */
 #include "game/game.h"
 
-/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-
 /* How far above the cars' positions the line of sight runs, in world units. */
 #define SIGHT_HEIGHT 5.0f
 
@@ -22,14 +20,14 @@ void UpdateArrowVis(void) {
             gFadePlayerArrow[i][k] = 0;
     if (gShowPlayerArrows && gRace == kBattle) {
         for (i = 0; i < gNumPlayers - 1; i++) {
-            from[0] = PC_CAR_POS(i)[0];
-            from[1] = PC_CAR_POS(i)[1];
-            from[2] = PC_CAR_POS(i)[2];
+            from[0] = pc_cars[i].dr_pos[0];
+            from[1] = pc_cars[i].dr_pos[1];
+            from[2] = pc_cars[i].dr_pos[2];
             from[1] += SIGHT_HEIGHT;
             for (j = 1; j < gNumPlayers; j++) {
-                to[0] = PC_CAR_POS(j)[0];
-                to[1] = PC_CAR_POS(j)[1];
-                to[2] = PC_CAR_POS(j)[2];
+                to[0] = pc_cars[j].dr_pos[0];
+                to[1] = pc_cars[j].dr_pos[1];
+                to[2] = pc_cars[j].dr_pos[2];
                 to[1] += SIGHT_HEIGHT;
                 if (ShotToWorldCollision(from, to, hit_matrix, 0.5f, 0, 0xFFFF)) {
                     gFadePlayerArrow[i][j] = 1;

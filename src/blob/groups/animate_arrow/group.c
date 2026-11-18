@@ -17,20 +17,6 @@ typedef struct tVisual {
     f32 timeStamp;
     void (*func)(struct tVisual *, s16);
 } tVisual;
-/* The car record (tCarData, N64 offsets; docs/port/CARS.md 2): its place, its crash and its battle state. */
-typedef struct tCarData {
-    u8 pad0[8];
-    f32 dr_pos[3];          /* 8 */
-    u8 pad14[0x110 - 0x14]; struct pc_visual visuals[21]; u8 pad308[0x358 - 0x308];
-    s8 crash_state;         /* 856 */
-    u8 pad359[0x380 - 0x359]; void *player; u8 pad384[0x38C - 0x384];
-    u32 defense_active;     /* 908: battle.defense.active (bit 0: invisible) */
-    u8 pad390[928 - 912];
-    s8 shoot;               /* 928: battle.shoot */
-    u8 fadeAlpha;           /* 929: battle.fadeAlpha */
-    s8 fadeState;           /* 930: battle.fadeState */
-    u8 pad3A3[952 - 931];
-} tCarData;
 /* A view's window (ZoidWinInfo[view], MAT3 tWindowInfo): its view angles. PC: the two pointers are host ones. */
 typedef struct tWindowInfo {
     void *vp; void *s; u8 pad8[0xC - 0x8];
@@ -66,7 +52,7 @@ void AnimateArrow(tVisual *v, s16 op) {
     f32 x, y, z, border, vscale, voffset;
     u32 j;
 
-    car = PC_CAR(v->slot);
+    car = &pc_cars[v->slot];
     m = &pc_models[v->slot];
     oslot = v->index;
     clr = arrow_base_color;
@@ -74,13 +60,13 @@ void AnimateArrow(tVisual *v, s16 op) {
         ZOID_HidePoly(&PolyInstanceList[v->objnum]);
         return;
     }
-    if (gRace == kBattle && (car->defense_active & 1)) {
-        if (car->fadeState == 1) {
-            clr.c[3] = car->fadeAlpha;
-        } else if (car->fadeState == 2) {
-            clr.c[3] = car->fadeAlpha;
+    if (gRace == kBattle && (car->battle.defense.active & 1)) {
+        if (car->battle.fadeState == 1) {
+            clr.c[3] = car->battle.fadeAlpha;
+        } else if (car->battle.fadeState == 2) {
+            clr.c[3] = car->battle.fadeAlpha;
         } else {
-            clr.c[3] = arrowinvsColor[car->shoot];
+            clr.c[3] = arrowinvsColor[car->battle.shoot];
         }
         if (clr.c[3] < 32) {
             clr.c[3] = 32;

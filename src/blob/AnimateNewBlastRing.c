@@ -20,7 +20,6 @@ typedef struct tBlastRingStruct {
     f32 incTime;            /* seconds to its next step */
 } tBlastRingStruct;
 
-/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 /* On the PC the blast rings are pc_blast_rings, PC_MAX_LINKS long, with no N64 address (pc_game_types.h,
  * docs/port/DECOUPLE.md 6), seen here in this file's view. */
 #define gBlastRingObjs (*(tBlastRingStruct (*)[PC_MAX_LINKS])PC_BLAST_RINGS)
@@ -46,9 +45,9 @@ release:
         ReleaseEnviron(v,1);
         return;
     }
-    gBlastRingObjs[v->slot].pos.x=PC_CAR_POS_X(v->slot);
-    gBlastRingObjs[v->slot].pos.y=PC_CAR_POS_Y(v->slot);
-    gBlastRingObjs[v->slot].pos.z=PC_CAR_POS_Z(v->slot);
+    gBlastRingObjs[v->slot].pos.x=pc_cars[v->slot].dr_pos[0];
+    gBlastRingObjs[v->slot].pos.y=pc_cars[v->slot].dr_pos[1];
+    gBlastRingObjs[v->slot].pos.z=pc_cars[v->slot].dr_pos[2];
     gBlastRingObjs[v->slot].incTime-=gFrameSeconds;
     if(gBlastRingObjs[v->slot].incTime<=0.0f) {
         gBlastRingObjs[v->slot].uvs[0][0]+=1.5f;

@@ -25,7 +25,7 @@ s32 animBattlePoints(void *callback_context)
     for (i = 0; i < gNumPlayers; i++) {
         x = fragPos[gNumWindows - 1][i][0];
         y = fragPos[gNumWindows - 1][i][1];
-        sprintf(text, battle_points_format, PC_CAR_POINTS(i));
+        sprintf(text, battle_points_format, pc_cars[i].battle.Points);
         TB_SetTextColor(kTB_BlackText);
         TB_DrawText(x + 1, y + 1, text);
         TB_SetTextColor(kTB_WhiteText);
@@ -39,7 +39,7 @@ s32 animBattlePoints(void *callback_context)
                 if (event->delta > 0) {
                     RecordBattlePoints(event->row, event->column, event->delta);
                 }
-                PC_CAR_POINTS(event->row) += event->delta;
+                pc_cars[event->row].battle.Points += event->delta;
             } else {
                 x = ((event->to_x - event->from_x) / (f32) POINT_FLIGHT) * event->age + event->from_x;
                 y = ((event->to_y - event->from_y) / (f32) POINT_FLIGHT) * event->age + event->from_y;

@@ -1,13 +1,6 @@
 /* CheckTargetCollision: a car against the track's targets (MAT3 targets.c). */
 #include "game/game.h"
 
-/* The car record (MAT3 tCarData; the PC's pc_car, host layout): its position. */
-typedef struct Car {
-    char pad0[8];
-    f32 dr_pos[3];
-    char pad14[0x110 - 0x14]; struct pc_visual visuals[21]; char pad14_308[0x380 - 0x308]; void *input; char pad14_384[0x3B8 - 0x384];
-} Car;
-
 /* Tests the car in slot `slot` against the targets it may hit, and starts each one it hits (its kind's startFunc,
  * once its Flags have 4 and its slot is the car's): in battle first every target of gAlwaysColList (each leaves the
  * list once hit), then the targets of the quadtree's leaf the car is over (gTargetGroups), those still active with
@@ -18,10 +11,10 @@ void CheckTargetCollision(s16 slot) {
     s32 unusedA[6];
     f32 pos[3];
     s32 unusedB[9];
-    Car *car;
+    tCarData *car;
     tAlwaysCol *acol; tAlwaysCol *acolnext; tTarget *t; TargInfo *info; tTargetGroup *tg; s32 currentG; s32 i; s32 collFunc; void *d1; void *d2; void *d3; f32 x; f32 z;
 
-    car = PC_CAR(slot);
+    car = &pc_cars[slot];
     if ((gGameState & GS_DEMO) && expansion_pak_present == 0) {
         return;
     }

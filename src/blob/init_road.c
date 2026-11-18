@@ -21,12 +21,12 @@ void init_road(tModelData *m) {
         make_super_speed(m);
     }
     CopyUV(m->initin.uvs, m->reckon.uvs);
-    CopyUV(m->initin.uvs, PC_CAR_UVS(m->slot));
+    CopyUV(m->initin.uvs, pc_cars[m->slot].dr_uvs);
     WorldVector(m->initin.offset, temp, m->uvs);
     vecadd(m->initin.pos, temp, m->rwr);
     veccopy(m->rwr, m->reckon.rwr);
     veccopy(m->rwr, m->reckon.base_rwr);
-    veccopy(m->rwr, PC_CAR_POS(m->slot));
+    veccopy(m->rwr, pc_cars[m->slot].dr_pos);
     for (i = 0; i < 4; i++) {
         WorldVector(m->car->tireR[i], m->tireRwr[i], m->uvs);
         vecadd(m->tireRwr[i], m->rwr, m->tireRwr[i]);

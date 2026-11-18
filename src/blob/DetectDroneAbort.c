@@ -6,30 +6,6 @@
  * road ahead, which the HUD shows as WRONG WAY past 90 degrees. */
 #include "game/game.h"
 
-/* The car record (tCarData, N64 layout: docs/port/CARS.md 2), the fields used here. */
-typedef struct {
-    u8 pad0[8];
-    f32 dr_pos[3];              /* 0x08 the position, feet */
-    u8 pad14[0x2C - 0x14];
-    f32 dr_uvs[3][3];           /* 0x2C the orientation */
-    u8 pad50[0xEF - 0x50];
-    s8 place_locked;            /* 0xEF finished: its place is final */
-    u8 padF0[0xFA - 0xF0];
-    s16 lastResPath;            /* 0xFA the resurrection path's branch it was last near, -1 the main path */
-    s16 lastResIdx;             /* 0xFC and the point on it */
-    s16 resIdx;                 /* 0xFE */
-    f32 distance;               /* 0x100 the distance along the track */
-    f32 last_distance;          /* 0x104 the furthest distance so far */
-    u8 pad108[0x110 - 0x108]; struct pc_visual visuals[21]; u8 pad108_308[0x340 - 0x308];
-    f32 fwd_progress_t;         /* 0x340 when it stopped making progress (0: it is making progress) */
-    u8 pad344[0x358 - 0x344];
-    s8 crash_state;             /* 0x358 CRASH_NONE, CRASH_WRECKED, CRASH_RESPAWN */
-    s8 dead;                    /* 0x359 CAR_ABORTED, CAR_ALIVE, CAR_DYING, CAR_DEAD */
-    u8 pad35A[0x364 - 0x35A];
-    f32 strayAngle;             /* 0x364 the angle from its heading to the road ahead, radians */
-    u8 pad368[0x380 - 0x368]; void *input; u8 pad368_384[0x3B8 - 0x384];
-} tCarData;
-
 #define PAD_RECORDS 4   /* the players' input records, gPlayers[4] */
 
 /* Abort cars that fell out of the world or are stuck, and measure each human's wrong-way angle.
@@ -68,8 +44,8 @@ void DetectDroneAbort(void) {
     if (gModelTime < 5.0f) {
         for (i = 0; i < PC_RACE_CARS; i++) {
             pc_models[i].stuck_time = 0.0f;
-            PC_CAR_FWD_PROGRESS(i) = 0.0f;
-            PC_CAR_STRAY_ANGLE(i) = 0.0f;
+            pc_cars[i].fwd_progress_t = 0.0f;
+            pc_cars[i].strayAngle = 0.0f;
         }
         return;
     }
@@ -77,7 +53,7 @@ void DetectDroneAbort(void) {
     for (i = 0; i < gNumActiveCars; i++) {
         node = pc_models[i].slot;
         m = &pc_models[node];
-        gc = PC_CAR(node);
+        gc = &pc_cars[node];
         if (m->we_control || PC_LINK_OWNER(node) == 6) {   /* LINK_OWNER_HUMAN */
             abort_me = m->please_abort_me;
             /* fell out of the world */
@@ -130,7 +106,7 @@ void DetectDroneAbort(void) {
 
     for (node = 0; node < gNumPlayers; node++) {
         m = &pc_models[gPlayers[node].slot];
-        gc = PC_CAR(gPlayers[node].slot);
+        gc = &pc_cars[gPlayers[node].slot];
         if (gc->last_distance < gc->distance) {
             gc->fwd_progress_t = 0.0f;
             gc->last_distance = gc->distance;

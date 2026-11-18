@@ -29,6 +29,8 @@
 #include <string.h>
 
 #include "pc_prelude.h"
+#define GAME_RECORDS_ONLY   /* include/game's records alone: this file stands in for the game's data */
+#include "game/cars.h"
 #include "support.h"
 #include "game/modeldata.h"
 
@@ -111,14 +113,6 @@ enum { GH_SUM = 0, GH_REV = 4, GH_FLAG = 5, GH_TRACK = 6, GH_BACK = 7, GH_NAME =
        GH_FINISH = 0x38, GH_ZSIZE = 0x3C, GH_SIZE = 0x40, GH_ZSUM = 0x44, GH_USUM = 0x48, GH_HAS_SAMPLES = 0x4C,
        GH_OFFSET = 0x50, GH_COUNT = 0x54, GH_BYTES = 0x58 };
 struct dllist { uint8_t indirect, doubly, pad[2]; uint32_t count; void **head, **tail; };
-typedef struct {   /* libultra's OSPfs, host layout */
-    int32_t status;
-    void *queue;
-    int32_t channel;
-    uint8_t id[32], label[32];
-    int32_t version, dir_size, inode_table, minode_table, dir_table, inode_start_page;
-    uint8_t banks, activebank;
-} OSPfs;
 typedef struct {
     int8_t flush, flag1, flag2, opaque3;
     uint16_t mapBytes, opaque6;
@@ -218,7 +212,7 @@ float gRetraceTime = 1.0f / 60;                   /* gRetraceTime */
 volatile int8_t gEndingGhosts;
 int32_t gModelIteration;
 tModelData pc_models[PC_MODEL_SLOTS];    /* the model records (game/modeldata.h) */
-struct pc_car pc_cars[PC_CAR_SLOTS];            /* the car records (pc_game_types.h) */
+tCarData pc_cars[PC_CAR_SLOTS];            /* the car records (pc_game_types.h) */
 int16_t gPickedPak;
 int8_t gCarHandling[13], gCarEngines[13], gCarTires[13], gCarFrame[13], gCarWings[13], car_color_choice_a[13],
     car_color_choice_b[13], car_color_choice_c[13], gTireRims[13], gCarHorn[13];   /* the default car settings */

@@ -11,21 +11,6 @@
 float fabsf(float);
 float sqrtf(float);
 
-/* The car record (tCarData, N64 layout: docs/port/CARS.md 2), the fields used here. */
-typedef struct tCarData {
-    u8 pad00[0xEF];
-    s8 place_locked;            /* 0x0EF finished */
-    u8 padF0[0x110 - 0xF0]; struct pc_visual visuals[21]; u8 padF0_308[0x30C - 0x308];
-    f32 collide_time;           /* 0x30C the model time it stopped being solid */
-    u8 pad310[0x358 - 0x310];
-    s8 crash_state;             /* 0x358 CRASH_NONE, CRASH_WRECKED, CRASH_RESPAWN */
-    s8 dead;                    /* 0x359 CAR_ABORTED, CAR_ALIVE, CAR_DYING, CAR_DEAD */
-    u8 pad35A[0x380 - 0x35A];
-    tPadState *player;          /* 0x380 the car's input record, a host pointer; NULL for a drone */
-    u8 pad384[0x388 - 0x384];
-    s16 damageThisFrame;        /* 0x388 battle.damageThisFrame */
-    u8 pad38A[0x3B8 - 0x38A];
-} tCarData;
 
 /* The rumble's strength steps (MAT3 percentTable[36]): the force sums at which the next step starts. */
 #define RUMBLE_STEPS percentTable
@@ -97,7 +82,7 @@ void UpdateModel(s32 slot) {
     tModelData *m;
     tPadState *player;
 
-    car = PC_CAR(slot);
+    car = &pc_cars[slot];
     player = car->player;
     if (((s8) car->dead == CAR_DYING) && ((dying = &pc_models[slot], (dying->magvel < 5.0f)) || (dying->fastin.modelrun == 0))) {
         *(s8 *)&car->dead = CAR_DEAD;
@@ -159,8 +144,8 @@ void UpdateModel(s32 slot) {
                     if ((s8) car->crash_state == CRASH_WRECKED) {
                         work += 100000;
                     } else {
-                        work += (car->damageThisFrame * 100000) / 800;
-                        car->damageThisFrame = 0;
+                        work += (car->battle.damageThisFrame * 100000) / 800;
+                        car->battle.damageThisFrame = 0;
                     }
                 }
                 step_force = RUMBLE_STEPS;
@@ -272,7 +257,7 @@ void model_iteration(void) {
         gModelIteration = gModelIteration + 1;
         gModelTime = (f32) gModelIteration * gRetraceTime;
         for (v = 0; v != PC_RACE_CARS; v++) {
-            if (PC_CAR_INPUT(v) == 0) {
+            if (pc_cars[v].player == 0) {
                 m = &pc_models[v];
                 if (m->we_control == 0) {
                     fz = m->reckon.rwv[2];
@@ -305,7 +290,7 @@ void model_iteration(void) {
                     }
                     SetClutch(m);
                     if ((m->mainin.abort != 0) && ((gRace != kBattle) || (m->crashflag != 0)) && (gGameState & GS_RACING) && (m->resurrect.moving_state == RES_IDLE)) {
-                        gc = &((tCarData *) PC_CARS)[rec->slot];
+                        gc = &((tCarData *) pc_cars)[rec->slot];
                         if ((gc->place_locked == 0) && (gc->dead == CAR_ALIVE) && (gCoastFlag == 0) && (((s8) gDeathMode == 0) || ((m->magvel < 10.0f) && (gc->crash_state == CRASH_NONE)))) {
                             if (gRace == kStunt) {
                                 CrashedStunt(i);
@@ -314,7 +299,7 @@ void model_iteration(void) {
                             AbortCar(rec->slot, 0);
                         }
                     }
-                    if (PC_CAR_DEAD(rec->slot) < CAR_DEAD) {
+                    if (pc_cars[rec->slot].dead < CAR_DEAD) {
                         UpdateModel(rec->slot);
                     } else {
                         collision(m);
@@ -336,8 +321,6 @@ void model_iteration(void) {
         UpdateListeners();
     }
 }
-
-
 
 /* Step drone model `m` (MAT3 update_model): its step's time since its last one, then UpdateModel. */
 void update_model(tModelData *m) {

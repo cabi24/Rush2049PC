@@ -40,12 +40,12 @@ void forces1(tModelData *m)
  dotireforce(m,&m->tireV[2],&m->tireuvs[2],&m->tires[2],m->torque[2],&m->tireForce[2],m->suscomp[2],m->suscomp[3],m->car->springrate[2],m->car->farspringrate,m->car->cdamping[2],m->car->rdamping[2],poortract);
  dotireforce(m,&m->tireV[3],&m->tireuvs[3],&m->tires[3],m->torque[3],&m->tireForce[3],m->suscomp[3],m->suscomp[2],m->car->springrate[3],m->car->farspringrate,m->car->cdamping[3],m->car->rdamping[3],poortract);
  if(m->movingSurface)MovingSurfaceForce(m);
- /* PC_CAR_IN_TUNNEL is the car record's in_tunnel (MAT3): no wind in a tunnel */
- if(!PC_CAR_IN_TUNNEL(m->slot) && m->roadcode[0]==ROADCODE_AIRBORNE && m->roadcode[1]==ROADCODE_AIRBORNE && m->roadcode[2]==ROADCODE_AIRBORNE && m->roadcode[3]==ROADCODE_AIRBORNE) {
+ /* no wind in a tunnel (the car record's in_tunnel) */
+ if(!pc_cars[m->slot].in_tunnel && m->roadcode[0]==ROADCODE_AIRBORNE && m->roadcode[1]==ROADCODE_AIRBORNE && m->roadcode[2]==ROADCODE_AIRBORNE && m->roadcode[3]==ROADCODE_AIRBORNE) {
   m->d[0]=((m->uvs[0][0]*gWind)*gWind)*80.0f;
   m->d[1]=((m->uvs[1][0]*gWind)*gWind)*80.0f;
  } else {m->d[0]=0.0f;m->d[1]=0.0f;}
- if(!PC_CAR_IN_TUNNEL(m->slot)) speed=m->v[2]-(m->uvs[2][0]*gWind)*20.0f;
+ if(!pc_cars[m->slot].in_tunnel) speed=m->v[2]-(m->uvs[2][0]*gWind)*20.0f;
  else speed=m->v[2];
  if(m->appearance&APPEAR_HULK) {drag_base=5000.0f;drag_scale=10.0f;}
  else {drag_base=30.0f;drag_scale=m->car->srefpcybo2;}

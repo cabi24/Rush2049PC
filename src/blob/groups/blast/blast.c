@@ -56,9 +56,9 @@ void StartNewBlast(s16 slot)
             b = &gBlastObjs[slot].blastObjs[i];
             if (b->mbIdx != -1) ZOID_RemoveObject(b->mbIdx);
             CopyUV(unitmatrix, b->mat.uvs);
-            b->mat.pos[0] = PC_CAR_POS(slot)[0];
-            b->mat.pos[1] = PC_CAR_POS(slot)[1] - 3.0f;
-            b->mat.pos[2] = PC_CAR_POS(slot)[2];
+            b->mat.pos[0] = pc_cars[slot].dr_pos[0];
+            b->mat.pos[1] = pc_cars[slot].dr_pos[1] - 3.0f;
+            b->mat.pos[2] = pc_cars[slot].dr_pos[2];
             b->mbIdx = MBOX_NewObject(gObjList[158 + i], &b->mat, -1, 0x42000);
             b->scale = 0.4f;
             b->scaleInc = 0.05f + Random(0.005f);
@@ -75,9 +75,9 @@ void StartNewBlast(s16 slot)
         }
         if (gNumPlayers < 4 && (expansion_pak_present || gTrackNum >= 6)) {
             CopyUV(unitmatrix, gBlastObjs[slot].mat.uvs);
-            gBlastObjs[slot].mat.pos[0] = PC_CAR_POS(slot)[0];
-            gBlastObjs[slot].mat.pos[1] = PC_CAR_POS(slot)[1];
-            gBlastObjs[slot].mat.pos[2] = PC_CAR_POS(slot)[2];
+            gBlastObjs[slot].mat.pos[0] = pc_cars[slot].dr_pos[0];
+            gBlastObjs[slot].mat.pos[1] = pc_cars[slot].dr_pos[1];
+            gBlastObjs[slot].mat.pos[2] = pc_cars[slot].dr_pos[2];
             if (gBlastObjs[slot].glowIdx != -1) ZOID_RemoveObject(gBlastObjs[slot].glowIdx);
             gBlastObjs[slot].glowIdx = MBOX_NewObject(gObjList[162], &gBlastObjs[slot].mat, -1, 0x52000);
             gBlastObjs[slot].alpha = 95;
@@ -111,9 +111,9 @@ static void StartNewBlastRing(s16 slot)
         v->timeStamp = gModelTime;
         v->slot = slot;
         CopyUV(unitmatrix, gBlastRingObjs[slot].mat.uvs);
-        gBlastRingObjs[slot].mat.pos[0] = PC_CAR_POS(slot)[0];
-        gBlastRingObjs[slot].mat.pos[1] = PC_CAR_POS(slot)[1];
-        gBlastRingObjs[slot].mat.pos[2] = PC_CAR_POS(slot)[2];
+        gBlastRingObjs[slot].mat.pos[0] = pc_cars[slot].dr_pos[0];
+        gBlastRingObjs[slot].mat.pos[1] = pc_cars[slot].dr_pos[1];
+        gBlastRingObjs[slot].mat.pos[2] = pc_cars[slot].dr_pos[2];
         if (gBlastRingObjs[slot].ringIdx != -1) ZOID_RemoveObject(gBlastRingObjs[slot].ringIdx);
         gBlastRingObjs[slot].ringIdx = MBOX_NewObject(gObjList[163], &gBlastRingObjs[slot].mat, -1, 0x42000);
         gBlastRingObjs[slot].ralpha = 240;
@@ -143,9 +143,9 @@ release:
     }
     if (v->slot >= 0) {
         if (!pc_models[v->slot].crashflag) goto release;
-        ObjInstanceList[v->objnum].mat->pos[0] = PC_CAR_POS(v->slot)[0];
-        ObjInstanceList[v->objnum].mat->pos[1] = PC_CAR_POS(v->slot)[1];
-        ObjInstanceList[v->objnum].mat->pos[2] = PC_CAR_POS(v->slot)[2];
+        ObjInstanceList[v->objnum].mat->pos[0] = pc_cars[v->slot].dr_pos[0];
+        ObjInstanceList[v->objnum].mat->pos[1] = pc_cars[v->slot].dr_pos[1];
+        ObjInstanceList[v->objnum].mat->pos[2] = pc_cars[v->slot].dr_pos[2];
     }
     v->timeStamp -= gFrameSeconds;
     if (PC_EACH30_IF(v->slot < 0) || (v->slot >= 0 && v->timeStamp <= 0.0f)) {
@@ -154,7 +154,7 @@ release:
         ZOID_SetObjectDef(v->objnum, gObjList[164 + v->index]);
         v->index++;
         if (v->slot >= 0) {
-            if (gNumPlayers < 4 && (expansion_pak_present || gTrackNum >= 6) && v->index == 4) newWorldDamage(PC_CAR_POS(v->slot), v->slot);
+            if (gNumPlayers < 4 && (expansion_pak_present || gTrackNum >= 6) && v->index == 4) newWorldDamage(pc_cars[v->slot].dr_pos, v->slot);
             if (v->index == 3) StartNewBlast(v->slot);
         }
     }
@@ -184,9 +184,9 @@ void StartBlast(void *data, int linkToCar, float scale, int playSound)
         s16 slot;
         slot = *(s16 *)data;
         v->slot = slot;
-        mat->pos[0] = PC_CAR_POS(v->slot)[0];
-        mat->pos[1] = PC_CAR_POS(v->slot)[1];
-        mat->pos[2] = PC_CAR_POS(v->slot)[2];
+        mat->pos[0] = pc_cars[v->slot].dr_pos[0];
+        mat->pos[1] = pc_cars[v->slot].dr_pos[1];
+        mat->pos[2] = pc_cars[v->slot].dr_pos[2];
     } else {
         v->slot = -1;
         mat->pos[0] = ((float *)data)[0];

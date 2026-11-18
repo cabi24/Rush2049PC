@@ -1,7 +1,7 @@
 /* hud_updateFrame: the HUD's per-frame bookkeeping, a blit animation function (MAT3 hud.c's updateFrame). */
 #include "game/game.h"
 
-/* The car records are the PC's pc_cars (pc_game_types.h, docs/port/DECOUPLE.md). */
+/* The car records are the PC's pc_cars(cars.h)  (pc_game_types.h, docs/port/DECOUPLE.md). */
 
 /* PC: races of up to PC_MAX_LINKS cars (docs/port/MORECARS.md 2.5, 7). order[] has a place for every car (the N64's
  * 8 hold its 6; AddressSanitizer saw 12 cars write past them), and in a race of more than 6 cars the HUD order
@@ -22,7 +22,7 @@ s32 hud_updateFrame(s32 blit) {
     s16 num;
 
     for (k = 0; k < 4; k++) {
-        cvt_time((PC_CAR_PLACE_LOCKED(k) == 1) ? PC_CAR_SCORE(k) : gModelTime, TrackTimeStr[k], 'f');
+        cvt_time((pc_cars[k].place_locked == 1) ? pc_cars[k].score : gModelTime, TrackTimeStr[k], 'f');
     }
     for (i = 0; i < PC_HUD_CLEAR_N; i++) {
         dot_order_list[i] = -1;
@@ -32,7 +32,7 @@ s32 hud_updateFrame(s32 blit) {
         idx = 0;
         for (j = 0; j < num; j++) {
             idx = pc_models[j].slot;
-            if (i == PC_CAR_PLACE(idx)) {
+            if (i == pc_cars[idx].place) {
                 break;
             }
         }

@@ -4,19 +4,6 @@
 
 /* A power-up spot is a target (tTarget, gBattlePowerUps.tS[].t): its scene object dlIdx is the s32 MBOX_NewObject
  * returned, whose low half is the node. */
-/* The car record (MAT3 tCarData; the PC's pc_car, host layout): its invisibility (battle.defense: active bit 1,
- * its fade's state, alpha, countdown and time). */
-typedef struct Player {
-    u8 unknown000[0x110 - 0x0]; struct pc_visual visuals[21]; u8 unknown000_308[0x380 - 0x308]; void *input; u8 unknown000_384[0x38C - 0x384];
-    u32 flags;
-    u8 unknown390[16];
-    s8 countdown;
-    u8 alpha;
-    s8 phase;
-    u8 unknown3A3[5];
-    f32 timer;
-    u8 unknown3AC[12];
-} Player;
 
 /* PC: the invisible car's fade out takes its u8 alpha down by at most what it has: at 60 a frame of three 30 Hz frames
  * (a slow host's five retraces) takes 24, which from 23 went round to 255. At original exactly the N64's 8. */
@@ -26,42 +13,42 @@ typedef struct Player {
 void UpdateInvs(void)
 {
     s32 i;
-    Player *car;
+    tCarData *car;
     u8 invsColor[8] = {16, 32, 64, 96, 112, 144, 176, 176};
     for (i = 0; i < gNumPlayers; i++) {
-        car = PC_CAR(i);
-        if (car->flags & 1) {
-            if (car->phase == 3) {
-                car->alpha = invsColor[car->countdown];
-            } else if (car->phase == 1) {
-                car->countdown = 0;
-                if (car->timer > 0.0f) {
-                    car->alpha -= PC_FADE_STEP(8, car->alpha);
-                    if (car->alpha <= 16) {
-                        car->alpha = 16;
-                        car->phase = 3;
+        car = &pc_cars[i];
+        if (car->battle.defense.active & 1) {
+            if (car->battle.fadeState == 3) {
+                car->battle.fadeAlpha = invsColor[car->battle.shoot];
+            } else if (car->battle.fadeState == 1) {
+                car->battle.shoot = 0;
+                if (car->battle.fadeTime > 0.0f) {
+                    car->battle.fadeAlpha -= PC_FADE_STEP(8, car->battle.fadeAlpha);
+                    if (car->battle.fadeAlpha <= 16) {
+                        car->battle.fadeAlpha = 16;
+                        car->battle.fadeState = 3;
                     }
-                    car->timer -= gFrameSeconds;
+                    car->battle.fadeTime -= gFrameSeconds;
                 } else {
-                    car->phase = 3;
+                    car->battle.fadeState = 3;
                 }
             } else {
-                car->countdown = 0;
-                if (car->timer > 0.0f) {
-                    if (car->alpha + PC_STEPS(8) > 255) {
-                        car->alpha = 255;
+                car->battle.shoot = 0;
+                if (car->battle.fadeTime > 0.0f) {
+                    if (car->battle.fadeAlpha + PC_STEPS(8) > 255) {
+                        car->battle.fadeAlpha = 255;
                     } else {
-                        car->alpha = car->alpha + PC_STEPS(8);
+                        car->battle.fadeAlpha = car->battle.fadeAlpha + PC_STEPS(8);
                     }
-                    car->timer -= gFrameSeconds;
+                    car->battle.fadeTime -= gFrameSeconds;
                 } else {
-                    car->flags &= ~1;
-                    car->phase = 0;
+                    car->battle.defense.active &= ~1;
+                    car->battle.fadeState = 0;
                 }
             }
         }
-        if (car->countdown > 0) {
-            PC_EACH30(car->countdown--;)
+        if (car->battle.shoot > 0) {
+            PC_EACH30(car->battle.shoot--;)
         }
     }
 }

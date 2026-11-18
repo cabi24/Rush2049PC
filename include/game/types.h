@@ -26,14 +26,10 @@ struct CamNode;
 struct CamSlot;
 struct Camera;
 struct Car;
-struct CarA;
-struct CarB;
-struct CarE;
 struct CollisionObject;
 struct CollisionReckon;
 struct Command;
 struct Config64;
-struct Cr;
 struct Descriptor;
 struct Descriptor72;
 struct Dims;
@@ -1226,6 +1222,21 @@ typedef struct tTargetStructPath { /* 0x48 bytes */
 #define TPATH_FORWARD 4
 #define TPATH_BACKWARD 8
 
+/* A coin's record (MAT3 tTargetStructCoin, tTarget.data of a stunt or obstacle track's gold or silver coin): the
+ * spinning coin AnimateCoin makes and turns, and who has yet to find it (StartCoin). No pointers: 0x4C bytes. */
+typedef struct tTargetStructCoin {
+    s32 dlIdx;          /* the spinning coin's scene object (ZOID_AddObject's handle; its low half the object) */
+    struct {
+        f32 uvs[3][3];  /* its orientation */
+        f32 pos[3];     /* its position */
+    } mat;              /* wave 4: tUVMatrix */
+    f32 glowTime;       /* MAT3's; no code reads it */
+    f32 sc;             /* MAT3's; no code reads it */
+    f32 angV[3];        /* its spin, radians a second about x, y and z */
+    u16 cameras;        /* a bit per player who hasn't found it yet */
+    u16 whichcoin;      /* its number in the profile's found-coin bits (the gold coins from 8) */
+} tTargetStructCoin;
+
 /* A node of the targets' quadtree (MAT3 tTargetGroup, the track WAD's GDAT records, gTargetGroups): a rectangle of
  * the ground; a node split in four (flags 1) has four children, a leaf a run of gTargetGroupList. */
 typedef struct tTargetGroup { /* 0x1C bytes */
@@ -1480,38 +1491,6 @@ typedef struct tStuntPlayer { /* 0x78 bytes */
 } tStuntPlayer;
 
 /* ---- race: the game loop and the race: state, countdown, drones, stunts, battle, ghosts */
-
-/* A car's defence in a battle (MAT3 anon_active_invsTime_10, the battle record's defense): the invisibility and the
- * shield the power-ups give (StartWeaponIcon), which UpdateDefense counts down each frame. */
-typedef struct Defense {
-    u32 active;       /* what is on: 1 invisible; 2 the shield, with 8 while it grows, 4 while it is full and 16
-                       * while it shrinks */
-    f32 invsTime;     /* the invisibility's time left, seconds */
-    f32 shldTime;     /* the time to the shield's next step: a frame while it grows or shrinks, else its time left */
-    f32 shldScale;    /* the shield's size, up to the car's (gShieldSizes) */
-    f32 shldAngle;    /* the shield's spin, radians (MAT3 has no spin) */
-} Defense;
-
-/* A car's state in a battle (MAT3 anon_weapon_health_30, tCarData's battle; in the car record, gGameCar's battle
- * fields): its weapon and ammunition, its health, its defence, its gun's aim and its fading in and out while
- * invisible. */
-typedef struct Battle {
-    s8 type;              /* the weapon it carries, 8 none (MAT3 weapon.type) */
-    s8 ammoCnt;           /* its ammunition, -1 none (MAT3 weapon.ammoCnt) */
-    s16 health;           /* 800 full */
-    s16 damageThisFrame;
-    Defense defense;
-    s8 shoot;             /* a countdown, a frame at a time: 6 when the gun fires (its muzzle flash shows while 5 or
-                           * more); an invisible car's alpha flickers by it (UpdateInvs) */
-    u8 fadeAlpha;         /* the car's alpha while it is invisible or fading */
-    s8 fadeState;         /* 1 fading out, 3 invisible, 2 fading back in, 0 none of these */
-    s8 Points;            /* its points, or what is left of them (FindWinner ranks by it) */
-    s32 loaded;           /* weapon 3's shot, held on the car until it is fired: 1 just made, 2 held, 0 none */
-    f32 fadeTime;         /* the fade's time left, seconds */
-    f32 reloadingTime;    /* the time to its next shot, seconds */
-    f32 pitch;            /* the gun's aim (ElevateGun) */
-    f32 yaw;
-} Battle;
 
 /* A race of a circuit (MAT3 tCircuitTrack), gCircuitTracks[]: ContinueCircuit draws them from the circuit's seed. */
 typedef struct tCircuitTrack {

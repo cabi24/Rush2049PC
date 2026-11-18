@@ -35,13 +35,13 @@ void initialize(tModelData *m) {
     init_collision(m);
     m->crashflag=0;
     /* the car record's battle block (MAT3 tCarData.battle) and crash_state, by the port's accessors */
-    PC_CAR_HEALTH(m->slot)=800;
-    PC_CAR_SHOOT(m->slot)=0;             /* shoot */
-    PC_CAR_FADE_STATE(m->slot)=0;             /* fadeState */
-    PC_CAR_DEFENSE_ACTIVE(m->slot)=0;     /* defense.active */
-    PC_CAR_BATTLE_PITCH(m->slot)=0.0f;          /* pitch */
-    PC_CAR_BATTLE_YAW(m->slot)=0.0f;          /* yaw */
-    PC_CAR_CRASH_STATE(m->slot)=CRASH_NONE;    /* crash_state */
+    pc_cars[m->slot].battle.health=800;
+    pc_cars[m->slot].battle.shoot=0;             /* shoot */
+    pc_cars[m->slot].battle.fadeState=0;             /* fadeState */
+    pc_cars[m->slot].battle.defense.active=0;     /* defense.active */
+    pc_cars[m->slot].battle.pitch=0.0f;          /* pitch */
+    pc_cars[m->slot].battle.yaw=0.0f;          /* yaw */
+    pc_cars[m->slot].crash_state=CRASH_NONE;    /* crash_state */
     m->bodyForces=0.0f;
     m->bogState=3;
 }

@@ -22,7 +22,7 @@ static u32 scene_cars_past_8(tBasicTargetPath *path)
 
     if ((u32)path->collIdx < 32) {
         for (j = 8; j < gNumCars; j++) {
-            any |= (PC_CAR_SCENES(j) >> path->collIdx) & 1;
+            any |= (pc_cars[j].scenes >> path->collIdx) & 1;
         }
     }
     return any;
@@ -36,7 +36,7 @@ static void scene_car(tBasicTargetPath *path, s32 idx, s32 in)
         path->flags = in ? path->flags | bit : path->flags & ~bit;
     } else if ((u32)path->collIdx < 32) {
         bit = 1u << path->collIdx;
-        PC_CAR_SCENES(idx) = in ? PC_CAR_SCENES(idx) | bit : PC_CAR_SCENES(idx) & ~bit;
+        pc_cars[idx].scenes = in ? pc_cars[idx].scenes | bit : pc_cars[idx].scenes & ~bit;
     }
 }
 #define SCENE_CARS(path) ((path->flags >> 24) | scene_cars_past_8(path))

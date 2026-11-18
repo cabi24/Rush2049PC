@@ -6,13 +6,6 @@
 #define mvecsub(a,b,r) {r[0]=a[0]-b[0]; r[1]=a[1]-b[1]; r[2]=a[2]-b[2];}
 #define mveccopy(a,r) {r[0]=a[0]; r[1]=a[1]; r[2]=a[2];}
 
-/* The car record's view (MAT3 tCarData) in the PC layout: only its position. */
-typedef struct ProximityPlayer {
-    unsigned char unknown0[8];
-    float position[3];      /* 0x08 dr_pos: the position, feet */
-    unsigned char unknown14[0x110 - 0x14]; struct pc_visual visuals[21]; unsigned char unknown14_308[0x380 - 0x308]; void *input; unsigned char unknown14_384[0x3B8 - 0x384];
-} ProximityPlayer;
-
 /* Does car *player_index touch the sphere of radius *radius_in at point? The car counts as a 3.5 ft sphere.
  * radial_error, if not NULL, gets the squared distance minus the squared radius (not positive: they overlap). A car
  * that isn't collidable never hits. */
@@ -21,16 +14,16 @@ int TargetCollRadius(short *player_index, float *point, float *radius_in,
 {
     float distance_squared, gap;
     float delta[3], position[3];
-    ProximityPlayer *player;
+    tCarData *player;
     short index;
     float radius;
 
     index = *player_index;
-    player = PC_CAR(index);
+    player = &pc_cars[index];
     radius = *radius_in;
     if (!pc_models[index].collidable) return 0;
     mveccopy(point,position);
-    mvecsub(player->position,position,delta);
+    mvecsub(player->dr_pos,position,delta);
     distance_squared = delta[0] * delta[0] + delta[1] * delta[1] + delta[2] * delta[2];
     radius += 3.5f;
     gap = distance_squared - radius * radius;

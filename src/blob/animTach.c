@@ -23,7 +23,7 @@ s32 animTach(tBlit *blt)
         return 1;
     }
     hide = gShowTach == 0 || pc_models[slot].autotrans != 0 ||
-           PC_CAR_PLACE_LOCKED(pc_models[slot].slot) == 1;
+           pc_cars[pc_models[slot].slot].place_locked == 1;
     if (hide != blt->hide) {
         blt->hide = hide;
         UpdateBlit(blt);

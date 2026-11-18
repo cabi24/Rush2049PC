@@ -3,13 +3,11 @@
 
 typedef f32 Vec3[3];
 typedef f32 Mat3[3][3];
-/* The car record (MAT3 tCarData; the PC's pc_car, host layout): its speed and its place on its drone path. */
-typedef struct Object { u8 other0[248]; s16 mph; u8 other250[0x110 - 0xFA]; struct pc_visual visuals[21]; u8 other250_308[0x338 - 0x308]; s16 idx; s16 other826; s16 path; } Object;
 
 /* Sets car `object`'s track camera (view 6, fix_camera_in_space) on drone path 0 a little ahead of the car (5
  * points, more the faster it goes): at the track's first camera spot within 200 feet of there (trackSpots, which
  * says if it zooms), else 10 to 20 feet above the path point, kept out of the walls. */
-void init_camera_on_track(Object *object)
+void init_camera_on_track(tCarData *object)
 {
     s16 i;
     s16 point;
@@ -18,14 +16,14 @@ void init_camera_on_track(Object *object)
     Vec3 pos;
     Mat3 matrix;
 
-    i = (s16)(object->mph >> 6) + 4;
-    point = object->idx;
+    i = (s16)(object->rwmph >> 6) + 4;
+    point = object->mpctl.idx;
     /* Original game: the point is stepped along drone path 0 but read on the car's own drone path; MAT3 has it so
      * too. */
     for (; i >= 0; i--) point = NextPathPt(point, 0);
-    pos[0] = gDronePaths[object->path].pts[point].pos[0];
-    pos[1] = gDronePaths[object->path].pts[point].pos[1];
-    pos[2] = gDronePaths[object->path].pts[point].pos[2];
+    pos[0] = gDronePaths[object->mpctl.path].pts[point].pos[0];
+    pos[1] = gDronePaths[object->mpctl.path].pts[point].pos[1];
+    pos[2] = gDronePaths[object->mpctl.path].pts[point].pos[2];
     e = trackSpots[gTrackNum];
     if (e != 0) {
         for (; e->pos[1] != -999.0f; e++) {

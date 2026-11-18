@@ -1,15 +1,5 @@
 #include "game/game.h"
 
-/* PC: the car record's layout (0x510 bytes, docs/port/CARS.md): its 21 visuals and the input pointer are host-sized. */
-typedef struct Car {
-    u8 pad00[0xe8];
-    u32 appearance;       /* 0xe8 */
-    u8 padec[0x110 - 0xec];
-    struct pc_visual visuals[21];
-    u8 padec_308[0x380 - 0x308];
-    void *input;
-    Battle battle;        /* 0x384, PC 0x4D8 */
-} Car;
 typedef struct CollSize { f32 colfront, colrear, colside, colheight; } CollSize;
 f32 sqrtf(f32);
 #pragma intrinsic (sqrtf)
@@ -21,14 +11,14 @@ f32 sqrtf(f32);
  * 0x20), counted (IncBattlePowerUps) and hidden. */
 void StartWeaponIcon(tTarget *t)
 {
-    Car *car;
+    tCarData *car;
     tModelData *m;
     s32 type;
     s32 ammo;
     s32 wep;
     CollSize *sizep;
     if (t->Flags & 4) {
-        car = PC_CAR(t->slot);
+        car = &pc_cars[t->slot];
         m = &pc_models[t->slot];
         t->Flags &= ~6;
         if (car->appearance & 0x10) {
@@ -86,7 +76,7 @@ void StartWeaponIcon(tTarget *t)
             car->battle.defense.active |= 0xa;
             car->battle.defense.shldTime = 0.0333333f;
             car->battle.defense.shldScale = 0.05f;
-            car->battle.defense.shldAngle = 0.0f;
+            car->battle.defense.shldPitch = 0.0f;
             return;
         case 360:
             type = 7;
@@ -100,11 +90,11 @@ void StartWeaponIcon(tTarget *t)
             break;
         }
         if (wep) {
-        if (type == car->battle.type) {
-            car->battle.ammoCnt += ammo;
+        if (type == car->battle.weapon.type) {
+            car->battle.weapon.ammoCnt += ammo;
         } else {
-            car->battle.type = type;
-            car->battle.ammoCnt = ammo;
+            car->battle.weapon.type = type;
+            car->battle.weapon.ammoCnt = ammo;
         }
         if (type == 5) {
             f32 z;

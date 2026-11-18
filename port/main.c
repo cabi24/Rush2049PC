@@ -27,6 +27,9 @@
 #include "pc_ghost_prompt.h"
 #include "pc_cheats.h"
 #include "pc_game_types.h"
+#include "pc_prelude.h"
+#define GAME_RECORDS_ONLY   /* include/game's records alone: the cars' records, which this file reads */
+#include "game/cars.h"
 #include "game/modeldata.h"
 #include "pc_lockstep.h"
 #include "netmenu.h"
@@ -305,7 +308,7 @@ static void cars_info(char *out, size_t size)
         for (int k = 0; k < 3; k++)
             d[k] = (double)r[k] - g_cars_start[i][k];
         moved = sqrt(d[0] * d[0] + d[1] * d[1] + d[2] * d[2]);
-        const volatile float *c = pc_cars[i].pos;
+        const volatile float *c = pc_cars[i].dr_pos;
         len += snprintf(out + len, size - (size_t)len,
                         "; %d %s place %d lap %d distance %.0f moved %.0f at %.0f %.0f %.0f", i,
                         *(volatile int16_t *)&pc_models[i].in_game ? "active" : "inactive",
@@ -453,7 +456,7 @@ static void frame_log(int retraces)
     if (exact < 0)
         exact = getenv("RUSH_STATE_EXACT") != NULL;
     const volatile float *e = (const volatile float *)(gCamera + 36), *f = (const volatile float *)(gCamera + 24),
-                         *c = pc_cars[0].pos;
+                         *c = pc_cars[0].dr_pos;
     fprintf(stderr, exact ? "rush2049pc: frame vi=%u: retraces %d tick %d eye %a %a %a car %a %a %a view %a %a %a\n"
             : "rush2049pc: frame vi=%u: retraces %d tick %d eye %.3f %.3f %.3f car %.3f %.3f %.3f view %.4f %.4f %.4f\n",
             __atomic_load_n(&pc_frame, __ATOMIC_RELAXED), retraces, (int)*(volatile int32_t *)&gModelIteration,

@@ -24,7 +24,7 @@ extern f32 gDummyVtx[4][3];            /* gDummyVtx */
 static void StartShadow(s16 slot)
 {
     tVisual *v;
-    v = &PC_CAR_VISUALS(slot)[VIS_SHADOW];
+    v = &pc_cars[slot].visuals[VIS_SHADOW];
     v->func = AnimateShadow;
     v->slot = slot;
     v->timeStamp = gModelTime;
@@ -37,7 +37,7 @@ static void StartShadow(s16 slot)
  * visuals left over below VIS_ARROWS_END are cleared. */
 static void StartArrow(s16 slot)
 {
-    tVisual *v = &PC_CAR_VISUALS(slot)[VIS_ARROWS];
+    tVisual *v = &pc_cars[slot].visuals[VIS_ARROWS];
     int i;
     tRGBA clr = { { 255, 255, 255, 255 } };
     tPoly *poly;
@@ -63,7 +63,7 @@ static void StartArrow(s16 slot)
         v->objnum = poly - PolyInstanceList;
         v++;
     }
-    while (v < (tVisual *) &PC_CAR_VISUALS(slot)[VIS_ARROWS_END]) {
+    while (v < (tVisual *) &pc_cars[slot].visuals[VIS_ARROWS_END]) {
         v->func = 0;
         v->objnum = -1;
         v++;

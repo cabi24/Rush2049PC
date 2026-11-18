@@ -25,6 +25,8 @@
 #include <string.h>
 
 #include "pc_prelude.h"
+#define GAME_RECORDS_ONLY   /* include/game's records alone: this file stands in for the game's data */
+#include "game/cars.h"
 #include "support.h"
 #include "game/modeldata.h"
 
@@ -44,7 +46,7 @@ struct pc_skid pc_skids[PC_MAX_LINKS][4];
 
 /* ---------------------------------------------------------------- the game's data the code under test uses */
 
-struct pc_car pc_cars[PC_CAR_SLOTS];
+tCarData pc_cars[PC_CAR_SLOTS];
 tModelData pc_models[PC_MODEL_SLOTS];
 struct pc_link pc_links[PC_LINK_SLOTS];
 #define CF(i, n, T) (*(T *)((uint8_t *)&pc_cars[i] + CAR_OFS(n)))   /* car i's field at N64 offset n */
@@ -211,10 +213,10 @@ int main(void)
         CF(s, 0x35C, int8_t) = 0;                       /* the first window's */
         MF(s, 8, uint8_t) = 0;                          /* car type 0 */
         for (k = 0; k < 3; k++)
-            PC_CAR_POS(s)[k] = 1000.0f * s + k;
+            pc_cars[s].dr_pos[k] = 1000.0f * s + k;
         for (t = 0; t < 4; t++)
             for (k = 0; k < 3; k++)
-                PC_CAR_WHEEL_POS(s)[t][k] = 1000.0f * s + 10.0f * t + k;
+                pc_cars[s].dr_tirepos[t][k] = 1000.0f * s + 10.0f * t + k;
     }
 
     /* The race's start: the puff pool set up, every slot's latches cleared, not the N64's 6. */
@@ -299,7 +301,7 @@ int main(void)
         for (k = 0; k < 4; k++) {
             CHECK(pc_blasts[CARS - 1].blastObjs[k].mbIdx != -1 && pc_blasts[CARS - 1].blastObjs[k].scale == 0.4f);
             CHECK(g_obj[first + k].mat == &pc_blasts[CARS - 1].blastObjs[k].mat);
-            CHECK(pc_blasts[CARS - 1].blastObjs[k].mat.pos[0] == PC_CAR_POS(CARS - 1)[0]);
+            CHECK(pc_blasts[CARS - 1].blastObjs[k].mat.pos[0] == pc_cars[CARS - 1].dr_pos[0]);
         }
         CHECK(pc_blasts[CARS - 1].glowIdx != -1 && g_obj[first + 4].mat == &pc_blasts[CARS - 1].mat);
         CHECK(pc_blasts[CARS - 1].alpha == 95 && pc_blasts[CARS - 1].lifeTime == 0.7f);
@@ -311,7 +313,7 @@ int main(void)
         MF(CARS - 1, 0x6C4, int16_t) = -1;
         g_vis[0].slot = CARS - 1;
         AnimateNewBlast(&g_vis[0], 1);
-        CHECK(pc_blasts[CARS - 1].lifeTime < 0.7f && pc_blasts[CARS - 1].mat.pos[1] == PC_CAR_POS(CARS - 1)[1]);
+        CHECK(pc_blasts[CARS - 1].lifeTime < 0.7f && pc_blasts[CARS - 1].mat.pos[1] == pc_cars[CARS - 1].dr_pos[1]);
         for (s = 0; s < PC_MAX_LINKS; s++)
             if (s != CARS - 1)
                 CHECK(sentinel(&pc_blasts[s].lifeTime, 4, 0, 1) && sentinel(&pc_blasts[s].mat, 4, 0, 12));
@@ -324,12 +326,12 @@ int main(void)
         struct { void *next; uint16_t tag; int16_t handle, index; uint8_t pad[10]; intptr_t state; } node;
         StartBlast(&slot, 1, 1.0f, 0);
         CHECK(pc_blast_rings[CARS - 1].ringIdx != -1 && g_obj[first].mat == &pc_blast_rings[CARS - 1].mat);
-        CHECK(pc_blast_rings[CARS - 1].ralpha == 240 && pc_blast_rings[CARS - 1].mat.pos[2] == PC_CAR_POS(CARS - 1)[2]);
-        PC_CAR_POS(CARS - 1)[0] += 5.0f;
+        CHECK(pc_blast_rings[CARS - 1].ralpha == 240 && pc_blast_rings[CARS - 1].mat.pos[2] == pc_cars[CARS - 1].dr_pos[2]);
+        pc_cars[CARS - 1].dr_pos[0] += 5.0f;
         memset(&node, 0, sizeof node);
         node.index = CARS - 1;
         AnimateNewBlastRing(&node, 1);
-        CHECK(pc_blast_rings[CARS - 1].mat.pos[0] == PC_CAR_POS(CARS - 1)[0]);
+        CHECK(pc_blast_rings[CARS - 1].mat.pos[0] == pc_cars[CARS - 1].dr_pos[0]);
         CHECK(pc_blast_rings[CARS - 1].incTime < 0.0333334f && pc_blast_rings[CARS - 1].incTime > 0.0f);
         for (s = 0; s < PC_MAX_LINKS; s++)
             if (s != CARS - 1)
@@ -359,7 +361,7 @@ int main(void)
         int ok = 1;
         for (s = 0; s < CARS; s++)
             for (t = 0; t < 4; t++) {
-                ok &= pc_skids[s][t].obj != NULL && pc_skids[s][t].pos[0] == PC_CAR_WHEEL_POS(s)[t][0];
+                ok &= pc_skids[s][t].obj != NULL && pc_skids[s][t].pos[0] == pc_cars[s].dr_tirepos[t][0];
                 for (int s2 = 0; s2 <= s; s2++)
                     for (int t2 = 0; t2 < 4; t2++)
                         if (s2 != s || t2 != t)
@@ -374,7 +376,7 @@ int main(void)
     }
     for (s = 0; s < CARS; s++)
         for (t = 0; t < 4; t++)
-            PC_CAR_WHEEL_POS(s)[t][2] += 0.5f;      /* moved along: a continued skid */
+            pc_cars[s].dr_tirepos[t][2] += 0.5f;      /* moved along: a continued skid */
     for (s = 0; s < CARS; s++)
         UpdateSkids(s);
     CHECK(pc_skids[CARS - 1][3].obj != NULL && pc_skids[CARS - 1][3].lenSq > 0.0f);

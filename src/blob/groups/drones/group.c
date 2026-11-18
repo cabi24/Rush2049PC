@@ -19,19 +19,6 @@ typedef float F32;
 #define DRONE 1
 #define HUMAN 2
 
-typedef struct {
-    /* 0x000 */ U8 pad0[8];
-    /* 0x008 */ F32 dr_pos[3];
-    /* 0x014 */ U8 pad14[0xEE - 0x14];
-    /* 0x0EE */ S8 place;
-    /* 0x0EF */ U8 pad0EF[0x100 - 0xEF];
-    /* 0x100 */ F32 distance;
-    /* 0x104 */ U8 pad104[0x110 - 0x104]; struct pc_visual visuals[21]; U8 pad104_308[0x356 - 0x308];
-    /* 0x356 */ S16 weight_index;
-    /* 0x358 */ U8 pad358;
-    /* 0x359 */ S8 state;
-    /* 0x35A */ U8 pad35A[0x380 - 0x35A]; void *input; U8 pad35A_384[0x3B8 - 0x384];
-} CAR_DATA;
 
 /* The arcade's names for the game's data. */
 #define game_car gGameCar
@@ -91,13 +78,13 @@ void DoDrones(void)
     F32 max_brake, min_brake, max_boost, min_boost, temp1;
     F32 place_scale, diff_scale;
     tModelData *m;
-    CAR_DATA *gc;
+    tCarData *gc;
 
     SetCatchup();
 
     for (i = 0; i < num_active_cars; i++) {
         high_place = pc_models[i].slot;
-        place[high_place] = PC_CAR_PLACE(high_place);
+        place[high_place] = pc_cars[high_place].place;
     }
 
     human_count = drone_count = 0;
@@ -120,7 +107,7 @@ void DoDrones(void)
     }
 
     for (i = 0, j = 0; i < drone_count; i++)
-        PC_CAR_WEIGHT_INDEX(drones[i]) = i;
+        pc_cars[drones[i]].weight_index = i;
 
     if (gGameState & GS_DEMO) {
         for (i = 0; i < num_active_cars; i++) {
@@ -144,7 +131,7 @@ void DoDrones(void)
             for (i = 0; i < num_active_cars; i++) {
                 index = pc_models[i].slot;
                 car_in_conflict[index] = 0;
-                gc = PC_CAR(index);
+                gc = &pc_cars[index];
 
                 for (j = i; j < num_active_cars; j++) {
                     index2 = pc_models[j].slot;
@@ -152,7 +139,7 @@ void DoDrones(void)
                         car_distance[index][index2] = 99999999;
                     else {
                         for (k = 0; k < 3; k++)
-                            delta[k] = gc->dr_pos[k] - PC_CAR_POS(index2)[k];
+                            delta[k] = gc->dr_pos[k] - pc_cars[index2].dr_pos[k];
 
                         delta_dist = delta[0] * delta[0] + delta[1] * delta[1] + delta[2] * delta[2];
 
@@ -237,7 +224,7 @@ void DoDrones(void)
                     min_brake = (.96f - 1.0f) * diff_scale + 1.0f - place_scale * ((.05f - .02f) * diff_scale + .02f);
 
                     if (index2 != index) {
-                        delta_dist = PC_CAR_DISTANCE(index) - PC_CAR_DISTANCE(index2);
+                        delta_dist = pc_cars[index].distance - pc_cars[index2].distance;
 
                         if (delta_dist < -20) {
                             time_scale = FoundCoin(-300, -60, delta_dist, max_boost, min_boost);
@@ -254,7 +241,7 @@ void DoDrones(void)
                     } else {
                         if (my_place == 0) {
                             index2 = cars_in_order[1];
-                            delta_dist = PC_CAR_DISTANCE(index) - PC_CAR_DISTANCE(index2);
+                            delta_dist = pc_cars[index].distance - pc_cars[index2].distance;
 
                             if (delta_dist < 200) {
                                 time_scale = FoundCoin(200, 0, delta_dist, min_boost, max_boost);
@@ -266,7 +253,7 @@ void DoDrones(void)
                         } else if (my_place == num_active_cars - 1) {
                             index2 = cars_in_order[num_active_cars - 2];
 
-                            delta_dist = PC_CAR_DISTANCE(index) - PC_CAR_DISTANCE(index2);
+                            delta_dist = pc_cars[index].distance - pc_cars[index2].distance;
 
                             if (delta_dist < -150) {
                                 time_scale = FoundCoin(-150, -300, delta_dist, min_boost, max_boost);
@@ -277,10 +264,10 @@ void DoDrones(void)
                             }
                         } else {
                             index2 = cars_in_order[my_place - 1];
-                            delta_dist = PC_CAR_DISTANCE(index) - PC_CAR_DISTANCE(index2);
+                            delta_dist = pc_cars[index].distance - pc_cars[index2].distance;
 
                             index2 = cars_in_order[my_place + 1];
-                            delta_dist2 = PC_CAR_DISTANCE(index) - PC_CAR_DISTANCE(index2);
+                            delta_dist2 = pc_cars[index].distance - pc_cars[index2].distance;
 
                             if (delta_dist > -150 && delta_dist2 < 150) {
                                 target_dist = (delta_dist + delta_dist2) / 2;
@@ -327,7 +314,7 @@ void DoDrones(void)
                     if (coast_flag || end_game_flag)
                         time_scale = min_boost;
 
-                    if (lap_flag && PC_CAR_PLACE(human_slots[human_count - 1]) > place[index]) {
+                    if (lap_flag && pc_cars[human_slots[human_count - 1]].place > place[index]) {
                         scale = min_brake;
                         time_scale = min_boost;
                     }

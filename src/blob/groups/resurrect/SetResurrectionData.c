@@ -7,9 +7,6 @@
  * turned to face along the path. */
 #include "game/game.h"
 
-/* The car record (tCarData, N64 layout: docs/port/CARS.md 2), the field used here: its place on its drone path. */
-typedef struct tCarData { u8 pad[0x110 - 0x0]; struct pc_visual visuals[21]; u8 pad_308[0x314 - 0x308]; tPathPoint mpctl; u8 rest[0x380 - 0x340]; void *input; u8 rest_384[0x3B8 - 0x384]; } tCarData;
-
 /* Drone path `p` (gDronePaths, a DronePath), indexed through a pointer to the array's first element as the
  * original code did: the same path as gDronePaths[p], which the compiler would address in another order. */
 #define DRONE_PATH(p) (((DronePath *)gDronePaths)[p])
@@ -130,7 +127,7 @@ void SetResurrectionData(s16 mode, tModelData *m, u32 abort) {
                 }
             }
             SetDroneResPathIndex((struct State *)m, -1, gDemoPathPt);
-            car = PC_CAR(m->slot);
+            car = &pc_cars[m->slot];
             m->resurrect.save_pos[0] = (f32)DRONE_PATH(car->mpctl.path).pts[car->mpctl.idx].pos[0];
             m->resurrect.save_pos[1] = (f32)DRONE_PATH(car->mpctl.path).pts[car->mpctl.idx].pos[1];
             m->resurrect.save_pos[2] = (f32)DRONE_PATH(car->mpctl.path).pts[car->mpctl.idx].pos[2];

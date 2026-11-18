@@ -15,6 +15,8 @@
 #include <string.h>
 
 #include "pc_prelude.h"
+#define GAME_RECORDS_ONLY   /* include/game's records alone: this file stands in for the game's data */
+#include "game/cars.h"
 #include "support.h"
 #include "game/modeldata.h"
 
@@ -42,7 +44,7 @@ _Static_assert(sizeof(Blit) == 0x68 && offsetof(Blit, AnimID) == 0x40, "the Blit
 /* ---------------------------------------------------------------- the game's data */
 
 tModelData pc_models[PC_MODEL_SLOTS];
-struct pc_car pc_cars[PC_CAR_SLOTS];
+tCarData pc_cars[PC_CAR_SLOTS];
 struct { uint32_t opaque[6]; } text_lock_queue;     /* the font lock */
 int32_t gGameState, gRace;
 volatile int16_t gNumCars;
@@ -408,7 +410,7 @@ static void test_dots(void)
     gNumWindows = 1, gShowTrackMap = 1, gMirrorWaves = 1;
     gPathMax.x = 1000, gPathMax.z = 1000, gPathMin.x = 0, gPathMin.z = 0, kMapSize = 64;
     for (int i = 0; i < 12; i++) {
-        pc_cars[i].pos[0] = 100.0f + 50 * i, pc_cars[i].pos[2] = 500;
+        pc_cars[i].dr_pos[0] = 100.0f + 50 * i, pc_cars[i].dr_pos[2] = 500;
         pc_models[i].collidable = 1;
     }
     for (unsigned id = 8; id < 12; id++) {
@@ -421,7 +423,7 @@ static void test_dots(void)
     /* a blip for slot 11 on viewer 0's radar: a drone's icon */
     gShowRadar = 1, gGameState = 0, radarWidth = 64, radarHeight = 64;
     pc_models[11].in_game = 1, pc_models[11].drone_type = 1;
-    pc_cars[0].pos[0] = 0, pc_cars[0].pos[2] = 0, pc_cars[11].pos[0] = 30, pc_cars[11].pos[2] = -100;
+    pc_cars[0].dr_pos[0] = 0, pc_cars[0].dr_pos[2] = 0, pc_cars[11].dr_pos[0] = 30, pc_cars[11].dr_pos[2] = -100;
     memset(&b, 0, sizeof b);
     b.AnimID = 0x00B, b.Width = 64, b.Height = 8, b.AnimFunc = animRadarBlip, b.Hide = 1;
     g_ncalls = 0;

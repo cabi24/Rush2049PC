@@ -13,16 +13,6 @@ typedef struct tVisual {
     f32 timeStamp;
     void (*func)(void);
 } tVisual;
-/* The car record (tCarData, N64 layout: docs/port/CARS.md 2), the fields AnimateTire reads. */
-typedef struct tCarData {
-    u8 pad000[232];
-    u32 appearance;              /* +0x0E8 APPEAR_* */
-    u8 pad0EC[12];
-    s16 rwmph;                   /* +0x0F8 the speed, mph x 4 */
-    u8 pad0FA[0x110 - 0xFA]; struct pc_visual visuals[21]; u8 pad308[0x35C - 0x308];
-    s8 camera,view,saveview,carMine;   /* +0x35C the window that follows the car (-1 none) and its view */
-    u8 tail[0x380 - 0x360]; void *player; u8 tail_384[0x3B8 - 0x384];
-} tCarData;
 
 /* game.frame_rate 60 (pc_game_fps.h, docs/port/FRAMERATE.md 7.6): the in-car view's bob, spring_save = spring_save *
  * 0.75 + noise once a frame of two retraces, taken every frame: the decay to the frame's length and the noise scaled
@@ -58,7 +48,7 @@ void AnimateTire(tVisual *v, s16 op)
         return;
     }
     slot = v->slot;
-    car = PC_CAR(slot);
+    car = &pc_cars[slot];
     tire = v->index;
     m = &pc_models[slot];
     spring = m->suscomp[tire];

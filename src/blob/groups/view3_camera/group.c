@@ -6,22 +6,6 @@
 float sqrtf(float);
 
 
-/* The car record (MAT3 tCarData; the PC's pc_car, host layout: its visuals are 0x28 bytes). */
-struct tCarData {
-    u8 pad0[0x14];
-    f32 dr_vel[3];          /* 0x14 its velocity */
-    u8 pad20[0x2C - 0x20];
-    f32 dr_uvs[3][3];       /* 0x2C its orientation */
-    f32 dr_car_uvs[3][3];   /* 0x50 the orientation it is drawn with */
-    u8 pad74[0xA4 - 0x74];
-    f32 v[3];               /* 0xA4 its velocity in its own frame */
-    u8 padB0[0xF4 - 0xB0];
-    s32 objnum;             /* 0xF4 its scene object, -1 none */
-    u8 padF8[0x110 - 0xF8]; struct pc_visual visuals[21]; u8 pad308[0x35C - 0x308];
-    s8 camera;              /* 0x35C its camera */
-    s8 view;                /* 0x35D its camera's view */
-};
-
 /* Sets `out` (`n` floats) to the point between `a` and `b` that `t` is between `lo` and `hi` (a if lo is hi). */
 void Interpolate(f32 *a, f32 *b, s16 n, f32 lo, f32 hi, f32 t, f32 *out) {
     f32 k;

@@ -154,7 +154,7 @@ void ReadShifter(tModelData *car, tPadState *player)
     if (car->crashflag != 0) {
         return;
     }
-    if (PC_CAR_DEAD(car->slot) > 0 || gCoastFlag != 0) {
+    if (pc_cars[car->slot].dead > 0 || gCoastFlag != 0) {
         return;
     }
     if (gRealLevels[player->controller] & player->controls[CONTROL_REVERSE]) {
@@ -178,7 +178,7 @@ void ReadShifter(tModelData *car, tPadState *player)
     } else if (car->mainin.gear >= 0) {
         return;
     }
-    speed = PC_CAR_MPH(car->slot) >> 2;
+    speed = pc_cars[car->slot].rwmph >> 2;
     if (speed >= 111) {
         car->mainin.gear = 4;
     } else if (speed >= 81) {

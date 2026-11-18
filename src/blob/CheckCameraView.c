@@ -3,21 +3,6 @@
 
 typedef f32 Vec3[3];
 typedef f32 Mat3[3][3];
-/* The car record (MAT3 tCarData; the PC's pc_car, host layout): the fields this reads and sets. */
-typedef struct Object {
-    u8 other0[8];
-    Vec3 pos;           /* 8 */
-    u8 other20[60];
-    Mat3 uvs;           /* 80 */
-    u8 other116[128];
-    s32 node;           /* 244 */
-    u8 other248[0x110 - 0xF8]; struct pc_visual visuals[21]; u8 other248_308[0x35B - 0x308];
-    s8 car;             /* 859 its slot */
-    s8 slot;            /* 860 its camera (MAT3 camera), -1 none */
-    s8 view;            /* 861 its camera's view */
-    s8 view2;           /* 862 the view to go back to after the crash view (MAT3 saveview) */
-    u8 other863[0x380 - 0x35F]; void *input; u8 other863_384[0x3B8 - 0x384];
-} Object;               /* 952 */
 
 /* Picks each window's view and moves its camera (update_camera), then places the drones' scene nodes where their cars
  * are. In a ghost race the second controller's button 4 (with 2 held) moves window 0 to the next car in the race.
@@ -33,7 +18,7 @@ void CheckCameraView(void)
     s32 k;
     s32 view;
     s32 slot;
-    Object *obj;
+    tCarData *obj;
     tModelData *m;
     tCamera *cam;
     s32 i;
@@ -45,23 +30,23 @@ void CheckCameraView(void)
 
     if (gRace == kGhost && (gContLevels[1] & 2) && (gContEdges[1] & 4)) {
         n = gCamera[0].slot;
-        PC_CAR_CAMERA(n) = -1;
+        pc_cars[n].camera = -1;
         do {
             n++;
             if (n >= gNumCars) {
                 n = 0;
             }
-        } while (pc_models[n].in_game == 0 && PC_CAR_CAMERA(n) < 0);
-        PC_CAR_CAMERA(n) = 0;
+        } while (pc_models[n].in_game == 0 && pc_cars[n].camera < 0);
+        pc_cars[n].camera = 0;
         gCamera[0].slot = n;
     }
     pl = gPlayers;
     for (i = 0; i < gNumWindows; i++, pl++) {
         cam = &gCamera[i];
-        obj = PC_CAR(cam->slot);
+        obj = &pc_cars[cam->slot];
         m = &pc_models[cam->slot];
         view = obj->view;
-        slot = obj->slot;
+        slot = obj->camera;
         if (gGameState & GS_DEMO) {
             if ((gModelTime - lastSwitch[slot] > camera_nextSwitch[slot] || gModelTime < lastSwitch[slot]) && view != 4 && GetCountdownTimeRemaining() > 3.0f) {
                 lastSwitch[slot] = gModelTime;
@@ -102,20 +87,20 @@ void CheckCameraView(void)
                 SavePlayerCarView(pl->save, view);
             }
             if (view == 1) {
-                cur_acc[obj->slot][0] = 0.0f;
-                cur_acc[obj->slot][1] = 0.0f;
-                cur_acc[obj->slot][2] = 0.0f;
+                cur_acc[obj->camera][0] = 0.0f;
+                cur_acc[obj->camera][1] = 0.0f;
+                cur_acc[obj->camera][2] = 0.0f;
             } else if (view == 2) {
                 init_view3(obj);
-                gCamera[obj->slot].fcam.pos[0] = obj->pos[0];
-                gCamera[obj->slot].fcam.pos[1] = obj->pos[1] + 1.0f;
-                gCamera[obj->slot].fcam.pos[2] = obj->pos[2];
+                gCamera[obj->camera].fcam.pos[0] = obj->dr_pos[0];
+                gCamera[obj->camera].fcam.pos[1] = obj->dr_pos[1] + 1.0f;
+                gCamera[obj->camera].fcam.pos[2] = obj->dr_pos[2];
             } else if (view == 3) {
                 init_view3(obj);
             }
         }
         if (view != obj->view) {
-            obj->view2 = view;
+            obj->saveview = view;
             obj->view = view;
         }
         update_camera(obj);
@@ -134,13 +119,13 @@ void CheckCameraView(void)
     }
     BlinkResurrectingCars();
     for (j = 0; j < PC_RACE_CARS; j++) {
-        if (pc_models[j].in_game != 0 && PC_CAR_NODE(j) >= 0 && pc_models[j].drone_type != 2 && pc_models[j].hide_car == 0) {
-            cam = ZOID_FindMatrix(PC_CAR_NODE(j));
-            cam->mat.pos[0] = PC_CAR_POS(j)[0];
-            cam->mat.pos[1] = PC_CAR_POS(j)[1];
-            cam->mat.pos[2] = PC_CAR_POS(j)[2];
+        if (pc_models[j].in_game != 0 && pc_cars[j].objnum >= 0 && pc_models[j].drone_type != 2 && pc_models[j].hide_car == 0) {
+            cam = ZOID_FindMatrix(pc_cars[j].objnum);
+            cam->mat.pos[0] = pc_cars[j].dr_pos[0];
+            cam->mat.pos[1] = pc_cars[j].dr_pos[1];
+            cam->mat.pos[2] = pc_cars[j].dr_pos[2];
             cam->mat.pos[1] += 0.25f;
-            CopyUV(PC_CAR_UVS50(j), cam);
+            CopyUV(pc_cars[j].dr_car_uvs, cam);
         }
     }
 }

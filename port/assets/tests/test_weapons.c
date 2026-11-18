@@ -12,6 +12,8 @@
 #include <string.h>
 
 #include "pc_prelude.h"
+#define GAME_RECORDS_ONLY   /* include/game's records alone: this file stands in for the game's data */
+#include "game/cars.h"
 #include "support.h"
 #include "game/modeldata.h"
 
@@ -41,7 +43,7 @@ static struct tTarget g_nodes[8];   /* level-object nodes (the game's are pc_tar
 #define NODE(i) (&g_nodes[i])
 static uint8_t g_heap[0x1000] __attribute__((aligned(16)));   /* the game heap's blocks */
 TInfo targetInfo[122];
-struct pc_car pc_cars[PC_CAR_SLOTS];                  /* the car records (pc_game_types.h) */
+tCarData pc_cars[PC_CAR_SLOTS];                  /* the car records (pc_game_types.h) */
 #define CAR(i) ((uint8_t *)&pc_cars[i])
 tModelData pc_models[PC_MODEL_SLOTS];    /* the model records (game/modeldata.h) */
 #define MODEL(i) ((uint8_t *)&pc_models[i])

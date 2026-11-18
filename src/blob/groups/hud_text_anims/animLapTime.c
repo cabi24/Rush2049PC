@@ -21,7 +21,7 @@ s32 animLapTime(tBlit *blt)
         Hidden(blt, 1);
         return 1;
     }
-    show = (gGameState & GS_DEMO) || !gShowElapsed || gCheckPtTimeout[win] <= 0.0f || PC_CAR_PLACE_LOCKED(win) == 1;
+    show = (gGameState & GS_DEMO) || !gShowElapsed || gCheckPtTimeout[win] <= 0.0f || pc_cars[win].place_locked == 1;
     if (Hidden(blt, show)) {
         return 1;
     }

@@ -5,7 +5,7 @@
  * stretch from there, on its line, with no jump pending. */
 void SetNewPathIndex(struct tModelData *m, s16 idx) {
     tPathPoint *ctl;
-    ctl = &PC_CAR_NAV(m->slot);
+    ctl = &pc_cars[m->slot].mpctl;
     ctl->idx = idx;
     ctl->interval_time = (f32) gModelTime;
     ctl->newIdx = -1;

@@ -24,7 +24,7 @@ s32 animSpeed(tBlit *blt)
         blt->animFunc = 0;
         return 1;
     }
-    hide = !gShowSpeed || PC_CAR_PLACE_LOCKED(pc_models[win].slot) == 1;
+    hide = !gShowSpeed || pc_cars[pc_models[win].slot].place_locked == 1;
     if (Hidden(blt, hide)) {
         return 1;
     }

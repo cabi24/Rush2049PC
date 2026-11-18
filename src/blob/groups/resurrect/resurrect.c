@@ -9,22 +9,6 @@
  * pc_grid_start: docs/port/MORECARS.md 4). */
 #include "game/game.h"
 
-/* The car record (tCarData, N64 layout: docs/port/CARS.md 2), the fields used here. */
-typedef struct tCarData {       /* N64 0x3B8 */
-    u8 pad000[0xED];
-    s8 restart;                 /* 0x0ed */
-    u8 pad0EE[0x110 - 0xEE]; struct pc_visual visuals[21];
-    s8 collidable;              /* 0x308 */
-    s8 solid;                   /* 0x309 */
-    float collide_time;         /* 0x30c */
-    s8 collide_count;           /* 0x310 */
-    s8 collide_state;           /* 0x311 */
-    tPathPoint mpctl;           /* 0x314 */
-    u8 pad340[0x344 - 0x340];
-    u16 sound_flags[4];         /* 0x344 */
-    u8 pad34C[0x380 - 0x34C]; void *input; u8 pad34C_384[0x3B8 - 0x384];
-} tCarData;
-
 /* MAT3's names for the race kinds (gRace), the human owner of a car slot and the attract mode's game state (the race
  * area's values: for race.h to declare). */
 
@@ -376,7 +360,7 @@ void Resurrect(tModelData *m)
     float pos[3], delta1[3], track_width, angle;               /* unused */
     float time_scale, crash_time;
     float vel[3];
-    tCarData *gc = PC_CAR(node);
+    tCarData *gc = &pc_cars[node];
     int human;
     float c_dist, dist_e, dist_d, dist_bc, dist_b1, dist_b2, half_dist;   /* unused */
     if (gDeathMode && m->resurrect.crash_time != 0.0f && !m->resurrect.autoAbort) return;
@@ -477,7 +461,7 @@ done:
         }
     } else {
         /* FindDroneResPt (written inline) */
-        tCarData *car = PC_CAR(m->slot);
+        tCarData *car = &pc_cars[m->slot];
         int p, idx, end;
         float min, x, y, z, dx, dy, dz, dist;
         DronePath *path;

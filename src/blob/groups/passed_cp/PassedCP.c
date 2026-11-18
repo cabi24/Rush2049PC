@@ -1,21 +1,6 @@
 /* PassedCP: a car passes a checkpoint: laps, the finish, the lap calls (MAT3 checkpoint.c). */
 #include "game/game.h"
 
-/* The car record (MAT3 tCarData; the PC's pc_car, host layout; MAT3's offsets past the visuals are 0x18 more). */
-typedef struct GameCar {
-    u8 pad000[0xEE];
-    s8 place;          /* +0x0EE its place, 0 the first */
-    s8 place_locked;   /* +0x0EF 1 once it finished, -1 out of the race */
-    u8 pad0F0[0x110 - 0xF0]; struct pc_visual visuals[21];
-    s8 collidable;     /* +0x308 */
-    s8 solid;          /* +0x309 */
-    u8 pad30A[2];
-    f32 collide_time;  /* +0x30C */
-    u8 pad310;
-    s8 collide_state;  /* +0x311 */
-    u8 pad312[0x380 - 0x312]; void *input; u8 pad312_384[0x3B8 - 0x384];
-} GameCar;
-
 /* Model `m` has crossed its next checkpoint at race time `time`. It becomes the car's last checkpoint; crossing
  * the finish line once started completes a lap (not in practice, nor in the attract mode's demo races). For a car
  * this machine drives (link owner 6): the finish line shows the checkpoint time, gOneMoreCP says the next
@@ -28,7 +13,7 @@ void PassedCP(tModelData *m, f32 time)
     s32 prevLapsLeft;
     s32 slot;
     PC_LINK *link;
-    GameCar *gc;
+    tCarData *gc;
     s32 finish;
 
     finish = 0;
@@ -44,7 +29,7 @@ void PassedCP(tModelData *m, f32 time)
         m->started = 1;
     }
     link = &PC_LINKS[slot];
-    gc = PC_CAR(slot);
+    gc = &pc_cars[slot];
     if (PC_LINKP_OWNER(link) == 6) {
         if (m->last_cp_index == gCheckpoints.finishPt && !(gGameState & GS_DEMO)) {
             ShowCheckpointTime(slot, time);

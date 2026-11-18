@@ -15,6 +15,8 @@
 #include <string.h>
 
 #include "pc_prelude.h"
+#define GAME_RECORDS_ONLY   /* include/game's records alone: this file stands in for the game's data */
+#include "game/cars.h"
 #include "support.h"
 
 /* A StatLL header on the PC (tStatList, host pointers). */
@@ -47,7 +49,7 @@ volatile float gFrameSeconds = 0.5f;    /* gFrameSeconds */
 /* The object definitions by kind: the power-ups' health (353), invisibility (354) and shield (359). */
 uint16_t gObjList[360] = {[353] = 0x82, [354] = 0x84, [359] = 0x8E};
 int16_t gNumPlayers;                  /* gNumPlayers: 0, so UpdateInvs leaves the cars alone */
-struct pc_car pc_cars[PC_CAR_SLOTS];   /* the car records (pc_game_types.h) */
+tCarData pc_cars[PC_CAR_SLOTS];   /* the car records (pc_game_types.h) */
 
 /* ---------------------------------------------------------------- what the code under test calls */
 

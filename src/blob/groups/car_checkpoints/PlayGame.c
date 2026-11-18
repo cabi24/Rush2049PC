@@ -1,17 +1,6 @@
 /* PlayGame: one frame of a race in progress (MAT3 game.c). */
 #include "game/game.h"
 
-/* The car record (MAT3 tCarData; the PC's pc_car, host layout; MAT3's offsets past the visuals are 0x18 more). */
-typedef struct Car952 {
-    u8 pad000[237];
-    s8 restart;             /* 0x0ED set by the model: negative it crashed, positive it is back on the road */
-    u8 pad0EE[0x110 - 0xEE]; struct pc_visual visuals[21]; u8 pad0EE_308[0x35C - 0x308];
-    s8 camera;              /* 0x35C the camera showing it, -1 none */
-    s8 view;                /* 0x35D that camera's view (4 the crash view) */
-    s8 saveview;            /* 0x35E the view to go back to after the crash */
-    u8 pad35F[0x380 - 0x35F]; void *input; u8 pad35F_384[0x3B8 - 0x384];
-} Car952;
-
 /* unitmatrix's fourth row, the origin: the crash sound's orientation */
 
 /* Runs one frame of the race on the game thread: the cars' model results (Update_MDrive), the race's own rules
@@ -26,7 +15,7 @@ void PlayGame(void) {
     s32 i;
     s16 slot;
     s32 camera;
-    Car952 *car;
+    tCarData *car;
 
     Update_MDrive();
     if (gRace == kStunt) {
@@ -45,7 +34,7 @@ void PlayGame(void) {
     UpdateSmoke();
     UpdateArrowVis();
     for (i = 0; i < gNumActiveCars; i++) {
-        car = PC_CAR(i);
+        car = &pc_cars[i];
         slot = pc_models[i].slot;
         /* volatile: the model thread sets restart; it is read again below, as MAT3 does */
         if (*(volatile s8 *)&car->restart < 0) {

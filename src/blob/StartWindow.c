@@ -3,22 +3,13 @@
  * an environment visual that swaps through its models (AnimateObjSwapGeneric). */
 #include "game/game.h"
 
-
-
-/* The car record's view (MAT3 tCarData) in the PC layout: only its velocity. */
-typedef struct GameCar {
-    u8 pad0[20];
-    f32 dr_vel[3];          /* 0x14 the velocity, feet a second */
-    u8 pad20[0x110 - 0x20]; struct pc_visual visuals[21]; u8 pad20_308[0x380 - 0x308]; void *input; u8 pad20_384[0x3B8 - 0x384];
-} GameCar;                  /* 0x3B8 */
-
 /* A car has hit the window (the target t; mat.uvs[2] is the way it faces): its animation gets 7 frames, and if an
  * environment visual is free it plays; the window turns round first if the car came from behind it (so the glass
  * flies the car's way), stops colliding, and its start sound plays. */
 void StartWindow(tTarget *t)
 {
     struct pc_visual *v;
-    GameCar *car;
+    tCarData *car;
     TargInfo *info;
     f32 dot;
 
@@ -31,7 +22,7 @@ void StartWindow(tTarget *t)
     v->func = info->visFunc;
     v->data = (uintptr_t) t;
     v->timeStamp = 0.0333333f;
-    car = PC_CAR(t->slot);
+    car = &pc_cars[t->slot];
     dot = car->dr_vel[0] * t->mat.uvs[2][0] + car->dr_vel[1] * t->mat.uvs[2][1] + car->dr_vel[2] * t->mat.uvs[2][2];
     if (dot > 0.0f) {
         YawUV(3.1415927f, t->mat.uvs);

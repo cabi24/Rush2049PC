@@ -1,18 +1,6 @@
 /* CheckCPs: the cars against the checkpoints, every frame (MAT3 checkpoint.c). */
 #include "game/game.h"
 
-/* The car record (MAT3 tCarData; the PC's pc_car, host layout): the fields this reads and sets. */
-typedef struct {
-    u8 pad0[4];
-    f32 modelTime;          /* +0x004 the model time of its position */
-    f32 dr_pos[3];          /* +0x008 its position (dead reckoned) */
-    u8 pad14[0x108 - 0x14];
-    f32 mileage;            /* +0x108 the distance it has driven */
-    u8 pad10C[0x110 - 0x10C]; struct pc_visual visuals[21]; u8 pad10C_308[0x358 - 0x308];
-    s8 crash_state;         /* +0x358 crashed (MAT3 +0x370) */
-    u8 pad359[0x380 - 0x359]; void *input; u8 pad359_384[0x3B8 - 0x384];
-} CarData;                  /* 0x3B8 */
-
 /* Adds the distance each car drove since the last frame to its mileage, and passes a car through its next
  * checkpoint (PassedCP) when it crossed the checkpoint's plane within its radius: a car driven here or by the
  * network's dead reckoning (link owner 0 or 6), not crashed nor being put back. The passing time is the frame's
@@ -27,14 +15,14 @@ void CheckCPs(void)
     s16 index;
     s32 side;
     f32 plane;
-    CarData *gc;
+    tCarData *gc;
     f32 *prev;
     tModelData *m;
     f32 move[3];
     f32 zvec[3];
 
     for (index = 0; index < gNumCars; index++) {
-        gc = PC_CAR(index);
+        gc = &pc_cars[index];
         prev = PC_CP_LAST_POS(index);
         move[0] = gc->dr_pos[0] - prev[0];
         move[1] = gc->dr_pos[1] - prev[1];
@@ -77,7 +65,7 @@ void CheckCPs(void)
     if (gFirstPlaceTime != 0.0f && gSeconds - gFirstPlaceTime > 3.0f) {
         gFirstPlaceTime = 0.0f;
     }
-    if (num_humans == 1 && PC_CAR_PLACE(gPlayers[0].slot) == 0 && !(gGameState & GS_DEMO)) {
+    if (num_humans == 1 && pc_cars[gPlayers[0].slot].place == 0 && !(gGameState & GS_DEMO)) {
         if (gInFirstPlace == 0 && gFirstPlaceTime == 0.0f) {
             gFirstPlaceTime = gSeconds;
             PlayGameSound(16, gPlayers[0].slot, 1, 1); /* MAT3 0x8E: the lead */

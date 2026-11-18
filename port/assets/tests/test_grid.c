@@ -20,6 +20,8 @@
 #include <string.h>
 
 #include "pc_prelude.h"
+#define GAME_RECORDS_ONLY   /* include/game's records alone: this file stands in for the game's data */
+#include "game/cars.h"
 #include "support.h"
 #include "game/modeldata.h"
 
@@ -28,7 +30,7 @@
 /* ---------------------------------------------------------------- the game's data the code under test uses */
 
 tModelData pc_models[PC_MODEL_SLOTS];
-struct pc_car pc_cars[PC_CAR_SLOTS];
+tCarData pc_cars[PC_CAR_SLOTS];
 struct pc_link pc_links[PC_LINK_SLOTS];
 float pole_pos_offset[12][3];   /* pole_pos_offset: this test's own rows */
 float unitmatrix[3][3], res_last_time[4], resurrectTime;

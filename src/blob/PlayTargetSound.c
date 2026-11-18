@@ -2,9 +2,6 @@
  * (MAT3 audio.c). */
 #include "game/game.h"
 
-/* The car record's fields this file reads (MAT3 tCarData: dr_pos, dr_uvs), in the PC's layout. */
-typedef struct GameCar { s32 header[2]; f32 position[3]; s32 middle[6]; f32 matrix[9]; unsigned char rest[0x110 - 0x50]; struct pc_visual visuals[21]; unsigned char rest_308[0x380 - 0x308]; void *input; unsigned char rest_384[0x3B8 - 0x384]; } GameCar;
-
 /* The effect that always plays centred, without the direction's pans (MAT3: 59). */
 #define SFX_TARGET_CENTRED 6
 /* cos(22.5 degrees): within 22.5 degrees of an axis, the sound comes from that side only. */
@@ -17,7 +14,7 @@ typedef struct GameCar { s32 header[2]; f32 position[3]; s32 middle[6]; f32 matr
  * within one unit, and none on an axis more than 22.5 degrees off) index the pans of gBumpLRTab and gBumpFBTab.
  * Returns the fx tag handle, or -1 when the game's sounds are off or the slot has no human's view. */
 s32 PlayTargetSound(s32 fxid, s32 slot, f32 *position, u8 priority) {
-    GameCar *car = PC_CAR(slot);
+    tCarData *car = &pc_cars[slot];
     f32 output[3];
     f32 delta[3];
     f32 threshold;
@@ -32,8 +29,8 @@ s32 PlayTargetSound(s32 fxid, s32 slot, f32 *position, u8 priority) {
     if (PC_LINK_OWNER(slot) != LINK_OWNER_HUMAN) {
         return -1;
     }
-    vecsub(position, car->position, delta);
-    BodyVector(delta, output, car->matrix);
+    vecsub(position, car->dr_pos, delta);
+    BodyVector(delta, output, car->dr_uvs[0]);
     forward_squared = output[2] * output[2];
     side_squared = output[0] * output[0];
     direction = 0;
