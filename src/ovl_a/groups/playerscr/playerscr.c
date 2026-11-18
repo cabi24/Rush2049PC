@@ -238,7 +238,7 @@ extern void *memcpy(void *,const void *,u32);
  * original's. */
 void playerscr_initButtons(s8 player)
 {
-    u8 color[4] PC_WORD_ALIGNED = {255,255,255,255};
+    tRGBA color = {.rgba = 0xFFFFFFFF};   /* white: every byte 255 */
     f32 scale=1.0f;
     s16 count;
     s32 j;
@@ -253,7 +253,7 @@ void playerscr_initButtons(s8 player)
             slot->handle=MBOX_NewObject(object,slot->matrix,-1,
                 slot->type==0 || slot->type==1 || slot->type==2 ||
                 slot->type==7 || slot->type==8 || slot->type==9 ? 0x42000:0);
-            ZOID_SetColor(slot->handle,color);
+            ZOID_SetColor(slot->handle,&color);
             MBOX_HideObject(slot->handle,1,15);
             MBOX_ShowObject(slot->handle,0,1<<player);
         }
@@ -325,7 +325,7 @@ void playerscr_updateButtons(s8 p)
     s8 clearScrollSpeed = 1;
     void *tex;
     s16 texIdx;
-    u8 buttonColor[4] PC_WORD_ALIGNED = {255,255,255,255};
+    tRGBA buttonColor = {.rgba = 0xFFFFFFFF};   /* white: every byte 255 */
     if (!playerscr_buttonsInited[p]) return;
     if (gPlayerState[p] == kPlayerStateWait) {
         for (buttonIdx = 0; buttonIdx < PLAYER_BUTTONS; buttonIdx++) {
@@ -425,8 +425,8 @@ void playerscr_updateButtons(s8 p)
             playerscr_buttonInfo[p][buttonIdx].alpha = 255.f - 255.0f * (playerscr_minY - playerscr_buttonInfo[p][buttonIdx].position[1]) / (playerscr_gButtonSpace * playerscr_gButtonScale);
         else playerscr_buttonInfo[p][buttonIdx].alpha = 255;
         if (!playerscr_gSelectMenuVisible[p][buttonIdx]) playerscr_buttonInfo[p][buttonIdx].alpha = 0;
-        buttonColor[3] = playerscr_buttonInfo[p][buttonIdx].alpha;
-        ZOID_SetColor(playerscr_buttonInfo[p][buttonIdx].handle, buttonColor);
+        buttonColor.c[3] = playerscr_buttonInfo[p][buttonIdx].alpha;
+        ZOID_SetColor(playerscr_buttonInfo[p][buttonIdx].handle, &buttonColor);
         if (!playerscr_gSelectMenuVisible[p][buttonIdx] || !playerscr_buttonInfo[p][buttonIdx].alpha) MBOX_HideObject(playerscr_buttonInfo[p][buttonIdx].handle, 1, 15);
         else MBOX_ShowObject(playerscr_buttonInfo[p][buttonIdx].handle, 0, 1 << p);
         if (buttonIdx == 1) {
@@ -438,7 +438,7 @@ void playerscr_updateButtons(s8 p)
             WPitchUV(playerscr_buttonInfo[p][PLAYER_BUTTON_PAK_VALUE].angle - 1.5707964f, playerscr_buttonInfo[p][PLAYER_BUTTON_PAK_VALUE].matrix);
             ZOID_SetTexture(playerscr_buttonInfo[p][PLAYER_BUTTON_PAK_VALUE].handle, tex, -1);
             playerscr_buttonInfo[p][PLAYER_BUTTON_PAK_VALUE].alpha = playerscr_buttonInfo[p][buttonIdx].alpha;
-            ZOID_SetColor(playerscr_buttonInfo[p][PLAYER_BUTTON_PAK_VALUE].handle, buttonColor);
+            ZOID_SetColor(playerscr_buttonInfo[p][PLAYER_BUTTON_PAK_VALUE].handle, &buttonColor);
             if (!playerscr_gSelectMenuVisible[p][buttonIdx] || !playerscr_buttonInfo[p][buttonIdx].alpha) MBOX_HideObject(playerscr_buttonInfo[p][PLAYER_BUTTON_PAK_VALUE].handle, 1, 15);
             else MBOX_ShowObject(playerscr_buttonInfo[p][PLAYER_BUTTON_PAK_VALUE].handle, 0, 1 << p);
         } else {
@@ -463,7 +463,7 @@ void playerscr_updateButtons(s8 p)
                     else tex = MBOX_FindTexture_WORK("BUTTON", &texIdx, 0, gNumModels[0] - 1, 1);
                     ZOID_SetTexture(playerscr_buttonInfo[p][PLAYER_BUTTON_CONTROLS].handle, tex, -1);
                     playerscr_buttonInfo[p][PLAYER_BUTTON_CONTROLS].alpha = playerscr_buttonInfo[p][buttonIdx].alpha;
-                    ZOID_SetColor(playerscr_buttonInfo[p][PLAYER_BUTTON_CONTROLS].handle, buttonColor);
+                    ZOID_SetColor(playerscr_buttonInfo[p][PLAYER_BUTTON_CONTROLS].handle, &buttonColor);
                     if (!playerscr_gSelectMenuVisible[p][buttonIdx] || !playerscr_buttonInfo[p][buttonIdx].alpha) {
                         playerscr_buttonInfo[p][PLAYER_BUTTON_CONTROLS].angle = 0;
                         MBOX_HideObject(playerscr_buttonInfo[p][PLAYER_BUTTON_CONTROLS].handle, 1, 15);

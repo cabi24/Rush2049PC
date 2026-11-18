@@ -265,7 +265,6 @@ struct tVisual;
 struct tWindowInfo;
 struct tree_desc_s;
 struct z_stream_s;
-union Color;
 union InputSequence;
 union tAudioMsg;
 
@@ -549,11 +548,6 @@ typedef struct LayerRecord { /* 0x10 bytes */
     u16 count;      /* 0xA */
     u16 references; /* 0xC */
 } LayerRecord;
-
-typedef struct PaneColors { /* 0x8 bytes */
-    u8 x[4]; /* 0x0 */
-    u8 y[4]; /* 0x4 */
-} PaneColors;
 
 typedef struct PcPfs { /* 0x70 bytes */
     s32 status;           /* 0x0 */
@@ -1154,12 +1148,16 @@ typedef struct NameEntry NameEntry;
 
 /* ---- blit: the 2D blitter and panes */
 
-typedef struct BlitColor { /* 0x4 bytes */
-    u8 r; /* 0x0 */
-    u8 g; /* 0x1 */
-    u8 b; /* 0x2 */
-    u8 a; /* 0x3 */
-} BlitColor;
+/* A colour (MAT3 tRGBA), the game's one colour type: its bytes red, green, blue and alpha, c[0] to c[3], in that
+ * order in memory. That is how the cartridge holds a colour, how the data loader leaves a tRGBA (its bytes as they
+ * are) and how the scene draw (ObjInstanceList[].color), the blitter, the fills, the text and the renderer read one.
+ * rgba moves the four bytes at once, as they are: a container to copy or compare, not a number to build or take
+ * apart. Every colour the game keeps is one: its data (the HUD's, the menus', the cars'), a blit's or a pane's
+ * flat colour, the text's; docs/port/RECORDS.md 3.3. */
+typedef union tRGBA { /* 0x4 bytes */
+    u8 c[4];
+    u32 rgba;
+} tRGBA;
 
 /* A blit: one 2D sprite of the HUD or a menu (MAT3 blit.c's _tBlit), in the PC's layout (pointers 8 bytes; the N64's
  * record was 0x40 bytes). The pool is InitBlits' 200 records, BlitPtrs points to each, the first NumBlits of them in
@@ -1227,6 +1225,13 @@ typedef struct tBlitSet { /* 0x38 bytes */
     struct tBlit *blits[5];    /* 0x10 top edge, left edge, inside, right edge, bottom edge */
 } tBlitSet;
 
+/* A pane's two colours, as ChangePaneColor takes them: the inside's and the border's (the result panes,
+ * hud_playerPaneColors). */
+typedef struct PaneColors { /* 0x8 bytes */
+    tRGBA pane;   /* 0x0 */
+    tRGBA border; /* 0x4 */
+} PaneColors;
+
 /* One entry of the zoid blit list gBlitInstanceList (MAT3 zoidblit.c's anon_palette_texture_20), in the PC's layout:
  * what the renderer draws for one blit. ZOID_AddBlit hands out a free entry, the ZOID_*Blit setters fill it. */
 typedef struct tBlitInstance { /* 0x28 bytes */
@@ -1273,11 +1278,6 @@ typedef struct FontHeader { /* 0x10 bytes */
  * table. pc_game_types.h declares it: the font's converter builds the letters beside the file (port/assets/font.c). */
 typedef struct FontLetter FontLetter;
 
-typedef struct Color8 { /* 0x8 bytes */
-    BlitColor color; /* 0x0 */
-    u8 extra[4];     /* 0x4 */
-} Color8;
-
 typedef struct MenuDepthPoint { /* 0x8 bytes */
     f32 x; /* 0x0 */
     f32 y; /* 0x4 */
@@ -1286,15 +1286,6 @@ typedef struct MenuDepthPoint { /* 0x8 bytes */
 typedef struct PcText4 { /* 0x4 bytes */
     char c[4]; /* 0x0 */
 } PcText4;
-
-/* A colour (MAT3 tRGBA): its bytes red, green, blue and alpha, c[0] to c[3], in that order in memory. That is how the
- * cartridge holds a colour, how the data loader leaves a tRGBA (its bytes as they are) and how the scene draw
- * (ObjInstanceList[].color), the fills, the text and the renderer read one. rgba moves the four bytes at once, as
- * they are: a container to copy or compare, not a number to build or take apart. */
-typedef union tRGBA { /* 0x4 bytes */
-    u8 c[4];
-    u32 rgba;
-} tRGBA;
 
 /* The strings of one language (MAT3 text.c's sections, gText): the text bank's six sections, each a count and a
  * table. Declared in pc_game_types.h, where the text bank's converter builds one for each bank it loads
@@ -1967,11 +1958,6 @@ typedef struct tCheckpoints { /* 0x32C bytes */
 
 /* ---- cars: the cars, their visuals, skids and smoke */
 
-typedef union ArrowColor { /* 0x4 bytes */
-    struct { u8 r; u8 g; u8 b; u8 a; } c;
-    u32 rgba;
-} ArrowColor;
-
 /* A car's scene objects (MAT3 CarParts; the N64's is 0x40 bytes, without MAT3's headlights, trim and hood sheens),
  * gCarParts[slot]: each an s32 scene handle whose low half, (s16)handle, is the node (ObjInstanceList's index). */
 typedef struct CarParts { /* 0x40 bytes */
@@ -2358,11 +2344,6 @@ typedef struct CreditPage { /* 0x58 bytes */
     char *names[11]; /* 0x0 */
 } CreditPage;
 
-typedef union HudColor { /* 0x4 bytes */
-    u32 word;
-    struct { u8 r; u8 g; u8 b; u8 a; } rgba;
-} HudColor;
-
 typedef struct NameQuad { /* 0x20 bytes */
     char *name[4]; /* 0x0 */
 } NameQuad;
@@ -2393,11 +2374,6 @@ typedef struct tStuntCoin { /* 0x48 bytes */
 
 /* ---- frontend: the front end's screens (runtime image A) */
 
-typedef union ButtonColor { /* 0x4 bytes */
-    u32 word;
-    u8 channel[4];
-} ButtonColor;
-
 typedef struct CarComponentSlot { /* 0x34 bytes */
     s16 idx;               /* 0x0 */
     s16 level;             /* 0x2 */
@@ -2415,10 +2391,6 @@ typedef struct CarScreenCar { /* 0xC bytes */
 typedef struct CarScreenMsgPos { /* 0xC bytes */
     f32 v[3]; /* 0x0 */
 } CarScreenMsgPos;
-
-typedef struct ColorWord { /* 0x4 bytes */
-    u32 word; /* 0x0 */
-} ColorWord;
 
 typedef struct ComponentLights { /* 0x28 bytes */
     u8 col[3];           /* 0x0 */

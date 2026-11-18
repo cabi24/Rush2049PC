@@ -16,15 +16,6 @@ extern Player76 gPlayers[];
 
 extern void *memcpy(void *,const void *,u32);
 
-
-/* PC: the buttons' colour modescr_button_color is R,G,B,A bytes in the ROM, copied whole into the scene nodes (read as bytes).
- * The PC loader fills initialized data by its declarations: as a word it would swap them (docs/port/ENDIAN.md). */
-typedef struct Color4 { u8 c[4]; } Color4;
-VIEW(Color4, modescr_button_color);
-#define modescr_button_color modescr_button_color_view
-
-
-
 /* modescr_buttonInfo[]: the seven rows' buttons, then these. */
 #define MODE_A_ICON 8               /* the A button's icon and its arrow, by the "select" text */
 #define MODE_A_ARROW 9
@@ -60,7 +51,7 @@ void modescr_initScreen(void)
  * and the title. */
 void modescr_initButtons(void)
 {
-    Color4 color PC_WORD_ALIGNED;
+    tRGBA color;
     s32 i;
     s16 texture;
     Slot64 *slot;

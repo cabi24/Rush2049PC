@@ -445,10 +445,6 @@ void circuitscr_uninitButtons(void)
     circuitscr_buttonsInited = 0;
 }
 
-typedef union Color {u32 word;u8 channel[4];} Color;
-VIEW(Color, circuitscr_button_color);
-#define circuitscr_button_color circuitscr_button_color_view
-
 extern void *memcpy(void *,const void *,u32);
 extern f32 fabsf(f32);
 #pragma intrinsic(fabsf)
@@ -472,7 +468,7 @@ void circuitscr_updateButtons(void)
     s8 clearScrollSpeed = 1;
     tTexture *tex;
     s16 texIdx;
-    Color buttonColor = circuitscr_button_color;
+    tRGBA buttonColor = circuitscr_button_color;
 
     if (!circuitscr_buttonsInited)
         return;
@@ -550,8 +546,8 @@ void circuitscr_updateButtons(void)
                 circuitscr_buttonInfo[buttonIdx].alpha = 255;
             if (!menuItemValid(buttonIdx))
                 circuitscr_buttonInfo[buttonIdx].alpha = 0;
-            buttonColor.channel[3] = circuitscr_buttonInfo[buttonIdx].alpha;
-            ZOID_SetColor(circuitscr_buttonInfo[buttonIdx].handle, (s32 *)&buttonColor);
+            buttonColor.c[3] = circuitscr_buttonInfo[buttonIdx].alpha;
+            ZOID_SetColor(circuitscr_buttonInfo[buttonIdx].handle, &buttonColor);
             if (buttonIdx == kCircuitMenuStats) {
                 circuitscr_buttonInfo[CIRCUIT_BUTTON_REVIEW_VALUE].angle = circuitscr_buttonInfo[buttonIdx].angle;
                 circuitscr_buttonInfo[CIRCUIT_BUTTON_REVIEW_VALUE].position[0] = circuitscr_buttonX + 100.0f * circuitscr_gButtonScale;
@@ -561,7 +557,7 @@ void circuitscr_updateButtons(void)
                 WPitchUV(circuitscr_buttonInfo[CIRCUIT_BUTTON_REVIEW_VALUE].angle - 1.5707964f, circuitscr_buttonInfo[CIRCUIT_BUTTON_REVIEW_VALUE].matrix);
                 ZOID_SetTexture(circuitscr_buttonInfo[CIRCUIT_BUTTON_REVIEW_VALUE].handle, tex, -1);
                 circuitscr_buttonInfo[CIRCUIT_BUTTON_REVIEW_VALUE].alpha = circuitscr_buttonInfo[buttonIdx].alpha;
-                ZOID_SetColor(circuitscr_buttonInfo[CIRCUIT_BUTTON_REVIEW_VALUE].handle, (s32 *)&buttonColor);
+                ZOID_SetColor(circuitscr_buttonInfo[CIRCUIT_BUTTON_REVIEW_VALUE].handle, &buttonColor);
                 if (!menuItemValid(buttonIdx))
                     MBOX_HideObject(circuitscr_buttonInfo[CIRCUIT_BUTTON_REVIEW_VALUE].handle, 0, 15);
                 else if (!circuitscr_buttonInfo[buttonIdx].alpha)
@@ -577,7 +573,7 @@ void circuitscr_updateButtons(void)
                 WPitchUV(circuitscr_buttonInfo[CIRCUIT_BUTTON_TYPE_VALUE].angle - 1.5707964f, circuitscr_buttonInfo[CIRCUIT_BUTTON_TYPE_VALUE].matrix);
                 ZOID_SetTexture(circuitscr_buttonInfo[CIRCUIT_BUTTON_TYPE_VALUE].handle, tex, -1);
                 circuitscr_buttonInfo[CIRCUIT_BUTTON_TYPE_VALUE].alpha = circuitscr_buttonInfo[buttonIdx].alpha;
-                ZOID_SetColor(circuitscr_buttonInfo[CIRCUIT_BUTTON_TYPE_VALUE].handle, (s32 *)&buttonColor);
+                ZOID_SetColor(circuitscr_buttonInfo[CIRCUIT_BUTTON_TYPE_VALUE].handle, &buttonColor);
                 if (!menuItemValid(buttonIdx))
                     MBOX_HideObject(circuitscr_buttonInfo[CIRCUIT_BUTTON_TYPE_VALUE].handle, 0, 15);
                 else if (!circuitscr_buttonInfo[buttonIdx].alpha)
@@ -1006,15 +1002,12 @@ void getFinishPlaceStr(s32 p, u8 *str)
 
 extern void *memcpy(void *,const void *,u32);
 
-VIEW(Color, circuitscr_init_button_color);
-#define circuitscr_init_button_color circuitscr_init_button_color_view
-
 /* Make the buttons that don't exist yet, each a model by its type (circuitscr_buttonNames; types 0-2 draw
  * see-through), in circuitscr_init_button_color; then texture and place the title, the cursor and the A and B
  * icons. */
 void circuitscr_initButtons(void)
 {
-    Color color = circuitscr_init_button_color;
+    tRGBA color = circuitscr_init_button_color;
     s32 i;
     s16 texture_index;
     f32 yaw;
@@ -1025,7 +1018,7 @@ void circuitscr_initButtons(void)
                 MBOX_FindObject_WORK(circuitscr_buttonNames[circuitscr_buttonInfo[i].type], 0, gNumModels[0] - 1, 1),
                 circuitscr_buttonInfo[i].matrix, -1,
                 (circuitscr_buttonInfo[i].type == 0 || circuitscr_buttonInfo[i].type == 1 || circuitscr_buttonInfo[i].type == 2) ? 0x42000 : 0);
-            ZOID_SetColor((s16)circuitscr_buttonInfo[i].handle, (s32 *)&color);
+            ZOID_SetColor((s16)circuitscr_buttonInfo[i].handle, &color);
         }
     }
     ZOID_SetTexture((s16)circuitscr_buttonInfo[CIRCUIT_BUTTON_TITLE].handle,

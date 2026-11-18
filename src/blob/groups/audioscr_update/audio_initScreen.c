@@ -3,7 +3,6 @@
 
 typedef struct { s32 type, handle; f32 ang; f32 mat[3][3]; f32 pos[3]; u8 pad3C[4]; } Button;
 
-typedef union Color { u8 c[4]; u32 rgba; } Color;
 VIEW(Button[12], audio_buttonInfo);
 #define audio_buttonInfo audio_buttonInfo_view
 void *memcpy(void *,const void *,u32);
@@ -23,7 +22,7 @@ void audio_initScreen(void)
     if (gGameState & GS_FRONTEND_MASK) {
         createBG();
         {
-        Color buttonColor = {255, 255, 255, 255};
+        tRGBA buttonColor = {255, 255, 255, 255};
         tTexture *tex;
         unsigned short texIdx;
         s32 buttonIdx;

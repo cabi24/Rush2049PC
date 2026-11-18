@@ -204,9 +204,6 @@
 #define CHEAT_MENU_UNLOCKED 21
 /* PC: is start menu row i offered (v: the game's own answer; the PC's start menu, port/app)? */
 #define PC_START_VALID(i, v) pc_start_valid((i), (v))
-/* PC: ZOID_SetColor reads a colour as one word, so the screens' colours passed to it are word-aligned
- * (docs/port/SANITIZE.md 3.2). */
-#define PC_WORD_ALIGNED __attribute__((aligned(4)))
 
 /* Data */
 extern s32 build_date_text;
@@ -247,8 +244,7 @@ extern struct SoundState *backBlit;
 extern struct PointList *backPolys[EXTENT(4)];
 extern struct Dims *bg_texture;
 extern s32 offsetsValid[EXTENT(5)];
-extern ColorWord flashColors_at_1;
-extern BlitColor controller_dim_color;
+extern tRGBA controller_dim_color;
 extern struct pc_multiblit gameover_multiblit[EXTENT(1)];
 extern u8 gameover_titlePos[EXTENT(4)];
 extern s8 gameover_inited;
@@ -278,7 +274,7 @@ extern intptr_t options_gTitlePane;
 extern s8 options_gControllerRemoved;
 extern tRGBA options_buttonColor;
 extern s8 pak_recognize_error_seen;
-extern BlitColor pause_dim_color;
+extern tRGBA pause_dim_color;
 extern s32 gPauseState;
 extern const tBlitDef DimMultiBlit;
 extern const tBlitDef TitleMultiBlit;
@@ -449,8 +445,8 @@ extern char *gTrophySheenNames[EXTENT(3)];
 extern s32 trophyObjIdx;
 extern s32 trophySheenObjIdx;
 extern s32 trophySheenColor[EXTENT(2)];
-extern ButtonColor circuitscr_init_button_color;
-extern ButtonColor circuitscr_button_color;
+extern tRGBA circuitscr_init_button_color;
+extern tRGBA circuitscr_button_color;
 extern Egg gEggs[EXTENT(21)];
 extern Egg start_screen_egg[EXTENT(1)];
 extern union InputSequence *gEgg;
@@ -476,7 +472,7 @@ extern tBlit *modescr_blit;
 extern s8 modescr_validOption[EXTENT(4)][7];
 extern s32 gModeMenuSelect;
 extern s32 exitModeScreen;
-extern PcText4 modescr_button_color;
+extern tRGBA modescr_button_color;
 extern s8 pakscr_gInited;
 extern tBlit *gBlit;
 extern s8 gDrawText;
@@ -567,15 +563,15 @@ extern tBlit *trackScreenPoly;
 extern tBlit *trackFogPoly;
 extern char *trackscr_arrowNames[EXTENT(16)][2];
 extern s8 trackReady[EXTENT(19)];
-extern ButtonColor loadTrackScreen_backColor;
+extern tRGBA loadTrackScreen_backColor;
 extern f32 buildTrackMap_mapPos[EXTENT(3)];
-extern ButtonColor race_map_vertex_color;
+extern tRGBA race_map_vertex_color;
 extern f32 buildRaceTrackMaps_mapPos[EXTENT(3)];
 extern f32 buildRaceTrackMaps_selMapPos[EXTENT(3)];
 extern f32 buildStuntTrackMaps_mapPos[EXTENT(3)];
 extern f32 buildBattleTrackMaps_mapPos[EXTENT(3)];
-extern ButtonColor trackscr_init_button_color;
-extern ButtonColor trackscr_update_button_color;
+extern tRGBA trackscr_init_button_color;
+extern tRGBA trackscr_update_button_color;
 extern s8 gPakScr;
 extern u8 num_paks_found;
 extern tBlitDef warningscr_blits[EXTENT(1)];
@@ -750,7 +746,7 @@ extern s16 gProgressHeight;
 extern s16 gProgressTop;
 extern s16 gMenuBottom;
 extern s32 *gCarMatrices[EXTENT(48)];
-extern BlitColor carscr_marker_colors[EXTENT(4)][3];
+extern tRGBA carscr_marker_colors[EXTENT(4)][3];
 extern s32 carscr_buttonsInited[EXTENT(4)];
 extern s32 carscr_buttonsJustInited[EXTENT(4)];
 extern s32 gState;

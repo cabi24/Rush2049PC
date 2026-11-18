@@ -2,7 +2,6 @@
  * runtime image B). */
 #include "game/game.h"
 
-typedef union Color { u32 word; struct { u8 r,g,b,a; } rgba; } Color;
 /* PC: the fade's alpha passes 255 while a score's start is ahead of the clock; a float out of a u8's range is
  * undefined in C, so it goes through an int and keeps its low byte, as the N64's trunc.w.s and sb do
  * (docs/port/SANITIZE.md). */
@@ -65,7 +64,7 @@ s32 animWeaponIcons(void *unused)
 {
     ScreenPos16 point;
     s32 i, kind, resource;
-    Color color;
+    tRGBA color;
     s32 player_kind;
     for (i = 0; i < gNumWindows; i++) {
         player_kind = PC_CAR_WEAPON_TYPE(i);
@@ -80,7 +79,7 @@ s32 animWeaponIcons(void *unused)
             kind = weaponIcon[i].type;
         }
         if (kind != 8 && weaponIcon[i].idx == -1) {
-            color.word = weapon_icon_color.word;
+            color.rgba = weapon_icon_color.rgba;
             switch (kind) {
             case 0: resource = 216; break;
             case 1: resource = 217; break;
@@ -92,7 +91,7 @@ s32 animWeaponIcons(void *unused)
             case 7: resource = 223; break;
             }
             weaponIcon[i].idx = MBOX_NewObject(gObjList[resource], weaponIcon[i].mat.uvs, -1, 0x42000);
-            ZOID_SetColor(weaponIcon[i].idx, &color.word);
+            ZOID_SetColor(weaponIcon[i].idx, &color);
             ObjInstanceList[weaponIcon[i].idx].w = 1.5f;
             MBOX_HideObject(weaponIcon[i].idx, 1, 15);
             MBOX_ShowObject(weaponIcon[i].idx, 0, hudextra_whichCam[i]);
@@ -116,8 +115,8 @@ void UpdateHUDExtraPostCamera(void)
     s32 i, j, kind, y_offset;
     ScreenPos16 point;
     NameQuad names;
-    Color color;
-    Color player_color;
+    tRGBA color;
+    tRGBA player_color;
     char name[32];
     tBattleCoin *handle;
     ScoreState *score;
@@ -131,10 +130,10 @@ void UpdateHUDExtraPostCamera(void)
             handle = &battleCoin[i];
             if (handle->idx == -1) {
                 names = battle_coin_object_names;
-                player_color.rgba.r = hudextra_playerColor[gCarTeam[i]].rgba.r;
-                player_color.rgba.g = hudextra_playerColor[gCarTeam[i]].rgba.g;
-                player_color.rgba.b = hudextra_playerColor[gCarTeam[i]].rgba.b;
-                player_color.rgba.a = 255;
+                player_color.c[0] = hudextra_playerColor[gCarTeam[i]].c[0];
+                player_color.c[1] = hudextra_playerColor[gCarTeam[i]].c[1];
+                player_color.c[2] = hudextra_playerColor[gCarTeam[i]].c[2];
+                player_color.c[3] = 255;
                 handle->idx = MBOX_NewObject(
                     MBOX_FindObject_WORK(names.name[gCarTeam[i]], 0, gNumModels[0] - 1, 1),
                     handle->mat.uvs, -1, 0);
@@ -150,14 +149,14 @@ void UpdateHUDExtraPostCamera(void)
         }
     }
     if (gRace == kStunt) {
-        color.word = stunt_coin_color.word;
+        color.rgba = stunt_coin_color.rgba;
         if ((gGameState & GS_FRONTEND_MASK) || gPauseState) return;
         for (i = 0; i < gNumPlayers; i++) {
             score = &gStuntPlayer[i];
             if (score->lock) alpha = (1.0f - (gModelTime - score->started) / 2.69f) * 255.0f;
             else alpha = 255.0f;
             if (alpha < 0.0f) alpha = 0.0f;
-            color.rgba.a = ALPHA_U8 alpha;
+            color.c[3] = ALPHA_U8 alpha;
             if (score->active && (gModelTime - score->started < 2.69f || score->working)) {
                 for (kind = 0; kind < 10; kind++) {
                     if (!score->state) score->counts[kind] = score->source_counts[kind];
@@ -204,8 +203,8 @@ void UpdateHUDExtraPostCamera(void)
                             ScaleUV(gCamera[i].mat.uvs, selected->uv,
                                 gNumWindows == 1 ? 0.005f : gNumWindows == 2 ? 0.0035f : 0.005f);
                             selected->alpha = alpha;
-                            color.rgba.a = ALPHA_U8 alpha;
-                            ZOID_SetColor(selected->handle, &color.word);
+                            color.c[3] = ALPHA_U8 alpha;
+                            ZOID_SetColor(selected->handle, &color);
                             MBOX_ShowObject(selected->handle, 0, hudextra_whichCam[i]);
                         }
                     }

@@ -1,10 +1,6 @@
 /* The start menu's text and which rows it offers (MAT3 startscr.c animText, animButtonText and optionValid). */
 #include "game/game.h"
 
-
-VIEW(tRGBA, flashColors_at_1);
-#define flashColors_at_1 flashColors_at_1_view
-
 /* PC: game.pc_setup (port/config/start_menu.c, docs/port/FRONTEND.md "PC SETUP"): option slot 8 is PC SETUP while it
    is on, its label the port's; game.cheats_menu (port/config/cheats.c) makes slot 6, the cheat screen, valid. */
 int pc_start_valid(int index, int value);

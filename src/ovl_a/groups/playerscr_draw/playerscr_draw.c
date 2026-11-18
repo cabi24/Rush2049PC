@@ -14,8 +14,6 @@ typedef struct Player { u8 unknown00[4];u32 edges;u8 unknown08[4];u32 autoEdges;
 
 extern Player gPlayers[];
 
-VIEW(tRGBA, flashColors_at_1);
-#define flashColors_at_1 flashColors_at_1_view
 VIEW(Profile **[], gSelectedPlayer);
 #define gSelectedPlayer gSelectedPlayer_view
 

@@ -5,8 +5,6 @@
  * it blows up and frees itself. */
 #include "game/game.h"
 
-typedef union Color {struct {u8 r,g,b,a;} c;u32 word;} Color;
-
 /* A mine's own record (MAT3 tTargetStructMine, 0x88 bytes), the target's per-kind data. */
 typedef struct MineData {
     s32 dlIdx;              /* 0x00 the mine's base, a scene object */
@@ -38,8 +36,8 @@ void AnimateMine(struct pc_visual *v, s16 op)
     int k;
     tTarget *t;
     MineData *m;
-    Color clr;
-    Color *clrPtr;
+    tRGBA clr;
+    tRGBA *clrPtr;
     f32 opos[3];
     f32 uvs[3][3];
     f32 oldT;
@@ -78,10 +76,10 @@ void AnimateMine(struct pc_visual *v, s16 op)
         }
         j = -1;
         m->dlIdx = MBOX_NewObject(gWprObjList[5], 0, t->dlIdx, 0x2080);
-        clr.c.r = 255;
-        clr.c.g = 255;
-        clr.c.b = 255;
-        clr.c.a = 255;
+        clr.c[0] = 255;
+        clr.c[1] = 255;
+        clr.c[2] = 255;
+        clr.c[3] = 255;
         ZOID_SetColor(m->dlIdx, &clr);
         ZOID_SetObjectFlags(t->dlIdx, ZOID_ObjectFlags(t->dlIdx) | 0x2000);
         ZOID_SetColor(t->dlIdx, &clr);
@@ -89,9 +87,9 @@ void AnimateMine(struct pc_visual *v, s16 op)
         m->flashTime = 0.0f;
         m->on = 0;
         clrPtr = &clr;
-        clrPtr->c.r = gMineRingColors[gCarTeam[t->owner]][0];
-        clrPtr->c.g = gMineRingColors[gCarTeam[t->owner]][1];
-        clrPtr->c.b = gMineRingColors[gCarTeam[t->owner]][2];
+        clrPtr->c[0] = gMineRingColors[gCarTeam[t->owner]][0];
+        clrPtr->c[1] = gMineRingColors[gCarTeam[t->owner]][1];
+        clrPtr->c[2] = gMineRingColors[gCarTeam[t->owner]][2];
         CopyUV(t->mat.uvs, m->mats[0]);
         CopyUV(t->mat.uvs, m->mats[1]);
         m->mats[0][3][0] = t->pos[0];
@@ -137,7 +135,7 @@ void AnimateMine(struct pc_visual *v, s16 op)
             m->sc[i] = 1.0f;
             m->alphs[i] = 255;
             clrPtr = ZOID_GetColor(m->glowdls[i]);
-            clrPtr->c.a = 255;
+            clrPtr->c[3] = 255;
             CopyUV(t->mat.uvs, m->mats[i]);
             m->glowCnts[i] = -1;
             MBOX_HideObject(m->glowdls[i], 0, 15);
@@ -158,7 +156,7 @@ void AnimateMine(struct pc_visual *v, s16 op)
         if (m->glowCnts[i] >= 20) {
             if (m->alphs[i] > 8) m->alphs[i] -= 8;
             clrPtr = ZOID_GetColor(m->glowdls[i]);
-            clrPtr->c.a = m->alphs[i];
+            clrPtr->c[3] = m->alphs[i];
         }
         if (m->glowCnts[i] >= 25) {
             j = !i;

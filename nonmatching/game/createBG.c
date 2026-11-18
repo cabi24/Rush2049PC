@@ -1,10 +1,5 @@
 #include "game/game.h"
 
-typedef union Color {
-    u8 c[4];
-    u32 rgba;
-} Color;
-
 typedef struct {
     f32 minX;            /* 0x00 */
     f32 maxX;            /* 0x04 */
@@ -50,7 +45,7 @@ void createBG(void)
 
     bgDist = 1025;
     for (polyIdx = 0; polyIdx < 4; polyIdx++) {
-        Color backColor = { { 0x00, 0x00, 0xC0, 0xFF } };
+        tRGBA backColor = { { 0x00, 0x00, 0xC0, 0xFF } };
 
         bg_texture = MBOX_FindTexture_WORK("BACKGROUND_SFX", &texIdx, 0, gNumModels[0] - 1, 1);
         polyVerts[0][0] = (f32)bgDist * gBackRects[gNumWindows - 1][polyIdx].maxX;

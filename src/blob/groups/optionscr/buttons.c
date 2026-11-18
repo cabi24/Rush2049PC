@@ -4,11 +4,6 @@
  * optionscr's animators draw its text. */
 #include "game/game.h"
 
-typedef union Color {
-    u8 c[4];
-    u32 rgba;
-} Color;
-
 typedef struct {
     s32 type;            /* 0x00 */
     s32 handle;          /* 0x04 */
@@ -72,7 +67,7 @@ void options_updateButtons(void) {
     struct tTexture *texture;
     s32 yi;
     s16 tex;
-    Color color;
+    tRGBA color;
 
     settled = 1;
     color.rgba = options_buttonColor.rgba;

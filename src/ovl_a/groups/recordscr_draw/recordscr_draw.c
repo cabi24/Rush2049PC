@@ -90,8 +90,6 @@ typedef struct SaveData {
 #define kSelectMenuPakStatus 2
 #define kSelectMenuSelectPlayer 3
 
-VIEW(tRGBA, flashColors_at_1);
-#define flashColors_at_1 flashColors_at_1_view
 extern Player gPlayers[];
 
 VIEW(Profile **, gStatPlayer);

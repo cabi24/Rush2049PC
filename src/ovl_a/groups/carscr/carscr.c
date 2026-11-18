@@ -905,8 +905,6 @@ void carscr_uninitButtons(s8 p)
     carscr_buttonsInited[p]=0;
 }
 
-typedef union Color4 {u8 c[4];u32 word;} Color4;
-
 extern void *memcpy(void *,const void *,u32);
 
 /* The buttons' zoom (MAT3's function-local static of initButtons; image A's data: a load of the image puts back its
@@ -920,7 +918,7 @@ f32 carscr_zoom = 1.0f;
  * a side). carscr_zoom stays 1. */
 void carscr_initButtons(s8 p)
 {
-    Color4 buttonColor={{255,255,255,255}};
+    tRGBA buttonColor={{255,255,255,255}};
     void *tex;
     u16 texIdx;
     s32 buttonIdx;
@@ -1012,7 +1010,7 @@ void carscr_updateButtons(s8 p)
     s32 mask;
     void *tex;
     u16 texIdx;
-    Color4 buttonColor={{255,255,255,255}};
+    tRGBA buttonColor={{255,255,255,255}};
     if(!carscr_buttonsInited[p])return;
     if((carscr_gNumOptions[p]-1)*carscr_gButtonSpace*carscr_gButtonScale>carscr_maxY-carscr_minY)
         selectedPos=carscr_maxY-carscr_gActiveOption[p]*(carscr_maxY-carscr_minY)/(carscr_gNumOptions[p]-1);
@@ -1122,16 +1120,12 @@ void carscr_updateButtons(s8 p)
     carscr_buttonsJustInited[p]=0;
 }
 
-VIEW(Color4, carscr_solidColor);
-#define carscr_solidColor carscr_solidColor_view
-VIEW(Color4, carscr_normalColor);
-#define carscr_normalColor carscr_normalColor_view
 /* Colour the first player's car carscr_solidColor (enabled 1) or carscr_normalColor: its body, parts 3 and 4 and
  * tyres. MAT3 shows or hides its grid backdrop here as well. */
 void showGridMap(s32 enabled)
 {
     if(enabled==1) {
-        Color4 color=carscr_solidColor;
+        tRGBA color=carscr_solidColor;
         if(gCarParts[gThisCar[0]].frame) {
             ZOID_SetColor(gCarParts[gThisCar[0]].frame,&color);
             ZOID_SetColor(gCarParts[gThisCar[0]].hood,&color);
@@ -1142,7 +1136,7 @@ void showGridMap(s32 enabled)
             ZOID_SetColor(gCarParts[gThisCar[0]].tires[3],&color);
         }
     } else {
-        Color4 color=carscr_normalColor;
+        tRGBA color=carscr_normalColor;
         if(gCarParts[gThisCar[0]].frame) {
             ZOID_SetColor(gCarParts[gThisCar[0]].frame,&color);
             ZOID_SetColor(gCarParts[gThisCar[0]].hood,&color);

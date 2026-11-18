@@ -88,7 +88,7 @@ extern TextJust gJust;
 extern tRGBA gFlashColor1;
 extern tRGBA gFlashColor2;
 extern volatile f32 gColorCycleTime;
-extern Color8 gFontColors[EXTENT(22)];
+extern tRGBA gFontColors[EXTENT(22)][2];   /* the text colours by name: each entry's colour, then one no code reads */
 extern s8 text_wave_inited;
 extern char pause_title_format[EXTENT(20)];
 extern char pause_title_name_format[EXTENT(8)];

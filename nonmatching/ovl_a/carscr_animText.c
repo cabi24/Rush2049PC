@@ -12,8 +12,6 @@ extern Player gPlayers[];
 
 VIEW(Record **[4], gGhosts);
 #define gGhosts gGhosts_view
-VIEW(tRGBA, flashColors_at_1);
-#define flashColors_at_1 flashColors_at_1_view
 
 extern void TB_FlashTextColors(tRGBA first, tRGBA second);
 

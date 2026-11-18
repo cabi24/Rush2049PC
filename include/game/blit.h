@@ -49,8 +49,8 @@ extern tBlitSet gPaneBlits[EXTENT(16)];
  * fills them with that word as the image has it, byte-swapped as the table's words, the bytes the game always drew
  * with (a note in tools/port/gen_data.py's OVERLAPS_REVIEWED). */
 typedef struct BlitXluColors {
-    BlitColor prim;
-    BlitColor env;
+    tRGBA prim;
+    tRGBA env;
 } BlitXluColors;
 extern BlitXluColors blitPrimColor;
 extern u16 rumble_duty_masks[EXTENT(10)];

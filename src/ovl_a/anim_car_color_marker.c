@@ -48,10 +48,10 @@ s32 anim_car_color_marker(tBlit *blt)
         palette=color_c[player + 1][gThisCar[player]];
         channel=2;
     }
-    carscr_marker_colors[player][channel].r=paint_colors_rgb[palette].r;
-    carscr_marker_colors[player][channel].g=paint_colors_rgb[palette].g;
-    carscr_marker_colors[player][channel].b=paint_colors_rgb[palette].b;
-    carscr_marker_colors[player][channel].a=blt->alpha;
+    carscr_marker_colors[player][channel].c[0]=paint_colors_rgb[palette].c[0];
+    carscr_marker_colors[player][channel].c[1]=paint_colors_rgb[palette].c[1];
+    carscr_marker_colors[player][channel].c[2]=paint_colors_rgb[palette].c[2];
+    carscr_marker_colors[player][channel].c[3]=blt->alpha;
     blt->palette=&carscr_marker_colors[player][channel];
     blt->animID=(blt->animID&0x0fffffff)|((u32)palette<<28);
     UpdateBlit(blt);

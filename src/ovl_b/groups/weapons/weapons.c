@@ -2,7 +2,7 @@
  * the machine gun's and cannon's muzzle flashes. */
 #include "game/game.h"
 
-typedef union RGBA { u8 c[4]; u32 rgba; } RGBA;
+typedef union RGBA { u8 c[4]; u32 rgba; } RGBA;   /* the car view's IRclr only (wave 4: tRGBA) */
 
 typedef struct Defense {
     u32 active; f32 invsTime; f32 shldTime; f32 shldScale; f32 unknown10;
@@ -115,8 +115,8 @@ void AnimateWeapon(Visual *v, s16 op)
     s32 i;
     s32 r1;
     f32 r2;
-    RGBA clr;
-    RGBA clr2 = { { 0, 255, 0, 255 } };
+    tRGBA clr;
+    tRGBA clr2 = { { 0, 255, 0, 255 } };
     UVMat *mat;
     f32 off[3];
     s32 pad1;   /* unused (the N64 code's) */

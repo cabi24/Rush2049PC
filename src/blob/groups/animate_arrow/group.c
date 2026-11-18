@@ -78,7 +78,7 @@ void AnimateArrow(tVisual *v, s16 op) {
     f32 scale;
     s32 oslot;
     s32 i;
-    ArrowColor clr;
+    tRGBA clr;
     f32 vec[3];
     tWindowInfo *window;
     f32 x, y, z, border, vscale, voffset;
@@ -94,36 +94,36 @@ void AnimateArrow(tVisual *v, s16 op) {
     }
     if (gRace == kBattle && (car->defense_active & 1)) {
         if (car->fadeState == 1) {
-            clr.c.a = car->fadeAlpha;
+            clr.c[3] = car->fadeAlpha;
         } else if (car->fadeState == 2) {
-            clr.c.a = car->fadeAlpha;
+            clr.c[3] = car->fadeAlpha;
         } else {
-            clr.c.a = arrowinvsColor[car->shoot];
+            clr.c[3] = arrowinvsColor[car->shoot];
         }
-        if (clr.c.a < 32) {
-            clr.c.a = 32;
+        if (clr.c[3] < 32) {
+            clr.c[3] = 32;
         }
     }
     if (m->drone_type == 2) {                         /* DRONE_TYPE_HUMAN */
         if (gRace == kBattle) {
-            clr.c.r = arrowColors[gCarTeam[m->slot]].c[0];
-            clr.c.g = arrowColors[gCarTeam[m->slot]].c[1];
-            clr.c.b = arrowColors[gCarTeam[m->slot]].c[2];
+            clr.c[0] = arrowColors[gCarTeam[m->slot]].c[0];
+            clr.c[1] = arrowColors[gCarTeam[m->slot]].c[1];
+            clr.c[2] = arrowColors[gCarTeam[m->slot]].c[2];
         } else {
-            clr.c.r = arrowColors[m->slot].c[0];
-            clr.c.g = arrowColors[m->slot].c[1];
-            clr.c.b = arrowColors[m->slot].c[2];
+            clr.c[0] = arrowColors[m->slot].c[0];
+            clr.c[1] = arrowColors[m->slot].c[1];
+            clr.c[2] = arrowColors[m->slot].c[2];
         }
-        if (gFadePlayerArrow[m->slot][oslot] && clr.c.a > 112) {
-            clr.c.a = 112;
+        if (gFadePlayerArrow[m->slot][oslot] && clr.c[3] > 112) {
+            clr.c[3] = 112;
         }
         if (gRace == kGhost && v->slot > 0) {
-            clr.c.a = 128;
+            clr.c[3] = 128;
         }
     } else {
-        clr.c.r = arrowColors[4].c[0];
-        clr.c.g = arrowColors[4].c[1];
-        clr.c.b = arrowColors[4].c[2];
+        clr.c[0] = arrowColors[4].c[0];
+        clr.c[1] = arrowColors[4].c[1];
+        clr.c[2] = arrowColors[4].c[2];
     }
     vec[0] = car->dr_pos[0] - gCamera[oslot].mat.pos[0];
     vec[1] = car->dr_pos[1] - gCamera[oslot].mat.pos[1];
