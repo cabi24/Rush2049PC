@@ -104,6 +104,16 @@
 
 /* Records */
 
+/* A car slot's palette (car_palettes[slot].palBase: a heap block of 256 RGBA 5551 entries, which SetupCarColor
+ * builds; the game made it, so its entries are in the host's byte order): the paint's 160 entries, then the tail
+ * lights' 8 (StartCar sets them dim or bright, AnimateBrakeLights rewrites them each frame) and the headlights' 8. */
+typedef struct CarTlut {
+    u16 paint[160];
+    u16 taillights[8];
+    u16 headlights[8];
+    u16 rest[80];               /* the rest of the 256, which no code names */
+} CarTlut;
+
 /* A car's defence in battle (MAT3 tCarData.battle.defense): its invisibility and its shield. UpdateDefense (shots.c)
  * counts the times down and grows, spins and shrinks the shield. */
 typedef struct tCarDefense {

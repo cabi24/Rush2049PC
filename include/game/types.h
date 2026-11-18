@@ -1845,6 +1845,21 @@ typedef struct tTargetStructPath { /* 0x48 bytes */
 #define TPATH_FORWARD 4
 #define TPATH_BACKWARD 8
 
+/* A coin's record (MAT3 tTargetStructCoin, tTarget.data of a stunt or obstacle track's gold or silver coin): the
+ * spinning coin AnimateCoin makes and turns, and who has yet to find it (StartCoin). No pointers: 0x4C bytes. */
+typedef struct tTargetStructCoin {
+    s32 dlIdx;          /* the spinning coin's scene object (ZOID_AddObject's handle; its low half the object) */
+    struct {
+        f32 uvs[3][3];  /* its orientation */
+        f32 pos[3];     /* its position */
+    } mat;              /* wave 4: tUVMatrix */
+    f32 glowTime;       /* MAT3's; no code reads it */
+    f32 sc;             /* MAT3's; no code reads it */
+    f32 angV[3];        /* its spin, radians a second about x, y and z */
+    u16 cameras;        /* a bit per player who hasn't found it yet */
+    u16 whichcoin;      /* its number in the profile's found-coin bits (the gold coins from 8) */
+} tTargetStructCoin;
+
 /* A node of the targets' quadtree (MAT3 tTargetGroup, the track WAD's GDAT records, gTargetGroups): a rectangle of
  * the ground; a node split in four (flags 1) has four children, a leaf a run of gTargetGroupList. */
 typedef struct tTargetGroup { /* 0x1C bytes */

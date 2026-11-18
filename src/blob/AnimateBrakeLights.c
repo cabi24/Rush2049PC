@@ -6,8 +6,6 @@
 
 /* A car visual (tVisual) on the PC: next a host pointer (docs/port/CARS.md 3). */
 typedef struct tVisual { void *next; s16 index, objnum; s16 slot; } tVisual;
-/* The car's palette (256 RGBA 5551 entries): the tail lights are entries 160-167, the headlights 168-175. */
-typedef struct CarTlut { u8 paint[320]; u16 taillights[8]; } CarTlut;
 
 #define CP(src) do { \
     tlut->taillights[0] = (src)[0]; tlut->taillights[1] = (src)[1]; tlut->taillights[2] = (src)[2]; tlut->taillights[3] = (src)[3]; \
