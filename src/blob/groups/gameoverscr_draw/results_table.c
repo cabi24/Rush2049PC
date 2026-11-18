@@ -35,15 +35,10 @@ void drawRect(s32 x, s32 y, s32 w, s32 h, u8 *color)
     blitMode = -1;
 }
 
-/* A profile (MAT3 tPlayerProfile) in its PC layout (pc_prelude.h PROFILE_OFS): its name at 0x20 (N64 0x14). */
-typedef struct PlayerProfile {void *next, *prev, *fileh; u32 id[2]; char name[13];} PlayerProfile;
 /* A player's pad record (MAT3 tPadState, gPlayers): only its profile. */
-typedef struct PlayerRow {u8 slot;u8 other[71];PlayerProfile **profile;} PlayerRow;
+typedef struct PlayerRow {u8 slot;u8 other[71];tProfile **profile;} PlayerRow;
 
 #define TEXT_STUNT_RECORDS 37       /* gText.tab[]: the stunt score page's record rows */
-
-VIEW(s8[][4], gBattlePoints);
-#define gBattlePoints gBattlePoints_view
 
 extern PlayerRow gPlayers[];
 

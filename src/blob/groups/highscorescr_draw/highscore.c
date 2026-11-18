@@ -3,11 +3,6 @@
  * gHighScoreState is on. */
 #include "game/game.h"
 
-VIEW(s8[][13], gUnlockedCars);
-#define gUnlockedCars gUnlockedCars_view
-VIEW(s8[][6], gUnlockedFrames);
-#define gUnlockedFrames gUnlockedFrames_view
-
 /* The "unlocked" page: in each window of a player who unlocked something, centred and its box sized to fit, a
  * two-line heading, then (flashing) each track, car, circuit, transmission, engine, tyre and frame the race
  * unlocked (unlocked now, not before the race). */
@@ -96,14 +91,7 @@ void DrawUnlocked(void)
 
 #define TEXT_SCORE_PLACES 55        /* gText.tab[]: the places' suffixes ("st", "nd" ...) */
 
-VIEW(s8[][5], gNewTotalScore);
-#define gNewTotalScore gNewTotalScore_view
-
 extern s32 sprintf(char *, const char *, ...);
-
-/* A ghost on a pak (tGhostFile), the struct gPakGhosts points to; its link and file handle are pointer-sized on the
- * PC (docs/port/CASTS.md). */
-typedef struct Ghost { void *ll; void **fileh; u8 track, backward; char name[22]; f32 time; } Ghost;
 
 /* HAL_SetFont, called through a file static of its own (MAT3's DrawName and DrawGhost each inline one). */
 void hs_SetFont(s32 font)
@@ -307,9 +295,9 @@ void DrawGhost(void)
                 case kGhostMine:
                 case kGhostOther:
                     str = (*gPakGhosts[gGhostPak])->name;
-                    TB_Sprintf(time, "%01d:%02d.%03d", (s32)((*gPakGhosts[gGhostPak])->time / 60.0f),
-                                 (s32)(*gPakGhosts[gGhostPak])->time % 60,
-                                 (s32)((*gPakGhosts[gGhostPak])->time * 1000.0f) % 1000);
+                    TB_Sprintf(time, "%01d:%02d.%03d", (s32)((*gPakGhosts[gGhostPak])->finish / 60.0f),
+                                 (s32)(*gPakGhosts[gGhostPak])->finish % 60,
+                                 (s32)((*gPakGhosts[gGhostPak])->finish * 1000.0f) % 1000);
                     break;
                 }
                 if (gGhostStatus[gGhostPak] == kGhostOther) TB_SetTextColor(5);

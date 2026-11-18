@@ -1,17 +1,6 @@
 /* CheckForEgg: the secret pad sequences ("eggs": cheat codes) followed press by press (MAT3 eggs.c CheckForEgg). */
 #include "game/game.h"
 
-/* A code (MAT3's egg record, gEggs; 0xA4 bytes): its length, then per step the buttons held and newly pressed. */
-typedef union InputSequence {
-    struct {
-    u8 count;
-    u8 unknown1[3];
-    u32 held[20];
-    u32 pressed[20];
-    } fields;
-    u32 words[41];
-} InputSequence;
-
 #define EGG_STEP_TIME 1.0f          /* seconds to make the next step */
 
 /* Follow the code InitEgg chose (gEgg) for this frame's buttons. A pause of over a second or a press of a button
@@ -24,9 +13,13 @@ s32 CheckForEgg(void)
     if (!gEgg) return 0;
     if (gEggIdx && gNextTimeOut <= gSeconds)
         gEggIdx = 0;
-    step = &gEgg->words[gEggIdx];
-    pressed = step[21];             /* fields.pressed[gEggIdx] */
-    held = step[1];                 /* fields.held[gEggIdx] */
+    /* The step's buttons, as the egg's words: held is its word 1 + gEggIdx (levels[gEggIdx]), pressed its word
+     * 21 + gEggIdx (edges[gEggIdx]). As words because the index can pass the 20 steps an egg has room for, and the
+     * game then reads the words after them: a code whose size the index never meets (the synthetic cartridge's, all
+     * zeros, which every frame without a button matches) steps on while the pad is idle. */
+    step = (u32 *)gEgg + gEggIdx;
+    pressed = step[21];
+    held = step[1];
     other = ~(pressed | held);
     if (other & gActiveEdges) gEggIdx = 0;
     else if ((held * 1) == (gActiveLevels & held) &&
@@ -34,7 +27,7 @@ s32 CheckForEgg(void)
              !(other & gActiveLevels)) {
         gNextTimeOut = gSeconds + EGG_STEP_TIME;
         gEggIdx++;
-        if (gEggIdx == gEgg->fields.count) return 1;
+        if (gEggIdx == gEgg->size) return 1;
     }
     return 0;
 }

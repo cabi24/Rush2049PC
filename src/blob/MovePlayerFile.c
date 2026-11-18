@@ -13,7 +13,7 @@ void MovePlayerFile(tPakHandle *from, tPakHandle *to) {
             return;
         }
     }
-    for (ghost = gGhostFiles.head; ghost != NULL; ghost = (*ghost)->ll) {
+    for (ghost = gGhostFiles.head; ghost != NULL; ghost = (*ghost)->next) {
         if ((*ghost)->fileh == from) {
             (*ghost)->fileh = to;
             return;

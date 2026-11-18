@@ -20,9 +20,6 @@ extern s32 osRecvMesg(OSMesgQueue *, OSMesg *, s32);
 extern s32 osSendMesg(OSMesgQueue *, OSMesg, s32);
 extern void osWritebackDCache(void *, s32);
 
-VIEW(void (*)(s32,  s32,  s32,  s32,  s8 *,  s8 *,  s32), gErrorFunc);
-#define gErrorFunc gErrorFunc_view
-
 #define DIRTY_RUN 32   /* the dirty map's grain: one bit for each 32 bytes of a file */
 
 /* Makes the serial bus lock (a one-message queue) the first time it is needed. */

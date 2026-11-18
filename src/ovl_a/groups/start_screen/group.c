@@ -11,9 +11,6 @@ typedef struct ButtonInfo { s32 buttonType; s32 objIdx; f32 angle; f32 uvs[4][3]
 VIEW(ButtonInfo[18], startscr_buttonInfo);
 #define startscr_buttonInfo startscr_buttonInfo_view
 
-VIEW(Egg *, gEgg);
-#define gEgg gEgg_view
-
 extern f32 fabsf(f32);
 extern void *memcpy(void *, const void *, u32);
 

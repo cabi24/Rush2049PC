@@ -2,9 +2,6 @@
  * N64 it also starts the controller-pak system, and Start held on any controller at boot opens the pak manager. */
 #include "game/game.h"
 
-VIEW(s8, gBlocksNeeded);
-#define gBlocksNeeded gBlocksNeeded_view
-
 
 /* The screen's frame. The first frame of the game starts the pak system (its error box PS_ErrorFunc) and, if Start
  * is held on any controller, goes to the pak manager (GS_PAK) with the pages a profile needs. Then the licence shows

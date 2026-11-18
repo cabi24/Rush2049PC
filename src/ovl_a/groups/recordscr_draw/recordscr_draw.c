@@ -3,82 +3,12 @@
  * ReadPlayerData) or, for the machine's totals, the gTotal*Stats tables AddPlayerStats fills. */
 #include "game/game.h"
 
-/* A pak file record (MAT3 tPS_File) in its PC layout (pc_prelude.h PSF_OFS, docs/port/POINTERS.md 9.10): pak is
- * the pak it is on. */
-typedef struct FileInfo { void *next, *prev; void (*RemoveFile)(void *), (*MoveFile)(void *, void *); u8 pak; } FileInfo;
-/* A profile (MAT3 tPlayerProfile) in its PC layout (pc_prelude.h PROFILE_OFS): the links of gPlayerFiles, its pak
- * file, its id, its name, its save data (datah: a handle to a SaveData). */
-typedef struct Profile Profile;
-struct Profile { Profile **next,**previous; FileInfo **fileh; u8 id[8]; u8 name[24]; u8 **datah; };
 /* A player's pad record (MAT3 tPadState, gPlayers): only its profile. */
-typedef struct Player { u8 unknown00[72]; Profile **owner; } Player;
+typedef struct Player { u8 unknown00[72]; tProfile **owner; } Player;
 typedef struct TextBox {s16 x,y,width,height;} TextBox;
 
-/* The statistics a profile keeps (MAT3 rush_types.h's tSaveData parts; no pointers, so the PC has the N64's layout:
- * the N64's records sit 4 bytes earlier than MAT3's, its controls being one shorter). One race track's (MAT3
- * anon_checksum_scores_60), a stunt track's (anon_checksum_bestStunt_40), a battle arena's (anon_checksum_totalMatches_c),
- * the obstacle course's (anon_checksum_bestTime_18) and a circuit's (anon_checksum_numCircuits_1c). */
-typedef struct RaceStats {
-    u32 checksum;
-    f32 scores[3][5];           /* 0x04 the three tables' five times */
-    f32 totalTime;              /* 0x40 */
-    u16 totalLaps;              /* 0x44 */
-    u16 totalRaces;             /* 0x46 */
-    u16 total1st, total2nd, total3rd; /* 0x48 */
-    u16 totalCrashes;           /* 0x4E */
-    u16 totalDeathAttempted;    /* 0x50 */
-    u16 totalDeathCompleted;    /* 0x52 */
-    u16 totalGhosts;            /* 0x54 */
-    u32 totalMiles;             /* 0x58 tenths of a mile */
-    u16 coinsFound;             /* 0x5C a bit per coin: silver in the low byte, gold in the high one */
-} RaceStats;                    /* 0x60 */
-typedef struct StuntStats {
-    u32 checksum;
-    u32 bestStunt;              /* 0x04 */
-    u32 bestAvg;                /* 0x08 */
-    u32 totalPoints;            /* 0x0C */
-    u16 totalTime;              /* 0x10 */
-    u16 totalCrashes;           /* 0x12 */
-    u32 totalStunts[10];        /* 0x14 each kind of stunt's count */
-    u16 coinsFound;             /* 0x3C silver in the low byte, gold in the high one */
-} StuntStats;                   /* 0x40 */
-typedef struct BattleStats {
-    u32 checksum;
-    u16 totalMatches;           /* 0x04 */
-    u16 totalWins;              /* 0x06 */
-    u16 totalKills;             /* 0x08 */
-    u16 totalDeaths;            /* 0x0A */
-} BattleStats;                  /* 0x0C */
-typedef struct ObstacleStats {
-    u32 checksum;
-    f32 bestTime;               /* 0x04 */
-    f32 totalTime;              /* 0x08 */
-    u16 totalRaces;             /* 0x0C */
-    u16 totalFinished;          /* 0x0E */
-    u16 totalCrashes;           /* 0x10 */
-    u16 numDeathAttempted;      /* 0x12 */
-    u16 numDeathCompleted;      /* 0x14 */
-} ObstacleStats;                /* 0x18 */
-typedef struct CircuitStats {
-    u32 checksum;
-    u16 numCircuits;            /* 0x04 */
-    u16 num1st, num2nd, num3rd; /* 0x06 */
-    u16 numDeathAttempted;      /* 0x0C */
-    u16 numDeathCompleted;      /* 0x0E */
-    u16 bestPts;                /* 0x10 */
-    f32 bestTime;               /* 0x14 */
-    u32 totalPts;               /* 0x18 */
-} CircuitStats;                 /* 0x1C */
-/* A profile's save data (MAT3 tSaveData): its settings, then these. */
-typedef struct SaveData {
-    u8 settings[0x8C];
-    RaceStats raceStats[12];         /* 0x08C: the six race tracks, forward and backward (the record track / 2, + 6 backward) */
-    StuntStats stuntStats[4];        /* 0x50C */
-    BattleStats battleStats[8];      /* 0x60C */
-    ObstacleStats obstacleStats[1];  /* 0x66C */
-    CircuitStats circuitStats[4];    /* 0x684 */
-} SaveData;
-#define PROFILE_SAVE ((SaveData *)*(*gStatPlayer)->datah)
+/* The shown profile's save data (read by ReadPlayerData). */
+#define PROFILE_SAVE (*(*gStatPlayer)->datah)
 
 /* gRecordTrack's kinds (recordscr.c) */
 #define kTrackTypeCircuit 4
@@ -92,19 +22,8 @@ typedef struct SaveData {
 
 extern Player gPlayers[];
 
-VIEW(Profile **, gStatPlayer);
-#define gStatPlayer gStatPlayer_view
-
 VIEW(TextBox, gScreenRect);
 #define gScreenRect gScreenRect_view
-VIEW(StuntStats[], gTotalStuntStats);
-#define gTotalStuntStats gTotalStuntStats_view
-VIEW(BattleStats[], gTotalBattleStats);
-#define gTotalBattleStats gTotalBattleStats_view
-VIEW(ObstacleStats[], gTotalObstacleStats);
-#define gTotalObstacleStats gTotalObstacleStats_view
-VIEW(CircuitStats[], gTotalCircuitStats);
-#define gTotalCircuitStats gTotalCircuitStats_view
 
 /* gText.tab[g]'s entry i: one of a table of texts. */
 #define NAME(g,i) (gText.taba[gText.tab[g]+(i)])
@@ -235,23 +154,23 @@ void recordscr_drawSelect(void)
                 TB_SetTextColor(0);
                 TB_DrawText(TB_CenterText(str, x), y, str);
             } else if (i >= kSelectMenuSelectPlayer && i < RECORD_SELECT_ROWS) {
-                Profile **player;
+                tProfile **player;
                 s32 playerIdx;
                 player = gStatPlayer;
                 if (!player) {
                     for (playerIdx = 0, player = gPlayerFiles.head; player; player = (*player)->next) {
-                        if ((*(*player)->fileh)->pak == recordscr_gSelectPakIdx) {
+                        if ((*player)->fileh->file->pak == recordscr_gSelectPakIdx) {
                             if (playerIdx == i - kSelectMenuSelectPlayer) str = (*player)->name;
                             playerIdx++;
                         }
                     }
                 } else {
                     for (playerIdx = 0; player; ) {
-                        if ((*(*player)->fileh)->pak == recordscr_gSelectPakIdx) {
+                        if ((*player)->fileh->file->pak == recordscr_gSelectPakIdx) {
                             if (playerIdx == (i - recordscr_gSelectMenuSelect >= 0 ? i - recordscr_gSelectMenuSelect : -(i - recordscr_gSelectMenuSelect))) str = (*player)->name;
                             playerIdx++;
                         }
-                        player = i < recordscr_gSelectMenuSelect ? (*player)->previous : (*player)->next;
+                        player = i < recordscr_gSelectMenuSelect ? (*player)->prev : (*player)->next;
                     }
                 }
                 if ((u32)HAL_GetTextWidth(str, -1) > 140) HAL_SetFontSpacing(0);
@@ -267,7 +186,7 @@ void recordscr_drawSelect(void)
  * when nothing at all is unlocked. CalcUnlockedStuff works it out as if the profile were the only player. */
 void drawUnlockedParts(void)
 {
-    Profile **saved_owner;
+    tProfile **saved_owner;
     s16 saved_players,i,y,bottom;
     s32 all_empty=1,empty;
     u8 *label;
@@ -296,7 +215,7 @@ void drawUnlockedParts(void)
     label=NAME(34,1);
     TB_DrawText(TB_CenterText(label,80),y,label);
     y+=TB_GetFontLineHeight();HAL_SetFont(12);empty=1;
-    for(i=3;i<6;i++)if(gUnlockedFrames[i]) {
+    for(i=3;i<6;i++)if(gUnlockedFrames[0][i]) {
         empty=0;label=NAME(8,i);
         TB_DrawText(TB_CenterText(label,80),y,label);y+=TB_GetFontLineHeight();
     }
@@ -345,7 +264,7 @@ void drawUnlockedParts(void)
 void drawUnlockedTracks(void)
 {
     s32 first;
-    Profile **saved_owner;
+    tProfile **saved_owner;
     s16 saved_players,i,x,y,bottom,width=20;
     s32 second;
     u8 text[44];
@@ -400,7 +319,7 @@ void drawRaceStats(void)
 {
     s32 track,i,x,y;
     u8 *label,text[48];
-    RaceStats *stats;
+    tRaceStats *stats;
     u32 distance;
     f32 average;
     TB_SetJust(kTB_JustLeft, kTB_JustTop);
@@ -460,9 +379,9 @@ void drawTotalStats(void)
     u16 found=0,race_a=0,race_b=0,track_a=0,track_b=0;
     s16 i,row;
     u8 text[48],*label;
-    RaceStats *race;
-    StuntStats *stunt;
-    BattleStats *battle;
+    tRaceStats *race;
+    tStuntStats *stunt;
+    tBattleStats *battle;
     if(!gStatPlayer)return;
     TB_SetJust(kTB_JustLeft, kTB_JustTop);
     for(i=0;i<12;i++) {
@@ -511,7 +430,7 @@ void drawTotalStats(void)
  * none are. */
 void drawUnlockedCars(void)
 {
-    Profile **saved_owner;
+    tProfile **saved_owner;
     s16 saved_players,i,y,width=20;
     if(!gStatPlayer)return;
     TB_SetJust(kTB_JustLeft, kTB_JustTop);
@@ -522,7 +441,7 @@ void drawUnlockedCars(void)
     HAL_SetFont(12);TB_SetTextColor(kTB_WhiteText);y=90;
     for(i=6;i<13;i++) {
         if(i==0 || i==1 || i==2 || i==3 || i==4 || i==5)continue;
-        if(gUnlockedCars[i]) {
+        if(gUnlockedCars[0][i]) {
             width=(u32)HAL_GetTextWidth(CarTitles[i],-1)<(u32)width ? (u32)width : (u32)HAL_GetTextWidth(CarTitles[i],-1);
             TB_DrawText(TB_CenterText(CarTitles[i],160),y,CarTitles[i]);
             y+=TB_GetFontLineHeight();
@@ -540,7 +459,7 @@ void drawUnlockedCars(void)
 void drawScores(s32 category)
 {
     s32 track,y,i;
-    RaceStats *stats;
+    tRaceStats *stats;
     u8 text[48];
     TB_SetJust(kTB_JustCenter, kTB_JustTop);
     track=gRecordTrack/2;
@@ -561,7 +480,7 @@ void drawScores(s32 category)
 /* A battle arena's statistics page: matches, wins and kills (the deaths' row is never reached: three rows). */
 void drawBattleStats(void)
 {
-    BattleStats *stats;
+    tBattleStats *stats;
     s32 x,y;
     u8 *label;
     s32 i;
@@ -590,7 +509,7 @@ void drawStuntStats(void)
 {
     s32 x,y;
     u8 *label,text[48];
-    StuntStats *stats;
+    tStuntStats *stats;
     s32 i,rows;
     if(gStatPlayer)stats=&PROFILE_SAVE->stuntStats[gRecordTrack-RECORD_FIRST_STUNT];
     else stats=&gTotalStuntStats[gRecordTrack-RECORD_FIRST_STUNT];
@@ -620,7 +539,7 @@ void drawStuntStats(void)
  * and the best time (the total points' row is never reached: eight rows). */
 void drawCircuitStats(void)
 {
-    CircuitStats *stats;
+    tCircuitStats *stats;
     s32 x,y;
     u8 *label;
     s32 i;
@@ -653,7 +572,7 @@ void drawCircuitStats(void)
 /* The obstacle course's statistics page: the best and total times, runs and finishes (four rows of the seven). */
 void drawObstacleStats(void)
 {
-    ObstacleStats *stats;
+    tObstacleStats *stats;
     s32 x,y;
     u8 *label;
     s32 i;
@@ -748,7 +667,7 @@ void recordscr_drawView(void)
 void recordscr_drawStuntTotals(void)
 {
             s32 statIdx, x, y;
-            StuntStats *stats;
+            tStuntStats *stats;
             u8 str[40];
             if(gStatPlayer)stats=&PROFILE_SAVE->stuntStats[gRecordTrack-RECORD_FIRST_STUNT];
             else stats=&gTotalStuntStats[gRecordTrack-RECORD_FIRST_STUNT];

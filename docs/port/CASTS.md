@@ -72,7 +72,9 @@ three had 8-byte slots (1440 bytes), four `s32` slots (720), and RecordGhost' `O
 pointers, which gave the storage 960 bytes, so the pointer views ran past it. Every live view has pointer-sized
 slots now (`intptr_t` in `InitRecords`, `FindTempNameIdx` (and its `slot` local, which a handle's low half could
 make look like a name slot), `ControlName`, `RemovePlayerScores`; RecordGhost' `Owner` under `TARGET_PC`):
-1440 bytes, `view_check --sym gTotalNames` 0 disagreements.
+1440 bytes, `view_check --sym gTotalNames` 0 disagreements. Since wave 4 ([RECORDS.md](RECORDS.md) 4.2) both are
+declared with save.h's union `tScoreOwner` (`.name`, an `intptr_t`, or `.profile`, a handle), `gTotalNames` as
+`[12][3][5]`, and every file indexes them so.
 
 ### 2.2 The ghosts
 
@@ -290,7 +292,8 @@ functions:
   profile's or a ghost's file would jump there. This is the next pointer job in the front end. `MovePlayerFile`,
   installed as `MoveFile`, is never called (no indirect call through +12 in the ROM's code) and reaches profiles,
   ghosts and file records at N64 offsets. Done (POINTERS.md 9.10): every view has the 96-byte layout, the raw
-  offsets go through `PSF_OFS`, and both file functions take the handle whole.
+  offsets go through `PSF_OFS`, and both file functions take the handle whole. Since wave 4 every file reads it as
+  save.h's `PakFileRecord` by its fields, and `PSF_OFS` is gone ([RECORDS.md](RECORDS.md) 4.2).
 - **The controller/pak records** (POINTERS.md 9.6): `UpdateModel` clears `gPaks_rumble_request + pak * 0x304`, N64 +0x7D
   (the rumble request) at the N64 stride; on the PC the record is 0x310 bytes and the field later. Done: the PC
   stride is 0x310 (`PAK_RECORD`), and gen_data places `gPaks_rumble_request` at +0x89.
@@ -299,6 +302,7 @@ functions:
   at +0 and +8, where the save code's views keep the file handle at N64 +8 (`F(p, Handle, 8)`, `char pad0[20]`).
   One PC layout for it goes with the `tPS_File` work. Done (POINTERS.md 9.10): 64 bytes, the file handle at +16 and
   the data at +56 (`PROFILE_OFS`), in every live view; the ghost header keeps its N64 88 bytes, as it is file data.
+  Since wave 4 it is save.h's `tProfile` in every file, read by its fields ([RECORDS.md](RECORDS.md) 4.2).
   The heap's handle slots, which the save code reads through as pointers, are 8 bytes on the PC.
 
 ## 8. Needs the ROM

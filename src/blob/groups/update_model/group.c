@@ -33,20 +33,6 @@ typedef struct tCarData {
 /* The rumble's strength steps (MAT3 percentTable[36]): the force sums at which the next step starts. */
 #define RUMBLE_STEPS percentTable
 
-VIEW(intptr_t, gGhosts);
-#define gGhosts gGhosts_view
-
-/* A ghost (SaveInit' Ghost, 64 bytes on the PC) has its header handle at +0x38 (docs/port/CASTS.md); a ghost race's
- * ghost car `g` (gGhosts[slot]) is recording if its header's flag (+5) is negative: MAT3
- * (**(**gGhosts[slot]).header).flag. */
-#define GHOST_HEADER 0x38
-#define GHOST_HEADER_FLAG(g) (*(s8 *) ((s8 *) **(void ***) ((s8 *) *(void **) (g) + GHOST_HEADER) + 5))
-/* The controller/pak records gPaks are 0x310 bytes on the PC (paksys' PakRecord, docs/port/POINTERS.md 9.6); the
- * rumble request (rumble/group.c's Controller.request) is a record's byte at host +0x89. */
-#define PAK_RECORD 0x310
-#define PAK_RUMBLE_REQUEST(i) (((s8 *) gPaks)[(i) * PAK_RECORD + 0x89])
-/* A profile's rumble setting (save.c's profile record, N64 +0x2B, PROFILE_OFS on the PC): 0 off, 1 low, else full. */
-#define PROFILE_RUMBLE(profile) (*(s8 *) ((s8 *) (profile) + PROFILE_OFS(0x2B)))
 /* The drone schedule on the PC (docs/port/DECOUPLE.md 8). Row r is for n drones with one human or none (r = n) or
  * with two or more (r = PC_DRONE_SCHED_TWO + n, pc_game_types.h), n up to PC_MAX_LINKS; entry k is how many drones
  * the k-th model iteration of a round updates, -1 ending the round. Where the N64 has the row (0-6 drones with one
@@ -105,7 +91,7 @@ void UpdateModel(s32 slot) {
     s32 force;
     s32 unused2;            /* unused */
     s32 appearance;
-    intptr_t ghost;
+    tGhostFile **ghost;
     s32 work;               /* the last drone's index, then the rumble's force */
     s8 rumble_setting;
     s32 step;
@@ -128,7 +114,7 @@ void UpdateModel(s32 slot) {
                 new_sched_to_use -= PC_DRONE_SCHED_TWO;
             }
             id = player->controller;
-            PAK_RUMBLE_REQUEST(id) = 0;
+            gPaks[id].request = 0;
             return;
         }
         /* a drone is out: one drone fewer in this machine's list and schedule */
@@ -159,7 +145,7 @@ void UpdateModel(s32 slot) {
             UpdateResurrectingCar(m);
             if (gGameState & GS_RACING) {
                 id = player->controller;
-                PAK_RUMBLE_REQUEST(id) = 0;
+                gPaks[id].request = 0;
             }
         } else {
             UpdateResurrectingCar(m);
@@ -168,7 +154,7 @@ void UpdateModel(s32 slot) {
     } else if (m->fastin.modelrun != 0) {
         if (player != NULL) {
             sym(m);
-            if ((gGameState & GS_RACING) && ((gRace != kGhost) || (ghost = (&gGhosts)[m->slot], (ghost == 0)) || (GHOST_HEADER_FLAG(ghost) < 0))) {
+            if ((gGameState & GS_RACING) && ((gRace != kGhost) || (ghost = gGhosts[m->slot], (ghost == 0)) || ((*(*ghost)->header)->flag < 0))) {
                 force = (s32) ((fabsf(m->f[0]) + fabsf(m->f[1])) + fabsf(m->f[2]));
                 work = force;
                 if (gRace == kBattle) {
@@ -190,7 +176,7 @@ next_step:
                         goto next_step;
                     }
                 }
-                rumble_setting = PROFILE_RUMBLE(*player->save);
+                rumble_setting = (*player->save)->rumble;
                 if (rumble_setting == 0) {
                     goto rumble_off;
                 }
@@ -202,7 +188,7 @@ rumble_off:
                     }
                 }
                 controller = player->controller;
-                PAK_RUMBLE_REQUEST(controller) = step;
+                gPaks[controller].request = step;
             }
         } else {
             MaxPathControls(m);

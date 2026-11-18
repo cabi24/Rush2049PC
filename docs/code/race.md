@@ -159,7 +159,7 @@ the N64 draws by (`n64`) and updates the sky.
 - **One type per datum** (2026-11-09): every file reads the race, track and camera data by include/game's types;
   the records some files still complete for themselves are those include/game leaves incomplete (`tBasicTargetPath`,
   `pathtyp`, `tModelPart`, `tVisual`), and `tCircuit` in the profile.
-- **The profile's data** is read through `PROFILE_OFS` and `SLOT_DATA` offsets and pointer-sized reads (circuits,
-  ghosts).
+- **The profile's data** is read through save.h's `tProfile` and `tSaveData` (the circuits, the ghosts; wave 4,
+  [RECORDS.md](../port/RECORDS.md) 4.2).
 - **Walks to the next datum**: the arena keeps some arrays longer than include/game declares (`gCircuitCars[6]`,
   the circuit races), and the N64 code's loops ended at the next symbol; GetCircuitCode now stops by its count.

@@ -1,35 +1,30 @@
 /* Profiles and ghosts on the paks: creating, reading, checking and repairing them, and the save server that reads a
- * pak's profiles and ghosts when it comes in (MAT3 save.c). The profile's file (tSaveData) is still reached here by
- * its byte offsets. */
+ * pak's profiles and ghosts when it comes in (MAT3 save.c). A profile (tProfile) holds its file's data (tSaveData)
+ * through the pak file's data handle; a ghost (tGhostFile) its file's header (tGhostHeader, the compressed recording
+ * after it) the same way. */
 #include "game/game.h"
-
-#define F(expr,type,offset) (*(type *)((u8 *)(expr)+(offset)))
-/* PC: the save records' host layouts (pc_prelude.h, docs/port/POINTERS.md 9.10): PSF_OFS for the pak file record
- * (*fileh), PROFILE_OFS for the profile record (*player), GHOST_OFS for a ghost. The ghost header is file data, so
- * it keeps its N64 layout (tGhostHeader: it says whether its samples are in memory, which are the ghost's data). */
-#define SLOT_DATA PROFILE_OFS(44)   /* SaveSlot.data */
-typedef void **Handle;
 
 void *memset(void *, s32, u32);
 void *memcpy(void *, const void *, u32);
 s32 sprintf(char *, const char *, ...);
 
-/* Gives the profile h a fresh file: its record cleared, the data zeroed, revision PROFILE_REVISION, the default
- * controls with rumble, every car's default settings, every option's default (the race type settings for every
- * track), the default car and view for every race type. */
-void InitPlayer(Handle h) {
-    u8 *data;
+/* Gives the profile h a fresh file: its record cleared (but for its data handle), the data zeroed, revision
+ * PROFILE_REVISION, the default controls with rumble, every car's default settings, every option's default (the race
+ * type settings for every track), the default car and view for every race type. The controls' checksum and the
+ * copies of the controls take the rumble byte after them (11 bytes). */
+void InitPlayer(tProfile **h) {
+    tSaveData *data;
     s32 i;
     s8 saved;
 
-    memset(*h, 0, SLOT_DATA);
-    data = *F(*h, Handle, SLOT_DATA);
-    memset(data, 0, 2064);
-    data[12] = PROFILE_REVISION;
-    SetDefaultControls(data + 60);
-    data[70] = 1;
-    F(data, s32, 56) = CalcChecksumInternal(data + 60, 11);
-    memcpy((u8 *)*h + PROFILE_OFS(33), data + 60, 11);
+    memset(*h, 0, __builtin_offsetof(tProfile, datah));
+    data = *(*h)->datah;
+    memset(data, 0, sizeof(tSaveData));
+    data->revision = PROFILE_REVISION;
+    SetDefaultControls(data->controls);
+    data->rumble = 1;
+    data->contChecksum = CalcChecksumInternal(data->controls, 11);
+    memcpy((*h)->controls, data->controls, 11);
     for (i = 0; i < 13; i++) {
         SetDefaultCarSettings(h, i);
     }
@@ -43,42 +38,42 @@ void InitPlayer(Handle h) {
         }
     }
     gTrackNum = saved;
-    for (data[71] = 0; data[71] < 7; data[71]++) {
+    for (data->raceType = 0; data->raceType < 7; data->raceType++) {
         SavePlayerCar(h, 2);
         SavePlayerCarView(h, 2);
     }
-    data[71] = 0;
+    data->raceType = 0;
 }
 
 /* Checks the profile's file: its revision and every part's checksum. Returns 1 when something is wrong. With repair
  * each bad part is reset (the options and settings from the game's, the controls to the defaults, the records
  * zeroed) and written; a file of another revision is deleted instead (and 0 returned). Original game: only the first
  * 6 of the 12 race stats are checked (MAT3 alike); the other 6 (the tracks backwards) are never repaired. */
-s32 CheckAndRepairPlayer(Handle h, s32 repair) {
+s32 CheckAndRepairPlayer(tProfile **h, s32 repair) {
     s32 dirty;
-    u8 *save;
-    u8 *p;
+    tSaveData *save;
+    tCarSettings *p;
     s32 i;
     s32 j;
     s8 saved;
 
     dirty = 0;
-    save = *F(*h, Handle, SLOT_DATA);
-    if (save[12] != PROFILE_REVISION) {
+    save = *(*h)->datah;
+    if (save->revision != PROFILE_REVISION) {
         if (repair) {
-            PS_DeleteFile(F(*h, Handle, PROFILE_OFS(8)));
+            PS_DeleteFile((*h)->fileh);
             return 0;
         }
         dirty = 1;
     }
-    if (CalcChecksumInternal(save + 4, (save + 28) - (save + 4)) != F(save, s32, 0)) {
+    if (CalcChecksumInternal(save->id, (u8 *)&save->optChecksum - (u8 *)save->id) != save->nameChecksum) {
         dirty = 1;
         if (repair) {
-            F(save, s32, 0) = CalcChecksumInternal(save + 4, (save + 28) - (save + 4));
-            PS_WriteFile(F(*h, Handle, PROFILE_OFS(8)), save, 4);
+            save->nameChecksum = CalcChecksumInternal(save->id, (u8 *)&save->optChecksum - (u8 *)save->id);
+            PS_WriteFile((*h)->fileh, save, 4);
         }
     }
-    if (CalcChecksumInternal(save + 32, 21) != F(save, s32, 28)) {
+    if (CalcChecksumInternal(save->options, 21) != save->optChecksum) {
         dirty = 1;
         if (repair) {
             for (i = 0; i < 21; i++) {
@@ -86,17 +81,17 @@ s32 CheckAndRepairPlayer(Handle h, s32 repair) {
             }
         }
     }
-    if (CalcChecksumInternal(save + 60, 11) != F(save, s32, 56)) {
+    if (CalcChecksumInternal(save->controls, 11) != save->contChecksum) {
         dirty = 1;
         if (repair) {
-            SetDefaultControls((u8 *)*h + PROFILE_OFS(33));
-            ((u8 *)*h)[PROFILE_OFS(43)] = 1;
-            memcpy(save + 60, (u8 *)*h + PROFILE_OFS(33), 11);
-            F(save, s32, 56) = CalcChecksumInternal(save + 60, 11);
-            PS_WriteFile(F(*h, Handle, PROFILE_OFS(8)), save + 56, 15);
+            SetDefaultControls((*h)->controls);
+            (*h)->rumble = 1;
+            memcpy(save->controls, (*h)->controls, 11);
+            save->contChecksum = CalcChecksumInternal(save->controls, 11);
+            PS_WriteFile((*h)->fileh, &save->contChecksum, 15);
         }
     }
-    if (CalcChecksumInternal(save + 76, 16) != F(save, s32, 72)) {
+    if (CalcChecksumInternal(&save->raceSettings.track, sizeof(tRaceSettings) - 4) != save->raceSettings.checksum) {
         dirty = 1;
         if (repair) {
             saved = gTrackNum;
@@ -105,11 +100,12 @@ s32 CheckAndRepairPlayer(Handle h, s32 repair) {
                 SavePlayerOption(h, j, gOptions[j]);
             }
             gTrackNum = saved;
-            memset(save + 72, 0, 20);
-            PS_WriteFile(F(*h, Handle, PROFILE_OFS(8)), save + 72, 20);
+            memset(&save->raceSettings, 0, sizeof(tRaceSettings));
+            PS_WriteFile((*h)->fileh, &save->raceSettings, sizeof(tRaceSettings));
         }
     }
-    if (CalcChecksumInternal(save + 96, 12) != F(save, s32, 92)) {
+    if (CalcChecksumInternal(&save->battleSettings.track, sizeof(tBattleSettings) - 4) !=
+        save->battleSettings.checksum) {
         dirty = 1;
         if (repair) {
             saved = gTrackNum;
@@ -118,11 +114,11 @@ s32 CheckAndRepairPlayer(Handle h, s32 repair) {
                 SavePlayerOption(h, j, gOptions[j]);
             }
             gTrackNum = saved;
-            memset(save + 92, 0, 16);
-            PS_WriteFile(F(*h, Handle, PROFILE_OFS(8)), save + 92, 16);
+            memset(&save->battleSettings, 0, sizeof(tBattleSettings));
+            PS_WriteFile((*h)->fileh, &save->battleSettings, sizeof(tBattleSettings));
         }
     }
-    if (CalcChecksumInternal(save + 112, 16) != F(save, s32, 108)) {
+    if (CalcChecksumInternal(&save->stuntSettings.track, sizeof(tStuntSettings) - 4) != save->stuntSettings.checksum) {
         dirty = 1;
         if (repair) {
             saved = gTrackNum;
@@ -131,11 +127,12 @@ s32 CheckAndRepairPlayer(Handle h, s32 repair) {
                 SavePlayerOption(h, j, gOptions[j]);
             }
             gTrackNum = saved;
-            memset(save + 108, 0, 20);
-            PS_WriteFile(F(*h, Handle, PROFILE_OFS(8)), save + 108, 20);
+            memset(&save->stuntSettings, 0, sizeof(tStuntSettings));
+            PS_WriteFile((*h)->fileh, &save->stuntSettings, sizeof(tStuntSettings));
         }
     }
-    if (CalcChecksumInternal(save + 132, 8) != F(save, s32, 128)) {
+    if (CalcChecksumInternal(&save->obstacleSettings.track, sizeof(tObstacleSettings) - 4) !=
+        save->obstacleSettings.checksum) {
         dirty = 1;
         if (repair) {
             saved = gTrackNum;
@@ -144,69 +141,73 @@ s32 CheckAndRepairPlayer(Handle h, s32 repair) {
                 SavePlayerOption(h, j, gOptions[j]);
             }
             gTrackNum = saved;
-            memset(save + 128, 0, 12);
-            PS_WriteFile(F(*h, Handle, PROFILE_OFS(8)), save + 128, 12);
+            memset(&save->obstacleSettings, 0, sizeof(tObstacleSettings));
+            PS_WriteFile((*h)->fileh, &save->obstacleSettings, sizeof(tObstacleSettings));
         }
     }
     for (i = 0; i < 6; i++) {
-        if (CalcChecksumInternal(save + 144 + i * 96, 92) != F(save + i * 96, s32, 140)) {
+        if (CalcChecksumInternal(save->raceStats[i].scores, sizeof(tRaceStats) - 4) != save->raceStats[i].checksum) {
             dirty = 1;
             if (repair) {
-                memset(save + 140 + i * 96, 0, 96);
-                PS_WriteFile(F(*h, Handle, PROFILE_OFS(8)), save + 140 + i * 96, 96);
+                memset(&save->raceStats[i], 0, sizeof(tRaceStats));
+                PS_WriteFile((*h)->fileh, &save->raceStats[i], sizeof(tRaceStats));
             }
         }
     }
     for (i = 0; i < 4; i++) {
-        if (CalcChecksumInternal(save + 1296 + i * 64, 60) != F(save + i * 64, s32, 1292)) {
+        if (CalcChecksumInternal(&save->stuntStats[i].bestStunt, sizeof(tStuntStats) - 4) !=
+            save->stuntStats[i].checksum) {
             dirty = 1;
             if (repair) {
-                memset(save + 1292 + i * 64, 0, 64);
-                PS_WriteFile(F(*h, Handle, PROFILE_OFS(8)), save + 1292 + i * 64, 64);
+                memset(&save->stuntStats[i], 0, sizeof(tStuntStats));
+                PS_WriteFile((*h)->fileh, &save->stuntStats[i], sizeof(tStuntStats));
             }
         }
     }
     for (i = 0; i < 8; i++) {
-        if (CalcChecksumInternal(save + 1552 + i * 12, 8) != F(save + i * 12, s32, 1548)) {
+        if (CalcChecksumInternal(&save->battleStats[i].totalMatches, sizeof(tBattleStats) - 4) !=
+            save->battleStats[i].checksum) {
             dirty = 1;
             if (repair) {
-                memset(save + 1548 + i * 12, 0, 12);
-                PS_WriteFile(F(*h, Handle, PROFILE_OFS(8)), save + 1548 + i * 12, 12);
+                memset(&save->battleStats[i], 0, sizeof(tBattleStats));
+                PS_WriteFile((*h)->fileh, &save->battleStats[i], sizeof(tBattleStats));
             }
         }
     }
     for (i = 0; i < 1; i++) {
-        if (CalcChecksumInternal(save + 1648 + i * 24, 20) != F(save + i * 24, s32, 1644)) {
+        if (CalcChecksumInternal(&save->obstacleStats[i].bestTime, sizeof(tObstacleStats) - 4) !=
+            save->obstacleStats[i].checksum) {
             dirty = 1;
             if (repair) {
-                memset(save + 1644 + i * 24, 0, 24);
-                PS_WriteFile(F(*h, Handle, PROFILE_OFS(8)), save + 1644 + i * 24, 24);
+                memset(&save->obstacleStats[i], 0, sizeof(tObstacleStats));
+                PS_WriteFile((*h)->fileh, &save->obstacleStats[i], sizeof(tObstacleStats));
             }
         }
     }
     for (i = 0; i < 4; i++) {
-        if (CalcChecksumInternal(save + 1672 + i * 28, 24) != F(save + i * 28, s32, 1668)) {
+        if (CalcChecksumInternal(&save->circuitStats[i].numCircuits, sizeof(tCircuitStats) - 4) !=
+            save->circuitStats[i].checksum) {
             dirty = 1;
             if (repair) {
-                memset(save + 1668 + i * 28, 0, 28);
-                PS_WriteFile(F(*h, Handle, PROFILE_OFS(8)), save + 1668 + i * 28, 28);
+                memset(&save->circuitStats[i], 0, sizeof(tCircuitStats));
+                PS_WriteFile((*h)->fileh, &save->circuitStats[i], sizeof(tCircuitStats));
             }
         }
     }
-    if (CalcChecksumInternal(save + 1784, 72) != F(save, s32, 1780)) {
+    if (CalcChecksumInternal(&save->circuit.active, sizeof(tCircuitRecord) - 4) != save->circuit.checksum) {
         dirty = 1;
         if (repair) {
-            memset(save + 1780, 0, 76);
-            PS_WriteFile(F(*h, Handle, PROFILE_OFS(8)), save + 1780, 76);
+            memset(&save->circuit, 0, sizeof(tCircuitRecord));
+            PS_WriteFile((*h)->fileh, &save->circuit, sizeof(tCircuitRecord));
         }
     }
     for (i = 0; i < 13; i++) {
-        p = save + i * 16;
-        if (CalcChecksumInternal(p + 1860, 12) != F(p, s32, 1856)) {
+        p = &save->carSettings[i];
+        if (CalcChecksumInternal(p->settings, 12) != p->checksum) {
             dirty = 1;
             if (repair) {
                 SetDefaultCarSettings(h, i);
-                PS_WriteFile(F(*h, Handle, PROFILE_OFS(8)), p + 1856, 16);
+                PS_WriteFile((*h)->fileh, p, sizeof(tCarSettings));
             }
         }
     }
@@ -215,26 +216,26 @@ s32 CheckAndRepairPlayer(Handle h, s32 repair) {
 
 /* Reads the profile's file into memory, unless it is (its data handle), and checks and repairs it; takes its
  * controls; the cheat profile turns every cheat on. Returns 0 when it can't be read or repaired. */
-s32 ReadPlayerData(Handle h) {
-    u8 *obj;
-    void **data;
+s32 ReadPlayerData(tProfile **h) {
+    tProfile *obj;
+    tSaveData **data;
     s32 i;
 
     obj = *h;
-    if (F(obj, void *, SLOT_DATA) != NULL) {
+    if (obj->datah != NULL) {
         return 1;
     }
-    PS_ReadPartialFile(F(obj, Handle, PROFILE_OFS(8)), 0, F(*F(obj, Handle, PROFILE_OFS(8)), s32, PSF_OFS(64)));
-    data = F(*F(obj, Handle, PROFILE_OFS(8)), void **, PSF_OFS(72));
+    PS_ReadPartialFile(obj->fileh, 0, obj->fileh->file->size);
+    data = (tSaveData **)obj->fileh->file->data;
     if (data == NULL) {
         return 0;
     }
-    F(obj, void **, SLOT_DATA) = data;
+    obj->datah = data;
     if (CheckAndRepairPlayer(h, 0) && !CheckAndRepairPlayer(h, 1)) {
         return 0;
     }
-    SavePlayerControls(h, obj + PROFILE_OFS(33));
-    if (game_strcmp(obj + PROFILE_OFS(20), cheat_profile_name) == 0) {
+    SavePlayerControls(h, obj->controls);
+    if (game_strcmp(obj->name, cheat_profile_name) == 0) {
         gCheatActive[21] = 1;
         for (i = 1; i < 21; i++) {
         }
@@ -247,10 +248,10 @@ s32 ReadPlayerData(Handle h) {
 }
 
 /* Deletes the profile's file (once it can be read), or for a profile without one resets it (InitPlayer). */
-void DeletePlayer(Handle h) {
-    if (F(*h, intptr_t, PROFILE_OFS(8)) != 0) {
+void DeletePlayer(tProfile **h) {
+    if ((*h)->fileh != NULL) {
         if (ReadPlayerData(h)) {
-            PS_DeleteFile(F(*h, Handle, PROFILE_OFS(8)));
+            PS_DeleteFile((*h)->fileh);
         }
     } else {
         InitPlayer(h);
@@ -269,11 +270,11 @@ s32 Pow(s32 exp) {
 }
 
 /* The profile record of pak's file number slot (player_profile_records), through its handle (MAT3 _NewPlayer). */
-Handle NewPlayer(s32 pak, s32 slot) {
-    Handle player;
+tProfile **NewPlayer(s32 pak, s32 slot) {
+    tProfile **player;
 
     player = &player_profile_handles[pak][slot];
-    *player = player_profile_records[pak][slot];
+    *player = &player_profile_records[pak][slot];
     return player;
 }
 
@@ -281,12 +282,13 @@ Handle NewPlayer(s32 pak, s32 slot) {
  * numbered when the name is taken), a fresh file (InitPlayer) with the profile's id (the creation time, the
  * record and the pak) and name, written at once; the profile joins the profile list in name order. Returns its
  * handle, or NULL when the file can't be created. */
-void **CreatePlayer(s32 pak, u8 *name) {
-    Handle player;
-    Handle before;
-    u8 *p;
-    u8 *data;
-    Handle fileh;
+tProfile **CreatePlayer(s32 pak, u8 *name) {
+    tProfile **player;
+    tProfile **before;
+    tPakHandle *other;
+    tProfile *p;
+    tSaveData *data;
+    tPakHandle *fileh;
     char file[17];
     s32 i;
     s32 attempt;
@@ -319,12 +321,12 @@ void **CreatePlayer(s32 pak, u8 *name) {
                 src--;
             }
         }
-        for (before = gPS_Files[pak].head; before != NULL; before = *(Handle *)*before) {
-            if (game_strcmp((u8 *)*before + PSF_OFS(18), file) == 0 && game_strcmp((u8 *)*before + PSF_OFS(53), player_file_ext_match) == 0) {
+        for (other = gPS_Files[pak].head; other != NULL; other = other->file->next) {
+            if (game_strcmp(other->file->name, file) == 0 && game_strcmp(other->file->ext, player_file_ext_match) == 0) {
                 break;
             }
         }
-        if (before == NULL) {
+        if (other == NULL) {
             break;
         }
     }
@@ -332,24 +334,24 @@ void **CreatePlayer(s32 pak, u8 *name) {
     if (fileh == NULL) {
         return NULL;
     }
-    player = NewPlayer(((u8 *)*fileh)[PSF_OFS(16)], ((u8 *)*fileh)[PSF_OFS(17)]);
+    player = NewPlayer(fileh->file->pak, fileh->file->fileNo);
     p = *player;
-    data = *(F(p, Handle, SLOT_DATA) = F(*fileh, Handle, PSF_OFS(72)));
+    data = *(p->datah = (tSaveData **)fileh->file->data);
     InitPlayer(player);
-    F(p, Handle, PROFILE_OFS(8)) = fileh;
-    F(*fileh, void *, PSF_OFS(8)) = RemovePlayerFile;
-    F(*F(p, Handle, PROFILE_OFS(8)), void *, PSF_OFS(12)) = MovePlayerFile;
-    F(data, s32, 4) = gScheduler.retraceCount;
-    F(data, s32, 8) = (pc_n64_identity(player) << 3) | pak;
-    game_strcpy(data + 13, name);
-    F(data, s32, 0) = CalcChecksumInternal(data + 4, (data + 28) - (data + 4));
-    memcpy(p + PROFILE_OFS(20), data + 13, 13);
-    memcpy(p + PROFILE_OFS(12), data + 4, 8);
-    PS_WriteFile(F(p, Handle, PROFILE_OFS(8)), data, PROFILE_FILE_SIZE);
-    PS_FlushFile(F(p, Handle, PROFILE_OFS(8)), 0);
-    PS_FlushPak(((u8 *)*F(p, Handle, PROFILE_OFS(8)))[PSF_OFS(16)], 1);
-    for (before = gPlayerFiles.head; before != NULL; before = *(Handle *)*before) {
-        if (game_strcmp((u8 *)*before + PROFILE_OFS(20), p + PROFILE_OFS(20)) > 0) {
+    p->fileh = fileh;
+    fileh->file->RemoveFile = RemovePlayerFile;
+    p->fileh->file->MoveFile = MovePlayerFile;
+    data->id[0] = gScheduler.retraceCount;
+    data->id[1] = (pc_n64_identity(player) << 3) | pak;
+    game_strcpy(data->name, name);
+    data->nameChecksum = CalcChecksumInternal(data->id, (u8 *)&data->optChecksum - (u8 *)data->id);
+    memcpy(p->name, data->name, 13);
+    memcpy(p->id, data->id, 8);
+    PS_WriteFile(p->fileh, data, PROFILE_FILE_SIZE);
+    PS_FlushFile(p->fileh, 0);
+    PS_FlushPak(p->fileh->file->pak, 1);
+    for (before = gPlayerFiles.head; before != NULL; before = (*before)->next) {
+        if (game_strcmp((*before)->name, p->name) > 0) {
             break;
         }
     }
@@ -362,33 +364,33 @@ void **CreatePlayer(s32 pak, u8 *name) {
  * and controls; the first profile read when no options are set gives the game its options (and language and screen
  * offset). It joins the profile list in name order and the high score tables, and its data is dropped from memory.
  * Returns its handle, or NULL. */
-void **ReadPlayer(void **fileh) {
-    Handle player;
-    u8 *p;
-    Handle before;
+tProfile **ReadPlayer(tPakHandle *fileh) {
+    tProfile **player;
+    tProfile *p;
+    tProfile **before;
     s32 i;
 
-    for (player = gPlayerFiles.head; player != NULL; player = *(Handle *)*player) {
-        if (F(*player, Handle, PROFILE_OFS(8)) == fileh) {
+    for (player = gPlayerFiles.head; player != NULL; player = (*player)->next) {
+        if ((*player)->fileh == fileh) {
             return NULL;
         }
     }
-    PS_ReadPartialFile(fileh, 0, F(*fileh, s32, PSF_OFS(64)));
-    if (F(*fileh, void *, PSF_OFS(72)) == NULL) {
+    PS_ReadPartialFile(fileh, 0, fileh->file->size);
+    if (fileh->file->data == NULL) {
         return NULL;
     }
-    player = NewPlayer(((u8 *)*fileh)[PSF_OFS(16)], ((u8 *)*fileh)[PSF_OFS(17)]);
+    player = NewPlayer(fileh->file->pak, fileh->file->fileNo);
     p = *player;
-    F(p, Handle, PROFILE_OFS(8)) = fileh;
-    F(*fileh, void *, PSF_OFS(8)) = RemovePlayerFile;
-    F(*F(p, Handle, PROFILE_OFS(8)), void *, PSF_OFS(12)) = MovePlayerFile;
-    F(p, Handle, SLOT_DATA) = F(*F(p, Handle, PROFILE_OFS(8)), Handle, PSF_OFS(72));
+    p->fileh = fileh;
+    fileh->file->RemoveFile = RemovePlayerFile;
+    p->fileh->file->MoveFile = MovePlayerFile;
+    p->datah = (tSaveData **)p->fileh->file->data;
     if (CheckAndRepairPlayer(player, 0) && !CheckAndRepairPlayer(player, 1)) {
         return NULL;
     }
-    memcpy(p + PROFILE_OFS(20), (u8 *)*F(p, Handle, SLOT_DATA) + 13, 13);
-    memcpy(p + PROFILE_OFS(12), (u8 *)*F(p, Handle, SLOT_DATA) + 4, 8);
-    memcpy(p + PROFILE_OFS(33), (u8 *)*F(p, Handle, SLOT_DATA) + 60, 11);
+    memcpy(p->name, (*p->datah)->name, 13);
+    memcpy(p->id, (*p->datah)->id, 8);
+    memcpy(p->controls, (*p->datah)->controls, 11);
     if (!gGlobalsSet && gPlayerFiles.head == NULL) {
         for (i = 0; i < 21; i++) {
             gOptions[i] = GetPlayerOption(player, i);
@@ -398,8 +400,8 @@ void **ReadPlayer(void **fileh) {
         LoadTextWave();
         video_set_offset(gOptions[19], gOptions[20]);
     }
-    for (before = gPlayerFiles.head; before != NULL; before = *(Handle *)*before) {
-        if (game_strcmp((u8 *)*before + PROFILE_OFS(20), p + PROFILE_OFS(20)) > 0) {
+    for (before = gPlayerFiles.head; before != NULL; before = (*before)->next) {
+        if (game_strcmp((*before)->name, p->name) > 0) {
             break;
         }
     }
@@ -409,22 +411,9 @@ void **ReadPlayer(void **fileh) {
     return player;
 }
 
-typedef struct Ghost {            /* GC __anon_49a9c; N64 layout 0x2C */
-    void *ll;                     /* 0x00 */
-    void **fileh;                 /* 0x04 */
-    s8 track;                     /* 0x08 */
-    u8 backward;                  /* 0x09 */
-    u8 name[13];                  /* 0x0A */
-    u8 pad17;
-    u32 playerId[2];              /* 0x18 */
-    f32 finish;                   /* 0x20 */
-    u8 **datah;                   /* 0x24 */
-    tGhostHeader **header;        /* 0x28 */
-} Ghost;
-
 /* Checks a ghost's file: its revision (GHOST_REVISION) and header checksum, and with data the recording's checksum.
  * Returns 1 when something is wrong; with repair a bad ghost's file is deleted (and 0 returned). */
-s32 CheckAndRepairGhost(Ghost **ghosth, s32 data, s32 repair) {
+s32 CheckAndRepairGhost(tGhostFile **ghosth, s32 data, s32 repair) {
     s32 result;
     tGhostHeader *header;
 
@@ -467,8 +456,8 @@ s32 CheckAndRepairGhost(Ghost **ghosth, s32 data, s32 repair) {
  * decode decompresses the recording; with select moves the header and the recording low in the heap (for the race)
  * and marks the header as having its samples (the recording, MAT3's header->start = *datah). Returns 0 when it
  * can't be read. */
-s32 ReadGhostDataInternal(Ghost **ghosth, s32 decode, s32 select) {
-    Ghost *ghost;
+s32 ReadGhostDataInternal(tGhostFile **ghosth, s32 decode, s32 select) {
+    tGhostFile *ghost;
 
     ghost = *ghosth;
     if (ghost->header != NULL) {
@@ -481,11 +470,11 @@ s32 ReadGhostDataInternal(Ghost **ghosth, s32 decode, s32 select) {
             return 1;
         }
     }
-    PS_ReadPartialFile(ghost->fileh, 0, F(*ghost->fileh, s32, PSF_OFS(64)));
-    if (F(*ghost->fileh, tGhostHeader **, PSF_OFS(72)) == NULL) {
+    PS_ReadPartialFile(ghost->fileh, 0, ghost->fileh->file->size);
+    if (ghost->fileh->file->data == NULL) {
         return 0;
     }
-    ghost->header = F(*ghost->fileh, tGhostHeader **, PSF_OFS(72));
+    ghost->header = (tGhostHeader **)ghost->fileh->file->data;
     (*ghost->header)->hasSamples = 0;
     if (CheckAndRepairGhost(ghosth, 1, 0) && !CheckAndRepairGhost(ghosth, 1, 1)) {
         return 0;
@@ -494,7 +483,7 @@ s32 ReadGhostDataInternal(Ghost **ghosth, s32 decode, s32 select) {
         DecodeGhost(ghosth);
     }
     if (select) {
-        ReallocateMemory(ghost->header, 88);
+        ReallocateMemory(ghost->header, sizeof(tGhostHeader));
         heap_move_block_low(ghost->header);
         heap_move_block_low(ghost->datah);
         (*ghost->header)->hasSamples = 1;   /* the samples: its data, *ghost->datah */
@@ -522,39 +511,39 @@ s8 PS_PakRumble(s32 pak) {
 #define PS_PakServer() PS_PakServer(forceUpdate, rumbleOnly)
 
 /* Drops a ghost (MAT3 _FreeGhost). */
-void FreeGhost(Handle ghosth) {
+void FreeGhost(tGhostFile **ghosth) {
     *ghosth = NULL;
 }
 
 /* Opens the ghost in the pak file fileh (nothing if it is open already; MAT3 _ReadGhostHeader with _AlreadyReadGhost
  * inline): reads its header, checks and repairs it, takes its track, direction, driver and time, drops the data
  * from memory, and puts it in the ghost list in order of its time. Returns its handle, or NULL. */
-Handle _ReadGhostHeader(Handle fileh) {
-    Handle ghosth;
-    Ghost *ghost;
-    Handle before;
+tGhostFile **_ReadGhostHeader(tPakHandle *fileh) {
+    tGhostFile **ghosth;
+    tGhostFile *ghost;
+    tGhostFile **before;
     tGhostHeader *header;
 
-    for (ghosth = gGhostFiles.head; ghosth != NULL; ghosth = *(Handle *)*ghosth) {
-        if (((Ghost *)*ghosth)->fileh == fileh) {
+    for (ghosth = gGhostFiles.head; ghosth != NULL; ghosth = (*ghosth)->next) {
+        if ((*ghosth)->fileh == fileh) {
             return NULL;
         }
     }
-    PS_ReadPartialFile(fileh, 0, 88);
-    if (F(*fileh, void *, PSF_OFS(72)) == NULL) {
+    PS_ReadPartialFile(fileh, 0, sizeof(tGhostHeader));
+    if (fileh->file->data == NULL) {
         return NULL;
     }
     ghosth = NewGhost();
     ghost = *ghosth;
-    memset(ghost, 0, GHOST_OFS(44));
+    memset(ghost, 0, sizeof(tGhostFile));
     ghost->fileh = fileh;
-    F(*fileh, void *, PSF_OFS(8)) = RemovePlayerFile;
-    F(*ghost->fileh, void *, PSF_OFS(12)) = MovePlayerFile;
+    fileh->file->RemoveFile = RemovePlayerFile;
+    ghost->fileh->file->MoveFile = MovePlayerFile;
     ghost->datah = NULL;
-    ghost->header = F(*fileh, tGhostHeader **, PSF_OFS(72));
+    ghost->header = (tGhostHeader **)fileh->file->data;
     header = *ghost->header;
     header->hasSamples = 0;
-    if (CheckAndRepairGhost((Ghost **)ghosth, 0, 0) && !CheckAndRepairGhost((Ghost **)ghosth, 0, 1)) {
+    if (CheckAndRepairGhost(ghosth, 0, 0) && !CheckAndRepairGhost(ghosth, 0, 1)) {
         FreeGhost(ghosth);
         return NULL;
     }
@@ -566,8 +555,8 @@ Handle _ReadGhostHeader(Handle fileh) {
     ghost->finish = header->finish;
     PS_PurgeFile(fileh);
     ghost->header = NULL;
-    for (before = gGhostFiles.head; before != NULL; before = *(Handle *)*before) {
-        if (ghost->finish < ((Ghost *)*before)->finish) {
+    for (before = gGhostFiles.head; before != NULL; before = (*before)->next) {
+        if (ghost->finish < (*before)->finish) {
             break;
         }
     }
@@ -580,8 +569,8 @@ Handle _ReadGhostHeader(Handle fileh) {
  * interrupted is read again on the next call. */
 void SaveServer(s32 forceUpdate, s32 rumbleOnly) {
     s32 pak;
-    Handle fileh;
-    Handle next;
+    tPakHandle *fileh;
+    tPakHandle *next;
     static s8 sInitCountdown = 3;
     static s8 sLastPak = -1;
     static s8 sReadingPak[4] = { 0, 0, 0, 0 };
@@ -609,9 +598,9 @@ void SaveServer(s32 forceUpdate, s32 rumbleOnly) {
             if (PS_PakInserted(pak) == 0) {
                 break;
             }
-            next = *(Handle *)*fileh;
-            if (game_strncmp(save_file_name_prefix, (char *)*fileh + PSF_OFS(18), 8) == 0) {
-                if (game_strncmp(player_file_ext_prefix, (char *)*fileh + PSF_OFS(53), 1) == 0) {
+            next = fileh->file->next;
+            if (game_strncmp(save_file_name_prefix, fileh->file->name, 8) == 0) {
+                if (game_strncmp(player_file_ext_prefix, fileh->file->ext, 1) == 0) {
                     ReadPlayer(fileh);
                 } else {
                     _ReadGhostHeader(fileh);

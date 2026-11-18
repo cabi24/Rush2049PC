@@ -2,26 +2,17 @@
 #include "game/game.h"
 
 
-/* A pak file record (MAT3 tPS_File, paksysdc) in its PC layout, 96 bytes: its links and its two functions are
- * pointers, so the rest is later than on the N64 (pc_prelude.h PSF_OFS, docs/port/POINTERS.md 9.10). */
-typedef struct PakFile {
-    struct PakFile *next, *prev;
-    void (*RemoveFile)(void *), (*MoveFile)(void *, void *);
-    u8 pak;                 /* 0x20 (N64 0x10) */
-    u8 fileNo;              /* 0x21 (N64 0x11) its number among the pak's notes */
-} PakFile;
-
-/* The list node of the chosen pak's (gPickedPak) file number id, NULL if it has none. */
-void **pakscr_FindFile(s32 id)
+/* The handle of the chosen pak's (gPickedPak) open file whose number on the pak is id, NULL if it has none. */
+tPakHandle *pakscr_FindFile(s32 id)
 {
-    void **node = gPS_Files[gPickedPak].head;
+    tPakHandle *node = gPS_Files[gPickedPak].head;
 
     while (node != 0) {
-        PakFile *file = *node;
+        PakFileRecord *file = node->file;
         if (id == file->fileNo) {
             break;
         }
-        node = *(void ***)file;
+        node = file->next;
     }
     return node;
 }

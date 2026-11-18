@@ -12,37 +12,21 @@ float sqrtf(float);
 #pragma intrinsic (fabsf)
 #pragma intrinsic (sqrtf)
 
-/* _NewGhost on the PC. A ghost (Ghost below: 0x2C bytes on the N64, 64 with its four pointers) and its handle (8
- * bytes) don't fit the N64's storage, 64 four-byte handle slots at ghost_file_handles and 64 records 0x2C apart at
- * ghost_file_records in the game arena: the PC keeps both here. Same search order; none free gives NULL
- * (docs/port/CASTS.md). */
-static void *pc_ghost_slot[64];
-static void *pc_ghost[64][8];
-void **NewGhost(void) {
+/* _NewGhost: a free ghost record and its handle, from a pool of 64 (pc_ghost, their handles pc_ghost_slot; a handle
+ * is free while it is NULL), searched from the first; NULL when none is free (docs/port/CASTS.md). */
+static tGhostFile *pc_ghost_slot[64];
+static tGhostFile pc_ghost[64];
+tGhostFile **NewGhost(void) {
     s32 i;
 
     for (i = 0; i < 64; i++) {
         if (pc_ghost_slot[i] == NULL) {
-            pc_ghost_slot[i] = pc_ghost[i];
+            pc_ghost_slot[i] = &pc_ghost[i];
             return &pc_ghost_slot[i];
         }
     }
     return NULL;
 }
-
-/* A ghost record (MAT3's): the N64's offsets below; 64 bytes on the PC, its pointers host-sized (GHOST_OFS). */
-typedef struct Ghost {
-    void *ll;                     /* 0x00 */
-    void **fileh;                 /* 0x04 */
-    s8 track;                     /* 0x08 */
-    u8 backward;                  /* 0x09 */
-    u8 name[13];                  /* 0x0A */
-    u8 pad17;
-    u32 playerId[2];              /* 0x18 */
-    f32 finish;                   /* 0x20 */
-    u8 **datah;                   /* 0x24 */
-    tGhostHeader **header;        /* 0x28 */
-} Ghost;
 
 void *memcpy(void *, const void *, u32);
 
@@ -69,9 +53,9 @@ s32 ghost_blocks_from_size(s32 size) {
  * header (revision 17, its sizes and checksums) and the compressed data, the temporary block freed, and the record's
  * track, direction, name, player id and time from the header. *blocks gets the pak blocks it needs. Returns the
  * ghost's handle. */
-void **CompressGhost(tGhostHeader *header, s8 *blocks) {
-    Ghost *ghost;
-    void **ghosth;
+tGhostFile **CompressGhost(tGhostHeader *header, u8 *blocks) {
+    tGhostFile *ghost;
+    tGhostFile **ghosth;
     s32 maxsize;
     u8 *sorted;
     u8 *gdata;
@@ -93,7 +77,7 @@ void **CompressGhost(tGhostHeader *header, s8 *blocks) {
     header->hasSamples = 0;
     ghosth = NewGhost();
     ghost = *ghosth;
-    memset(ghost, 0, GHOST_OFS(44));
+    memset(ghost, 0, sizeof(tGhostFile));
     ghost->header = (tGhostHeader **)AllocateHandleHeap(NULL, dataSize + 88);
     memcpy(*ghost->header, header, 88);
     (*ghost->header)->revision = 17;

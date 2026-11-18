@@ -4,9 +4,6 @@
  * updatePlayerScreen runs each frame in GS_PLAYER. */
 #include "game/game.h"
 
-VIEW(intptr_t[], gPakFull);
-#define gPakFull gPakFull_view
-
 /* The select menu's rows (playerscr_gSelectMenuSelect[], MAT3 enum_kSelectMenuCount; the N64 has no "format" row). */
 #define kSelectMenuJustPlay 0           /* play without a profile */
 #define kSelectMenuSelectPak 1          /* left and right pick the pak */
@@ -57,18 +54,8 @@ void playerscr_updateSelectInfo(s32 player)
     }
 }
 
-typedef struct Owner Owner;
-/* A pak file record (MAT3 tPS_File) in its PC layout (pc_prelude.h PSF_OFS, docs/port/POINTERS.md 9.10): pak is
- * the pak it is on. */
-typedef struct PakFile {void *next,*prev;void (*RemoveFile)(void *),(*MoveFile)(void *,void *);u8 pak;} PakFile;
-typedef struct PakFileHandle {PakFile *file;} PakFileHandle;
-/* A profile (MAT3 tPlayerProfile) in its PC layout (pc_prelude.h PROFILE_OFS): the links of gPlayerFiles (handles),
- * its pak file (NULL for a guest), its id, its name. */
-typedef struct PlayerProfile {Owner *next,*previous;PakFileHandle *fileh;u8 id[8];u8 name[1];} PlayerProfile;
-/* A profile handle (MAT3 tPlayerProfile **): the profiles are reached and listed through these. */
-struct Owner {PlayerProfile *body;};
 /* A player's pad record (MAT3 tPadState, gPlayers): 76 bytes, 80 on the PC. */
-typedef struct Player {u8 slot,controller;u16 unaccessed2;u32 edges;u32 levels;u32 autoEdges;u8 unaccessed10[56];Owner *owner;} Player;
+typedef struct Player {u8 slot,controller;u16 unaccessed2;u32 edges;u32 levels;u32 autoEdges;u8 unaccessed10[56];tProfile **owner;} Player;
 extern Player gPlayers[];
 
 
@@ -79,7 +66,7 @@ void playerscr_initScreen(void)
 {
     s32 p;
     for (p = 0; p < gNumPlayers; p++) {
-        if (gPlayers[p].owner) PS_LockFile((void **)gPlayers[p].owner->body->fileh,0);
+        if (gPlayers[p].owner) PS_LockFile((*gPlayers[p].owner)->fileh,0);
     }
     playerscr_updatePakInfo();
     for (p = 0; p < gNumPlayers; p++) {
@@ -154,16 +141,16 @@ extern void *memset(void *,s32,u32);
  * The buttons jump to their places, and the menu's rows are worked out again. */
 void setPlayerState(s32 player,s32 mode)
 {
-    Owner *node,*other;
+    tProfile **node,**other;
     if (mode == kPlayerStateSelect) {
         gSelectedPlayer[player] = 0;
         node = gPlayerFiles.head;
         while (node) {
             if (node == gPlayers[player].owner) break;
-            node = node->body->next;
+            node = (*node)->next;
         }
         gPlayers[player].owner = 0;
-        if (!node || !node->body->fileh) {
+        if (!node || !(*node)->fileh) {
             gSelectedPlayer[player] = &gJustPlayers[player];
             if (gPlayerState[player] != kPlayerStateCreatePlayer && gPlayerState[player] != kPlayerStateDeletePlayer)
                 playerscr_gSelectPakIdx[player] = gPlayers[player].controller;
@@ -171,12 +158,12 @@ void setPlayerState(s32 player,s32 mode)
                 playerscr_gSelectMenuSelect[player] = kSelectMenuJustPlay;
         } else {
             gSelectedPlayer[player] = node;
-            playerscr_gSelectPakIdx[player] = node->body->fileh->file->pak;
+            playerscr_gSelectPakIdx[player] = (*node)->fileh->file->pak;
             if (IS_PROFILE_ROW(playerscr_gSelectMenuSelect[player])) {
                 playerscr_gSelectMenuSelect[player] = kSelectMenuSelectPlayer;
-                for (other = gPlayerFiles.head; other; other = other->body->next) {
+                for (other = gPlayerFiles.head; other; other = (*other)->next) {
                     if (other == node) break;
-                    if (node->body->fileh->file->pak == other->body->fileh->file->pak)
+                    if ((*node)->fileh->file->pak == (*other)->fileh->file->pak)
                         if (playerscr_gSelectMenuSelect[player] < kSelectMenuLastPlayer) playerscr_gSelectMenuSelect[player]++;
                 }
             }
@@ -205,7 +192,7 @@ void setPlayerState(s32 player,s32 mode)
 void playerscr_updatePakInfo(void)
 {
     s32 i,j;
-    Owner *node;
+    tProfile **node;
     u32 available;
     for(i=0;i<4;i++) {
         gPakFull[i]=0;
@@ -220,8 +207,8 @@ void playerscr_updatePakInfo(void)
                 }
             }
             playerscr_gNumPakPlayers[i]=0;
-            for(node=gPlayerFiles.head;node;node=node->body->next) {
-                if(node->body->fileh->file->pak==i)playerscr_gNumPakPlayers[i]++;
+            for(node=gPlayerFiles.head;node;node=(*node)->next) {
+                if((*node)->fileh->file->pak==i)playerscr_gNumPakPlayers[i]++;
             }
             if(playerscr_gNumPakPlayers[i]==0)playerscr_gNumPakPlayers[i]=0;
             available=PS_GetFreeBlocks(i);
@@ -489,7 +476,7 @@ void controlDeletePlayer(s32 p)
     s8 origSelect;
     s32 pak;
     s32 pIdx;
-    Owner *player;
+    tProfile **player;
     pak = playerscr_gSelectPakIdx[p];
     origSelect = gDeleteMenuSelect[p];
     if (playerscr_gNumPakPlayers[pak] <= 0) {
@@ -505,13 +492,13 @@ void controlDeletePlayer(s32 p)
         }
         if (IS_PROFILE_ROW(gDeleteMenuSelect[p]) && playerscr_gSelectMenuValid[p][gDeleteMenuSelect[p]]) {
             if (gSelectedPlayer[p]) {
-                do { gSelectedPlayer[p] = gSelectedPlayer[p]->body->next; }
-                while (gSelectedPlayer[p] && gSelectedPlayer[p]->body->fileh->file->pak != playerscr_gSelectPakIdx[p]);
+                do { gSelectedPlayer[p] = (*gSelectedPlayer[p])->next; }
+                while (gSelectedPlayer[p] && (*gSelectedPlayer[p])->fileh->file->pak != playerscr_gSelectPakIdx[p]);
             }
             if (!gSelectedPlayer[p]) {
                 gSelectedPlayer[p] = gPlayerFiles.head;
-                while (gSelectedPlayer[p] && gSelectedPlayer[p]->body->fileh->file->pak != playerscr_gSelectPakIdx[p])
-                    gSelectedPlayer[p] = gSelectedPlayer[p]->body->next;
+                while (gSelectedPlayer[p] && (*gSelectedPlayer[p])->fileh->file->pak != playerscr_gSelectPakIdx[p])
+                    gSelectedPlayer[p] = (*gSelectedPlayer[p])->next;
             }
         } else gSelectedPlayer[p] = 0;
         playerscr_buttonsJustInited[p] = 1;
@@ -534,7 +521,7 @@ void controlDeletePlayer(s32 p)
             if (gDeleteMenuYes[p] == 1) {
                 PlayStartABSound(gPlayers[p].edges);
                 DeletePlayer(gSelectedPlayer[p]);
-                for (player = gPlayerFiles.head; player; player = player->body->next)
+                for (player = gPlayerFiles.head; player; player = (*player)->next)
                     if (gSelectedPlayer[p] == player) break;
                 if (!player) {
                     for (pIdx = 0; pIdx < gNumPlayers; pIdx++) {
@@ -555,7 +542,7 @@ void controlDeletePlayer(s32 p)
             gDeleteMenuYes[p] = 0;
         } else if (IS_PROFILE_ROW(gDeleteMenuSelect[p])) {
             PlayStartABSound(gPlayers[p].edges);
-            TB_Strcpy(gDeleteMenuName[p], gSelectedPlayer[p]->body->name);
+            TB_Strcpy(gDeleteMenuName[p], (*gSelectedPlayer[p])->name);
             gDeleteMenuConfirm[p] = 1;
             gDeleteMenuYes[p] = 0;
         }
@@ -598,8 +585,8 @@ void controlDeletePlayer(s32 p)
         do {
             if (gDeleteMenuSelect[p] == kSelectMenuSelectPlayer && playerscr_gSelectMenuValid[p][gDeleteMenuSelect[p]]) {
                 if (gSelectedPlayer[p]) {
-                    do { gSelectedPlayer[p] = gSelectedPlayer[p]->body->previous; }
-                    while (gSelectedPlayer[p] && gSelectedPlayer[p]->body->fileh->file->pak != playerscr_gSelectPakIdx[p]);
+                    do { gSelectedPlayer[p] = (*gSelectedPlayer[p])->prev; }
+                    while (gSelectedPlayer[p] && (*gSelectedPlayer[p])->fileh->file->pak != playerscr_gSelectPakIdx[p]);
                 }
                 if (gSelectedPlayer[p]) break;
             }
@@ -607,13 +594,13 @@ void controlDeletePlayer(s32 p)
             if (gDeleteMenuSelect[p] < 0) gDeleteMenuSelect[p] = kSelectMenuCount - 1;
             if (IS_PROFILE_ROW(gDeleteMenuSelect[p]) && playerscr_gSelectMenuValid[p][gDeleteMenuSelect[p]]) {
                 if (gSelectedPlayer[p]) {
-                    do { gSelectedPlayer[p] = gSelectedPlayer[p]->body->previous; }
-                    while (gSelectedPlayer[p] && gSelectedPlayer[p]->body->fileh->file->pak != playerscr_gSelectPakIdx[p]);
+                    do { gSelectedPlayer[p] = (*gSelectedPlayer[p])->prev; }
+                    while (gSelectedPlayer[p] && (*gSelectedPlayer[p])->fileh->file->pak != playerscr_gSelectPakIdx[p]);
                 }
                 if (!gSelectedPlayer[p]) {
                     gSelectedPlayer[p] = gPlayerFiles.tail;
-                    while (gSelectedPlayer[p] && gSelectedPlayer[p]->body->fileh->file->pak != playerscr_gSelectPakIdx[p])
-                        gSelectedPlayer[p] = gSelectedPlayer[p]->body->previous;
+                    while (gSelectedPlayer[p] && (*gSelectedPlayer[p])->fileh->file->pak != playerscr_gSelectPakIdx[p])
+                        gSelectedPlayer[p] = (*gSelectedPlayer[p])->prev;
                 }
             } else gSelectedPlayer[p] = 0;
         } while (!playerscr_gSelectMenuValid[p][gDeleteMenuSelect[p]] || playerClaimed(p, gSelectedPlayer[p]) == 1);
@@ -624,8 +611,8 @@ void controlDeletePlayer(s32 p)
         do {
             if (gDeleteMenuSelect[p] == kSelectMenuLastPlayer && playerscr_gSelectMenuValid[p][gDeleteMenuSelect[p]]) {
                 if (gSelectedPlayer[p]) {
-                    do { gSelectedPlayer[p] = gSelectedPlayer[p]->body->next; }
-                    while (gSelectedPlayer[p] && gSelectedPlayer[p]->body->fileh->file->pak != playerscr_gSelectPakIdx[p]);
+                    do { gSelectedPlayer[p] = (*gSelectedPlayer[p])->next; }
+                    while (gSelectedPlayer[p] && (*gSelectedPlayer[p])->fileh->file->pak != playerscr_gSelectPakIdx[p]);
                 }
                 if (gSelectedPlayer[p]) break;
             }
@@ -633,13 +620,13 @@ void controlDeletePlayer(s32 p)
             if (gDeleteMenuSelect[p] > kSelectMenuCount - 1) gDeleteMenuSelect[p] = 0;
             if (IS_PROFILE_ROW(gDeleteMenuSelect[p]) && playerscr_gSelectMenuValid[p][gDeleteMenuSelect[p]]) {
                 if (gSelectedPlayer[p]) {
-                    do { gSelectedPlayer[p] = gSelectedPlayer[p]->body->next; }
-                    while (gSelectedPlayer[p] && gSelectedPlayer[p]->body->fileh->file->pak != playerscr_gSelectPakIdx[p]);
+                    do { gSelectedPlayer[p] = (*gSelectedPlayer[p])->next; }
+                    while (gSelectedPlayer[p] && (*gSelectedPlayer[p])->fileh->file->pak != playerscr_gSelectPakIdx[p]);
                 }
                 if (!gSelectedPlayer[p]) {
                     gSelectedPlayer[p] = gPlayerFiles.head;
-                    while (gSelectedPlayer[p] && gSelectedPlayer[p]->body->fileh->file->pak != playerscr_gSelectPakIdx[p])
-                        gSelectedPlayer[p] = gSelectedPlayer[p]->body->next;
+                    while (gSelectedPlayer[p] && (*gSelectedPlayer[p])->fileh->file->pak != playerscr_gSelectPakIdx[p])
+                        gSelectedPlayer[p] = (*gSelectedPlayer[p])->next;
                 }
             } else gSelectedPlayer[p] = 0;
         } while (!playerscr_gSelectMenuValid[p][gDeleteMenuSelect[p]] || playerClaimed(p, gSelectedPlayer[p]) == 1);
@@ -670,13 +657,13 @@ void playerscr_controlSelect(s32 p)
         if (IS_PROFILE_ROW(playerscr_gSelectMenuSelect[p]) && playerscr_gSelectMenuValid[p][playerscr_gSelectMenuSelect[p]]) {
             if (gSelectedPlayer[p]) {
                 do {
-                    gSelectedPlayer[p] = gSelectedPlayer[p]->body->previous;
-                } while (gSelectedPlayer[p] && gSelectedPlayer[p]->body->fileh->file->pak != playerscr_gSelectPakIdx[p]);
+                    gSelectedPlayer[p] = (*gSelectedPlayer[p])->prev;
+                } while (gSelectedPlayer[p] && (*gSelectedPlayer[p])->fileh->file->pak != playerscr_gSelectPakIdx[p]);
             }
             if (!gSelectedPlayer[p]) {
                 gSelectedPlayer[p] = gPlayerFiles.tail;
-                while (gSelectedPlayer[p] && gSelectedPlayer[p]->body->fileh->file->pak != playerscr_gSelectPakIdx[p])
-                    gSelectedPlayer[p] = gSelectedPlayer[p]->body->previous;
+                while (gSelectedPlayer[p] && (*gSelectedPlayer[p])->fileh->file->pak != playerscr_gSelectPakIdx[p])
+                    gSelectedPlayer[p] = (*gSelectedPlayer[p])->prev;
             }
         } else gSelectedPlayer[p] = 0;
     }
@@ -694,7 +681,7 @@ void playerscr_controlSelect(s32 p)
             if (gSelectMenuControls[p] == 1) {
                 if (ReadPlayerData(gPlayers[p].owner)) {
                     controlScrActive[p] = 1;
-                    PS_LockFile((void **)gPlayers[p].owner->body->fileh, 1);
+                    PS_LockFile((*gPlayers[p].owner)->fileh, 1);
                     setPlayerState(p, kPlayerStateControls);
                 }
             } else setPlayerState(p, kPlayerStateWait);
@@ -703,7 +690,7 @@ void playerscr_controlSelect(s32 p)
             claimPlayer(p, &gJustPlayers[p]);
             if (gSelectMenuControls[p] == 1) {
                 controlScrActive[p] = 1;
-                PS_LockFile((void **)gPlayers[p].owner->body->fileh, 1);
+                PS_LockFile((*gPlayers[p].owner)->fileh, 1);
                 setPlayerState(p, kPlayerStateControls);
             } else setPlayerState(p, kPlayerStateWait);
             break;
@@ -746,8 +733,8 @@ void playerscr_controlSelect(s32 p)
             if (playerscr_gSelectMenuSelect[p] == kSelectMenuSelectPlayer && playerscr_gSelectMenuValid[p][playerscr_gSelectMenuSelect[p]]) {
                 if (gSelectedPlayer[p]) {
                     do {
-                        gSelectedPlayer[p] = gSelectedPlayer[p]->body->previous;
-                    } while (gSelectedPlayer[p] && gSelectedPlayer[p]->body->fileh->file->pak != playerscr_gSelectPakIdx[p]);
+                        gSelectedPlayer[p] = (*gSelectedPlayer[p])->prev;
+                    } while (gSelectedPlayer[p] && (*gSelectedPlayer[p])->fileh->file->pak != playerscr_gSelectPakIdx[p]);
                 }
                 if (gSelectedPlayer[p]) break;
             }
@@ -756,13 +743,13 @@ void playerscr_controlSelect(s32 p)
             if (IS_PROFILE_ROW(playerscr_gSelectMenuSelect[p]) && playerscr_gSelectMenuValid[p][playerscr_gSelectMenuSelect[p]]) {
                 if (gSelectedPlayer[p]) {
                     do {
-                        gSelectedPlayer[p] = gSelectedPlayer[p]->body->previous;
-                    } while (gSelectedPlayer[p] && gSelectedPlayer[p]->body->fileh->file->pak != playerscr_gSelectPakIdx[p]);
+                        gSelectedPlayer[p] = (*gSelectedPlayer[p])->prev;
+                    } while (gSelectedPlayer[p] && (*gSelectedPlayer[p])->fileh->file->pak != playerscr_gSelectPakIdx[p]);
                 }
                 if (!gSelectedPlayer[p]) {
                     gSelectedPlayer[p] = gPlayerFiles.tail;
-                    while (gSelectedPlayer[p] && gSelectedPlayer[p]->body->fileh->file->pak != playerscr_gSelectPakIdx[p])
-                        gSelectedPlayer[p] = gSelectedPlayer[p]->body->previous;
+                    while (gSelectedPlayer[p] && (*gSelectedPlayer[p])->fileh->file->pak != playerscr_gSelectPakIdx[p])
+                        gSelectedPlayer[p] = (*gSelectedPlayer[p])->prev;
                 }
             } else gSelectedPlayer[p] = 0;
         } while (!playerscr_gSelectMenuValid[p][playerscr_gSelectMenuSelect[p]] || playerClaimed(p, gSelectedPlayer[p]) == 1 ||
@@ -775,8 +762,8 @@ void playerscr_controlSelect(s32 p)
             if (playerscr_gSelectMenuSelect[p] == kSelectMenuLastPlayer && playerscr_gSelectMenuValid[p][playerscr_gSelectMenuSelect[p]]) {
                 if (gSelectedPlayer[p]) {
                     do {
-                        gSelectedPlayer[p] = gSelectedPlayer[p]->body->next;
-                    } while (gSelectedPlayer[p] && gSelectedPlayer[p]->body->fileh->file->pak != playerscr_gSelectPakIdx[p]);
+                        gSelectedPlayer[p] = (*gSelectedPlayer[p])->next;
+                    } while (gSelectedPlayer[p] && (*gSelectedPlayer[p])->fileh->file->pak != playerscr_gSelectPakIdx[p]);
                 }
                 if (gSelectedPlayer[p]) break;
             }
@@ -785,13 +772,13 @@ void playerscr_controlSelect(s32 p)
             if (IS_PROFILE_ROW(playerscr_gSelectMenuSelect[p]) && playerscr_gSelectMenuValid[p][playerscr_gSelectMenuSelect[p]]) {
                 if (gSelectedPlayer[p]) {
                     do {
-                        gSelectedPlayer[p] = gSelectedPlayer[p]->body->next;
-                    } while (gSelectedPlayer[p] && gSelectedPlayer[p]->body->fileh->file->pak != playerscr_gSelectPakIdx[p]);
+                        gSelectedPlayer[p] = (*gSelectedPlayer[p])->next;
+                    } while (gSelectedPlayer[p] && (*gSelectedPlayer[p])->fileh->file->pak != playerscr_gSelectPakIdx[p]);
                 }
                 if (!gSelectedPlayer[p]) {
                     gSelectedPlayer[p] = gPlayerFiles.head;
-                    while (gSelectedPlayer[p] && gSelectedPlayer[p]->body->fileh->file->pak != playerscr_gSelectPakIdx[p])
-                        gSelectedPlayer[p] = gSelectedPlayer[p]->body->next;
+                    while (gSelectedPlayer[p] && (*gSelectedPlayer[p])->fileh->file->pak != playerscr_gSelectPakIdx[p])
+                        gSelectedPlayer[p] = (*gSelectedPlayer[p])->next;
                 }
             } else gSelectedPlayer[p] = 0;
         } while (!playerscr_gSelectMenuValid[p][playerscr_gSelectMenuSelect[p]] || playerClaimed(p, gSelectedPlayer[p]) == 1 ||
@@ -800,7 +787,7 @@ void playerscr_controlSelect(s32 p)
     }
 }
 /* Give player playerIdx profile `player` (gPlayers[].save) and work out every window's menu again. */
-void claimPlayer(s32 playerIdx, Owner *player)
+void claimPlayer(s32 playerIdx, tProfile **player)
 {
     gPlayers[playerIdx].owner = player;
     playerscr_updateSelectInfo(-1);
@@ -813,7 +800,7 @@ void claimPlayer(s32 playerIdx, Owner *player)
  * window goes back to the select menu if its pak becomes unusable or full. */
 void controlCreatePlayer(s32 p)
 {
-    Owner *player;
+    tProfile **player;
     s32 pIdx;
     if (playerscr_gNumPakPlayers[playerscr_gSelectPakIdx[p]] < 0 || gPakFull[playerscr_gSelectPakIdx[p]])
         setPlayerState(p, kPlayerStateSelect);
@@ -918,10 +905,10 @@ void updatePlayerScreen(void)
         if (gSkipToGameState != SKIP_NONE) {
             if (gSkipToGameState != gGameState) {
                 s32 i;
-                Owner *player;
+                tProfile **player;
                 for (i = 0; i < gNumPlayers; i++) {
-                    if (gPlayers[i].owner != (Owner *) &gJustPlayers[i]) {   /* Owner: this file's profile handle */
-                        for (player = gPlayerFiles.head; player; player = player->body->next)
+                    if (gPlayers[i].owner != &gJustPlayers[i]) {
+                        for (player = gPlayerFiles.head; player; player = (*player)->next)
                             if (gPlayers[i].owner == player) break;
                         if (!player) {
                             gSkipToGameState = SKIP_NONE;
@@ -985,8 +972,8 @@ restart:;
     } else if (exitPlayerScreen) {
         switch (exitPlayerScreen) {
         case 1: {
-            Owner *player;
-            for (player = gPlayerFiles.head; player; player = player->body->next) {
+            tProfile **player;
+            for (player = gPlayerFiles.head; player; player = (*player)->next) {
                 for (p = 0; p < gNumPlayers; p++)
                     if (player == gPlayers[p].owner) break;
                 if (p >= gNumPlayers) PurgePlayerData(player);
@@ -994,7 +981,7 @@ restart:;
             for (p = 0; p < gNumPlayers; p++) {
                 if (!ReadPlayerData(gPlayers[p].owner)) break;
                 SaveSelectPlayer(gPlayers[p].owner);
-                PS_LockFile((void **)gPlayers[p].owner->body->fileh, 1);
+                PS_LockFile((*gPlayers[p].owner)->fileh, 1);
                 if (p > 1) SetControllerStickEdges(p, 1);
                 FindPlayerNum(p, 1);
             }
@@ -1032,8 +1019,8 @@ restart:;
 void controlWait(s32 p)
 {
     if (!gPlayers[p].owner ||
-        (gPlayers[p].owner->body->fileh &&
-         PS_PakChanged(gPlayers[p].owner->body->fileh->file->pak)) ||
+        ((*gPlayers[p].owner)->fileh &&
+         PS_PakChanged((*gPlayers[p].owner)->fileh->file->pak)) ||
         (gPlayers[p].edges & BUTTON_B)) {
         if (gPlayers[p].edges & BUTTON_B) PlayStartABSound(gPlayers[p].edges);
         playerscr_updateSelectInfo(-1);
@@ -1047,7 +1034,7 @@ void controlControls(s32 p)
 {
     if (!controlScrActive[p]) {
         SaveFlush(1);
-        PS_LockFile((void **)gPlayers[p].owner->body->fileh, 0);
+        PS_LockFile((*gPlayers[p].owner)->fileh, 0);
         PurgePlayerData(gPlayers[p].owner);
         playerscr_updateSelectInfo(-1);
         setPlayerState(p, kPlayerStateSelect);

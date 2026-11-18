@@ -7,10 +7,6 @@ typedef struct Player76 { u8 slot; u8 pad01[63]; u16 numCrashes; u8 pad42[0x48 -
 
 extern Player76 gPlayers[];   /* gPlayers */
 
-/* Each car's ghost (tGhostFile), whose header's flag says whether it is raced against (positive) or recorded. */
-VIEW(tGhostFile **[], gGhosts);
-#define gGhosts gGhosts_view
-
 
 void *memset(void *, s32, u32);
 

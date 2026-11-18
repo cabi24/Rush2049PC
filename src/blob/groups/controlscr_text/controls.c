@@ -2,25 +2,12 @@
  * of controls, drawn over the 3D buttons in the front end, or as a flat list in the pause menu. */
 #include "game/game.h"
 
-/* A profile (MAT3 tPlayerProfile; save.c's SaveSlot) in its PC layout, 64 bytes: its links and its pak file
- * handle are pointers, so the rest is later than on the N64 (pc_prelude.h PROFILE_OFS, docs/port/POINTERS.md
- * 9.10). */
-typedef struct PlayerProfile {
-    void *next, *prev;      /* 0x00 */
-    void *fileh;            /* 0x10 its pak file */
-    u32 id[2];              /* 0x18 */
-    char name[13];          /* 0x20 (N64 0x14) */
-    s8 controls[10];        /* 0x2D */
-    s8 rumble;              /* 0x37 (N64 0x2B) the rumble setting, 0-2 */
-    void *datah;            /* 0x38 */
-} PlayerProfile;
-
 /* A player's pad record (MAT3 tPadState, gPlayers; 76 bytes, 80 on the PC). */
 typedef struct PadState {
     u8 slot;
     u8 controller;          /* 0x01 its controller, CONTROLLER_NONE without one */
     u8 other[70];
-    PlayerProfile **profile; /* 0x48 its profile */
+    tProfile **profile;     /* 0x48 its profile */
 } PadState;
 
 extern PadState gPlayers[];

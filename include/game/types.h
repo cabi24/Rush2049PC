@@ -47,11 +47,9 @@ struct EffectObj;
 struct EngineState;
 struct Entity;
 struct Entry;
-struct Ghost;
 struct GsmState;
 struct GsmStream;
 struct H12;
-struct Handle;
 struct Header;
 struct Header88;
 struct Heap;
@@ -63,7 +61,6 @@ struct Link;
 struct LinkNode;
 struct List;
 struct ListHead;
-struct ListNode;
 struct LookAt;
 struct MacroCommand;
 struct MacroCommandAddAge;
@@ -140,12 +137,10 @@ struct Obj;
 struct Object;
 struct Outer;
 struct ObjInstance;
-struct Owner;
 struct P3;
 struct PackedLeadingKey;
 struct Packet;
 struct PadConfig;
-struct PakHandle;
 struct Palette;
 struct PathPoint;
 struct PathPt;
@@ -157,17 +152,14 @@ struct PlayerRec;
 struct PointList;
 struct Poly;
 struct Pool;
-struct Profile;
 struct QNode;
 struct RampState;
 struct Rec32;
 struct RecB;
 struct Reckon;
-struct Record;
 struct Record88;
 struct Region;
 struct RelativeEntry;
-struct ReplaySlot;
 struct ResSlot;
 struct ResourceGroup;
 struct ResourceOffsets;
@@ -176,7 +168,6 @@ struct Row20;
 struct SalMatrix;
 struct SalVector;
 struct SampleRecord;
-struct SaveData;
 struct Sequence20;
 struct SequencePageEntry;
 struct SequencePlayParams;
@@ -244,7 +235,6 @@ struct tModelDef;
 struct tModelPart;
 struct tNewSkid;
 struct tPoly;
-struct tPS_File;
 struct tPaletteDef;
 struct tPlayerProfile;
 struct tSfxCmd;
@@ -257,7 +247,6 @@ struct tVisual;
 struct tWindowInfo;
 struct tree_desc_s;
 struct z_stream_s;
-union InputSequence;
 union tAudioMsg;
 
 /* ---- ultra: libultra and the RSP microcode: the N64 OS interface port/ultra implements */
@@ -621,7 +610,7 @@ typedef struct PcSched { /* 0x2C0 bytes */
 /* An input record (gPlayers, 80 bytes) from its profile handle on (MAT3 tPadState.profile, at +0x48): what
  * gPlayers_save, a label at gPlayers + 0x48, reads per player. */
 typedef struct PlayerTail { /* 0x50 bytes */
-    struct tProfile **profile; /* 0x0 the player's profile (a handle) */
+    struct tPlayerProfile **profile; /* 0x0 the player's profile (a handle) */
     u8 pad[72];                /* 0x8 the next player's record up to its profile */
 } PlayerTail;
 
@@ -1335,7 +1324,17 @@ typedef struct tPadState { /* 0x50 bytes */
 /* The controller port of a player who has none. */
 #define CONTROLLER_NONE 5
 
-/* ---- save: the Controller Pak, profiles, records, options and passwords */
+/* ---- save: the Controller Pak, profiles, records, options and passwords. The pak system's and the save code's
+ * records are save.h's; their names are here, for the headers before it. */
+typedef struct tPakFile tPakFile;
+typedef struct tPak tPak;
+typedef struct tPakHandle tPakHandle;
+typedef struct PakErrorState PakErrorState;
+typedef struct PakFileRecord PakFileRecord;
+typedef struct tSaveData tSaveData;
+typedef struct tGhostHeader tGhostHeader;
+typedef struct tGhostFile tGhostFile;
+typedef struct tPlayerProfile tProfile;   /* MAT3 tPlayerProfile */
 
 /* libultra's OSPfsState: a file's entry in a pak's directory (the same layout on the PC). */
 typedef struct PakFileState { /* 0x20 bytes */
@@ -1345,245 +1344,6 @@ typedef struct PakFileState { /* 0x20 bytes */
     u8 ext_name[4];    /* 0xA in the pak's character set (pak_charset) */
     u8 game_name[16];  /* 0xE */
 } PakFileState;
-
-/* One of the 16 files of a pak, as the pak system keeps it (tPak.files, by the file's number on the pak). */
-typedef struct tPakFile { /* 0x28 bytes */
-    s8 locked;           /* 0x0 in use (PS_LockFile): the pak's files stay while it is out */
-    s8 dirty;            /* 0x1 holds data PS_FlushFile is yet to write */
-    s8 flag2;            /* 0x2 cleared with the others; PS_WriteFile tests it and does nothing */
-    u8 pad3;             /* 0x3 */
-    u16 mapBytes;        /* 0x4 the size of its dirty map: one bit for each 32 bytes of its data, after the data */
-    u16 pad6;            /* 0x6 */
-    PakFileState state;  /* 0x8 its directory entry (osPfsFileState) */
-} tPakFile;
-
-/* One controller's pak, as the pak system keeps it (gPaks; MAT3 paksysdc.c's anon_changed_inserted_25c, whose flags
- * are these but formatted and in another order), in the PC's layout (pointers 8 bytes; 0x304 bytes on the N64). The
- * rumble thread keeps the motor's state in it too. */
-typedef struct tPak { /* 0x310 bytes */
-    s8 changed;          /* 0x0 PS_PakServer found it put in, taken out or another pak (PS_PakChanged) */
-    s8 inserted;         /* 0x1 a pak the pak system has read is in (PS_PakInserted) */
-    s8 plugged;          /* 0x2 something is plugged into the controller (pak_poll_inserted) */
-    s8 wasRemoved;       /* 0x3 the pak was taken out while its files were kept (another port has it now) */
-    s8 inited;           /* 0x4 pfs holds a pak that was read (its id tells whether the next pak is the same) */
-    s8 damaged;          /* 0x5 the pak can't be read (PS_PakDamaged) */
-    s8 rumble;           /* 0x6 the pak is a Rumble Pak (PS_PakRumble) */
-    s8 flushing;         /* 0x7 PS_FlushPak is writing it */
-    s8 flushed;          /* 0x8 PS_FlushPak wrote something */
-    s8 original;         /* 0x9 the pak in is the one the files came from */
-    s8 locked;           /* 0xA one of its files is locked (tPakFile.locked) */
-    s8 flush;            /* 0xB one of its files is dirty */
-    PcPfs pfs;           /* 0x10 the pak's libultra handle */
-    s32 error;           /* 0x80 the last error (kPS_Err*) */
-    s32 FreeSpace;       /* 0x84 free bytes (osPfsFreeBlocks) */
-    u8 motorOn;          /* 0x88 the rumble thread's: the motor is running */
-    u8 request;          /* 0x89 the rumble wanted, 0..40 (PS_SetRumblePercent) */
-    u8 level;            /* 0x8A the rumble now: falls one a retrace towards request */
-    u8 pad8B;            /* 0x8B */
-    s16 phase;           /* 0x8C the retrace in the rumble's 10-retrace duty cycle (rumble_duty_masks) */
-    u8 pad8E[2];         /* 0x8E */
-    tPakFile files[16];  /* 0x90 */
-} tPak;
-
-#define NUM_PAKS 4          /* one a controller */
-#define PAK_MAX_FILES 16    /* the files a pak holds (tPak.files) */
-#define PAK_BLOCK_SIZE 256  /* a pak's page: files are sized in them */
-
-/* A pak file's handle: what the pak system's callers hold. */
-typedef struct tPakHandle {
-    struct PakFileRecord *file;
-} tPakHandle;
-
-/* A pak error dialog (gPakError[4][2], two a pak; MAT3 pakerr.c's anon_done_choice1_34, whose names these are, in
- * the N64's order). SetPakError opens one, ShowPakError runs and draws it, CancelPakError closes it. */
-typedef struct PakErrorState { /* 0x2C bytes */
-    s8 done;          /* 0x0 answered or timed out */
-    s8 choice1;       /* 0x1 the first answer chosen (of two or three) */
-    s8 choice2;       /* 0x2 the second answer chosen (of three) */
-    s8 cont;          /* 0x3 the controller that answers (any, for kPS_ErrNoCont and kPS_ErrNoPak) */
-    s8 contActive[4]; /* 0x4 the controllers' active flags before the dialog, put back after it */
-    s8 contStick[4];  /* 0x8 their stick edges before it */
-    s8 contDebug[4];  /* 0xC */
-    s8 rumble;        /* 0x10 a Rumble Pak is in (the new-pak dialog says so) */
-    s32 err;          /* 0x14 the dialog (kPS_Err*), 0 when closed */
-    s16 left;         /* 0x18 its box on the screen */
-    s16 top;          /* 0x1A */
-    s16 width;        /* 0x1C */
-    s16 height;       /* 0x1E */
-    u32 edges;        /* 0x20 the buttons pressed this frame */
-    u32 levels;       /* 0x24 held */
-    u32 timeout;      /* 0x28 the retrace count at which a waiting dialog closes itself */
-} PakErrorState;
-
-/* An open pak file (MAT3 tPS_File), in the PC's layout: pak_file_records holds 64, their handles pak_file_handles;
- * each pak's open files are a list (gPS_Files, linked through next). */
-typedef struct PakFileRecord { /* 0x60 bytes */
-    struct tPakHandle *next;                                   /* 0x0 */
-    struct tPakHandle *prev;                                   /* 0x8 */
-    void (*RemoveFile)(struct tPakHandle *);                   /* 0x10 called when the file goes (the pak removed) */
-    void (*MoveFile)(struct tPakHandle *, struct tPakHandle *); /* 0x18 */
-    u8 pak;                                                   /* 0x20 the controller it is on */
-    u8 fileNo;                                                /* 0x21 its number on the pak (tPak.files) */
-    u8 name[35];                                              /* 0x22 its name and extension, in the game's */
-    u8 ext[11];                                               /* 0x45   characters (pak_decode_name) */
-    u32 size;                                                 /* 0x50 bytes */
-    u32 blocks;                                               /* 0x54 pages of PAK_BLOCK_SIZE */
-    u8 **data;                                                /* 0x58 its data in the heap (a handle), then its
-                                                               *      dirty map; NULL until read */
-} PakFileRecord;
-
-/* The profiles on the paks (gPlayerFiles): a list header as AudioList (of handles), its first two words read as
- * words. */
-typedef struct PlayerFileList { /* 0x18 bytes */
-    u32 unknown0;             /* 0x0 indirect, doubly */
-    u32 unknown4;             /* 0x4 count */
-    void *head;               /* 0x8 */
-    void *tail;               /* 0x10 */
-} PlayerFileList;
-
-/* The parts of a profile file (tSaveData). Each starts with the checksum of the rest (CalcChecksumInternal), which
- * CheckAndRepairPlayer checks. MAT3's layouts and names (save.c's anon_checksum_*). */
-typedef struct tRaceSettings { /* 0x14 bytes */
-    u32 checksum;   /* 0x0 */
-    u8 track;       /* 0x4 */
-    u8 car;         /* 0x5 */
-    u8 trans;       /* 0x6 */
-    u8 carView;     /* 0x7 */
-    s8 laps;        /* 0x8 */
-    s8 drones;      /* 0x9 */
-    s8 gravity;     /* 0xA */
-    s8 difficulty;  /* 0xB */
-    s8 catchup;     /* 0xC */
-    s8 backwards;   /* 0xD */
-    s8 mirror;      /* 0xE */
-    s8 fog;         /* 0xF */
-    s8 wind;        /* 0x10 */
-    s8 deaths;      /* 0x11 */
-    u8 pad12[2];    /* 0x12 */
-} tRaceSettings;
-
-typedef struct tBattleSettings { /* 0x10 bytes */
-    u32 checksum;  /* 0x0 */
-    u8 track;      /* 0x4 */
-    u8 car;        /* 0x5 */
-    u8 trans;      /* 0x6 */
-    u8 carView;    /* 0x7 */
-    s8 gravity;    /* 0x8 */
-    s8 mirror;     /* 0x9 */
-    s8 fog;        /* 0xA */
-    s8 wind;       /* 0xB */
-    s8 mode;       /* 0xC */
-    s8 points;     /* 0xD */
-    s8 minutes;    /* 0xE */
-    s8 neg;        /* 0xF */
-} tBattleSettings;
-
-typedef struct tStuntSettings { /* 0x14 bytes */
-    u32 checksum;  /* 0x0 */
-    u8 track;      /* 0x4 */
-    u8 car;        /* 0x5 */
-    u8 trans;      /* 0x6 */
-    u8 carView;    /* 0x7 */
-    s8 gravity;    /* 0x8 */
-    s8 mirror;     /* 0x9 */
-    s8 fog;        /* 0xA */
-    s8 wind;       /* 0xB */
-    s8 mode;       /* 0xC */
-    s8 flow;       /* 0xD */
-    s8 points;     /* 0xE */
-    s8 minutes;    /* 0xF */
-    s8 deaths;     /* 0x10 */
-    u8 pad11[3];   /* 0x11 */
-} tStuntSettings;
-
-typedef struct tObstacleSettings { /* 0xC bytes */
-    u32 checksum;  /* 0x0 */
-    u8 track;      /* 0x4 */
-    u8 car;        /* 0x5 */
-    u8 trans;      /* 0x6 */
-    u8 carView;    /* 0x7 */
-    s8 gravity;    /* 0x8 */
-    s8 mirror;     /* 0x9 */
-    s8 fog;        /* 0xA */
-    s8 wind;       /* 0xB */
-} tObstacleSettings;
-
-/* A track's race records and totals (one per track; gTotalRaceStats sums them over the profiles). */
-typedef struct tRaceStats { /* 0x60 bytes */
-    u32 checksum;              /* 0x0 */
-    f32 scores[3][5];          /* 0x4 the five best laps, average laps and ghost race times (RecordRace,
-                                *      RecordGhost; gTotalNames: their owners, gNewTotalScore: this race's) */
-    f32 totalTime;             /* 0x40 */
-    u16 totalLaps;             /* 0x44 */
-    u16 totalRaces;            /* 0x46 */
-    u16 total1st;              /* 0x48 */
-    u16 total2nd;              /* 0x4A */
-    u16 total3rd;              /* 0x4C */
-    u16 totalCrashes;          /* 0x4E */
-    u16 totalDeathAttempted;   /* 0x50 */
-    u16 totalDeathCompleted;   /* 0x52 */
-    u16 totalGhosts;           /* 0x54 */
-    u8 pad56[2];               /* 0x56 */
-    u32 totalMiles;            /* 0x58 */
-    u16 coinsFound;            /* 0x5C a bit for each coin found on the track */
-    u8 pad5E[2];               /* 0x5E */
-} tRaceStats;
-
-/* A stunt arena's records and totals. */
-typedef struct tStuntStats { /* 0x40 bytes */
-    u32 checksum;          /* 0x0 */
-    u32 bestStunt;         /* 0x4 */
-    u32 bestAvg;           /* 0x8 */
-    u32 totalPoints;       /* 0xC */
-    u16 totalTime;         /* 0x10 */
-    u16 totalCrashes;      /* 0x12 */
-    u32 totalStunts[10];   /* 0x14 each kind of stunt */
-    u16 coinsFound;        /* 0x3C */
-    u8 pad3E[2];           /* 0x3E */
-} tStuntStats;
-
-/* A battle arena's totals. */
-typedef struct tBattleStats { /* 0xC bytes */
-    u32 checksum;       /* 0x0 */
-    u16 totalMatches;   /* 0x4 */
-    u16 totalWins;      /* 0x6 */
-    u16 totalKills;     /* 0x8 */
-    u16 totalDeaths;    /* 0xA */
-} tBattleStats;
-
-/* The obstacle course's records and totals. */
-typedef struct tObstacleStats { /* 0x18 bytes */
-    u32 checksum;            /* 0x0 */
-    f32 bestTime;            /* 0x4 */
-    f32 totalTime;           /* 0x8 */
-    u16 totalRaces;          /* 0xC */
-    u16 totalFinished;       /* 0xE */
-    u16 totalCrashes;        /* 0x10 */
-    u16 numDeathAttempted;   /* 0x12 */
-    u16 numDeathCompleted;   /* 0x14 */
-    u8 pad16[2];             /* 0x16 */
-} tObstacleStats;
-
-/* A circuit's records and totals (one per circuit). */
-typedef struct tCircuitStats { /* 0x1C bytes */
-    u32 checksum;            /* 0x0 */
-    u16 numCircuits;         /* 0x4 */
-    u16 num1st;              /* 0x6 */
-    u16 num2nd;              /* 0x8 */
-    u16 num3rd;              /* 0xA */
-    u16 numDeathAttempted;   /* 0xC */
-    u16 numDeathCompleted;   /* 0xE */
-    u16 bestPts;             /* 0x10 */
-    u8 pad12[2];             /* 0x12 */
-    f32 bestTime;            /* 0x14 */
-    u32 totalPts;            /* 0x18 */
-} tCircuitStats;
-
-/* A car's settings (the car setup screen's sliders). */
-typedef struct tCarSettings { /* 0x10 bytes */
-    u32 checksum;      /* 0x0 */
-    s8 settings[12];   /* 0x4 the checksum covers all 12 (SavePlayerCarSetting) */
-} tCarSettings;
 
 /* The circuit in progress (MAT3 tCircuit; circuitscr.c has its own view of that name). */
 typedef struct tCircuitRecord { /* 0x4C bytes */
@@ -1600,108 +1360,6 @@ typedef struct tCircuitRecord { /* 0x4C bytes */
     u8 ranks[6][9];    /* 0x14 */
     u8 pad4A[2];       /* 0x4A */
 } tCircuitRecord;
-
-/* A profile's file on the pak (MAT3 save.c's tSaveData, the N64's revision 16 of it: controls 10 bytes, then rumble
- * and the race type), 2064 bytes. A file format: its layout is the pak file's, byte for byte. */
-typedef struct tSaveData { /* 0x810 bytes */
-    u32 nameChecksum;                     /* 0x0 over id, revision and name */
-    u32 id[2];                            /* 0x4 the profile's id: the creation time, the record's address and pak */
-    u8 revision;                          /* 0xC PROFILE_REVISION */
-    u8 name[13];                          /* 0xD */
-    u8 pad1A[2];                          /* 0x1A */
-    u32 optChecksum;                      /* 0x1C */
-    s8 options[21];                       /* 0x20 the game options (gOptions' first 21) */
-    u8 pad35[3];                          /* 0x35 */
-    u32 contChecksum;                     /* 0x38 over the controls and rumble */
-    s8 controls[10];                      /* 0x3C */
-    s8 rumble;                            /* 0x46 */
-    u8 raceType;                          /* 0x47 the race type last played (gRace) */
-    tRaceSettings raceSettings;           /* 0x48 */
-    tBattleSettings battleSettings;       /* 0x5C */
-    tStuntSettings stuntSettings;         /* 0x6C */
-    tObstacleSettings obstacleSettings;   /* 0x80 */
-    tRaceStats raceStats[12];             /* 0x8C */
-    tStuntStats stuntStats[4];            /* 0x50C */
-    tBattleStats battleStats[8];          /* 0x60C */
-    tObstacleStats obstacleStats[1];      /* 0x66C */
-    tCircuitStats circuitStats[4];        /* 0x684 */
-    tCircuitRecord circuit;               /* 0x6F4 the circuit in progress */
-    tCarSettings carSettings[13];         /* 0x740 */
-} tSaveData;
-
-#define PROFILE_REVISION 16   /* tSaveData.revision (MAT3's is 19) */
-
-/* A ghost file's header (MAT3 save.c's tSaveHeader, the N64's 0x58 bytes): file data, so in the file's layout; the
- * compressed recording follows it. The race's recording headers (gRealNewGhostHeaders) have the same layout.
- *
- * Its last three words are the replay's, not the file's (0 in every file): MAT3's start, the samples' address, then
- * the step and the number of steps. A host pointer doesn't fit the file's 4 bytes, so on the PC the header says only
- * whether it has its samples (hasSamples), and the samples are found by what owns them: a ghost's decoded recording
- * is its data block (tGhostFile.datah), a race being recorded is its player's block (ghost_recording, NewGhost.c). */
-typedef struct tGhostHeader { /* 0x58 bytes */
-    u32 headerChecksum;     /* 0x0 over revision .. unzippedSize */
-    u8 revision;            /* 0x4 GHOST_REVISION */
-    s8 flag;                /* 0x5 the replay: -1 recording, 1 playing back (DecodeGhost), 0 neither */
-    s8 track;               /* 0x6 */
-    u8 backward;            /* 0x7 */
-    u8 car;                 /* 0x8 the car raced (MAT3 car) */
-    u8 carTrans;            /* 0x9 its transmission (MAT3 trans) */
-    s8 settings[12];        /* 0xA handling, engine, tires, frame, wings, the three colours, rims, horn, front and
-                             * rear tire size */
-    u8 name[13];            /* 0x16 the driver's */
-    u8 pad23;               /* 0x23 */
-    u16 tournamentKey;      /* 0x24 */
-    u8 pad26[2];            /* 0x26 */
-    u32 playerId[2];        /* 0x28 the driver's profile id */
-    u32 bestTime;           /* 0x30 the driver's best time on the track when recorded */
-    f32 frameTime;          /* 0x34 the model step it was recorded at (MAT3 retraceTime) */
-    f32 finish;             /* 0x38 the race time */
-    u32 zippedSize;         /* 0x3C */
-    u32 unzippedSize;       /* 0x40 */
-    u32 zippedChecksum;     /* 0x44 over the compressed recording */
-    u32 unzippedChecksum;   /* 0x48 */
-    u32 hasSamples;         /* 0x4C 1 while the replay's samples are in memory, else 0 (MAT3 start: above) */
-    u32 offset;             /* 0x50 the replay's step */
-    u32 size;               /* 0x54 its steps: each of the samples' three channels is size bytes long */
-} tGhostHeader;
-
-#define GHOST_REVISION 17
-
-/* A ghost on a pak, as the ghost list keeps it (MAT3 tGhostFile), in the PC's layout (the N64's is 0x2C bytes:
- * GHOST_OFS). gGhostFiles lists them, fastest first. */
-typedef struct tGhostFile { /* 0x40 bytes */
-    void *ll;                 /* 0x0 the list's link (the next ghost's handle) */
-    struct tPakHandle *fileh;  /* 0x8 */
-    s8 track;                 /* 0x10 */
-    u8 backward;              /* 0x11 */
-    u8 name[13];              /* 0x12 */
-    u8 pad1F;                 /* 0x1F */
-    u32 playerId[2];          /* 0x20 */
-    f32 finish;               /* 0x28 */
-    u8 **datah;               /* 0x30 the recording once read */
-    tGhostHeader **header;    /* 0x38 the file's data (its header first) once read */
-} tGhostFile;
-#define PROFILE_FILE_SIZE 2064
-
-/* A profile in memory (MAT3 save.c's tPlayerProfile), in the PC's layout (pointers 8 bytes; the N64's is 0x30
- * bytes): PROFILE_OFS(n) is the PC offset of the N64's offset n, for the code that still reaches it so. Each pak's
- * profiles are player_profile_records, reached through handles (player_profile_handles); gPlayerFiles lists the
- * profiles read, gRealJustPlayers are the four without a pak ("just play"). */
-typedef struct tProfile { /* 0x40 bytes */
-    void *next;                /* 0x0 the list of profiles (handles) */
-    void *prev;                /* 0x8 */
-    struct tPakHandle *fileh;   /* 0x10 its pak file, NULL for a profile without one */
-    u32 id[2];                 /* 0x18 tSaveData.id */
-    u8 name[13];               /* 0x20 */
-    s8 controls[10];           /* 0x2D */
-    s8 rumble;                 /* 0x37 */
-    tSaveData **datah;         /* 0x38 its file's data once read (the pak file's data handle), else NULL */
-} tProfile;
-
-typedef struct RecordOwner { /* 0x78 bytes */
-    intptr_t names[2][5];    /* 0x0 */
-    struct Profile **who[5]; /* 0x50 */
-} RecordOwner;
 
 
 typedef struct tBlastMat { /* 0x8 bytes */
@@ -2150,29 +1808,6 @@ typedef struct CircuitTrackSlot { /* 0x5 bytes */
     u8 fog;      /* 0x3 0 none to 3 thick */
     u8 wind;     /* 0x4 */
 } CircuitTrackSlot;
-
-typedef struct GhostFile { /* 0x40 bytes */
-    void *ll;                    /* 0x0 */
-    void **fileh;                /* 0x8 */
-    s8 track;                    /* 0x10 */
-    u8 backward;                 /* 0x11 */
-    u8 name[13];                 /* 0x12 */
-    u8 pad17;                    /* 0x1F */
-    u32 playerId[2];             /* 0x20 */
-    f32 finish;                  /* 0x28 */
-    u8 **datah;                  /* 0x30 */
-    tGhostHeader **header;       /* 0x38 */
-} GhostFile;
-
-typedef struct GhostPlayer { /* 0x40 bytes */
-    void *next;      /* 0x0 */
-    void *prev;      /* 0x8 */
-    void *fileh;     /* 0x10 */
-    u32 playerId[2]; /* 0x18 */
-    u8 name[13];     /* 0x20 */
-    u8 pad21[11];    /* 0x2D */
-    u8 **datah;      /* 0x38 */
-} GhostPlayer;
 
 typedef struct MuzzleObj { /* 0x10C bytes */
     s32 mdls[5];       /* 0x0 */

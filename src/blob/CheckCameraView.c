@@ -18,9 +18,6 @@ typedef struct Object {
     s8 view2;           /* 862 the view to go back to after the crash view (MAT3 saveview) */
     u8 other863[0x380 - 0x35F]; void *input; u8 other863_384[0x3B8 - 0x384];
 } Object;               /* 952 */
-/* A player's profile (SaveSlot, host layout: pc_prelude.h), and its handle. */
-typedef struct { void *next, *prev, *fileh; u8 other0C[32]; void *resource; } HObject;
-typedef struct Handle { HObject *object; } Handle;
 /* A player's input record (gPlayers): the fields this reads. */
 typedef struct {
     u8 index;
@@ -29,7 +26,7 @@ typedef struct {
     u8 other8[44];
     s32 edges;          /* 52 */
     u8 other56[16];
-    Handle *handle;     /* 72 */
+    tProfile **handle;  /* 72 */
 } Player76;
 
 extern Player76 gPlayers[];
@@ -114,7 +111,7 @@ void CheckCameraView(void)
         } else if (view != 4 && (pl->edges & pl->mask)) {
             view++;
             if (view >= 4) view = 0;
-            if (pl->handle->object->resource) {
+            if ((*pl->handle)->datah) {
                 SavePlayerCarView(pl->handle, view);
             }
             if (view == 1) {

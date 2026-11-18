@@ -10,14 +10,6 @@ typedef struct ListHead {   /* a list's header (MAT3 tDLList), the PC's layout *
     intptr_t tail;
 } ListHead;
 
-typedef struct Record {     /* a ghost (SaveInit' Ghost), 64 bytes on the PC (docs/port/POINTERS.md 9.10) */
-    void *ll;
-    void **fileh;
-    char pad08[0x24 - 0x08];
-    void **datah;
-    void **header;
-} Record;
-
 s32 sprintf(char *, const char *, ...);
 
 void *memset(void *, s32, u32);
@@ -59,10 +51,10 @@ void SaveInit(void) {
         gNumLimbo = 3;
     }
     n = (expansion_pak_present ? 12 : 1) * 3;
-    gRealLimboGhosts = AllocateMemoryHeap(0, n * sizeof(Record));
+    gRealLimboGhosts = AllocateMemoryHeap(0, n * sizeof(tGhostFile));
     PurgeableMemory(gRealLimboGhosts, 0);
-    memset(gRealLimboGhosts, 0, n * sizeof(Record));
-    gLimboGhosts = AllocateMemoryHeap(0, n * sizeof(Record *));
+    memset(gRealLimboGhosts, 0, n * sizeof(tGhostFile));
+    gLimboGhosts = AllocateMemoryHeap(0, n * sizeof(tGhostFile *));
     PurgeableMemory(gLimboGhosts, 0);
     for (i = 0; i < n; i++) {
         gLimboGhosts[i] = &gRealLimboGhosts[i];

@@ -14,7 +14,7 @@ void NewCircuit(s32 type) {
 
     circuit = &(*(*gPlayers_save[gCircuitPlayer].profile)->datah)->circuit;
     memset(circuit, 0, sizeof(tCircuitRecord));
-    PS_WriteFile((void **) (*gPlayers_save[gCircuitPlayer].profile)->fileh, (u8 *) circuit, sizeof(tCircuitRecord));
+    PS_WriteFile((*gPlayers_save[gCircuitPlayer].profile)->fileh, circuit, sizeof(tCircuitRecord));
     circuit->type = (s8) type;
     circuit->seed = *(s32 *) &gSeconds & 0xFFFFF;   /* the game time's float bits (MAT3: *(unsigned int *)&gSeconds) */
     circuit->active = 1;

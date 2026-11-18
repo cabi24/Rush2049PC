@@ -1,17 +1,9 @@
 #include "game/game.h"
 
-typedef struct FileInfo FileInfo;
-typedef struct Profile Profile;
-struct Profile { Profile **next, **previous; FileInfo **file; u32 id0, id1; u8 name[24]; u8 **stats; };
-typedef struct Player { u32 held, pressed, unknown08, repeated; u8 unknown10[50]; u8 paint, unknown43[5]; Profile **owner; } Player;
-typedef struct Record Record;
-/* PC: as cleanup_colortrace's Record: unknown24 is pointer-sized. */
-struct Record { Record **next; FileInfo **file; s8 track; u8 mode, name[14]; u32 id0, id1; f32 time; void *unknown24; void **active; };
+typedef struct Player { u32 held, pressed, unknown08, repeated; u8 unknown10[50]; u8 paint, unknown43[5]; tProfile **owner; } Player;
 
 extern Player gPlayers[];
 
-VIEW(Record **[4], gGhosts);
-#define gGhosts gGhosts_view
 
 extern void TB_FlashTextColors(tRGBA first, tRGBA second);
 
@@ -76,8 +68,8 @@ static void animButtonText(s32 p)
                 TB_SetTextColor(playerTextColor[ghostIdx]);
                 TB_DrawText(TB_CenterText(str, x), y, str);
                 y += TB_GetFontLineHeight();
-                TB_Sprintf(str1, "TIME %01d:%02d.%03d", (s32)(*gGhosts[ghostIdx])->time / 60,
-                             (s32)(*gGhosts[ghostIdx])->time % 60, (s32)(1000.0f * (*gGhosts[ghostIdx])->time) % 1000);
+                TB_Sprintf(str1, "TIME %01d:%02d.%03d", (s32)(*gGhosts[ghostIdx])->finish / 60,
+                             (s32)(*gGhosts[ghostIdx])->finish % 60, (s32)(1000.0f * (*gGhosts[ghostIdx])->finish) % 1000);
                 TB_SetTextColor(1);
                 TB_DrawText(TB_CenterText(str1, x), y, str1);
             }

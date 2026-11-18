@@ -5,9 +5,7 @@
 #include "game/game.h"
 #define OSMesgQueue OSMesgQueueView   /* this file's own OSMesgQueue: include/game's OSMesgQueue is another type */
 
-typedef struct PSFile { void *next, *prev; void *fileh; } PSFile;     /* the profile's host layout (pc_prelude.h) */
-typedef struct PadState { u8 pad0[72]; PSFile **save; } PadState;    /* gPlayers[] (tPadState): the profile at +72 */
-typedef struct PlayerData { struct PlayerData **next; } PlayerData;  /* handle list, next handle at +0 */
+typedef struct PadState { u8 pad0[72]; tProfile **save; } PadState; /* gPlayers[] (tPadState): the profile at +72 */
 typedef struct { u32 opaque[6]; } OSMesgQueue;
 s32 osRecvMesg(OSMesgQueue *mq, void **msg, s32 flag);
 s32 osSendMesg(OSMesgQueue *mq, void *msg, s32 flag);
@@ -125,7 +123,7 @@ void initGameState(void)
         }
         gUpsideDownTrack = 0;
     } else if (gGameState & GS_DEMO) {
-        PlayerData **h;
+        tProfile **h;
         for (h = gPlayerFiles.head; h; h = (*h)->next) {
             PurgePlayerData(h);
         }

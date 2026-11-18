@@ -3,7 +3,7 @@
 
 /* Gives car car of the profile its default settings (handling, engine, tyres, frame, wings, the three colours, rims,
  * horn, and the front and rear tyre sizes as percent less 75), each through SavePlayerCarSetting. */
-void SetDefaultCarSettings(void *profile, s32 car)
+void SetDefaultCarSettings(tProfile **profile, s32 car)
 {
     SavePlayerCarSetting(profile, (u8)car, 0, gCarHandling[0][car]);
     SavePlayerCarSetting(profile, (u8)car, 1, gCarEngines[0][car]);

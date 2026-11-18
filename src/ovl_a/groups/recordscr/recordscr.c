@@ -85,21 +85,10 @@ void recordscr_updateSelectInfo(void)
     }
 }
 
-/* A pak file record (MAT3 tPS_File) in its PC layout (pc_prelude.h PSF_OFS, docs/port/POINTERS.md 9.10): pak is
- * the pak it is on. */
-typedef struct { void *next, *prev; void (*RemoveFile)(void *), (*MoveFile)(void *, void *); unsigned char pak; } PakFile;
-typedef struct { PakFile *file; } PakFileHandle;
-typedef struct ListNode ProfileHandle;   /* struct ListNode: the name include/game gives it (gStatPlayer) */
-/* A profile (MAT3 tPlayerProfile) in its PC layout (pc_prelude.h PROFILE_OFS): the links of gPlayerFiles, its pak
- * file, its id, its name, its save data (datah: NULL until ReadPlayerData reads it). */
-typedef struct { ProfileHandle *next, *prev; PakFileHandle *fileh; unsigned char id[8]; char name[24]; void *datah; } PlayerProfile;
-/* A profile handle (MAT3 tPlayerProfile **): the profiles are reached and listed through these. */
-struct ListNode { PlayerProfile *body; };
-
 /* Read the four paks: each one's profile count, or why it has none (no controller, no pak, damaged, a Rumble Pak). */
 void recordscr_updatePakInfo(void) {
     s32 slot;
-    ProfileHandle *node;
+    tProfile **node;
     for (slot = 0; slot < 4; slot++) {
         if (!gControllerData[slot].attached) { recordscr_gNumPakPlayers[slot] = PAK_NO_CONTROLLER; }
         else if (!PS_PakInserted(slot)) { recordscr_gNumPakPlayers[slot] = PAK_NOT_INSERTED; }
@@ -109,10 +98,10 @@ void recordscr_updatePakInfo(void) {
             node = gPlayerFiles.head;
             recordscr_gNumPakPlayers[slot] = 0;
             while (node != 0) {
-                if (node->body->fileh->file->pak == slot) {
+                if ((*node)->fileh->file->pak == slot) {
                     recordscr_gNumPakPlayers[slot]++;
                 }
-                node = node->body->next;
+                node = (*node)->next;
             }
             if (recordscr_gNumPakPlayers[slot] == 0) { recordscr_gNumPakPlayers[slot] = 0; }
         }
@@ -212,8 +201,8 @@ void recordscr_controlSelect(void)
         if (recordscr_gSelectMenuSelect < 0) recordscr_gSelectMenuSelect = RECORD_SELECT_ROWS - 1;
         if (recordscr_gSelectMenuSelect >= kSelectMenuSelectPlayer && recordscr_gSelectMenuSelect < RECORD_SELECT_ROWS && recordscr_gSelectMenuValid[recordscr_gSelectMenuSelect] == 1) {
             if (gStatPlayer) {
-                do { gStatPlayer = gStatPlayer->body->prev; }
-                while (gStatPlayer && gStatPlayer->body->fileh->file->pak != recordscr_gSelectPakIdx);
+                do { gStatPlayer = (*gStatPlayer)->prev; }
+                while (gStatPlayer && (*gStatPlayer)->fileh->file->pak != recordscr_gSelectPakIdx);
             }
             /* Original game: unlike every other step through the list, this one takes the last profile without
              * checking it is on the chosen pak (MAT3 the same). */
@@ -249,8 +238,8 @@ void recordscr_controlSelect(void)
         do {
             if (recordscr_gSelectMenuSelect == kSelectMenuSelectPlayer && recordscr_gSelectMenuValid[recordscr_gSelectMenuSelect] == 1) {
                 if (gStatPlayer) {
-                    do { gStatPlayer = gStatPlayer->body->prev; }
-                    while (gStatPlayer && gStatPlayer->body->fileh->file->pak != recordscr_gSelectPakIdx);
+                    do { gStatPlayer = (*gStatPlayer)->prev; }
+                    while (gStatPlayer && (*gStatPlayer)->fileh->file->pak != recordscr_gSelectPakIdx);
                 }
                 if (gStatPlayer) break;
             }
@@ -258,12 +247,12 @@ void recordscr_controlSelect(void)
             if (recordscr_gSelectMenuSelect < 0) recordscr_gSelectMenuSelect = RECORD_SELECT_ROWS - 1;
             if (recordscr_gSelectMenuSelect >= kSelectMenuSelectPlayer && recordscr_gSelectMenuSelect < RECORD_SELECT_ROWS && recordscr_gSelectMenuValid[recordscr_gSelectMenuSelect] == 1) {
                 if (gStatPlayer) {
-                    do { gStatPlayer = gStatPlayer->body->prev; }
-                    while (gStatPlayer && gStatPlayer->body->fileh->file->pak != recordscr_gSelectPakIdx);
+                    do { gStatPlayer = (*gStatPlayer)->prev; }
+                    while (gStatPlayer && (*gStatPlayer)->fileh->file->pak != recordscr_gSelectPakIdx);
                 }
                 if (!gStatPlayer) {
                     gStatPlayer = gPlayerFiles.tail;
-                    while (gStatPlayer && gStatPlayer->body->fileh->file->pak != recordscr_gSelectPakIdx) gStatPlayer = gStatPlayer->body->prev;
+                    while (gStatPlayer && (*gStatPlayer)->fileh->file->pak != recordscr_gSelectPakIdx) gStatPlayer = (*gStatPlayer)->prev;
                 }
             } else gStatPlayer = 0;
         } while (!recordscr_gSelectMenuValid[recordscr_gSelectMenuSelect]);
@@ -273,8 +262,8 @@ void recordscr_controlSelect(void)
         do {
             if (recordscr_gSelectMenuSelect == kSelectMenuLastPlayer && recordscr_gSelectMenuValid[recordscr_gSelectMenuSelect] == 1) {
                 if (gStatPlayer) {
-                    do { gStatPlayer = gStatPlayer->body->next; }
-                    while (gStatPlayer && gStatPlayer->body->fileh->file->pak != recordscr_gSelectPakIdx);
+                    do { gStatPlayer = (*gStatPlayer)->next; }
+                    while (gStatPlayer && (*gStatPlayer)->fileh->file->pak != recordscr_gSelectPakIdx);
                 }
                 if (gStatPlayer) break;
             }
@@ -282,12 +271,12 @@ void recordscr_controlSelect(void)
             if (recordscr_gSelectMenuSelect > RECORD_SELECT_ROWS - 1) recordscr_gSelectMenuSelect = 0;
             if (recordscr_gSelectMenuSelect >= kSelectMenuSelectPlayer && recordscr_gSelectMenuSelect < RECORD_SELECT_ROWS && recordscr_gSelectMenuValid[recordscr_gSelectMenuSelect] == 1) {
                 if (gStatPlayer) {
-                    do { gStatPlayer = gStatPlayer->body->next; }
-                    while (gStatPlayer && gStatPlayer->body->fileh->file->pak != recordscr_gSelectPakIdx);
+                    do { gStatPlayer = (*gStatPlayer)->next; }
+                    while (gStatPlayer && (*gStatPlayer)->fileh->file->pak != recordscr_gSelectPakIdx);
                 }
                 if (!gStatPlayer) {
                     gStatPlayer = gPlayerFiles.head;
-                    while (gStatPlayer && gStatPlayer->body->fileh->file->pak != recordscr_gSelectPakIdx) gStatPlayer = gStatPlayer->body->next;
+                    while (gStatPlayer && (*gStatPlayer)->fileh->file->pak != recordscr_gSelectPakIdx) gStatPlayer = (*gStatPlayer)->next;
                 }
             } else gStatPlayer = 0;
         } while (!recordscr_gSelectMenuValid[recordscr_gSelectMenuSelect]);
@@ -307,7 +296,7 @@ void recordscr_controlSelect(void)
                 }
                 gDeleteConfirm = 0;
             } else {
-                if (gStatPlayer) TB_Strcpy(gDeleteName, gStatPlayer->body->name);
+                if (gStatPlayer) TB_Strcpy(gDeleteName, (*gStatPlayer)->name);
                 else TB_Strcpy(gDeleteName, gText.single[TEXT_GUESTS]);
                 gDeleteConfirm = 1;
                 recordscr_gYes = 0;
@@ -316,18 +305,18 @@ void recordscr_controlSelect(void)
             PlayStartABSound(gActiveEdges);
             if (gStatPlayer) {
                 if (ReadPlayerData(gStatPlayer)) {
-                    PS_LockFile(gStatPlayer->body->fileh, 1);
+                    PS_LockFile((*gStatPlayer)->fileh, 1);
                     setRecordState(kRecordStateView);
                 }
             } else {
-                ProfileHandle *node;
+                tProfile **node;
                 ClearTotalStats();
                 for (i = 0; i < 4; i++) {
                     AddPlayerStats(&gJustPlayers[i]);
                     AddPlayerScores(&gJustPlayers[i]);
                 }
-                for (node = gPlayerFiles.head; node; node = node->body->next) {
-                    if (node->body->datah) {
+                for (node = gPlayerFiles.head; node; node = (*node)->next) {
+                    if ((*node)->datah) {
                         AddPlayerStats(node); AddPlayerScores(node);
                     } else {
                         if (!ReadPlayerData(node)) break;
@@ -414,7 +403,7 @@ void controlView(void)
         PlayStartABSound(gActiveEdges);
         setRecordState(kRecordStateSelect);
         if (gStatPlayer != 0) {
-            PS_LockFile(gStatPlayer->body->fileh, 0);
+            PS_LockFile((*gStatPlayer)->fileh, 0);
             PurgePlayerData(gStatPlayer);
         }
     }

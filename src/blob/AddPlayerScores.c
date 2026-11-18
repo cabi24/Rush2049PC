@@ -1,9 +1,6 @@
 /* AddPlayerScores: merge a profile's best times into the high score tables (MAT3 gamerecords.c). */
 #include "game/game.h"
 
-VIEW(tProfile **[12][3][5], gTotalNames);
-#define gTotalNames gTotalNames_view
-
 /* Merges the best times of the profile's file (each track's three lists of five) into the tables over all profiles
  * (gTotalRaceStats' scores, the owners in gTotalNames): each time above 0 that beats an entry is put in its place,
  * pushing the rest down and the last off. Nothing for a profile whose file is not read. */
@@ -17,7 +14,7 @@ void AddPlayerScores(tProfile **profile)
     s32 l;
     f32 *src;
     f32 *times;
-    tProfile ***owners;
+    tScoreOwner *owners;
 
     if ((*profile)->datah == 0) {
         return;
@@ -37,7 +34,7 @@ void AddPlayerScores(tProfile **profile)
                             owners[m] = owners[m - 1];
                         }
                         times[k] = src[l];
-                        owners[m] = profile;
+                        owners[m].profile = profile;
                         l++;
                     }
                 }

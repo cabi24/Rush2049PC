@@ -18,9 +18,6 @@ typedef struct Player76 { u8 pad00[64]; u16 numCrashes; u8 pad42[0x48 - 0x42]; v
 extern Player76 gPlayers[];
 
 
-/* Each car's ghost (tGhostFile), whose header's flag says whether it is raced against (positive) or recorded. */
-VIEW(tGhostFile **[], gGhosts);
-#define gGhosts gGhosts_view
 /* unitmatrix's fourth row, the origin: the crash sound's orientation */
 
 /* Runs one frame of the race on the game thread: the cars' model results (Update_MDrive), the race's own rules

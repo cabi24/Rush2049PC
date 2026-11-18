@@ -1,11 +1,7 @@
 /* SetOptions: the game takes the options screen's choices (MAT3 options.c). */
 #include "game/game.h"
 
-typedef struct Stats { u8 pad[1785]; u8 option_a; u8 pad1786; u8 option_b; } Stats;
-typedef struct Profile { Stats *stats; } Profile;
-typedef struct PlayerState { void *next; void *prev; void *fileh; u8 pad_C[0x2C - 0xC]; Profile *profile; } PlayerState;
-typedef struct Player { PlayerState *state; } Player;
-typedef struct InputRecord { u8 pad[72]; Player *player; } InputRecord;
+typedef struct InputRecord { u8 pad[72]; tProfile **player; } InputRecord;
 extern InputRecord gPlayers[];
 
 
@@ -17,7 +13,7 @@ void SetOptions(void)
     s32 i, setting;
     s8 configuration_mode;
     const CircuitTrackSlot *options;
-    Player *player;
+    tProfile **player;
     if (!(gGameState & GS_DEMO)) {
         for (i = 0; i < gNumPlayers; i++) {
             if (gPlayers[i].player != 0) {
@@ -112,9 +108,9 @@ void SetOptions(void)
             gWind = options->wind;
             gGravityScale = 1;
             player = gPlayers[gCircuitPlayer].player;
-            gDifficulty = player->state->profile->stats->option_b;
+            gDifficulty = (*(*player)->datah)->circuit.difficulty;
             gCatchup = 2;
-            gDeathMode = player->state->profile->stats->option_a;
+            gDeathMode = (*(*player)->datah)->circuit.death;
             gShowOdometer = gOptions[6];
             gShowCoins = gOptions[11];
             break;

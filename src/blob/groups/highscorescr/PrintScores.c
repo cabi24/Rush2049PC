@@ -1,17 +1,8 @@
 /* PrintScores: the high-score screen's table, ready to draw (MAT3 highscorescr.c PrintScores). */
 #include "game/game.h"
 
-/* A profile (MAT3 tPlayerProfile) in its PC layout (pc_prelude.h PROFILE_OFS). */
-typedef struct Player {
-    void *next, *prev; void *fileh; u32 id[2];
-    char name[13];                      /* 0x20 (N64 0x14) */
-} Player;
-
-VIEW(Player **[][3][5], gTotalNames);
-#define gTotalNames gTotalNames_view
-
-#define NO_HOLDER ((Player **)-1)   /* gTotalNames[]: nobody yet (a made-up holder and time) */
-#define TEMP_NAMES 20               /* a holder up to this is a temporary name's index (gTempNames), else a profile */
+#define NO_HOLDER (-1)              /* gTotalNames[]: nobody yet (a made-up holder and time) */
+#define TEMP_NAMES 20               /* a holder up to this is a typed name (gTempNames), else a profile */
 
 extern int sprintf(char *, const char *, ...);
 
@@ -24,7 +15,7 @@ void PrintScores(void)
 {
     s32 i;
     f32 *s;
-    Player ***p;
+    tScoreOwner *p;
     f32 defTime;
     u32 seed;
     s32 width;
@@ -39,16 +30,16 @@ void PrintScores(void)
         defTime += 1.0f + (f32)(seeded_rand(&seed) % 2000) / 1000.0f;
     }
     for (i = 0; i < 5; i++) {
-        if (*p == NO_HOLDER) {
+        if (p->name == NO_HOLDER) {
             gScoreNames[i] = gDefaultNames[seeded_rand(&seed) % 55];
             defTime += (f32)(seeded_rand(&seed) % 1000) / 1000.0f;
             sprintf(gScoreTimes[i], default_score_time_format, (u32)defTime / 60, (u32)defTime % 60,
                     (u32)(defTime * 1000.0f) % 1000);
         } else {
-            if ((uintptr_t)*p <= TEMP_NAMES) {
-                gScoreNames[i] = gTempNames[(intptr_t)*p];
+            if ((uintptr_t)p->name <= TEMP_NAMES) {
+                gScoreNames[i] = gTempNames[p->name];
             } else {
-                gScoreNames[i] = (**p)->name;
+                gScoreNames[i] = (*p->profile)->name;
             }
             defTime = *s;
             seed = defTime;

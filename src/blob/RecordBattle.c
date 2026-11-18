@@ -6,9 +6,6 @@ typedef struct PlayerPad { u8 pad0; u8 selector; u8 pad2[0x46]; tProfile **profi
 
 extern PlayerPad gPlayers[];
 
-VIEW(s8[], gBattlePoints);
-#define gBattlePoints gBattlePoints_view
-
 /* Adds each player's battle to its profile's stats for the arena and to the totals: the kills (its points against
  * each other player), the deaths (the size of every player's points against it, its own included), a match, and a win
  * for the winner (gRankedPlayer), its team, or a tie; then writes the profile's stats. A player without a profile
@@ -47,12 +44,12 @@ void RecordBattle(void)
             {
                 if (k != i)
                 {
-                    stats->totalKills += gBattlePoints[i * 4 + k];
+                    stats->totalKills += gBattlePoints[i][k];
                 }
                 {
                     s32 deaths;
                     s8 points;
-                    points = gBattlePoints[k * 4 + i];
+                    points = gBattlePoints[k][i];
                     if (points >= 0)
                     {
                         deaths = points;

@@ -16,19 +16,6 @@ typedef struct OSPfs {
     s32 version, dir_size, inode_table, minode_table, dir_table, inode_start_page;
     u8 banks, activebank;
 } OSPfs;
-typedef struct tPS_File tPS_File;
-typedef struct PakHandle { tPS_File *file; } PakHandle;
-/* GC tPS_File (N64 76 bytes): ll, RemoveFile, MoveFile, pak, file number, name/ext, size, blocks, data */
-struct tPS_File {
-    PakHandle *next;
-    PakHandle *prev;                  /* PC: a pointer (InsertLLE's link); the record is 96 bytes (pc_prelude.h) */
-    void (*RemoveFile)(PakHandle *);
-    void (*MoveFile)(PakHandle *, PakHandle *);
-    u8 pak, fileNo;
-    u8 name[35], ext[11];
-    u32 size, blocks;
-    u8 **data;
-};
 
 extern void osCreateMesgQueue(OSMesgQueue *, OSMesg *, s32);
 extern s32 osSendMesg(OSMesgQueue *, OSMesg, s32);
@@ -49,10 +36,10 @@ void paksys_lock(void) {
     osRecvMesg(&si_lock_queue, &message, 1);
 }
 
-/* retail stub 0x800A2D44: take a tPS_File handle off the free list (compiled-out head test: see the header) */
-PakHandle *pfs_get_node(void)
+/* retail stub 0x800A2D44: take a pak file handle off the free list (compiled-out head test: see the header) */
+tPakHandle *pfs_get_node(void)
 {
-    PakHandle *fileh;
+    tPakHandle *fileh;
     if (pak_free_handles.head) {}
     fileh = pak_free_handles.head;
     RemoveLLE(&pak_free_handles, fileh);
@@ -79,7 +66,7 @@ void pdf_free_blocks(s32 pak)
 {
     osPfsFreeBlocks((OSPfs *)&gPaks[pak].pfs, (s32 *)&gPaks[pak].FreeSpace);
 }
-void pdf_release(PakHandle *fileh)
+void pdf_release(tPakHandle *fileh)
 {
     RemoveLLE(&gPS_Files[fileh->file->pak], fileh);
     InsertLLE(&pak_free_handles, fileh, pak_free_handles.head);
@@ -91,11 +78,11 @@ void prpf_nop(void)
 {
 }
 
-void PS_ReadPartialFile(PakHandle *fileh, s32 offset, u32 numBytes)
+void PS_ReadPartialFile(tPakHandle *fileh, s32 offset, u32 numBytes)
 {
-    tPS_File *psfile;
+    PakFileRecord *psfile;
     s32 pak;
-    PakHandle *cur;
+    tPakHandle *cur;
     s32 error;
     s32 fileNo;
     s8 retry;
@@ -152,7 +139,7 @@ read_retry:
 /* 0x800A3724: _ClearPak (private IPA: pak in a3) */
 
 /* inlined: does the file's write bitmap have dirty bytes */
-s32 _FileChanged(tPS_File *psfile)
+s32 _FileChanged(PakFileRecord *psfile)
 {
     u8 *map;
     u32 i;

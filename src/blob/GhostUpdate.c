@@ -5,7 +5,6 @@
  * state: flag positive plays back, negative records; frameTime the step it was recorded at; offset the step and size
  * the steps. The samples are three channels of size bytes, one byte a step each: gear and buttons, steering, then gas
  * and brake (4 bits each). */
-typedef struct ReplaySlot { tGhostFile *ghost; } ReplaySlot;
 
 #define ABS(x) ((x) >= 0 ? (x) : -(x))
 
@@ -35,7 +34,7 @@ s32 GhostUpdate(s32 idx, f32 *out)
     if (gGhosts[idx] == 0) {
         return 0;
     }
-    ghost = gGhosts[idx]->ghost;
+    ghost = *gGhosts[idx];
     s = *ghost->header;
     if (s->flag == 0) {
         return 0;

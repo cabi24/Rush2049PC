@@ -330,7 +330,7 @@ extern f32 fence_frame_time;
 extern s32 gGameOverState;
 extern s32 gMainSelect;
 extern s32 gHighScoreState;
-extern intptr_t gThisPlayer[EXTENT(4)];
+extern tScoreOwner gThisPlayer[EXTENT(4)];   /* the high score screen's: by player, who it enters in the tables */
 extern s16 gThisTrack;
 extern s8 gStuffUnlocked[EXTENT(5)];
 /* The unlock tables as they were before the race (highscore_InitScreen), for what the race unlocked: rows as
@@ -356,7 +356,7 @@ extern s8 gGhostMenuConflict;
 extern s8 gGhostMenuConfirm;
 extern s8 highscore_gYes;
 extern s8 gGhostMenuNotify;
-extern struct Ghost **gPakGhosts[EXTENT(4)];
+extern tGhostFile **gPakGhosts[EXTENT(4)];
 extern tGhostFile **gSavedGhost;   /* the race's ghost, compressed for the pak (CompressGhost), until saved */
 extern s32 gGhostStatus[EXTENT(4)];
 extern OSMesgQueue text_lock_queue;
@@ -449,7 +449,7 @@ extern tRGBA circuitscr_init_button_color;
 extern tRGBA circuitscr_button_color;
 extern Egg gEggs[EXTENT(21)];
 extern Egg start_screen_egg[EXTENT(1)];
-extern union InputSequence *gEgg;
+extern Egg *gEgg;   /* the pad code being followed (InitEgg, CheckForEgg), NULL for none */
 extern f32 gNextTimeOut;
 extern s32 gEggIdx;
 extern tBlitDef licensescr_blits[EXTENT(2)];
@@ -767,7 +767,7 @@ extern s8 gThisCar[EXTENT(4)];
 extern s8 gThisCarIndex[EXTENT(4)];
 extern s8 gCars[EXTENT(4)][13];
 extern s8 gNumGhosts;
-extern struct Record **limboGhosts;
+extern tGhostFile **limboGhosts;   /* the car screen's three ghosts in memory for this track (in gLimboGhosts) */
 extern s16 gLastCar[EXTENT(4)];
 extern s16 gNumCarsActive[EXTENT(4)];
 extern s8 gCarLocked[EXTENT(4)];
@@ -789,11 +789,11 @@ extern s32 recordscr_buttonsJustInited;
 extern f32 recordscr_cursorSpeed;
 extern f32 recordscr_scrollSpeed;
 extern s8 recordscr_gSelectMenuValid[EXTENT(11)];
-extern char gBlocksNeeded[EXTENT(5)];
+extern u8 gBlocksNeeded;   /* the pak pages a new profile, or the ghost to save, takes */
 extern s8 recordscr_gSelectMenuVisible[EXTENT(12)];
 extern s8 gViewMenuValid[EXTENT(2)];
 extern s8 gViewMenuVisible[EXTENT(2)];
-extern struct ListNode *gStatPlayer;
+extern tProfile **gStatPlayer;   /* the profile the records screen shows (a handle), NULL for the guests' totals */
 extern s32 gRecordState;
 extern s32 recordscr_gSelectMenuSelect;
 extern s8 gSelectMenuClear;
@@ -833,9 +833,9 @@ extern f32 startscr_cursorSpeed;
 extern s32 playerscr_gNumPakPlayers[EXTENT(4)];
 extern f32 trackMapMat[EXTENT(12)];
 extern f32 playerCursorSpeed;
-extern void *gPakFull[EXTENT(4)];
+extern intptr_t gPakFull[EXTENT(4)];   /* by pak: too full for a new profile (a flag, in a pointer-sized slot) */
 extern s32 currentTrackMap;
-extern struct Owner *gSelectedPlayer[EXTENT(4)];
+extern tProfile **gSelectedPlayer[EXTENT(4)];   /* by player: the profile its menu has selected (a handle) */
 extern s32 desiredTrackMap;
 extern u8 gCreatePlayerNames[EXTENT(4)][13];
 extern f32 mapTransition;
@@ -922,7 +922,7 @@ void circuitscr_initScreen(void);
 void circuitscr_uninitButtons(void);
 void circuitscr_uninitScreen(void);
 void circuitscr_updateButtons(void);
-void claimPlayer(s32 playerIdx, struct Owner *player);
+void claimPlayer(s32 playerIdx, tProfile **player);
 void cleanupControlScreen(void);
 void clearCarComponents(s32 p);
 void clearTrackMap(void);
@@ -991,7 +991,7 @@ void gameover_uninitScreen(void);
 s32 gameover_validOption(s32 option);
 void getFinishedStr(u8 *destination);
 void getFinishPlaceStr(s32 p, u8 *str);
-struct Record **getNextGhost(struct Record **node, s8 direction);
+tGhostFile **getNextGhost(tGhostFile **node, s8 direction);
 void GetPakStatusStr(s32 player, char *str);
 void getPlaceStr(s32 player, u8 *destination);
 void getPlayerStr(s32 player, u8 *destination);
@@ -1028,10 +1028,10 @@ void options_TitlePane(void);
 void options_uninitScreen(void);
 void options_updateButtons(void);
 s32 OptionValid(s32 opt);
-void **pakscr_FindFile(s32 id);
+tPakHandle *pakscr_FindFile(s32 id);
 s32 playerBeingCreated(s32 count, s32 skip);
 s32 playerBeingDeleted(s32 count, s32 skip);
-s32 playerClaimed(s32 skip, struct Profile **owner);
+s32 playerClaimed(s32 skip, tProfile **owner);
 s32 playerscr_animText(void *callback_context);
 void playerscr_controlSelect(s32 p);
 void playerscr_drawSelect(s32 player);

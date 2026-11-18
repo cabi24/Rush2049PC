@@ -25,10 +25,6 @@ typedef struct CarRecord {
 
 extern PlayerPad gPlayers[];
 
-/* The high score tables' owners for a track (gTotalNames): 15 slots, the laps', the averages' and the ghost times'. */
-VIEW(tProfile **[][15], gTotalNames);
-#define gTotalNames gTotalNames_view
-
 /* Adds each player's race to its profile's stats for the track (the backward ones when gBackwards) and to the
  * totals: every lap into the five best laps and the race's average lap into the five best averages (in the totals
  * with the owner, a profile with a pak file, and this race's entries in gNewTotalScore); for a finisher a finished
@@ -75,15 +71,15 @@ void RecordRace(void)
                         for (shift = 4; shift > rank; shift--) {
                             stats->scores[LAP_SCORES][shift] = stats->scores[LAP_SCORES][shift - 1];
                             if (phase == 1) {
-                                gNewTotalScore[shift] = gNewTotalScore[shift - 1];
-                                gTotalNames[course][shift] = gTotalNames[course][shift - 1];
+                                gNewTotalScore[LAP_SCORES][shift] = gNewTotalScore[LAP_SCORES][shift - 1];
+                                gTotalNames[course][LAP_SCORES][shift] = gTotalNames[course][LAP_SCORES][shift - 1];
                             }
                         }
                         stats->scores[LAP_SCORES][rank] = gLapTimes[player][lap];
                         if (phase == 1) {
-                            gNewTotalScore[rank] = player;
+                            gNewTotalScore[LAP_SCORES][rank] = player;
                             if ((*gPlayers[player].profile)->fileh) {
-                                gTotalNames[course][rank] = gPlayers[player].profile;
+                                gTotalNames[course][LAP_SCORES][rank].profile = gPlayers[player].profile;
                             }
                         }
                         break;
@@ -101,15 +97,15 @@ void RecordRace(void)
                         for (shift = 4; shift > rank; shift--) {
                             stats->scores[AVERAGE_SCORES][shift] = stats->scores[AVERAGE_SCORES][shift - 1];
                             if (phase == 1) {
-                                gNewTotalScore[shift + 5] = gNewTotalScore[shift + 4];
-                                gTotalNames[course][shift + 5] = gTotalNames[course][shift + 4];
+                                gNewTotalScore[AVERAGE_SCORES][shift] = gNewTotalScore[AVERAGE_SCORES][shift - 1];
+                                gTotalNames[course][AVERAGE_SCORES][shift] = gTotalNames[course][AVERAGE_SCORES][shift - 1];
                             }
                         }
                         stats->scores[AVERAGE_SCORES][rank] = mean;
                         if (phase == 1) {
-                            gNewTotalScore[shift + 5] = player;
+                            gNewTotalScore[AVERAGE_SCORES][shift] = player;
                             if ((*gPlayers[player].profile)->fileh) {
-                                gTotalNames[course][rank + 5] = gPlayers[player].profile;
+                                gTotalNames[course][AVERAGE_SCORES][rank].profile = gPlayers[player].profile;
                             }
                         }
                         break;

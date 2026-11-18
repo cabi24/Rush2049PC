@@ -13,11 +13,6 @@ typedef struct InputRecord {
 } InputRecord;
 extern InputRecord gPlayers[];
 
-VIEW(intptr_t[12][3][5], gTotalNames);
-#define gTotalNames gTotalNames_view
-VIEW(s8[3][5], gNewTotalScore);
-#define gNewTotalScore gNewTotalScore_view
-
 
 /* One frame of player's name entry. The d-pad (auto-repeating) moves over the grid, wrapping round its rows and
  * columns, the bottom row's three buttons under the grid's columns 0-2, 3-5 and 6-8. A adds the letter (or a space,
@@ -82,7 +77,7 @@ void ControlName(s32 player)
             name = gScoreName[player];
             censor(name, (u8 *)gScoreName[4]);   /* the search stops at the table's end */
             gDrawName[player] = 0;
-            gThisPlayer[player] = gLastPlayer[input->controller] = FindTempNameIdx(name);
+            gThisPlayer[player].name = gLastPlayer[input->controller] = FindTempNameIdx(name);
             for (row = 0; row < 3; row++) {
                 for (place = 0; place < 5; place++) {
                     if (gNewTotalScore[row][place] == player) {
