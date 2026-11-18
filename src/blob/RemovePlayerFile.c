@@ -22,7 +22,7 @@ void RemovePlayerFile(tPakHandle *fileh) {
    return;
   }
  }
- for(ghost=gGhostFiles.head;ghost!=0;ghost=(*ghost)->ll) {
+ for(ghost=gGhostFiles.head;ghost!=0;ghost=(*ghost)->next) {
   if((*ghost)->fileh==fileh) {
    RemoveLLE(&gGhostFiles,ghost);
    *ghost=0;
