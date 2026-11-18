@@ -213,8 +213,8 @@ since wave 3 (its views declare them, its strides are its size): [CARS.md](CARS.
 ## 6. long
 
 `long` is 32-bit on the N64. There are 56 plain `long` tokens (not 159; that count included `long long`): 24 in
-`src/rom` (agent A), the rest here. Under `TARGET_PC` the four zlib deflate copies use `unsigned int` for
-`uLong`/`ulg` and `int` for `block_start`, and `zlib_deflate`'s `(long)` casts go through `N64_LONG`.
+`src/rom` (agent A), the rest here. The zlib deflater's types (`include/game/zlib_deflate.h`, one copy since wave 4)
+are `unsigned int` for `uLong`/`ulg` and `int` for `block_start`, and `zlib_deflate`'s `(long)` casts are `(int)`.
 `tOrderedList.numElements` is `int` (`skyMatrices` was too; matrix pointers since [NATIVE.md](NATIVE.md) step 4). Left: `include/static_formatter_context.h` (only
 `src/rom/lib_34a0.c`, which the PC build replaces) and overlay B's `(unsigned long)&gFrameSeconds`, a pointer cast that
 is already right on LP64.

@@ -16,106 +16,6 @@
 #define _tr_tally           tr_tally
 #define _tr_init            tr_init
 
-typedef unsigned int size_t;
-extern void *memcpy(void *, const void *, size_t);
-extern void *memset(void *, int, size_t);
-
-typedef unsigned char  Byte;
-typedef unsigned int   uInt;
-typedef unsigned int  uLong;  /* long is 32-bit on the N64 */
-typedef Byte  FAR Bytef;
-typedef char  FAR charf;
-typedef int   FAR intf;
-
-typedef void  FAR *voidpf;
-typedef unsigned char  uch;
-typedef uch FAR uchf;
-typedef unsigned short ush;
-typedef ush FAR ushf;
-typedef unsigned int  ulg;
-#define N64_LONG int
-
-/* the game's z_stream: 1.0.4 minus msg and everything after state */
-typedef struct z_stream_s {
-    Bytef    *next_in;
-    uInt     avail_in;
-    uLong    total_in;
-    Bytef    *next_out;
-    uInt     avail_out;
-    uLong    total_out;
-    struct internal_state FAR *state;
-} z_stream;
-typedef z_stream FAR *z_streamp;
-
-typedef struct static_tree_desc_s  static_tree_desc;
-
-typedef struct tree_desc_s {
-    ct_data *dyn_tree;
-    int     max_code;
-    static_tree_desc *stat_desc;
-} FAR tree_desc;
-
-typedef ush Pos;
-typedef Pos FAR Posf;
-typedef ush IPos;      /* 1.0.4: unsigned. The game masks IPos values to 16 bits */
-
-/* the game's deflate_state: 1.0.4 without status, two of noheader /
- * data_type+method / last_flush, strategy, and DEBUG's bits_sent */
-typedef struct internal_state {
-    z_streamp strm;
-    Bytef *pending_buf;
-    Bytef *pending_out;
-    int   pending;
-    int   unk10;          /* not read by these functions */
-    uInt  w_size;
-    uInt  w_bits;
-    uInt  w_mask;
-    Bytef *window;
-    ulg window_size;
-    Posf *prev;
-    Posf *head;
-    uInt  ins_h;
-    uInt  hash_size;
-    uInt  hash_bits;
-    uInt  hash_mask;
-    uInt  hash_shift;
-    int block_start;
-    uInt match_length;
-    IPos prev_match;
-    int match_available;
-    uInt strstart;
-    uInt match_start;
-    uInt lookahead;
-    uInt prev_length;
-    uInt max_chain_length;
-    uInt max_lazy_match;
-    int level;
-    uInt good_match;
-    int nice_match;
-    struct ct_data_s dyn_ltree[HEAP_SIZE];
-    struct ct_data_s dyn_dtree[2*D_CODES+1];
-    struct ct_data_s bl_tree[2*BL_CODES+1];
-    struct tree_desc_s l_desc;
-    struct tree_desc_s d_desc;
-    struct tree_desc_s bl_desc;
-    ush bl_count[MAX_BITS+1];
-    int heap[2*L_CODES+1];
-    int heap_len;
-    int heap_max;
-    uch depth[2*L_CODES+1];
-    uchf *l_buf;
-    uInt  lit_bufsize;
-    uInt last_lit;
-    ushf *d_buf;
-    ulg opt_len;
-    ulg static_len;
-    ulg compressed_len;
-    uInt matches;
-    int last_eob_len;
-    ush bi_buf;
-    int bi_valid;
-} FAR deflate_state;
-
 typedef enum {
     need_more,
     block_done,
@@ -476,8 +376,8 @@ local void gen_bitlen(s, desc)
             if (m > max_code) continue;
             if (tree[m].Len != (unsigned) bits) {
                 Trace((stderr,"code %d bits %d->%d\n", m, tree[m].Len, bits));
-                s->opt_len += ((N64_LONG)bits - (N64_LONG)tree[m].Len)
-                              *(N64_LONG)tree[m].Freq;
+                s->opt_len += ((int)bits - (int)tree[m].Len)
+                              *(int)tree[m].Freq;
                 tree[m].Len = (ush)bits;
             }
             n--;
@@ -890,7 +790,7 @@ int _tr_tally (s, dist, lc)
     if (s->level > 2 && (s->last_lit & 0xfff) == 0) {
         /* Compute an upper bound for the compressed length */
         ulg out_length = (ulg)s->last_lit*8L;
-        ulg in_length = (ulg)((N64_LONG)s->strstart - s->block_start);
+        ulg in_length = (ulg)((int)s->strstart - s->block_start);
         int dcode;
         for (dcode = 0; dcode < D_CODES; dcode++) {
             out_length += (ulg)s->dyn_dtree[dcode].Freq *
@@ -1237,7 +1137,7 @@ local void fill_window(s)
             s->match_start -= wsize;
             s->strstart    -= wsize; /* we now have strstart >= MAX_DIST */
 
-            s->block_start -= (N64_LONG) wsize;
+            s->block_start -= (int) wsize;
 
             /* Slide the hash table (could be avoided with 32 bit values
                at the expense of memory usage):
@@ -1299,7 +1199,7 @@ local void fill_window(s)
    _tr_flush_block(s, (s->block_start >= 0L ? \
                    (charf *)&s->window[(unsigned)s->block_start] : \
                    (charf *)Z_NULL), \
-		(ulg)((N64_LONG)s->strstart - s->block_start), \
+		(ulg)((int)s->strstart - s->block_start), \
 		(eof)); \
    s->block_start = s->strstart; \
    flush_pending(s->strm); \
