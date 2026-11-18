@@ -14,7 +14,7 @@ symbols live), [PROTOTYPES.md](PROTOTYPES.md).
 | Record | N64 | PC | Storage on the PC | Why |
 |---|---:|---:|---|---|
 | car, `pc_cars[12]` (N64 `gGameCar[6]`) | 0x3B8 | **0x510** (0x468 until 2026-11-09) | own storage, no N64 address (`struct pc_car`, [DECOUPLE.md](DECOUPLE.md) 4) | its visuals hold function pointers, and +0x380 points at own storage: those must be host pointers |
-| visual, `tVisual` (21 per car at +0x110; the environment pool `gEnvirons[100]`) | 0x18 | **0x28** (0x20 until 2026-11-09) | inside the car; the pool is C-defined | `next` and `func` are host pointers; `data` holds numbers or a pointer (a target: section 3), pointer-sized |
+| visual, `tVisual` (21 per car at +0x110; the environment pool `gEnvirons[100]`) | 0x18 | **0x28** (0x20 until 2026-11-09) | inside the car; the pool is C-defined | `next` and `func` are host pointers; `data` holds numbers or a pointer (a target: section 3), pointer-sized. One declaration since wave 4, `struct pc_visual` (`tVisual`, pc_game_types.h; RECORDS.md 3.2) |
 | model, `pc_models[12]` (N64 `D_8014A250[6]`) | 0x808 | **0x830** | own storage, no N64 address (`struct pc_model`, [DECOUPLE.md](DECOUPLE.md) 3) | its five pointer fields (MAT3's `car`, `tune`, `lasttp[4]`, `torquecurve`, `movingSurface`) are host pointers (since 2026-11-09, section 4) |
 | car physics descriptor, `car_descriptors[6]` (MAT3 `_tCar`; `model->car`, `gCarModels[body]`) | 0xB4 | **0xC8** | own storage (data.c), filled from the image | its four tire pointers (`tires[4]`, to `frontTire`) are host pointers (since 2026-11-09, section 4) |
 

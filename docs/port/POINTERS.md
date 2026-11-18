@@ -394,7 +394,8 @@ element is larger on the PC than the size its initializer passes. Those lists ge
 | `gSkidList` | skid-mark effects (doubly linked) | 36 | 56 | `InitSkids` |
 | `gTargetList` | the level-object nodes, `pc_target_nodes` (decoupled; 10.2) | 0x70 | 0x78 | `initTargetStructs` |
 
-The skid-mark views (skid_marks' `EffectObj`, `AnimateSkids`'s `Voice`, `InitSkids`'s `Node`) have a
+The skid-mark views (skid_marks' `EffectObj`, `AnimateSkids`'s `Voice`, `InitSkids`'s `Node`; one `tSkid` since
+wave 4, RECORDS.md 3.2) have a
 pointer-sized back link, and skid_marks reads the active list as the header's fourth pointer word on the PC (the
 fifth `s32` on the N64). Test: `assets_pool`. The four list functions read the header as include/game's `tStatList`
 and the links as `tStatLLE`/`tDLLE`; every list's links are host pointers since the level-object nodes' were too
@@ -685,6 +686,8 @@ range and colour. The storage had the 80-byte layout; four views padded over the
 (`ZOID_ProjectWindow`, through the getter) padded too, and `WorldFogDensity` spaced the windows 72 bytes apart
 (`VIEW_SIZE`). The m2c accessors `ZOID_SetViewport` (set `first`, `bounds`), `ZOID_GetWindow` (a window) and
 `ZOID_GetFog` (the fog range and colour) have PC versions. `set_window.c` is a weak copy and keeps its view.
+Since wave 4 the windows are one record, MAT3's `tWindowInfo` (scene.h), ZoidWinInfo's own type: the views are gone
+([RECORDS.md](RECORDS.md) 3.2).
 
 ### 10.5 Frame records and texture-animation frames
 
@@ -694,7 +697,7 @@ range and colour. The storage had the 80-byte layout; four views padded over the
   of `frame_records` are arrays of half the `Segs` struct and agree with it (view_check now compares such arrays element
   by element). Since [NATIVE.md](NATIVE.md) 18 `ClearScreen` reads `frame_records[n].colorBuffer`; the label is gone.
 - `TextureAnimation` typed the frame's name (`texture_swap_shared_frames`, `InitTextureAnimation`'s `Item12`) as a `u32`; it is a
-  pointer. The host offsets were the same.
+  pointer. The host offsets were the same. (Since wave 4 the frame is one record, MAT3's `tTextureBase`, scene.h.)
 
 ### 10.6 Tests and checks
 
@@ -748,7 +751,7 @@ last column include main's work merged into this branch (10258ff).
   without a NULL check when its flag 0x4000 is set. The drafts are in the PC build now, with the car's and the info
   record's PC layouts under `TARGET_PC` (DATA.md section 4); `assets_weapons` runs them.
 - **`TextureSwapLists`'s extent** (the per-track object-animation sequences): 1,316 bytes by gap, typed as
-  `Sequence20 *[]`, so the unnamed sequence and frame tables after its pointers are converted as pointers. A size for
+  `Sequence20 *[]` (`tTextureSwap *[]` since wave 4), so the unnamed sequence and frame tables after its pointers are converted as pointers. A size for
   the pointer table, and declarations for the tables, would fix it (DATA.md).
 - endian_check reports two value conflicts on the car record (`init_view3`'s light-flash bytes at the PC offsets
   0x405/0x406 against words at +0x4C): the PC offsets taken modulo the N64 car stride, a car-record question.
