@@ -170,7 +170,6 @@ extern PolyInstance PolyInstanceList[EXTENT(39)];
 extern s32 gMatrices[EXTENT(560)];
 extern s32 gNumPolyInsts;
 extern f32 gGlobalCameraFacingScale;
-extern OSIoMesg sample_dma_io;
 extern ArbEntry ZoidWinInfo[EXTENT(4)];
 extern s8 gSplitScreen;
 /* pc_sample_dma_list: declared by its files (src/blob/groups/sample_dma_next/sample_dma_next.c: defines it) */

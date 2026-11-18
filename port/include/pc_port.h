@@ -135,7 +135,7 @@ typedef struct {
 
 int pc_gfx_init(int headless, int window_width, int window_height);   /* 0 on success */
 void pc_gfx_run_dl(const void *dl);          /* one graphics task: OSTask.t.data_ptr */
-void pc_gfx_present(const void *framebuffer);   /* osViSwapBuffer: show the frame rendered into it */
+void pc_gfx_present(const void *framebuffer);   /* pc_vi_swap_buffer's at a retrace: show the frame rendered into it */
 int pc_gfx_poll_events(void);                /* window and input events; nonzero when the user quits */
 int pc_gfx_window_closed(void);              /* that quit was the window's close (or the system's), not a key */
 /* The window's events for port/input: pc_gfx_poll_events passes each one (an SDL_Event *) to hook before its

@@ -1517,7 +1517,7 @@ def vi_mode_ntsc_lpn1():
     OSViMode: the type byte and 3 pad bytes; comRegs ctrl, width, burst, vSync, hSync, leap, hStart, xScale, vCurrent;
     fldRegs[2] origin, yScale, vStart, vBurst, vIntr), computed from what the VI registers mean, for the game's
     320 x 220 framebuffer on NTSC's 240 lines. Its scales are what video_build_adjusted_mode makes of the screen size
-    (`width x FloatA`, `(height x FloatB + 16.5) & ~15`): video_apply_pending_mode shows the picture (osViBlack(0)) only
+    (`width x FloatA`, `(height x FloatB + 16.5) & ~15`): video_apply_pending_mode shows the picture (pc_vi_black(0)) only
     once the mode it made has the table's yScale."""
     ctrl = 0x2 | 0x4 | 0x8 | 0x10 | 0x300 | 0x3000  # 16-bit, gamma dither, gamma, divot, resample only, advance 3
     burst = (62 << 20) | (5 << 16) | (34 << 8) | 57  # burst start, vsync width, burst width, hsync width

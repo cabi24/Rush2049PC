@@ -289,21 +289,6 @@ typedef struct OSContStatus { /* 0x4 bytes */
     u8 errno;  /* 0x3 */
 } OSContStatus;
 
-typedef struct OSIoMesgHdr { /* 0x10 bytes */
-    u16 type;                       /* 0x0 */
-    u8 pri;                         /* 0x2 */
-    u8 status;                      /* 0x3 */
-    struct OSMesgQueue_s *retQueue; /* 0x8 */
-} OSIoMesgHdr;
-
-typedef struct OSIoMesg { /* 0x28 bytes */
-    OSIoMesgHdr hdr; /* 0x0 */
-    void *dramAddr;  /* 0x10 */
-    u32 devAddr;     /* 0x18 */
-    u32 size;        /* 0x1C */
-    void *piHandle;  /* 0x20 */
-} OSIoMesg;
-
 typedef struct OSMesgQueue_s { /* 0x28 bytes */
     struct OSThread_s *mtqueue;   /* 0x0 */
     struct OSThread_s *fullqueue; /* 0x8 */

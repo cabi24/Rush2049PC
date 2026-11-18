@@ -121,6 +121,12 @@ void pc_pace_periodic(void);                     /* loop.c, once a second: with 
 
 /* ---------------------------------------------------------------- vi.c */
 void pc_vi_retrace(const void **present_fb);     /* main thread: one retrace; *present_fb set on a swap */
+/* The game's (declared for it in pc_prelude.h): the screen blacked out or not, the frame shown from the next retrace,
+ * the frames shown now and next. */
+void pc_vi_black(int black);
+void pc_vi_swap_buffer(void *framebuffer);
+void *pc_vi_current_framebuffer(void);
+void *pc_vi_next_framebuffer(void);
 
 /* ---------------------------------------------------------------- rcp.c: RSP tasks and the AI */
 int pc_rcp_service(uint64_t now_ns, uint64_t *next_ns);   /* main thread, unlocked; nonzero if work was done */

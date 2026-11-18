@@ -613,25 +613,6 @@ int32_t __osSiRawStartDma(int32_t direction, void *dram)
     return 0;
 }
 
-int32_t __osSiRawReadIo(uint32_t dev, uint32_t *data)
-{
-    uint32_t off = (dev & 0x7FF) - 0x7C0;
-    pthread_mutex_lock(&g_slock);
-    *data = off < 64 ? (uint32_t)g_pif[off] << 24 | (uint32_t)g_pif[off + 1] << 16 | (uint32_t)g_pif[off + 2] << 8 |
-                           g_pif[off + 3]
-                     : 0;
-    pthread_mutex_unlock(&g_slock);
-    return 0;
-}
-
-int32_t __osSiRawWriteIo(uint32_t dev, uint32_t data)
-{
-    (void)dev, (void)data;
-    return 0;
-}
-
-int32_t __osSiDeviceBusy(void) { return 0; }
-
 /* __osContRamRead's name for the data CRC (not in the symbol file). */
 uint8_t __osPfsDataChecksum(uint8_t *data) { return __osContDataCrc(data); }
 

@@ -1,9 +1,11 @@
-/* port/ultra/vi.c: the video interface (docs/port/ULTRA.md).
+/* port/ultra/vi.c: the video interface: the frame shown, the screen blacked out, the retrace event
+ * (docs/port/ULTRA.md 3 and 11).
  *
  * No VI manager thread: the host main loop calls pc_vi_retrace at 60 Hz (NTSC). Each retrace sends the
  * osViSetEvent message every retraceCount retraces, as libultra's VI manager does, and a framebuffer passed to
- * osViSwapBuffer becomes current there; the main loop then shows it (pc_gfx_present). The mode, special
- * features, blackout and scale are recorded for the renderer and for status lines. */
+ * pc_vi_swap_buffer becomes current there; the main loop then shows it (pc_gfx_present) unless the screen is blacked
+ * out. The N64's video interface also had a mode (its timing and scaling registers) and special features (gamma, the
+ * dither filter, the divot): the PC's picture is the renderer's, so the game sets none of them. */
 #define _GNU_SOURCE
 #include <pthread.h>
 
@@ -11,41 +13,20 @@
 
 static pthread_mutex_t g_vlock = PTHREAD_MUTEX_INITIALIZER;
 static struct {
-    const void *mode;
-    uint32_t features;
     int black;
-    float xscale, yscale;
     void *cur, *next;
     void *mq;
     OSMesg msg;
     uint32_t count, left;
-} g_vi = {.xscale = 1.0f, .yscale = 1.0f};
+} g_vi;
 
-void osCreateViManager(int32_t pri) { (void)pri; }
-
-void osViSetMode(void *mode)
+/* The screen blacked out (black: 1) or showing the frames swapped in (0). */
+void pc_vi_black(int black)
 {
     pthread_mutex_lock(&g_vlock);
-    g_vi.mode = mode;
+    g_vi.black = black != 0;
     pthread_mutex_unlock(&g_vlock);
 }
-
-void osViSetSpecialFeatures(uint32_t features)
-{
-    pthread_mutex_lock(&g_vlock);
-    g_vi.features = features;
-    pthread_mutex_unlock(&g_vlock);
-}
-
-void osViBlack(uint8_t active)
-{
-    pthread_mutex_lock(&g_vlock);
-    g_vi.black = active != 0;
-    pthread_mutex_unlock(&g_vlock);
-}
-
-void osViSetXScale(float scale) { g_vi.xscale = scale; }
-void osViSetYScale(float scale) { g_vi.yscale = scale; }
 
 void osViSetEvent(void *mq, OSMesg msg, uint32_t retrace_count)
 {
@@ -56,14 +37,16 @@ void osViSetEvent(void *mq, OSMesg msg, uint32_t retrace_count)
     pthread_mutex_unlock(&g_vlock);
 }
 
-void osViSwapBuffer(void *framebuffer)
+/* The frame rendered into framebuffer is shown from the next retrace on. */
+void pc_vi_swap_buffer(void *framebuffer)
 {
     pthread_mutex_lock(&g_vlock);
     g_vi.next = framebuffer;
     pthread_mutex_unlock(&g_vlock);
 }
 
-void *osViGetCurrentFramebuffer(void)
+/* The framebuffer shown now. */
+void *pc_vi_current_framebuffer(void)
 {
     pthread_mutex_lock(&g_vlock);
     void *fb = g_vi.cur;
@@ -71,7 +54,8 @@ void *osViGetCurrentFramebuffer(void)
     return fb;
 }
 
-void *osViGetNextFramebuffer(void)
+/* The framebuffer shown from the next retrace on: the current one when no swap waits. */
+void *pc_vi_next_framebuffer(void)
 {
     pthread_mutex_lock(&g_vlock);
     void *fb = g_vi.next;

@@ -137,9 +137,7 @@ typedef struct {
 extern void __scAppendList(OSSched *sc, OSScTask *task);
 extern void __scExec(OSSched *sc, OSScTask *rspTask, OSScTask *rdpTask);
 
-/* osViSwapBuffer/video_apply_pending_mode (symbol_addrs.us.txt names for these two
- * addresses); osViSwapBuffer takes the next framebuffer pointer. */
-extern void osViSwapBuffer(void *mode);
+/* video_apply_pending_mode: the video mode's change at a retrace (video_mode.c). */
 extern void video_apply_pending_mode(void);
 
 /* --- RCP/timer/scheduler internals confirmed against ultralib
@@ -186,8 +184,6 @@ extern void osSetThreadPri(OSThread *thread, OSPri priority);
  * os_thread.c, src/libultra/os_vi.c) not visible to m2c's header-only
  * type context; declare their real signatures so callers type-check. */
 extern void init_decompress_lock(void);
-extern void osViBlack(s32 mask);
-extern void osViSetSpecialFeatures(u32 features);
 
 /* --- Game thread stack (symbol_addrs.us.txt: "game thread stack base"),
  * used only for address arithmetic (base + offset) when setting up the
