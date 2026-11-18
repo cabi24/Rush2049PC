@@ -1,9 +1,9 @@
 /* port/include/pc_n64_map.h: what is left of the N64's memory map in the PC layer, the one place it writes those numbers.
  *
  * Nothing of the game is at an N64 address any more (docs/port/NATIVE.md): its data are host storage, its heap a block
- * of PC memory, its display lists hold host pointers. Two N64 formats remain, and their numbers are named here:
- *   - the cartridge on the PI bus: the game still reads its cartridge through libultra's PI, by the cartridge's bus
- *     addresses (osRomBase is N64_CART_KSEG1), and the MusyX library names its samples by them;
+ * of PC memory, its display lists hold host pointers, and it reads the cartridge by ROM offset (docs/port/ULTRA.md 11).
+ * Two numbers of the N64 remain, and they are named here:
+ *   - how far the cartridge reaches: every ROM offset is below it (the ROM's and the mods' region's);
  *   - a display list's segments: the microcode's segment table, which the renderer keeps (an address below
  *     N64_SEGMENT_SPAN can name a segment and an offset in it).
  * The data loader decodes the N64 addresses in the cartridge images' data itself (port/data/pc_data.c), and the N64
@@ -15,17 +15,12 @@
 #ifndef PC_N64_MAP_H
 #define PC_N64_MAP_H
 
-/* ---------------------------------------------------------------- the cartridge on the PI bus */
+/* ---------------------------------------------------------------- the cartridge */
 
-/* The cartridge ROM is PI domain 1, from bus address N64_CART_PHYS up to the PIF's boot ROM. A ROM offset is a bus
- * address there less N64_CART_PHYS; the game names the cartridge through the CPU's uncached segment, KSEG1
- * (N64_CART_KSEG1, osRomBase), whose addresses are the bus address with 0xA0000000 added. */
-#define N64_CART_PHYS 0x10000000u      /* PI_DOM1_ADDR2: the cartridge ROM's first byte on the bus */
-#define N64_PIF_ROM_PHYS 0x1FC00000u   /* PIF_ROM_START: the PIF's boot ROM, where the cartridge's range ends */
-#define N64_CART_KSEG1 0xB0000000u     /* the cartridge's first byte through KSEG1 (osRomBase) */
-#define N64_CART_SPAN (N64_PIF_ROM_PHYS - N64_CART_PHYS)   /* the bytes of ROM the bus can address */
-/* The bus address of a CPU address in KSEG0 or KSEG1 (K0_TO_PHYS, K1_TO_PHYS): a cartridge address's. */
-#define N64_TO_PHYS(a) ((a) & 0x1FFFFFFFu)
+/* The bytes of cartridge the N64 could address (its ROM ran from bus address 0x10000000 to the PIF's boot ROM at
+ * 0x1FC00000): the ROM offsets the game reads are below it, the mods' region's too (port/ultra/ultra.h's
+ * PC_ROM_MODS_MAX), so the sound library tells a place in the cartridge from a pointer by its size. */
+#define N64_CART_SPAN 0x0FC00000u
 
 /* ---------------------------------------------------------------- a display list's segments */
 

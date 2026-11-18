@@ -7,8 +7,8 @@
  * sound_stream_start) once the PCM ring is primed, and frees the stream once it has played out or was stopped.
  * The streams have their own lock (speech_lock), apart from the library's. MusyX-side code with no MAT3
  * counterpart; the game never calls speech_init, so none of this runs (the module is linked in, unused).
- * N64-shaped: the bank is read by cartridge DMA, and speech_set_bank tells a cartridge address from a RAM one by
- * its top bits. */
+ * The bank is read from the cartridge by the library's DMA queue (dma_queue.c), and speech_set_bank tells a place in
+ * the cartridge, a ROM offset, from a pointer by its size (sound_hw_is_cartridge). */
 #include "../rom_tu.h"
 #include "game/soundlib.h"   /* SpeechStream */
 #include "../sound/sound_services.h"
@@ -52,7 +52,6 @@ extern void (*sound_frame_hook)(void);
 extern unsigned int speech_take_samples(SpeechStream *, unsigned int);
 extern void sound_dma_read_async(void *, void *, unsigned int);
 extern unsigned int sound_stream_buffer_size(unsigned int);
-extern void osInvalDCache(void *, int);
 extern void speech_reset_decoder(SpeechStream *, void *, void *, unsigned int, void (*)(void *, void *, unsigned int, OSMesgQueue *));
 extern void speech_mark_stopped(SpeechStream *);
 extern void speech_decode(SpeechStream *);
@@ -212,7 +211,6 @@ unsigned int speech_play(unsigned int index, unsigned int rate,
             } else {
                 size = sound_stream_buffer_size(stream->buffer_count);
                 stream->buffer = sound_services.allocate(size, 0);
-                osInvalDCache(stream->buffer, size);
             }
             if (stream->buffer) {
                 queue_token = speech_lock();
@@ -386,10 +384,10 @@ float speech_get_position(unsigned int token, float *duration)
     return 0.0f;
 }
 
-/* Selects the speech bank. A bank in the cartridge (source a ROM offset or a cartridge address: sound_hw_is_cartridge)
+/* Selects the speech bank. A bank in the cartridge (source a ROM offset: sound_hw_is_cartridge)
  * has its count and offset table read into allocated memory by DMA, its entries' data following them; a bank in RAM
- * is used where it is, with its entries' data at `data` (in the cartridge). The speech code carries the cartridge
- * addresses it reads from in pointers (dma_queue.c). Frees the previous table if it was allocated here. Returns 1, or
+ * is used where it is, with its entries' data at `data` (in the cartridge). The speech code carries the ROM offsets
+ * it reads from in pointers (dma_queue.c). Frees the previous table if it was allocated here. Returns 1, or
  * 0 when the module is not initialized or out of memory. */
 int speech_set_bank(void *source, void *data)
 {
@@ -445,7 +443,6 @@ void speech_init(unsigned int flags)
         size = sound_stream_buffer_size(SPEECH_STATIC_BUFFER_SAMPLES);
         for (i = 0; i < SPEECH_STREAMS; i++) {
             speech_static_buffers[i] = sound_services.allocate(size, 0);
-            osInvalDCache(speech_static_buffers[i], size);
         }
     }
     sound_frame_hook = speech_service;

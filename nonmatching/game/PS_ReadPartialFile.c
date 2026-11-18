@@ -8,14 +8,6 @@ typedef struct OSMesgQueue {
     s32 validCount, first, msgCount;
     OSMesg *msg;
 } OSMesgQueue;
-typedef struct OSPfs {
-    s32 status;
-    OSMesgQueue *queue;
-    s32 channel;
-    u8 id[32], label[32];
-    s32 version, dir_size, inode_table, minode_table, dir_table, inode_start_page;
-    u8 banks, activebank;
-} OSPfs;
 
 extern void osCreateMesgQueue(OSMesgQueue *, OSMesg *, s32);
 extern s32 osSendMesg(OSMesgQueue *, OSMesg, s32);
@@ -64,7 +56,7 @@ void pdf_dealloc(void *ptr)
 }
 void pdf_free_blocks(s32 pak)
 {
-    osPfsFreeBlocks((OSPfs *)&gPaks[pak].pfs, (s32 *)&gPaks[pak].FreeSpace);
+    osPfsFreeBlocks(&gPaks[pak].pfs, (s32 *)&gPaks[pak].FreeSpace);
 }
 void pdf_release(tPakHandle *fileh)
 {
@@ -72,7 +64,6 @@ void pdf_release(tPakHandle *fileh)
     InsertLLE(&pak_free_handles, fileh, pak_free_handles.head);
 }
 
-extern void osInvalDCache(void *, s32);
 
 void prpf_nop(void)
 {
@@ -97,13 +88,12 @@ void PS_ReadPartialFile(tPakHandle *fileh, s32 offset, u32 numBytes)
     if (offset) {}
     psfile->data = AllocateHandleHeap(0, gPaks[pak].files[fileNo].mapBytes + psfile->size);
     memset(*psfile->data + psfile->size, 0, gPaks[pak].files[fileNo].mapBytes);
-    osInvalDCache(*psfile->data, psfile->size);
     prpf_nop();
     paksys_lock();
     size = numBytes;
     do {} while (0);
 read_retry:
-    error = osPfsReadWriteFile((OSPfs *)&gPaks[pak].pfs, fileNo, 0, offset,
+    error = osPfsReadWriteFile(&gPaks[pak].pfs, fileNo, 0, offset,
                                ((size + 31) >> 5) << 5, *psfile->data);
     if (error) {
         gPaks[pak].error = pak_error_from_pfs(error);

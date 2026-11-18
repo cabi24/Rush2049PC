@@ -8,7 +8,7 @@
  * their resources here.
  *
  * MusyX is the N64's sound library: no MAT3 counterpart. A record holds its payload (in the pool, wave 7) as a
- * pointer; a sample directory's records hold their samples' cartridge addresses, 32 bits, as the file has room for
+ * pointer; a sample directory's records hold their samples' ROM offsets, 32 bits, as the file has room for
  * (docs/port/MUSYX_DATA.md 2, 4). */
 #include "../rom_tu.h"
 #include "musyx.h"
@@ -279,7 +279,7 @@ int sound_remove_table(u16 id)
     return 0;
 }
 
-/* Registers a sample directory (records, ended by id SAMPLE_ID_END; cart_base: the samples' cartridge address, which
+/* Registers a sample directory (records, ended by id SAMPLE_ID_END; cart_base: the samples' ROM offset, which
  * each record's offset counts from), clearing its records' reference counts. Returns 1 when it is registered (now or
  * before), 0 when MAX_SAMPLE_DIRECTORIES are. */
 int sound_add_sample_directory(SampleRecord *records, unsigned int cart_base)
@@ -546,7 +546,7 @@ int sound_compare_sample_ids(const unsigned short *left, const unsigned short *r
     return *left - *right;
 }
 
-/* Fills *sample with the sample with this id from the first directory that has it: its cartridge address, key and
+/* Fills *sample with the sample with this id from the first directory that has it: its ROM offset, key and
  * rate, length, loop and format. Returns 0, or -1 if no directory has it. */
 int sound_find_sample(u16 id, SoundSampleInfo *sample)
 {

@@ -3,7 +3,6 @@
 /* Include after unchanged current rom_tu.h; declarations only. */
 extern s16 gRenderInProgress;
 extern OSViMode osViModeTable[];
-extern void osCreateViManager(OSPri);
 extern void osViSetEvent(OSMesgQueue *,OSMesg,s32);
 extern u32 osSetIntMask(u32);
 extern void __scMain(void *);
@@ -11,7 +10,6 @@ extern s32 osSpTaskYielded(void *);
 extern s32 __scExecTask(OSSched *,OSScTask *);
 extern s32 __scScheduleCore(OSSched *,OSScTask **,OSScTask **,s32);
 extern void __scHandlePreNMI(OSSched *);
-extern void *osViGetCurrentFramebuffer(void),*osViGetNextFramebuffer(void);
 extern void *__osScPendingSwap;
 extern u32 __osScSwapCount;
 extern void osSpTaskYield(void);

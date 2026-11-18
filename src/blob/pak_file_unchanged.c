@@ -39,7 +39,7 @@ int pak_file_unchanged(tPakHandle *handle)
     tPak *pak;
     u32 port,file;
     int error;
-    PakFileState state;
+    OSPfsState state;
     port = handle->file->pak;
     file = handle->file->fileNo;
     pak = &gPaks[port];

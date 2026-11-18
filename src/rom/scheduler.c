@@ -91,9 +91,9 @@ __asm__(PC_ALIAS("scheduler_interrupt_queue", "gScheduler + 0x40")
 #define OS_SC_SP 0x2
 #define OS_SC_DP 0x1
 
-/* Makes the scheduler: no tasks, no clients, its command and task queues, the VI manager and the video mode (from
- * libultra's mode table), the screen black; the RSP, RDP and pre-NMI interrupts and the retrace (every numFields
- * fields) as messages on its command queue; then its thread at priority. */
+/* Makes the scheduler: no tasks, no clients, its command and task queues, the screen black; the RSP, RDP and pre-NMI
+ * interrupts and the retrace (every numFields fields) as messages on its command queue; then its thread at priority.
+ * (mode, the TV's entry of libultra's mode table, set the N64 video interface's mode, which the PC doesn't have.) */
 void osCreateScheduler(OSSched *scheduler, void *stack, OSPri priority, u8 mode, u8 numFields)
 {
     gRenderInProgress = 0;
@@ -109,9 +109,7 @@ void osCreateScheduler(OSSched *scheduler, void *stack, OSPri priority, u8 mode,
     scheduler->priority = 4;
     osCreateMesgQueue(&scheduler->cmdQueue, scheduler->cmdMsgs, 8);
     osCreateMesgQueue(&scheduler->retQueue, scheduler->retMsgs, 8);
-    osCreateViManager(254);
-    osViSetMode(&osViModeTable[mode]);
-    osViBlack(1);
+    pc_vi_black(1);
     osSetEventMesg(OS_EVENT_SP, &scheduler->cmdQueue, (OSMesg)RSP_DONE_MSG);
     osSetEventMesg(OS_EVENT_DP, &scheduler->cmdQueue, (OSMesg)RDP_DONE_MSG);
     osSetEventMesg(OS_EVENT_PRENMI, &scheduler->cmdQueue, (OSMesg)PRE_NMI_MSG);
@@ -144,15 +142,12 @@ extern s32 osRecvMesg(OSMesgQueue *,OSMesg *,s32);
 extern s32 osJamMesg(OSMesgQueue *,OSMesg,s32),osSendMesg(OSMesgQueue *,OSMesg,s32);
 extern void osCreateThread(OSThread *,s32,void (*)(void *),void *,void *,OSPri);
 extern void osStartThread(OSThread *);
-extern void osCreateViManager(OSPri);
-extern void osViSetMode(void *),osViBlack(s32);
 extern u32 osSetIntMask(u32);
 extern void osViSetEvent(OSMesgQueue *,OSMesg,s32);
 extern OSTime osGetTime(void);
-extern void *osViGetCurrentFramebuffer(void),*osViGetNextFramebuffer(void);
-extern void osViSwapBuffer(void *),video_apply_pending_mode(void);
+extern void video_apply_pending_mode(void);
 extern s32 osSpTaskYielded(void *);
-extern void osWritebackDCacheAll(void),osSpTaskLoad(void *),osSpTaskStartGo(void *),osSpTaskYield(void);
+extern void osSpTaskLoad(void *),osSpTaskStartGo(void *),osSpTaskYield(void);
 extern s32 osDpSetNextBuffer(void *,u64);
 void osCreateScheduler(OSSched *,void *,OSPri,u8,u8);
 void osScAddClient(OSSched *,OSScClient *,OSMesgQueue *);
@@ -216,7 +211,6 @@ void __scSchedule(OSSched *scheduler)
  * the last swap (the pending video mode with it); and every client gets the retrace message. */
 extern void *__osScPendingSwap;
 extern u32 __osScSwapCount;
-extern void osViSwapBuffer(void *mode);
 /* The pending swap is the frame buffer waiting to be shown, or NULL (a pointer since docs/port/NATIVE.md step 6; the
  * N64 kept its 32-bit address). */
 extern void video_apply_pending_mode(void);
@@ -231,7 +225,7 @@ void __scHandleRetrace(OSSched *scheduler) {
 
     scheduler->retraceCount++;
     if (__osScPendingSwap && scheduler->retraceCount - __osScSwapCount >= PC_SWAP_RETRACES) {
-        osViSwapBuffer(__osScPendingSwap);
+        pc_vi_swap_buffer(__osScPendingSwap);
         video_apply_pending_mode();
         __osScSwapCount = scheduler->retraceCount;
         __osScPendingSwap = NULL;
@@ -291,8 +285,8 @@ OSScTask *__scTaskReady(OSSched *scheduler, OSScTask *task) {
     void *current;
     void *next;
     if (task != 0) {
-        if ((current = osViGetCurrentFramebuffer()) !=
-            (next = osViGetNextFramebuffer())) return 0;
+        if ((current = pc_vi_current_framebuffer()) !=
+            (next = pc_vi_next_framebuffer())) return 0;
         if (__osScPendingSwap != 0 && scheduler->retraceCount - __osScSwapCount < PC_SWAP_RETRACES)
             return 0;
         return task;
@@ -312,7 +306,7 @@ s32 __scExecTask(OSSched *scheduler, OSScTask *task)
             if ((task->flags & OS_SC_SWAPBUFFER) && (task->flags & OS_SC_LAST_TASK)) {
                 if (scheduler->retraceCount - __osScSwapCount >= PC_SWAP_RETRACES) {
                     __osScSwapCount = scheduler->retraceCount;
-                    osViSwapBuffer(task->framebuffer);
+                    pc_vi_swap_buffer(task->framebuffer);
                     video_apply_pending_mode();
                 } else {
                     __osScPendingSwap = task->framebuffer;
@@ -359,7 +353,6 @@ void __scExec(OSSched *scheduler,OSScTask *sp,OSScTask *dp) {
   } else if(!(sp->state&OS_SC_YIELDED)) {
    __osScRetraceTime=__osScFrameTime;
   }
-  osWritebackDCacheAll();
   sp->state&=~(OS_SC_YIELD|OS_SC_YIELDED);
   osSpTaskLoad(&sp->type);
   osSpTaskStartGo(&sp->type);

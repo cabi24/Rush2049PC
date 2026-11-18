@@ -70,7 +70,7 @@ struct tPakFile {
     u8 unused;
     u16 mapBytes;        /* the size of its dirty map: one bit for each 32 bytes of its data, after the data */
     u16 unused2;
-    PakFileState state;  /* its directory entry (osPfsFileState) */
+    OSPfsState state;    /* its directory entry (osPfsFileState) */
 };
 
 /* One controller's pak, as the pak system keeps it (gPaks; MAT3 paksysdc.c's anon_changed_inserted_25c, whose flags
@@ -88,7 +88,7 @@ struct tPak {
     s8 original;         /* the pak in is the one the files came from */
     s8 locked;           /* one of its files is locked (tPakFile.locked) */
     s8 flush;            /* one of its files is dirty */
-    PcPfs pfs;           /* the pak's libultra handle */
+    OSPfs pfs;           /* the pak's libultra handle */
     s32 error;           /* the last error (kPS_Err*) */
     s32 FreeSpace;       /* free bytes (osPfsFreeBlocks) */
     u8 motorOn;          /* the rumble thread's: the motor is running */

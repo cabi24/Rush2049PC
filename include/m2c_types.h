@@ -137,33 +137,8 @@ typedef struct {
 extern void __scAppendList(OSSched *sc, OSScTask *task);
 extern void __scExec(OSSched *sc, OSScTask *rspTask, OSScTask *rdpTask);
 
-/* osViSwapBuffer/video_apply_pending_mode (symbol_addrs.us.txt names for these two
- * addresses); osViSwapBuffer takes the next framebuffer pointer. */
-extern void osViSwapBuffer(void *mode);
+/* video_apply_pending_mode: the video mode's change at a retrace (video_mode.c). */
 extern void video_apply_pending_mode(void);
-
-/* --- Inflate double-buffers + full PI DMA request (libultra osPiStartDma:
- * mb, priority, direction, devAddr, dramAddr, size, mq). */
-extern u8 unzip_input_a[0x1000];
-extern u8 unzip_input_b[0x1000];
-extern s32 osPiStartDma(OSIoMesg *mb, s32 priority, s32 direction,
-                              u32 devAddr, void *dramAddr, u32 size,
-                              OSMesgQueue *mq);
-
-/* --- PI manager (symbol_addrs.us.txt: osPiInit/__osPiGetAccess/
- * __osPiRelAccess/__osPiMgrState, standard libultra signatures). */
-typedef struct {
-    s32 flag;   /* 0x00 */
-    u8 pad04[0x8 - 0x4];
-    s32 unk8;   /* 0x08 */
-    u8 pad0C[0x1C - 0xC];
-} __OSPiMgrState;
-
-extern __OSPiMgrState __osPiMgrState;
-extern void __osPiCreateAccessQueue(void);
-extern void __osPiGetAccess(void);
-extern void __osPiRelAccess(void);
-extern u32 osRomBase;
 
 /* --- RCP/timer/scheduler internals confirmed against ultralib
  * (os_internal_reg.h, os_internal_rsp.h). */
@@ -209,8 +184,6 @@ extern void osSetThreadPri(OSThread *thread, OSPri priority);
  * os_thread.c, src/libultra/os_vi.c) not visible to m2c's header-only
  * type context; declare their real signatures so callers type-check. */
 extern void init_decompress_lock(void);
-extern void osViBlack(s32 mask);
-extern void osViSetSpecialFeatures(u32 features);
 
 /* --- Game thread stack (symbol_addrs.us.txt: "game thread stack base"),
  * used only for address arithmetic (base + offset) when setting up the

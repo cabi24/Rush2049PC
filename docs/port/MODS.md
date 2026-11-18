@@ -238,10 +238,10 @@ table (`gWaveSizes`, [MEMORY.md](MEMORY.md) 5), which the mods set. At start, be
 2. **The window** is mapped at the setting's size or the mods' (`port/main.c:683`).
 3. **After the game's data** (`mods_install`, `port/main.c:742`; `pc_mods_install`, `mods.c:1164`): the files are
    copied one after another (16-aligned) into a buffer that `pc_rom_set_mods` makes the cartridge's region at
-   `PC_ROM_MODS_BASE` = 0x04000000, past the largest ROM the port takes (64 MiB), and below 0x0FC00000, so `0xB0000000
-   | offset` reaches it too. The file table's entries of each replaced wave become that offset, the plain file's size
-   and kind 0 (raw). `pc_rom_copy` (the PI DMA), `lzss_decode` and `unzipdata_from_rom` read the region as the ROM
-   (`mods_at`, `pi.c:148`).
+   `PC_ROM_MODS_BASE` = 0x04000000, past the largest ROM the port takes (64 MiB), and below 0x0FC00000, where every ROM
+   offset is (the sound library tells a place in the cartridge from a pointer by it). The file table's entries of
+   each replaced wave become that offset, the plain file's size and kind 0 (raw). `pc_rom_copy` (the cartridge's
+   read, `pc_cart_read`), `lzss_decode` and `unzipdata_from_rom` read the region as the ROM (`mods_at`, pi.c).
 4. **The game** then does what it does for any file: LoadWave allocates the block by the size, `_ReadWave` DMAs the
    file into it, `pc_wave_loaded` converts it (a WAD's records, built beside the file: the game finds a mod's models,
    textures and palettes by name through them, as the cartridge's: [NATIVE.md](NATIVE.md) step 7; and its display

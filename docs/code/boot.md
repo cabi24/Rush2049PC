@@ -12,12 +12,13 @@ spellings and the evidence. Every file there is listed with its new path at the 
 
 ## 1. What runs when
 
-1. **`main`** (boot.c) is what the boot code jumps to. It initializes libultra (`__osInitialize_common`), reads the
-   cartridge header, and starts the **idle thread** (`idle_thread_entry`, priority 2), which creates the PI manager
-   and starts **thread 6, `main_thread_entry`**.
+1. **`main`** (boot.c) is what the boot code jumps to. It initializes libultra (`__osInitialize_common`) and starts the
+   **idle thread** (`idle_thread_entry`, priority 2), which starts **thread 6, `main_thread_entry`**. (The N64's also
+   read 64 bytes of the cartridge that nothing used, and the idle thread created the PI manager: the PC reads the
+   cartridge with `pc_cart_read`, [ULTRA.md](../port/ULTRA.md) 11.)
 2. **`main_thread_entry`** (the main thread's body; its old name called it an init) creates the message queues
    (`rom_dma_queue`, `unzip_dma_queue`, `main_thread_queue`, `game_thread_queue`), the scheduler (`gScheduler`, priority 12),
-   inflates the game image from the cartridge into RAM with `unzipdata_from_rom`, registers with the scheduler for
+   (the N64's inflated the game image from the cartridge here; the PC's is linked in), registers with the scheduler for
    retraces, starts the other threads (thread 8 `gAudioThread`, thread 5 `model_thread`, thread 7 `game_thread`),
    runs the game's late init and sound init, waits for the scheduler's first message, and then runs the game's main
    loop forever.
@@ -34,7 +35,7 @@ with a `<name>_stack_top`; their bodies are `<name>_entry` in the game image (r1
 |---|---|---|
 | Frame timer | `timer.c` | MAT3's `timer.c`, function for function: `InitializeTimer`, `UpdateFrameTimer`, `PauseTimer`/`ResumeTimer`, the countdown (`SetCountdownTimer`, `AddCountdownTime`, `GetCountdownTimeRemaining`, `CountdownTimeOut`). `gSeconds` is the time since the countdown started, `gFrameSeconds` the last frame's time (at most 5 retraces), `gRetraceRate`/`gRetraceTime` 60 Hz or 50 Hz. It counts retraces from `scheduler_retrace_count`. |
 | Scheduler | `scheduler.c` | The SDK-style scheduler (`osCreateScheduler`, `osScAddClient`, `__scMain` and the `__sc*` handlers): audio and graphics tasks on the RSP, retrace messages to clients. `gScheduler` is its state; `scheduler_task_queue`, `scheduler_interrupt_queue`, `scheduler_thread`, `scheduler_current_rsp_task` and `scheduler_retrace_count` are names inside it. |
-| Video mode | `video_mode.c` | Chooses the VI mode for the TV type (`video_set_mode`, which also sets the retrace rate), and moves the picture for the options screen's screen position (`video_set_offset`, `video_get_offset`, `video_get_default_offset`): it builds an adjusted copy of the mode (`video_build_adjusted_mode`) and applies it two retraces later (`video_apply_pending_mode`). N64 only. |
+| Video mode | `video_mode.c` | Chooses the VI mode for the TV type (`video_set_mode`, which also sets the retrace rate), and moves the picture for the options screen's screen position (`video_set_offset`, `video_get_offset`, `video_get_default_offset`): it builds an adjusted copy of the mode (`video_build_adjusted_mode`) and applies it two retraces later (`video_apply_pending_mode`). The mode is the N64 video interface's registers: on the PC nothing takes it, and what the game still uses of it is when it unblacks the screen (`pc_vi_black`). |
 | Decompression | `decompress.c`, `unzip.c` | A lock (`acquire_decompress_lock`, `release_decompress_lock`) around the two decompressors: `lzss_decompress` and the inflater. `unzip.c` is MAT3's `unzip.c` (a gzip-derived inflater: `huft_build`, `inflate_codes`, `inflate_block`, ...), with an N64 input path (`get_buffer`) that DMAs the compressed stream from the cartridge in 4 KB halves (`unzip_input_a`, `unzip_input_b`). |
 | libultra | `libultra/*.c` | Nintendo's OS: threads, message queues, timers, VI/PI/SI/AI managers, the controller and Controller Pak file system, Rumble Pak, the RSP task calls, `gu*` matrix helpers. Named after ultralib's files; [SYMBOL_NOTES.md](../SYMBOL_NOTES.md) has the evidence for every name. |
 | libc | `libc/*.c` | IDO's `memcpy`, `memset`, `memchr`, `strlen`, `strchr`, `sprintf` and its float formatting, `modf`. |

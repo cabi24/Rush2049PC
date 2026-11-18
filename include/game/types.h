@@ -74,8 +74,6 @@ struct Node104;
 struct Node16;
 struct Node68;
 struct OSContPad;
-struct OSPfs;
-struct OSPfsState;
 struct OSScClient_s;
 struct OSScTask_s;
 struct OSThread_s;
@@ -207,21 +205,6 @@ typedef struct OSContStatus { /* 0x4 bytes */
     u8 errno;  /* 0x3 */
 } OSContStatus;
 
-typedef struct OSIoMesgHdr { /* 0x10 bytes */
-    u16 type;                       /* 0x0 */
-    u8 pri;                         /* 0x2 */
-    u8 status;                      /* 0x3 */
-    struct OSMesgQueue_s *retQueue; /* 0x8 */
-} OSIoMesgHdr;
-
-typedef struct OSIoMesg { /* 0x28 bytes */
-    OSIoMesgHdr hdr; /* 0x0 */
-    void *dramAddr;  /* 0x10 */
-    u32 devAddr;     /* 0x18 */
-    u32 size;        /* 0x1C */
-    void *piHandle;  /* 0x20 */
-} OSIoMesg;
-
 typedef struct OSMesgQueue_s { /* 0x28 bytes */
     struct OSThread_s *mtqueue;   /* 0x0 */
     struct OSThread_s *fullqueue; /* 0x8 */
@@ -310,14 +293,9 @@ typedef union Vtx { /* 0x10 bytes */
     s64 force_structure_alignment;
 } Vtx;
 
-typedef union __OSInodeUnit { /* 0x2 bytes */
-    struct { u8 bank; u8 page; } inode_t;
-    u16 ipage;
-} __OSInodeUnit;
-
-typedef struct __OSInode { /* 0x100 bytes */
-    __OSInodeUnit inode_page[128]; /* 0x0 */
-} __OSInode;
+/* The controller pak's file system: OSPfs, OSPfsState, __OSInodeUnit, __OSInode (declared once for the game and the
+ * boot segment's libultra). */
+#include "game/pfs.h"
 
 typedef struct __OSThreadContext { /* 0x190 bytes */
     u64 at;       /* 0x0 */
@@ -469,22 +447,6 @@ typedef struct LayerRecord { /* 0x10 bytes */
     u16 count;      /* 0xA */
     u16 references; /* 0xC */
 } LayerRecord;
-
-typedef struct PcPfs { /* 0x70 bytes */
-    s32 status;           /* 0x0 */
-    void *queue;          /* 0x8 */
-    s32 channel;          /* 0x10 */
-    u8 id[32];            /* 0x14 */
-    u8 label[32];         /* 0x34 */
-    s32 version;          /* 0x54 */
-    s32 dir_size;         /* 0x58 */
-    s32 inode_table;      /* 0x5C */
-    s32 minode_table;     /* 0x60 */
-    s32 dir_table;        /* 0x64 */
-    s32 inode_start_page; /* 0x68 */
-    u8 banks;             /* 0x6C */
-    u8 activebank;        /* 0x6D */
-} PcPfs;
 
 typedef struct PcRespawn { /* 0x10 bytes */
     s8 flag;    /* 0x0 */
@@ -1195,15 +1157,6 @@ typedef struct tSaveData tSaveData;
 typedef struct tGhostHeader tGhostHeader;
 typedef struct tGhostFile tGhostFile;
 typedef struct tPlayerProfile tProfile;   /* MAT3 tPlayerProfile */
-
-/* libultra's OSPfsState: a file's entry in a pak's directory (the same layout on the PC). */
-typedef struct PakFileState { /* 0x20 bytes */
-    u32 file_size;     /* 0x0 0: no file */
-    u32 game_code;     /* 0x4 */
-    u16 company_code;  /* 0x8 */
-    u8 ext_name[4];    /* 0xA in the pak's character set (pak_charset) */
-    u8 game_name[16];  /* 0xE */
-} PakFileState;
 
 /* The circuit in progress (MAT3 tCircuit; circuitscr.c has its own view of that name). */
 typedef struct tCircuitRecord { /* 0x4C bytes */

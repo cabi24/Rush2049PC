@@ -122,9 +122,6 @@ struct OSPfs;
 #define OS_MESG_PRI_NORMAL 0
 #define OS_MESG_PRI_HIGH   1
 
-/* N64 I/O Message - defined in include/PR/os_pi.h */
-/* Include os_pi.h for OSIoMesg definition */
-
 /* External RSP boot/ucode symbols */
 extern u8 rspbootTextStart[], rspbootTextEnd[];
 extern u8 gspF3DEX2_fifoTextStart[], gspF3DEX2_fifoTextEnd[];

@@ -72,12 +72,6 @@ typedef union {
 VIEW(u8 *, frame_dynamic);
 #define frame_dynamic frame_dynamic_view
 
-void osViSetSpecialFeatures(u32);
-#define OS_VI_DIVOT_ON 0x0010
-#define OS_VI_DIVOT_OFF 0x0020
-#define OS_VI_DITHER_FILTER_ON 0x0040
-#define OS_VI_DITHER_FILTER_OFF 0x0080
-
 #define FRAME_MATRIX_OFFSET 1728   /* where a frame buffer's matrices start (frame_matrix_cursor) */
 #define ZBUFFER_CLEAR 0xFFFCFFFC   /* the depth buffer's far value, twice (a fill colour covers two pixels) */
 #define SPLIT_LINE_COLOR 0x00010001 /* near black, the lines between the windows of a split screen */
@@ -86,8 +80,10 @@ void osViSetSpecialFeatures(u32);
  * buffer cleared to far, the colour buffer filled with gBgColor, the lines between the windows of a split screen
  * (gSplitScreen, which ZOID_SplitMenuScreen(0) returns: 2 the grid of quarters, the fourth one black with three
  * windows; 1 two windows stacked, three quarters of the width, the last quarter black), the
- * texture filter and dither the video options chose (video_texture_filter, video_color_dither, the VI's dither
- * filter and divot), then the blitter's and the text's frame (BlitInit, HAL_StartText). EndGraphics ends it. */
+ * texture filter and dither the video options chose (video_texture_filter, video_color_dither), then the blitter's
+ * and the text's frame (BlitInit, HAL_StartText). EndGraphics ends it. The options' dither filter and divot
+ * (video_dither_filter, video_divot) were the N64 video interface's, which the PC doesn't have: they change nothing
+ * here. */
 void StartGraphics(void) {
     u32 color;
     FrameRecord *frame;
@@ -98,9 +94,8 @@ void StartGraphics(void) {
     gSPSegment(frame_dl++, 0, 0);
     gSPDisplayList(frame_dl++, rsp_init_dl);
     gSPDisplayList(frame_dl++, rdp_init_dl);
-    /* The depth and colour images are the buffers' pointers, which the renderer draws into. The N64 gives the RDP
-     * their physical addresses (osVirtualToPhysical), as the PC did through the RDRAM window until
-     * docs/port/NATIVE.md step 4 (docs/port/GFX.md "Command formats and addresses"). */
+    /* The depth and colour images are the buffers' pointers, which the renderer draws into (docs/port/GFX.md
+     * "Command formats and addresses"). */
     gDPSetDepthImage(frame_dl++, zbuffer);
     gDPPipeSync(frame_dl++);
     gDPSetCycleType(frame_dl++, G_CYC_FILL);
@@ -148,12 +143,6 @@ void StartGraphics(void) {
     case 2:gDPSetColorDither(frame_dl++, G_CD_MAGICSQ);break;
     case 3:gDPSetColorDither(frame_dl++, G_CD_NOISE);break;
     }
-    switch(video_dither_filter) {
-    case 0:osViSetSpecialFeatures(OS_VI_DITHER_FILTER_OFF);break;
-    case 1:osViSetSpecialFeatures(OS_VI_DITHER_FILTER_ON);break;
-    }
-    if(video_divot)osViSetSpecialFeatures(OS_VI_DIVOT_ON);
-    else osViSetSpecialFeatures(OS_VI_DIVOT_OFF);
     BlitInit();
     HAL_StartText();
 }

@@ -121,6 +121,12 @@ void pc_pace_periodic(void);                     /* loop.c, once a second: with 
 
 /* ---------------------------------------------------------------- vi.c */
 void pc_vi_retrace(const void **present_fb);     /* main thread: one retrace; *present_fb set on a swap */
+/* The game's (declared for it in pc_prelude.h): the screen blacked out or not, the frame shown from the next retrace,
+ * the frames shown now and next. */
+void pc_vi_black(int black);
+void pc_vi_swap_buffer(void *framebuffer);
+void *pc_vi_current_framebuffer(void);
+void *pc_vi_next_framebuffer(void);
 
 /* ---------------------------------------------------------------- rcp.c: RSP tasks and the AI */
 int pc_rcp_service(uint64_t now_ns, uint64_t *next_ns);   /* main thread, unlocked; nonzero if work was done */
@@ -165,14 +171,18 @@ int pc_rom_open(const char *path, int check_sha1, PcRomInfo *info);
 int pc_rom_load(const char *path, int check_sha1);   /* pc_rom_open, printing why not; 0 when loaded */
 int pc_rom_blank(void);                              /* --no-rom: a zeroed 12 MiB cartridge */
 int pc_rom_copy(uint32_t rom_offset, void *dst, uint32_t size);   /* 0 if inside the ROM */
+/* The game's read of the cartridge (wave_rom_read; the sound library's DMA list, sample_dma_next): size bytes at a ROM
+ * offset (the ROM's or the mods' region's) copied to dst at once, as the cartridge holds them, then an empty message
+ * to done, an OSMesgQueue the reader waits on as it did for the N64's DMA (NULL: none). Past the cartridge's bytes,
+ * zeros and a line in the log. Declared for the game in pc_prelude.h. */
+void pc_cart_read(uint32_t rom_offset, void *dst, uint32_t size, void *done);
 /* The mods' files (docs/port/MODS.md): a second region of the cartridge at PC_ROM_MODS_BASE, past the largest ROM the
- * port takes and below the end of the cartridge's bus range (N64_CART_SPAN), so a ROM offset or a cartridge address
- * (N64_CART_KSEG1 | offset) reaches it as the ROM's. The file table's entries of a replaced wave point there.
- * pc_rom_set_mods(NULL, 0): none. */
+ * port takes and below the end of the N64 cartridge's range (N64_CART_SPAN): its ROM offsets read as the ROM's, and
+ * stay below 256 MiB, where the sound library tells a place in the cartridge from a pointer (sound_hw_is_cartridge).
+ * The file table's entries of a replaced wave point there. pc_rom_set_mods(NULL, 0): none. */
 #define PC_ROM_MODS_BASE 0x04000000u   /* a ROM offset: 64 MiB */
 #define PC_ROM_MODS_MAX (N64_CART_SPAN - PC_ROM_MODS_BASE)
 void pc_rom_set_mods(const uint8_t *data, size_t size);
-uint32_t pc_rom_word(uint32_t rom_offset);           /* big-endian word, 0 past the end */
 void pc_sha1(const void *data, size_t size, uint8_t out[20]);
 
 /* ---------------------------------------------------------------- si.c: PIF, pads, controller paks */

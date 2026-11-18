@@ -5,13 +5,13 @@
  * frame hook sound_hw_service_frame calls after it starts a new list. A blocking read then waits for the frame after
  * that, when the list has completed. MusyX is the N64's sound library: no MAT3 counterpart.
  *
- * Still N64-shaped: the sources are 32-bit cartridge addresses, which the speech code carries in pointers. */
+ * The sources are ROM offsets, which the speech code carries in pointers. */
 #include "../rom_tu.h"
 #include "musyx.h"
 #include "game/soundlib.h"   /* TransferRequest, a queued read: where to, from where in the cartridge, how many bytes
                                 (rounded up to 16); SampleDmaRequest, an entry of the DMA list */
 
-/* PC: a list entry's source is a 32-bit cartridge address, which the queue carries in a pointer
+/* PC: a list entry's source is a 32-bit ROM offset, which the queue carries in a pointer
  * (docs/port/MUSYX_DATA.md, docs/port/LAYOUT.md 5). */
 #define DMA_SOURCE(x) ((unsigned int) (uintptr_t) (x))
 
@@ -33,7 +33,6 @@ extern void sound_hw_lock(void);
 extern void sound_hw_unlock(void);
 extern void sound_dma_install_queue(void);
 extern void osYieldThread(void);
-extern void osInvalDCache(void *, int);
 extern int osRecvMesg(OSMesgQueue *, void **, int);
 
 /* The frame hook (sound_dma_flush_hook), run as sound_hw_service_frame starts a new DMA list: first wakes the reader
@@ -75,7 +74,7 @@ void sound_dma_remove_queue(void)
     sound_dma_flush_hook = 0;
 }
 
-/* Reads size bytes from cartridge address source to destination and waits until they have arrived (about two
+/* Reads size bytes from ROM offset source to destination and waits until they have arrived (about two
  * frames). A read the full queue has no room for is dropped, without waiting. */
 void sound_dma_read_blocking(void *destination, void *source, unsigned int size)
 {
@@ -86,7 +85,6 @@ void sound_dma_read_blocking(void *destination, void *source, unsigned int size)
         sound_dma_requests[sound_dma_request_count].source = source;
         sound_dma_requests[sound_dma_request_count].size = (size + 15) & ~15U;
         sound_dma_request_count++;
-        osInvalDCache(destination, size);
         sound_hw_unlock();
         osRecvMesg((OSMesgQueue *) sound_dma_done_queue, 0, OS_MESG_BLOCK);
         osYieldThread();
@@ -97,7 +95,7 @@ void sound_dma_read_blocking(void *destination, void *source, unsigned int size)
     }
 }
 
-/* Queues a read of size bytes from cartridge address source to destination and returns at once: the data is there
+/* Queues a read of size bytes from ROM offset source to destination and returns at once: the data is there
  * once the next frame's DMA list has run. A read the full queue has no room for is dropped. */
 void sound_dma_read_async(void *destination, void *source, unsigned int size)
 {
@@ -108,7 +106,6 @@ void sound_dma_read_async(void *destination, void *source, unsigned int size)
         sound_dma_requests[sound_dma_request_count].source = source;
         sound_dma_requests[sound_dma_request_count].size = (size + 15) & ~15U;
         sound_dma_request_count++;
-        osInvalDCache(destination, size);
     }
     sound_hw_unlock();
 }

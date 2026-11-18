@@ -1,6 +1,6 @@
-/* port/ultra/misc.c: osInitialize and libultra's boot parameters, the CPU's cache, TLB, interrupt and FPU control
- * (no-ops natively), a few libc pieces of the boot segment, logging and the fault handler (docs/port/ULTRA.md). On
- * Windows the fault handler and backtraces are in win32.c. */
+/* port/ultra/misc.c: osInitialize and libultra's boot parameters, the CPU's interrupt and FPU control (no-ops
+ * natively), logging and the fault handler (docs/port/ULTRA.md). On Windows the fault handler and backtraces are in
+ * win32.c. */
 #define _GNU_SOURCE
 #ifndef _WIN32
 #include <dlfcn.h>
@@ -75,19 +75,9 @@ void osInitialize(void) { pc_os_initialize(); }
 
 /* ---------------------------------------------------------------- CPU control: nothing to do natively */
 
-void osInvalDCache(void *p, int32_t n) { (void)p, (void)n; }
-void osInvalICache(void *p, int32_t n) { (void)p, (void)n; }
-void osWritebackDCache(void *p, int32_t n) { (void)p, (void)n; }
-void osWritebackDCacheAll(void) {}
-void osUnmapTLBAll(void) {}
-void osMapTLBRdb(void) {}
+/* A PC's caches are coherent and it has no TLB the game maps: the game C makes no cache or TLB calls. */
 
-static uint32_t g_sr = 0x2000FF01u, g_fpcsr = 0x01000800u, g_intmask = 0x003FFF01u;
-uint32_t __osGetSR(void) { return g_sr; }
-void __osSetSR(uint32_t sr) { g_sr = sr; }
-uint32_t __osGetCause(void) { return 0; }
-void __osSetCompare(uint32_t v) { (void)v; }
-uint32_t __osSetFpcCsr(uint32_t v) { uint32_t old = g_fpcsr; g_fpcsr = v; return old; }
+static uint32_t g_fpcsr = 0x01000800u, g_intmask = 0x003FFF01u;
 /* The game enables the FPU's invalid, divide-by-zero and overflow traps here; natively they stay masked. */
 void __setfpcsr(uint32_t v) { g_fpcsr = v; }
 

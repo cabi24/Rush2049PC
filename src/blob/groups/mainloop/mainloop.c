@@ -10,17 +10,13 @@ typedef struct { u32 opaque[6]; } OSMesgQueue;
 
 s32 osRecvMesg(OSMesgQueue *, OSMesg *, s32);
 s32 osSendMesg(OSMesgQueue *, OSMesg, s32);
-void *osViGetCurrentFramebuffer(void);
-void *osViGetNextFramebuffer(void);
-void osViBlack(u8);
 
-/* The reset button was pressed (the scheduler's pre-NMI message): silences the sound, restores the video mode and
- * blacks the screen, stops the car simulation, the rumble and the pak polls, and waits for the reset. */
+/* The reset button was pressed (the scheduler's pre-NMI message): silences the sound, blacks the screen, stops the
+ * car simulation, the rumble and the pak polls, and waits for the reset. */
 void MainPreNMI(void)
 {
     sound_freeze_output();
-    video_restore_base_mode();
-    osViBlack(1);
+    pc_vi_black(1);
     modelrun = 0;
     PS_RumbleStop();
     gPakSysInited = 0;
@@ -59,8 +55,8 @@ void process_scheduler_message(void)
         MainPreNMI();
         break;
     case OS_SC_RETRACE_MSG:
-        cur = (intptr_t)osViGetCurrentFramebuffer();
-        if ((intptr_t)osViGetNextFramebuffer() == cur && !game_frame_building && !frame_start_pending && !frame_end_requested &&
+        cur = (intptr_t)pc_vi_current_framebuffer();
+        if ((intptr_t)pc_vi_next_framebuffer() == cur && !game_frame_building && !frame_start_pending && !frame_end_requested &&
             gLastFrameCount != gScheduler.retraceCount && gfx_tasks_pending < 2) {
             retraces_since_frame = 0;
             StartGraphics();

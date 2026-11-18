@@ -235,9 +235,8 @@ static void pool_build(Pool *P)
 }
 
 /* MusyX's sample base: ROM offset 0x39B40, where the game's sample data starts (AudioInitSys.c's
- * SAMPLE_BANK_ROM_OFFSET), and its cartridge address, which the sample records hold. */
-#define SAMPLE_BANK_ROM 0x39B40u
-#define SAMPLE_BASE (N64_CART_KSEG1 | SAMPLE_BANK_ROM)
+ * SAMPLE_BANK_ROM_OFFSET); the sample records hold their samples' ROM offsets from it. */
+#define SAMPLE_BASE 0x39B40u
 
 static void sdir_build(Build *B)
 {
@@ -571,10 +570,10 @@ static unsigned seen_samples;
 
 void sound_hw_lock(void) {}
 void sound_hw_unlock(void) {}
-/* hardware.c's: an offset in the ROM made a cartridge address (as musyx_cart_address does), a cartridge address kept. */
+/* hardware.c's: the place in the ROM, as musyx_cart_address gives it (the ROM offset itself). */
 uint32_t sound_hw_cart_address(uint32_t samples)
 {
-    return samples - N64_CART_KSEG1 < 0x10000000u ? samples : (samples & 0x0FFFFFFFu) | N64_CART_KSEG1;
+    return samples;
 }
 void sound_hw_init_sample_memory(void) {}
 void sound_hw_save_sample(void **descriptor, uint32_t *cart_address) {}
@@ -626,18 +625,15 @@ void sound_synth_init_controller_inputs(void *voice) {}
 uint8_t sound_midi_get_last_key(uint8_t channel, uint8_t set) { return 0xFF; }
 void sound_midi_set_last_key(uint8_t a, uint8_t b, uint8_t c) {}
 void sound_hw_key_off(int index) {}
-/* The PI: the requests sample_dma_next starts. */
+/* The cartridge's reads: the requests sample_dma_next starts, each with its completion to sample_dma_pi_queue. */
 STORAGE(sample_dma_pi_queue, 24);
-STORAGE(sample_dma_io, 24);
 static struct { uint32_t dev, size; void *vaddr, *queue; } seen_dma[8];
 static unsigned seen_ndma;
-int32_t osPiStartDma(void *mb, int32_t priority, int32_t direction, uint32_t devAddr, void *vAddr, uint32_t nbytes,
-                     void *mq)
+void pc_cart_read(uint32_t rom_offset, void *dst, uint32_t size, void *done)
 {
     if (seen_ndma < 8)
-        seen_dma[seen_ndma].dev = devAddr, seen_dma[seen_ndma].size = nbytes, seen_dma[seen_ndma].vaddr = vAddr,
-        seen_dma[seen_ndma++].queue = mq;
-    return 0;
+        seen_dma[seen_ndma].dev = rom_offset, seen_dma[seen_ndma].size = size, seen_dma[seen_ndma].vaddr = dst,
+        seen_dma[seen_ndma++].queue = done;
 }
 void sound_hw_stop_sample(int index, uint8_t release) {}
 uint32_t sound_rate_to_pitch(uint32_t rate) { return rate; }
@@ -803,7 +799,7 @@ static void test_voices(uint8_t *pl)
 
 /* The DMA service (slot 4 of the service table) on a request list as sound_hw_fetch_codebook and sound_hw_fetch_sample_range build it:
  * {length, source, destination}, 16 bytes on the PC. musyx_start_dma_list starts the first, sample_dma_next each
- * next one as the PI finishes, and the header keeps the queue to tell when all are done (docs/port/MUSYX_DATA.md
+ * next one as the last read completes, and the header keeps the queue to tell when all are done (docs/port/MUSYX_DATA.md
  * 8.1). */
 static void test_dma(void)
 {
@@ -878,7 +874,7 @@ static void test_game(void)
     convert(10, sg, &song.B, song.B.n);
 
     /* sndPushGroup with the sample base as AudioInitSys passes it: the sample bank's ROM offset, which the library
-     * makes the cartridge address (sound_hw_cart_address). */
+     * takes through its address service (sound_hw_cart_address). */
     sound_reset_registries();
     sound_initialized = 1;
     {
@@ -886,10 +882,10 @@ static void test_game(void)
         uint8_t *blank = w + 0x10000;
         memset(blank, 0, 0x200);
         pc_wave_loaded(6, blank, 0x200);
-        CHECK(sound_push_group(blank, 12, SAMPLE_BANK_ROM, sd, pl) == 0);
+        CHECK(sound_push_group(blank, 12, SAMPLE_BASE, sd, pl) == 0);
     }
-    CHECK(sound_push_group(prj, 12, SAMPLE_BANK_ROM, sd, pl) == 1);
-    CHECK(sound_push_group(prj, 99, SAMPLE_BANK_ROM, sd, pl) == 0);
+    CHECK(sound_push_group(prj, 12, SAMPLE_BASE, sd, pl) == 1);
+    CHECK(sound_push_group(prj, 99, SAMPLE_BASE, sd, pl) == 0);
 
     /* The registries hold pointers into the pool, found by id. */
     CHECK(sound_find_macro(1) == pl + pool.macro[0] + 8);
@@ -942,7 +938,7 @@ static void test_game(void)
     test_voices(pl);
 
     /* The song group: its pages and MIDI setup start the song through sound_seq_start. */
-    CHECK(sound_push_group(prj, 20, SAMPLE_BANK_ROM, sd, pl) == 1);
+    CHECK(sound_push_group(prj, 20, SAMPLE_BASE, sd, pl) == 1);
     sound_seq_init();
     memset(seen_controls, 0, sizeof seen_controls);
     /* Started, as the first song (identifier 0) in slot 0, and active. */

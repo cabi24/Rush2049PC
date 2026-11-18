@@ -10,15 +10,6 @@ typedef struct OSMesgQueue {
     s32 validCount, first, msgCount;
     OSMesg *msg;
 } OSMesgQueue;
-/* libultra's OSPfs, as the local copy of a pak's handle (PcPfs's layout). */
-typedef struct OSPfs {
-    s32 status;
-    OSMesgQueue *queue;
-    s32 channel;
-    u8 id[32], label[32];
-    s32 version, dir_size, inode_table, minode_table, dir_table, inode_start_page;
-    u8 banks, activebank;
-} OSPfs;
 /* A pak's open files (MAT3 tDLList), linked through their records' next. */
 typedef struct tDLList {
     u8 indirect, doubly, opaque2[2];
@@ -51,7 +42,7 @@ tPakHandle *PS_CreateFile(s32 pak, u8 *name, u8 *ext, u32 numBytes, s32 company,
     s8 status;
     tPakHandle *fileh;
     PakFileRecord *psfile;
-    PakFileState *state;
+    OSPfsState *state;
 
     paksys_lock();
     pak_encode_name(game_name, name, 16);
@@ -143,7 +134,7 @@ void PS_DeleteFile(tPakHandle *fileh)
 {
     s32 pak;
     s32 fileNo;
-    PakFileState *state;
+    OSPfsState *state;
     tPakHandle *cur;
     s8 retry;
     s8 status;
@@ -154,9 +145,9 @@ void PS_DeleteFile(tPakHandle *fileh)
     psfile = fileh->file;
     pak = psfile->pak;
     fileNo = psfile->fileNo;
-    state = (PakFileState *)&gPaks[pak].files[fileNo].state;
+    state = &gPaks[pak].files[fileNo].state;
 delete_retry:
-    error = osPfsDeleteFile((OSPfs *)&gPaks[pak].pfs, state->company_code, state->game_code,
+    error = osPfsDeleteFile(&gPaks[pak].pfs, state->company_code, state->game_code,
                             state->game_name, state->ext_name);
     if (error) {
         gPaks[pak].error = pak_error_from_pfs(error);
@@ -283,7 +274,7 @@ rj:
         /* a pak was put in: read it */
         changed[i] = 1;
         gPaks[i].inserted = 1;
-        dup = 0; same = 0; memcpy(&pfs, (void *)&gPaks[i].pfs, sizeof(OSPfs));
+        dup = 0; same = 0; memcpy(&pfs, &gPaks[i].pfs, sizeof(OSPfs));
 init:
         pfs.queue = 0;
         ret = osPfsInitPak(&si_event_queue, &pfs, i);
@@ -359,8 +350,8 @@ inited:
         } else if (!game_memcmp((u8 *)gPaks[i].pfs.id, pfs.id, 32)) {
             /* the same pak as before: keep its files, marking those changed meanwhile to write */
             changed[i] = 0;
-            memcpy((void *)&gPaks[i].pfs, &pfs, sizeof(OSPfs));
-            osPfsFreeBlocks((OSPfs *)&gPaks[i].pfs, (s32 *)&gPaks[i].FreeSpace);
+            memcpy(&gPaks[i].pfs, &pfs, sizeof(OSPfs));
+            osPfsFreeBlocks(&gPaks[i].pfs, (s32 *)&gPaks[i].FreeSpace);
             gPaks[i].original = 1;
             if (!gPaks[i].flushing) {
                 for (fileh = gPS_Files[i].head; fileh; fileh = fileh->file->next) {
@@ -383,8 +374,8 @@ inited:
                     goto locked;
                 }
 move:
-                memcpy((void *)&gPaks[i].pfs, &pfs, sizeof(OSPfs));
-                osPfsFreeBlocks((OSPfs *)&gPaks[i].pfs, (s32 *)&gPaks[i].FreeSpace);
+                memcpy(&gPaks[i].pfs, &pfs, sizeof(OSPfs));
+                osPfsFreeBlocks(&gPaks[i].pfs, (s32 *)&gPaks[i].FreeSpace);
                 gPaks[i].original = 1;
                 memcpy(&gPS_Files[i], &gPS_Files[j], sizeof(tDLList));
                 ClearLL(&gPS_Files[j]);
@@ -429,10 +420,10 @@ flush:
         gPaks[i].original = 1;
         gPaks[i].locked = 0;
         gPaks[i].flush = 0;
-        memcpy((void *)&gPaks[i].pfs, &pfs, sizeof(OSPfs));
-        osPfsFreeBlocks((OSPfs *)&gPaks[i].pfs, (s32 *)&gPaks[i].FreeSpace);
+        memcpy(&gPaks[i].pfs, &pfs, sizeof(OSPfs));
+        osPfsFreeBlocks(&gPaks[i].pfs, (s32 *)&gPaks[i].FreeSpace);
         for (j = 0; j < PAK_MAX_FILES; j++) {
-            ret = osPfsFileState((OSPfs *)&gPaks[i].pfs, j, (PakFileState *)&gPaks[i].files[j].state);
+            ret = osPfsFileState(&gPaks[i].pfs, j, &gPaks[i].files[j].state);
             if (ret) gPaks[i].files[j].state.file_size = 0;
             gPaks[i].files[j].locked = 0;
             gPaks[i].files[j].dirty = 0;

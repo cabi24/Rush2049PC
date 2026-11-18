@@ -893,7 +893,7 @@ by w in double for every triangle that uses it; computing that once a vertex at 
 - **No masked addresses.** A pointer must never be masked (`& 0xFFFFFF`, `| 0x80000000`): since
   [NATIVE.md](NATIVE.md) step 12 nothing the game draws is in an RDRAM window, where a masked address stayed an N64
   address.
-- **Tasks and present.** `osSpTaskStart` → `pc_gfx_run_dl(task->t.data_ptr)`. `osViSwapBuffer(fb)` →
+- **Tasks and present.** `osSpTaskStart` → `pc_gfx_run_dl(task->t.data_ptr)`. `pc_vi_swap_buffer(fb)` →
   `pc_gfx_present(fb)`, with fb as the game holds it (K0 or host). The colour and depth images are set as the
   buffers' pointers (`StartGraphics`, `ClearScreen`), the same values, so they resolve to the same target. Until
   [NATIVE.md](NATIVE.md) step 4 they were the physical addresses `osVirtualToPhysical` made of them, as on the N64;

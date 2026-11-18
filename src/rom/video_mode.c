@@ -1,7 +1,8 @@
 /* The video mode (the boot segment's; MAT3's GameCube has its own): the libultra VI mode for the TV type
  * (NTSC, PAL, MPAL), adjusted for the screen's size and the player's offsets (the video screen's centring), applied
- * at a retrace (video_apply_pending_mode, from the scheduler). On the PC port/ultra's VI takes the mode; the
- * picture is the renderer's. */
+ * at a retrace (video_apply_pending_mode, from the scheduler). The mode is the N64 video interface's registers: the PC
+ * has none to set, its picture is the renderer's. What the game still reads of it is the vertical scale, which says
+ * when a new mode unblacks the screen. */
 #include "static_debug_context.h"
 
 /* Makes the next VI mode from the base mode for the screen's size (video_width x video_height) and the offsets: the
@@ -50,7 +51,6 @@ void video_build_adjusted_mode(void) {
     video_adjusted_mode->fldRegs[0].yScale = (video_adjusted_mode->fldRegs[0].yScale & 0xFFFF0000) | verticalScale;
     video_adjusted_mode->fldRegs[1].yScale = (video_adjusted_mode->fldRegs[1].yScale & 0xFFFF0000) | verticalScale;
     video_pending_frames = 2;
-    osWritebackDCache(video_adjusted_mode, sizeof(OSViMode));
     osSetIntMask(saved);
 }
 
@@ -85,24 +85,20 @@ void video_set_mode(s32 tv, s32 mode, s32 width, s32 height) {
     video_build_adjusted_mode();
 }
 
-/* Each retrace (from the scheduler): when the pending count runs out, applies the adjusted mode (unblacking the
- * screen if its vertical scale is the base mode's), with gamma, dither filter and divot on. */
+/* Each retrace (from the scheduler): when the pending count runs out, the adjusted mode takes effect: the screen is
+ * unblacked if its vertical scale is the base mode's. (The N64's also loaded the mode into the video interface, with
+ * gamma, the dither filter and the divot on.) */
 void video_apply_pending_mode(void) {
     if (video_pending_frames == 0) return;
     if (--video_pending_frames == 0) {
         if ((video_adjusted_mode->fldRegs[0].yScale & 0xFFFF) == (video_base_mode->fldRegs[0].yScale & 0xFFFF)) {
-            osViBlack(0);
+            pc_vi_black(0);
         }
-        osViSetMode(video_adjusted_mode);
-        osViSetSpecialFeatures(0xAA);
     }
 }
 
 /* The first index of osViModeTable for the TV type: NTSC 0, PAL 14, MPAL 28. */
 s32 video_mode_base_index(void) { s32 offset; if(osTvType==1) offset=0; else if(osTvType==0) offset=14; else offset=28; return offset; }
-
-/* Back to the unadjusted base mode (at a reset). */
-void video_restore_base_mode(void) { osViSetMode(video_base_mode); }
 
 /* The TV type's default offsets into *x and *y. */
 void video_get_default_offset(register s32 *x, register s32 *y) {

@@ -16,8 +16,8 @@ extern void osStartThread(void *);
 /* The waves (asset files) of MusyX's data: the project, the sample pool, the sample directory
  * (docs/port/MUSYX_DATA.md); the samples themselves stay in the cartridge. */
 /* Where the sample bank starts in the ROM (file 9 of docs/port/ASSETS.md 2; port/main.c's MODS_SAMPLE_BASE): the
- * sample directory's offsets count from it. The N64 passed its cartridge address (0xB0000000 + the offset); MusyX
- * makes that of an offset itself (sound_hw_cart_address, through musyx_cart_address). */
+ * sample directory's offsets count from it, and the library reads each sample at the bank's ROM offset plus its own
+ * (sound_hw_cart_address, through musyx_cart_address). */
 #define SAMPLE_BANK_ROM_OFFSET 0x39B40
 #define WAVE_MUSYX_PROJECT 6
 #define WAVE_MUSYX_POOL 7

@@ -12,75 +12,9 @@
 #include "PR/os_message.h"
 #include "PR/os_thread.h"
 
-/**
- * PFS File System Structure
- *
- * Represents a Controller Pak filesystem instance.
- * Offsets verified against assembly:
- *   0x00: status
- *   0x04: queue
- *   0x08: channel
- *   0x0C-0x2B: id[32]
- *   0x2C-0x4B: label[32]
- *   0x4C: version
- *   0x50: dir_size
- *   0x54: inode_table
- *   0x58: minode_table
- *   0x5C: dir_table
- *   0x60: inode_start_page
- *   0x64: banks
- *   0x65: activebank
- */
-typedef struct OSPfs {
-    s32 status;              /* 0x00: Initialization status flags */
-    OSMesgQueue *queue;      /* 0x04: Message queue for SI operations */
-    s32 channel;             /* 0x08: Controller port (0-3) */
-    u8 id[32];               /* 0x0C: Pack ID */
-    u8 label[32];            /* 0x2C: User label */
-    s32 version;             /* 0x4C: PFS version */
-    s32 dir_size;            /* 0x50: Directory size */
-    s32 inode_table;         /* 0x54: Inode table block location */
-    s32 minode_table;        /* 0x58: Mirror inode table location */
-    s32 dir_table;           /* 0x5C: Directory table block location */
-    s32 inode_start_page;    /* 0x60: Starting page for inodes */
-    u8 banks;                /* 0x64: Number of banks */
-    u8 activebank;           /* 0x65: Currently active bank */
-} OSPfs;
-
-/**
- * PFS File State Structure
- *
- * Information about a file on the Controller Pak.
- */
-typedef struct OSPfsState {
-    u32 file_size;           /* File size in bytes */
-    u32 game_code;           /* Game code */
-    u16 company_code;        /* Company code */
-    char ext_name[4];        /* File extension */
-    char game_name[16];      /* Game name */
-} OSPfsState;
-
-/**
- * PFS Inode Unit
- *
- * Single inode entry in the inode table.
- */
-typedef union __OSInodeUnit {
-    struct {
-        u8 bank;
-        u8 page;
-    } inode_t;
-    u16 ipage;
-} __OSInodeUnit;
-
-/**
- * PFS Inode Table
- *
- * Full inode table for a bank (128 entries).
- */
-typedef struct __OSInode {
-    __OSInodeUnit inode_page[128];
-} __OSInode;
+/* The pak's handle (OSPfs), a file's directory entry (OSPfsState) and the inode table's records (__OSInodeUnit,
+ * __OSInode): declared once, for this libultra and the game's files alike. */
+#include "game/pfs.h"
 
 /**
  * PFS Directory Entry

@@ -409,7 +409,7 @@ static int verdicts(int argc, char **argv)
 /* A synthetic cartridge: a boot and a game image at KSEG0 addresses of the test's own, the file table's four symbols at
  * places of its own in them (handed to pc_mods_cart_read as main.c hands it the game's, found by name), the files
  * after. SAMPLE_BASE is the ROM offset the sample directory's offsets count from (AudioInitSys.c's
- * SAMPLE_BANK_ROM_OFFSET), and SAMPLE_BASE_K1 the cartridge address the game adds them to. */
+ * SAMPLE_BANK_ROM_OFFSET), to which the game adds them. */
 #define BOOT_BASE 0x8002E000u   /* KSEG0 addresses, as the cartridge's images are linked */
 #define GAME_BASE 0x8011B000u
 #define IMG_SIZE 0x9000u
@@ -421,7 +421,6 @@ static int verdicts(int argc, char **argv)
 #define AT_OFFSETS 0x5BCu        /* wave_rom_offsets, in the game image */
 #define AT_KINDS 0x8564u         /* wave_storage_kinds, in the game image */
 #define SAMPLE_BASE 0x39B40u
-#define SAMPLE_BASE_K1 (N64_CART_KSEG1 | SAMPLE_BASE)
 
 static const PcModsTableAt k_table_at = {BOOT_BASE + AT_SIZES, BOOT_BASE + AT_TEXT_INITIAL, GAME_BASE + AT_OFFSETS,
                                          GAME_BASE + AT_KINDS};
@@ -898,9 +897,9 @@ static void test_folder(void)
                     break;
                 }
             CHECK(at != 0xFFFFFFFF);
-            /* the game's sum: the base's cartridge address + offset = the samples' new cartridge address */
-            CHECK(SAMPLE_BASE_K1 + pc_be32(d + 4) == (N64_CART_KSEG1 | (PC_ROM_MODS_BASE + at)) + 0x10);
-            CHECK(SAMPLE_BASE_K1 + pc_be32(d + 0x1C + 4) == (N64_CART_KSEG1 | (PC_ROM_MODS_BASE + at)) + 0x40);
+            /* the game's sum: the base's ROM offset + the record's offset = the samples' new ROM offset */
+            CHECK(SAMPLE_BASE + pc_be32(d + 4) == PC_ROM_MODS_BASE + at + 0x10);
+            CHECK(SAMPLE_BASE + pc_be32(d + 0x1C + 4) == PC_ROM_MODS_BASE + at + 0x40);
             CHECK(pc_be16(d + 0x38) == 0xFFFF);
         }
         pc_mods_free(&m);

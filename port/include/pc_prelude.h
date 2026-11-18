@@ -46,6 +46,17 @@ unsigned int pc_n64_identity(const void *p);
 void pc_os_spin_yield(const char *site);
 void pc_os_idle(void);
 
+/* The cartridge (port/ultra/pi.c): size bytes at a ROM offset read into dst at once, then an empty message to done, the
+ * OSMesgQueue its reader waits on (NULL: none). */
+void pc_cart_read(unsigned int rom_offset, void *dst, unsigned int size, void *done);
+
+/* The video interface (port/ultra/vi.c): the screen blacked out (1) or not (0); a frame buffer shown from the next
+ * retrace on; the frame buffers shown now and from the next retrace (the same when no swap waits). */
+void pc_vi_black(int black);
+void pc_vi_swap_buffer(void *framebuffer);
+void *pc_vi_current_framebuffer(void);
+void *pc_vi_next_framebuffer(void);
+
 /* A visual (tVisual: N64 0x18 bytes, PC 0x28), struct pc_visual, is declared with the car record in
  * pc_game_types.h (included at the end), for views of the car record that pad over the car's 21 visuals. */
 

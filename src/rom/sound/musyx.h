@@ -156,7 +156,7 @@ typedef struct SynthVoice {
     u8 setupSet;
     u8 setupTrack;
     u8 unused2;
-    u32 sampleAddress;           /* the sample playing: its cartridge address (written, never read) */
+    u32 sampleAddress;           /* the sample playing: its ROM offset (written, never read) */
     u32 sampleInfo;              /* its root key (bits 31..24) and rate in Hz (23..0) */
     u32 id;                      /* (macro << 16) | (key << 8) | the voice's index; VOICE_NONE when free */
     u16 macroId;                 /* the macro it runs */

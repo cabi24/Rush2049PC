@@ -157,8 +157,8 @@ sent (`SetSoundVP`).
 - **Listeners and samples** (no window addresses since [NATIVE.md](../port/NATIVE.md) step 9). A player record
   keeps its listener as the listener's number in `gListeners` (StartListeners, UpdateListeners, StopListeners: the
   record's 4 bytes at +0x44 can't hold MAT3's pointer). `musyx_samples` is the sample bank's ROM offset, which MusyX
-  makes a cartridge address (`sound_hw_cart_address`); the samples stay in the cartridge, named by that 32-bit
-  number of the cartridge's bus.
+  takes through its address service (`sound_hw_cart_address`, the game's `musyx_cart_address`: the offset as it is);
+  the samples stay in the cartridge, named by their 32-bit ROM offsets.
 - **The model record** (`tModelData`, 0x808 bytes on the N64, 0x830 on the PC) is read by the car sounds' views, which
   declare its host pointers ([CARS.md](../port/CARS.md) 4).
 - **MusyX's voices** keep the N64's layout after their head: one record, src/rom/sound/musyx.h's `SynthVoice`
@@ -167,16 +167,16 @@ sent (`SetSoundVP`).
   faders beside it (the hardware voice's own states are hardware.c's `HW_VOICE_*`). Until wave 4 the five files read
   it through 56 per-function views ([RECORDS.md](../port/RECORDS.md) 4.4).
 - **MusyX's data** (project, pool, sample directory) stays in the N64's layout, byte-swapped in place; the
-  registries hold pointers into it; samples and codebooks are addressed by 32-bit cartridge addresses, the DMA
-  list's sources too; the cache bookkeeping counts the N64's record sizes (12-byte DMA entries, 0x50-byte SFD
+  registries hold pointers into it; samples and codebooks are addressed by 32-bit ROM offsets, the DMA list's
+  sources too, which the cartridge's read takes (`pc_cart_read`); the cache bookkeeping counts the N64's record sizes (12-byte DMA entries, 0x50-byte SFD
   records) from the low 32 bits of the records' addresses, which nothing reads memory by.
 - **The sequencer**: a song's studio groups are its player's `track_groups`, a volume fader's type its record's
   `type`, and the macros' global variables `sound_global_variables` by name (until [NATIVE.md](NATIVE.md) 18 labels
   inside other data, and 32 bytes past `sound_seq_current_index` by the N64's order).
 - **The RSP task** (`sound_task`, `musyx_submit_audio_task`'s `OSScTask`) and the microcode pointers; the AI output
-  thread, the D-cache calls and the cartridge DMA are port/ultra's on the PC.
-- **The speech** streams' cartridge reads (async DMA), which carry cartridge addresses in pointers (dma_queue.c);
-  `speech_set_bank` tells a bank in the cartridge from one in RAM by the cartridge's ranges.
+  thread and the cartridge's reads are port/ultra's on the PC (the N64's D-cache calls are gone: ULTRA.md 11).
+- **The speech** streams' cartridge reads (async DMA), which carry ROM offsets in pointers (dma_queue.c);
+  `speech_set_bank` tells a bank in the cartridge from one in RAM by its size (a ROM offset is below 256 MiB).
 - **Dead or misnamed code** a later cleanup can take: `NewListener` (nothing calls it), `other_user` (a stand-in
   caller), the empty `ValidateEmitter`/`pc_ValidateEmitter`/`ValidateListener` with their N64-build leftovers,
   the library's own emitters and streams (unused by the game), the `AudPauseAllEffects` that stops (as

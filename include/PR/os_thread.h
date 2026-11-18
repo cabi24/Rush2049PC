@@ -64,7 +64,6 @@ void osCreateThread(OSThread *thread, OSId id, void (*entry)(void *),
                     void *arg, void *sp, OSPri priority);
 void osStartThread(OSThread *thread);
 void osStopThread(OSThread *thread);
-void osViSetMode(void *mode);
 /* osGetThreadPri: no prototype here; the locked body (src/rom/lib_cc50.c, named
  * dll_get_priority) takes void *, and its callers declare it locally. */
 OSId osGetThreadId(OSThread *thread);

@@ -1,16 +1,15 @@
 /* include/game/heap.h: the heap's headers, as the heap's own code reads them (MAT3 memsys.c).
  *
- * The game allocates from heaps. The main heap (gMainHeap) is the memory the PC gives the game for it
- * (pc_heap_memory: on the N64 everything from the end of the game's BSS to the end of RDRAM); a heap made inside
- * another (create_heap) is a chunk of it. A heap is a tHeap header, then chunks, each a 32-byte tMemoryChunk header
+ * The game allocates from heaps. The main heap (gMainHeap) is the block of memory the PC gives the game for it
+ * (pc_heap_memory: the console's memory less what the game's code and data took, docs/port/MEMORY.md); a heap made
+ * inside another (create_heap) is a chunk of it. A heap is a tHeap header, then chunks, each a 32-byte tMemoryChunk header
  * followed by its data, linked both ways in address order. A chunk that is freed is merged with its free neighbours.
  * A heap also keeps tables of master pointers ("handles", MAT3's masters): AllocateHandleHeap returns the address of
  * a slot that holds the data's address, so the heap may move the data (compaction) and update the slot.
  *
- * The headers hold host pointers, in MAT3's types (docs/port/NATIVE.md step 6). On the N64 each link was a 32-bit
- * address; the PC kept that layout in the RDRAM window until wave 3, with every link and every argument of the heap's
- * interface translated. What the native headers keep is the N64's sizes, which is what the allocator's arithmetic
- * reads, so what fits in the heap, and so what the game loads when memory is short, is the original game's:
+ * The headers hold host pointers, in MAT3's types (docs/port/NATIVE.md step 6). They keep the original game's sizes,
+ * which is what the allocator's arithmetic reads, so what fits in the heap, and so what the game loads when memory is
+ * short, is the original game's:
  *   - a chunk's header is 32 bytes (HEAP_CHUNK_HEADER): its three links are 8 bytes each now, so the magic that was a
  *     word at the front is a byte at the end (HEAP_CHUNK_MAGIC);
  *   - a heap's header fits in the 64 bytes before its first chunk (HEAP_HEADER_ROOM): MAT3's out-of-memory callback,

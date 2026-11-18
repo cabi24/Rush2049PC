@@ -10,9 +10,9 @@ extern s8 decompress_lock_ready;
 extern OSMesg decompress_lock_message;
 extern OSMesgQueue decompress_lock_queue;
 extern void init_decompress_lock(void);
-/* port/ultra/pi.c's decoders: src is a cartridge address or offset, or (the game image) a host pointer. */
-extern s32 lzss_decode(uintptr_t src, void *dst);
-extern s32 unzipdata_from_rom(uintptr_t src, void *dst, s32 heap_window);
+/* port/ultra/pi.c's decoders: the stream at a ROM offset unpacked into dst; returns the bytes written. */
+extern s32 lzss_decode(u32 rom_offset, void *dst);
+extern s32 unzipdata_from_rom(u32 rom_offset, void *dst, s32 heap_window);
 
 typedef struct {
     unsigned sign:1;
@@ -47,8 +47,6 @@ extern u32 osSetIntMask(u32);
 extern OSThread gIdleThread, main_thread;
 extern u8 gStackIdle[];
 extern void __osInitialize_common(void), idle_thread_entry(void *), main_thread_entry(void *);
-extern OSMesgQueue gViModeTable;
-extern OSMesg gViModeLan1[];
 /* main_thread_stack retains its accepted existing m2c declaration. */
 
 extern double modf(double, double *);

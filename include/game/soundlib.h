@@ -16,24 +16,24 @@ typedef struct SoundServices {
     void (*add_callback)(void (*callback)(void));            /* call callback every retrace */
     void (*remove_callback)(void (*callback)(void));         /* ... no longer */
     void (*start_dma)(void *dst, u16 size, void *src);       /* a list of sample DMAs (musyx_start_dma_list) */
-    u32 (*translate_address)(u32 address);                   /* a sample's cartridge address */
+    u32 (*translate_address)(u32 address);                   /* a place in the cartridge: its ROM offset */
     void *(*allocate)(u32 size, u32 mode);                   /* memory from the game's heap */
     void (*release)(void *allocation);                       /* ... back */
 } SoundServices;
 
-/* An entry of the sample DMA list (sound_dma_list): length bytes from the cartridge address source to destination.
+/* An entry of the sample DMA list (sound_dma_list): length bytes from ROM offset source to destination.
  * The hardware layer (hardware.c) fills the list each frame with the sample and codebook caches' reads, and the
  * speech streams' queued reads (dma_queue.c) join it; the game's sample DMA thread runs it (sample_dma_next). */
 typedef struct SampleDmaRequest {
     s32 length;
-    u32 source;                  /* a cartridge address (sound_hw_cart_address) */
+    u32 source;                  /* a ROM offset (sound_hw_cart_address) */
     u8 *destination;
 } SampleDmaRequest;
 
 /* A cartridge read a speech stream queued for the frame's DMA list (sound_dma_read_async, dma_queue.c). */
 typedef struct TransferRequest {
     void *destination;
-    void *source;                /* the cartridge address, kept in a pointer */
+    void *source;                /* the ROM offset, kept in a pointer */
     u32 size;
 } TransferRequest;
 
@@ -47,7 +47,7 @@ typedef struct SpeechStream {
     u16 gsm_last_lag;            /* GsmState's nrp, the last valid long-term lag (the stream's setup sets 40) */
     u8 gsm_rest[40];             /* the log-area ratios, j, the repeat and silence counts */
     void (*read_input)(void *source, void *destination, u32 size, OSMesgQueue *done);  /* an input read */
-    u8 *input;                   /* the entry's compressed data (a cartridge address) */
+    u8 *input;                   /* the entry's compressed data (a ROM offset) */
     void *output;                /* the PCM ring (the stream's buffer) */
     u32 capacity;                /* its length in samples */
     union {

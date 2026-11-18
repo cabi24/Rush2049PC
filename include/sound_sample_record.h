@@ -3,14 +3,14 @@
  * streams_3d.c, hardware.c), a stream's buffer record, the emitter and listener list nodes (streams_3d.c). Each is
  * laid out as the library reads it on the PC (host pointers; the sample record keeps the file's layout).
  *
- * The samples stay in the cartridge (the sample bank, ROM 0x39B40 on): a sample there is named by its cartridge
- * address, 0xB0000000 + its place in the ROM, the address the PI reads it from (docs/port/MUSYX_DATA.md 2). That is
- * a 32-bit number of the cartridge's bus, never memory: the records keep it as u32. */
+ * The samples stay in the cartridge (the sample bank, ROM 0x39B40 on): a sample there is named by its place in the
+ * ROM, its ROM offset, which the cartridge's reads take (docs/port/MUSYX_DATA.md 2). That is a 32-bit number, never
+ * memory: the records keep it as u32 (cart_address). */
 #ifndef BOOT_TAIL_SAMPLE_CONTRACT_H
 #define BOOT_TAIL_SAMPLE_CONTRACT_H
 
 /* A record of the sample directory file (wave 8), 0x1C bytes: the sample's id, its reference count (written:
- * registry.c), its offset from the samples' base, its cartridge address (written: the base's plus the offset), then
+ * registry.c), its offset from the samples' base, its ROM offset (written: the base's plus the offset), then
  * its information (key and rate, format and length, loop start and length: docs/port/MUSYX_DATA.md 3.3). The copy in
  * groups.c matches. */
 typedef struct SampleRecord {
@@ -20,7 +20,7 @@ typedef struct SampleRecord {
     unsigned int cart_address;
     unsigned char descriptor[16];
 } SampleRecord;
-/* A registered sample directory (sound_sample_directories): its records, the samples' cartridge address (what their
+/* A registered sample directory (sound_sample_directories): its records, the samples' ROM offset (what their
  * offsets count from), their count. */
 typedef struct RegisteredSamples {
     SampleRecord *records;
@@ -35,7 +35,7 @@ typedef struct RegisteredSamples {
  * PCM16, 3 ADPCM). */
 typedef struct SoundSampleInfo {
     unsigned int info;
-    unsigned int cart_address;   /* a sample in the cartridge: its cartridge address; 0 for a sample in RAM */
+    unsigned int cart_address;   /* a sample in the cartridge: its ROM offset; 0 for a sample in RAM */
     void *data;                  /* a sample in RAM: its first byte; NULL for a sample in the cartridge */
     unsigned int offset;
     unsigned int length;

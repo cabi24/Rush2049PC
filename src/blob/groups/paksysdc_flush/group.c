@@ -5,20 +5,9 @@
 
 typedef struct OSThread_s OSThread;
 
-/* libultra's OSPfs (PcPfs's layout). */
-typedef struct OSPfs {
-    s32 status;
-    OSMesgQueue *queue;
-    s32 channel;
-    u8 id[32], label[32];
-    s32 version, dir_size, inode_table, minode_table, dir_table;
-    s32 inode_start_page;
-    u8 banks, activebank;
-} OSPfs;
 extern void osCreateMesgQueue(OSMesgQueue *, OSMesg *, s32);
 extern s32 osRecvMesg(OSMesgQueue *, OSMesg *, s32);
 extern s32 osSendMesg(OSMesgQueue *, OSMesg, s32);
-extern void osWritebackDCache(void *, s32);
 
 #define DIRTY_RUN 32   /* the dirty map's grain: one bit for each 32 bytes of a file */
 
@@ -120,16 +109,12 @@ s32 PS_FlushFileInternal(tPakHandle *handle, s32 mode) {
     s8 retry, callback_value;
     u8 *address;
     s32 bytes, offset;
-    u8 **allocation;
     if (!handle) return 1;
     index = handle->file->pak;
     slot_index = handle->file->fileNo;
-    allocation = handle->file->data;
     if (!gPaks[index].files[slot_index].dirty) return 1;
-    osWritebackDCache(*allocation, handle->file->size);
     if (pak_find_dirty_run(handle, &address, &bytes, &offset)) {
         do {
-            osWritebackDCache(address, bytes);
 write_retry:
             result = osPfsReadWriteFile(&gPaks[index].pfs, slot_index, 1, offset, bytes, address);
             if (result) {

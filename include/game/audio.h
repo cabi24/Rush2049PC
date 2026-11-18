@@ -530,7 +530,7 @@ void sound_hw_commit_voices(void);
 void sound_hw_exit(void);
 void sound_hw_exit_shared_output(void);
 u8 *sound_hw_fetch_codebook(u32 source);
-void sound_hw_fetch_sample_range(struct SfdSampleRange *fetch, u32 addr, u32 length, u32 tag);
+void sound_hw_fetch_sample_range(struct SfdSampleRange *fetch, u32 start, u32 length, u32 sample_base);
 void sound_hw_flush_stream(void *buffer, u32 samples);
 void sound_hw_flush_stream_wrap(s16 *buffer, u32 samples);
 void sound_hw_free_codebook_cache(void);
