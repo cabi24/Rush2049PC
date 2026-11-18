@@ -134,7 +134,11 @@ modes after it, none. The gfx tests (which build records with their own encoders
 converter's (`assets_wad`, `assets_wad_game`, `assets_mods`), the front end's and the mods' pass. The gate on the
 final tree (`pconly_gate.sh --base` the reference `--skip realtime --data-moved`): the build, 64 of 64 paths the same
 with `--shots --audio`, ctest 570 of 572 (`assets_pools` read the frame list's end as the N64's words, and
-`render_values` wanted StartGraphics' call of `pc_gfx_list_from_n64` listed: both fixed, and passing).
+`render_values` wanted StartGraphics' call of `pc_gfx_list_from_n64` listed: both fixed, and passing). RelWithDebInfo
+against the reference's (`--same --shots --audio --data-moved`): 64 of 64 on the synthetic cartridge (`raceend12`'s own
+two runs varied in the exit's last sound bytes once, and were the same alone) and 64 of 64 on the audible one; ctest
+572 of 572 (`assets_rom` skipped: no ROM); the realtime-labelled tests 61 of 61. ASan + UBSan (GCC's objects on clang
+21's runtime): CI's ASan ctest set, 399 of 399, and the two synthetic paths it skips, with no report.
 
 ## Addresses and byte order
 
