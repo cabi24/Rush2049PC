@@ -23,16 +23,50 @@ had to agree on the layout, and `view_check.py`, `view_audit.py` and `layout_che
 
 ## 2. The car's physics
 
-(wave 4 agent A: the model record, the car and tune descriptors, the tires, the reckoning, the paths.)
+### 2.1 The model record
 
-## 3. The game car, the scene, drawing and colours
+(Agent A1: the model record, MAT3's MODELDAT.)
 
-(wave 4 agent B: the game car, visuals, windows, blits, scene objects, polygons, colours.)
+### 2.2 The car's descriptor, its tune, its tires and the paths
 
-## 4. Players, saves, input, menus and sound
+(Agent A2: the physics descriptor, the tune, the tires, the reckoning, resurrection, the drones' paths.)
 
-(wave 4 agent C: players and their pads, profiles and ghosts, menus' buttons, voices and sequences, the OS records.)
+## 3. The game car, the scene and drawing
 
-## 5. The proof
+### 3.1 The game car
+
+(Agent B1: the game car, MAT3's CAR_DATA.)
+
+### 3.2 The scene
+
+(Agent B2: visuals, matrices and vectors, windows, scene objects, polygons, skids, blasts, smoke, texture swaps.)
+
+### 3.3 Blits and colours
+
+(Agent B3: the blits and the one colour type.)
+
+## 4. Players, saves, menus and sound
+
+### 4.1 Players and their input
+
+(Agent C1: the players, their pads and input records.)
+
+### 4.2 Profiles, records and ghosts
+
+(Agent C2: profiles, records, ghosts, the pak's files.)
+
+### 4.3 Menus, battles and circuits
+
+(Agent C3: the menus' buttons and items, battles, circuits.)
+
+### 4.4 Sound
+
+(Agent C4: voices, channels, speech, sequences, sound resources.)
+
+## 5. The OS records
+
+(Agent D: the message queues, the pak file system, the scheduler's clients, zlib's state.)
+
+## 6. The proof
 
 (The lead's, after the merge.)

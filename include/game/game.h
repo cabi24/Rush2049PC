@@ -20,6 +20,7 @@
 #include "game/save.h"      /* the Controller Pak, profiles, records, options and passwords */
 #include "game/track.h"     /* tracks, the road tree, targets, paths and checkpoints */
 #include "game/cars.h"      /* the cars, their visuals, skids and smoke */
+#include "game/carphys.h"   /* the car's physics descriptors: the car, its tune, its tires */
 #include "game/physics.h"   /* the car simulation: collision, the road, the drivetrain, tyres, respawning */
 #include "game/race.h"      /* the game loop and the race: state, countdown, drones, stunts, battle, ghosts */
 #include "game/camera.h"    /* the cameras */
