@@ -21,6 +21,10 @@ src/blob/groups/zoid_draw/group.c pc_detail   # video.detail (CreateCar's tires'
 # the one-player race paths without it, and nothing with it
 src/blob/ZOID_WindowTo3D.c pc_gfx_hud_dx   # widescreen: 0 to the game in a session (--session-rules)
 
+# The cartridge's two display-list set-up lists read into command records (port/assets/gfx_n64.c): the cartridge's data,
+# the same on every PC, no setting
+src/blob/StartGraphics.c pc_gfx_list_from_n64   # the cartridge's data into records: no per-PC value
+
 # audio.voices: the MusyX SFD's size the interpreter and the game agree on, a setting a session must match
 src/rom/sound/hardware.c pc_audio_set_sfd_voices   # audio.voices: must match
 src/rom/sound/hardware.c pc_audio_sfd_size   # audio.voices: must match
