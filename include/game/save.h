@@ -66,7 +66,7 @@ extern s16 gCheatState[EXTENT(21)];   /* the cheats' states, by number (cheatscr
 #define cheat_all_cars (gCheatState[14])
 #define cheat_all_tracks (gCheatState[15])
 #define cheat_all_parts (gCheatState[16])
-extern struct pc_multiblit PS_ErrorFunc_dimMultiBlit[EXTENT(1)];
+extern tBlitDef PS_ErrorFunc_dimMultiBlit[EXTENT(1)];
 extern char *gPasswordAlphabet;
 extern u8 gInversePasswordAlphabet[EXTENT(256)];
 extern u16 gNumBytes;
@@ -78,8 +78,8 @@ extern s8 gGlobalsSet;
 extern char *video_buttonNames[EXTENT(9)];
 extern s32 video_buttonsJustInited;
 extern f32 video_buttonSlideScale;
-extern const struct pc_multiblit video_frontEndBlit[EXTENT(2)];
-extern const struct pc_multiblit video_pauseBlit[EXTENT(2)];
+extern const tBlitDef video_frontEndBlit[EXTENT(2)];
+extern const tBlitDef video_pauseBlit[EXTENT(2)];
 extern s8 video_inited;
 extern tBlit *video_blit;
 extern s32 video_resetChoice;

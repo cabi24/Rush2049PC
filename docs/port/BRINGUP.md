@@ -46,7 +46,8 @@ the name, read as 8 bytes, took in the field after it.
 
 Ten tables passed to NewMultiBlit had declarations without the layout (`s32`, `u8[]`, `char[]`, createBG's view
 with an `s32` name). `pc_prelude.h` has the descriptor's PC layout, `struct pc_multiblit`, and each file declares its
-table with it under `TARGET_PC`. Test: the synthetic cartridge writes those tables (the demo's blit with a NULL name),
+table with it under `TARGET_PC` (since wave 4 every table is include/game's `tBlitDef`, [RECORDS.md](RECORDS.md)
+3.3). Test: the synthetic cartridge writes those tables (the demo's blit with a NULL name),
 so its generator's kind check fails if a declaration loses the pointer; the demo, pause, raceend and screens paths run
 them. (Commit 74e650f.)
 

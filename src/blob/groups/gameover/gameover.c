@@ -6,7 +6,6 @@
 #define OSMesgQueue OSMesgQueueView   /* this file's own OSMesgQueue: include/game's OSMesgQueue is another type */
 
 typedef struct { s32 opaque[6]; } OSMesgQueue;
-typedef struct Voice Voice;
 
 /* An audio manager command (GetCmd's message, audiomgr_thread.c's tAudioMsg): only the command byte is set here. */
 typedef struct {
@@ -65,12 +64,12 @@ void setGameOverState(s32 mode)
 /* Take the screen down: no state, its panes and its text blit gone; the next update sets it up again. */
 void gameover_uninitScreen(void)
 {
-    Voice *voice;
+    tBlit *blit;
     setGameOverState(kGameOverStateNone);
     RemovePanes(1);
-    voice = gameover_blit;
-    if (voice) {
-        RemoveBlit(voice);
+    blit = gameover_blit;
+    if (blit) {
+        RemoveBlit(blit);
         gameover_blit = 0;
     }
     gameover_inited = 0;

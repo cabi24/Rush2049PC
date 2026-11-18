@@ -2474,10 +2474,6 @@ typedef struct SelectCarWaveSlot { /* 0xC bytes: a car model load (MAT3 anon_wav
     u8 pad[6]; /* 0x6 */
 } SelectCarWaveSlot;
 
-typedef struct SoundClearRecord { /* 0x30 bytes */
-    struct pc_multiblit m; /* 0x0 */
-} SoundClearRecord;
-
 /* A start screen button (MAT3 startscr.c's buttonInfo, anon_buttonType_objIdx_3c): a MenuButton without the alpha. */
 typedef struct StartScreenButton { /* 0x3C bytes */
     s32 type;         /* 0x0 its model, startscr_buttonNames[type] */

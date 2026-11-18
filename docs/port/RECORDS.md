@@ -49,9 +49,9 @@ uses that declaration ([docs/code/ui.md](../code/ui.md)).
 
 | Record | What it holds | Its other tags before |
 |---|---|---|
-| `tBlit` (MAT3 `_tBlit`) | one blit: texture name, palette or flat colour, texture, place, size, crop, alpha, flip, hide, the animation function, its argument (`animID`) and data (`animDTA`), the zoid entry it owns (`blidx`), the next blit of its multiblit (`child`) | `Blit` (13 files), `HostBlit` (3), animBones' `BonesBlit`, the pause pages' `MenuItem` (3); the headers' `struct Blit *`, `struct Voice *` (`HudBlit1`, `HudBlit2`) and `void *` (`multiPlayerBlit`) |
-| `tBlitDef` (MAT3 `tBlitDef`) | one entry of a multiblit table: texture name, offset, size, crop, depth, alpha, animation function and its argument | `MultiBlit` (12 files: 11 never used it, ShowHUD's PC copy of the race set did), frontend.h's `HudBlitDef` |
-| `tBlitSet` (MAT3 `tBlitSet`) | a pane: in use, permanent, the inside's and the border's colours, its five blits | `FiveParts` (6 files, frontend.h's `carscr_pane`, `playerscr_pane`, `circuitscr_pane`), `void *` (`recordscr_viewPane`) |
+| `tBlit` (MAT3 `_tBlit`) | one blit: texture name, palette or flat colour, texture, place, size, crop, alpha, flip, hide, the animation function, its argument (`animID`) and data (`animDTA`), the zoid entry it owns (`blidx`), the next blit of its multiblit (`child`) | `Blit` (13 files), `HostBlit` (3), animBones' `BonesBlit`, the pause pages' `MenuItem` (3); the headers' `struct Blit *`, `struct Voice *` (`HudBlit1`, `HudBlit2`, `gameover_blit`), `struct SoundState *` (`backBlit`) and `void *` (`multiPlayerBlit`, `hudextra_blit`) |
+| `tBlitDef` (MAT3 `tBlitDef`) | one entry of a multiblit table: texture name, offset, size, crop, depth, alpha, animation function and its argument | `MultiBlit` (12 files: 11 never used it, ShowHUD's PC copy of the race set did), frontend.h's `HudBlitDef`, pc_prelude.h's `struct pc_multiblit` (13 tables in audio.h, frontend.h, race.h and save.h; now test_carshud.c's own), `SoundClearRecord` (`frontBack`, `trackBack`) |
+| `tBlitSet` (MAT3 `tBlitSet`) | a pane: in use, permanent, the inside's and the border's colours, its five blits | `FiveParts` (6 files, frontend.h's `carscr_pane`, `playerscr_pane`, `circuitscr_pane`), `void *` (`recordscr_viewPane`, `video_gTitlePane`, `gTestPane`, `gConfirmPane`) |
 | `tRGBA` (MAT3 `tRGBA`) | a colour: `c[0]` to `c[3]` red, green, blue, alpha in memory; `rgba` moves the four bytes at once | `union Color` (11 files, and cars.h's `GetCarsIRColor`, `SetSheenColor`), `Color4` (4), `RGBA` (3), `MapColor`, anim_car_color_marker's `Color`, TB_SetTextColor's `Color8`; include/game's `BlitColor`, `ArrowColor`, `HudColor`, `ButtonColor`, `ColorWord`, `Color8` (`gFontColors` is `tRGBA[22][2]`, MAT3's `gFontColors[22][2][4]`), and `PcText4` for `modescr_button_color` |
 | `PaneColors` | a pane's two colours as `ChangePaneColor` takes them, the inside's and the border's (`hud_playerPaneColors`) | its fields were `u8 x[4], y[4]` |
 | `BlitXluColors` (blit.h) | `blitPrimColor`: the primitive and the environment colour `BlitXLU` loads | two `BlitColor` |
@@ -83,7 +83,8 @@ screens read `flashColors[1]`): frontend.h's declaration of the label went with 
 screens' button colours, `modescr_button_color`, `gFontColors`. gen_data lays them out as before: a struct of four
 bytes and a union with a byte member that covers it are both bytes ([DATA.md](DATA.md) 2); data.c and the symbol list
 are the reference's but for type names, and data_layout.txt lists 42 data under "Unions copied as bytes" where it
-listed 33 (the nine that were byte structs).
+listed 33 (the nine that were byte structs). The blits' data have their records too: every multiblit table is a
+`tBlitDef`, every blit pointer a `tBlit *` and every pane pointer a `tBlitSet *` (but the three below).
 
 **Leftover bytes, kept.** Two environment colours nothing sets are read past their colour, as on the N64: BlitXLU's
 (`blitPrimColor.env`, the first word of the Controller Pak names' table after it on the N64, loaded as before) and the
@@ -91,9 +92,11 @@ IA blits' (`blit_ia_palette`'s last four bytes, the first two of `blit_tile_line
 say so where they are declared; [NATIVE.md](NATIVE.md) 18.4.
 
 **Left.** weapons.c and shots.c keep their `union RGBA` for one member, the car view's `IRclr` (the typedef says
-`wave 4: tRGBA`): the car record is B1's (3.1), whose header gives it its type. The blit animators of hud.h and frontend.h
-whose parameter is an `s32` or a `void *` (`animPlace`, `hud_updateFrame`, `animLapCount` ...) keep it: as a
-`tBlit *` an unused parameter spills eight bytes instead of four at -O0, which changes the Debug build's code.
+`wave 4: tRGBA`): the car record is B1's (3.1), whose header gives it its type. The blit animators of hud.h and
+frontend.h whose parameter is an `s32` or a `void *` (`animPlace`, `hud_updateFrame`, `animLapCount` ...) keep it:
+as a `tBlit *` an unused parameter spills eight bytes instead of four at -O0, which changes the Debug build's code.
+Three blit and pane pointers stay `intptr_t` (`highscore_blit`, `audio_gTitlePane`, `options_gTitlePane`): gen_data
+lays an `intptr_t` out as the N64's long and a pointer as a pointer, so their type would change their field program.
 `trophySheenColor` (`s32[2]`, MAT3's `tRGBA`) and `animPause_color` (`u32`) are colours the game passes to
 `ZOID_SetColor` and as a blit's flat colour, read as bytes, but declared as words: the loader swaps them as words,
 so on the PC their bytes come out in the other order. Declaring them `tRGBA` would change what the loader does, which

@@ -109,7 +109,7 @@ extern tHudIcon powerupIcon[EXTENT(4)];
 extern tBattleCoin battleCoin[EXTENT(4)];
 extern BattlePointEvent battlePoint[EXTENT(4)];
 extern s8 battlePointCnt;
-extern void *hudextra_blit;
+extern tBlit *hudextra_blit;
 extern s32 bonuscnt[EXTENT(4)];
 
 /* Functions */

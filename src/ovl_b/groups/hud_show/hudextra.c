@@ -2,9 +2,6 @@
  * hudextra.c; runtime image B). */
 #include "game/game.h"
 
-#define blit hudextra_blit
-#define playerPaneColors hudextra_playerPaneColors
-
 /* Makes the battle or stunt HUD once a race (nothing when hudextra_blit exists): battle's multiblit (BattleMultiBlit:
  * health, ammo, weapons, points), or for stunt races a pane in the player's colours behind each player's points (as
  * wide as "8888888" in the HUD font of this many windows) and StuntMultiBlit; then no battle point is flying and no
@@ -16,9 +13,9 @@ void ShowHUDExtra(void)
     int w, h;
     int playerIdx;
     int s;
-    if (!blit) {
+    if (!hudextra_blit) {
         if (gRace == kBattle)
-            blit = NewMultiBlit(0, 0, BattleMultiBlit, 10);
+            hudextra_blit = NewMultiBlit(0, 0, BattleMultiBlit, 10);
         else if (gRace == kStunt) {
             if (gNumWindows == 1) HAL_SetFont(10);
             else if (gNumWindows == 2) HAL_SetFont(11);
@@ -31,9 +28,9 @@ void ShowHUDExtra(void)
                     stuntPos[gNumWindows-1][playerIdx][0]+w/2,
                     stuntPos[gNumWindows-1][playerIdx][1]+h/2,
                     128, 0, playerIdx << 4, 1);
-                ChangePaneColor(pane, playerPaneColors[playerIdx][0], playerPaneColors[playerIdx][1]);
+                ChangePaneColor(pane, hudextra_playerPaneColors[playerIdx][0], hudextra_playerPaneColors[playerIdx][1]);
             }
-            blit = NewMultiBlit(0, 0, StuntMultiBlit, 17);
+            hudextra_blit = NewMultiBlit(0, 0, StuntMultiBlit, 17);
         }
         ClearBattlePoints();
         for (i = 0; i < 4; i++) {

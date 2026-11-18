@@ -9,7 +9,7 @@ void removeBG(void)
   s32 i;
   if (backBlit != 0)
   {
-    RemoveBlit((tBlit *) backBlit);
+    RemoveBlit(backBlit);
     backBlit = 0;
   }
   for (i = 0; i < 4; i++)
