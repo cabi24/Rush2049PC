@@ -131,8 +131,9 @@ the selection).
   (the data loader makes it an alias into gPlayers' storage); the high-score files now write the field.
 - The **pak file record** (MAT3 `tPS_File`; 76 bytes, 96 on the PC): links and two functions, then `pak`,
   `fileNo`, the note's name and suffix, its pages (`PSF_OFS`).
-- Each screen's `buttonInfo[]` (`MenuButton` or a file view of it), its `MultiBlit` table (the texture name, place,
-  z, alpha and the callback; the data loader turns the N64 callback address into the function) and its state
+- Each screen's `buttonInfo[]` (a `MenuButton` table, MAT3's `tMenuButton`; the start screen's `StartScreenButton`
+  has no alpha), its `MultiBlit` table (the texture name, place, z, alpha and the callback; the data loader turns the
+  N64 callback address into the function) and its state
   variables (`gModeMenuSelect`, `gPlayerState[]`, `gHighScoreState`, `gGameOverState`, `gState` ...), with MAT3's
   enums as macros in frontend.h where several files share them (`kPlayerState*`, `kHighScore*`, `kGhostMenu*`,
   `kGameOver*`, `kState*`) and in the file otherwise (`kModeMenu*`, `kStartMenu*`, `kCircuitMenu*`, `kRecordState*`,

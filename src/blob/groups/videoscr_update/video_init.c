@@ -3,12 +3,9 @@
 
 typedef struct Blit Blit;
 typedef struct MultiBlit MultiBlit;
-typedef struct { s32 type, handle; f32 ang; f32 mat[3][3]; f32 pos[3]; u8 pad3C[4]; } Button;   /* 0x40 */
 
 typedef union Color { u8 c[4]; u32 rgba; } Color;
 
-VIEW(Button[12], video_buttonInfo);
-#define video_buttonInfo video_buttonInfo_view
 void *memcpy(void *, const void *, u32);
 
 /* Sets the font under the text lock (HAL_SetFont, inline). */
@@ -69,10 +66,10 @@ void video_initScreen(void)
 
             for (buttonIdx = 0; buttonIdx < 12; buttonIdx++) {
                 if (video_buttonInfo[buttonIdx].handle == -1) {
-                    memcpy(video_buttonInfo[buttonIdx].mat, unitmatrix, 36);
+                    memcpy(video_buttonInfo[buttonIdx].matrix, unitmatrix, 36);
                     video_buttonInfo[buttonIdx].handle = MBOX_NewObject(
                         MBOX_FindObject_WORK(video_buttonNames[video_buttonInfo[buttonIdx].type], 0, gNumModels[0] - 1, 1),
-                        &video_buttonInfo[buttonIdx].mat, -1,
+                        &video_buttonInfo[buttonIdx].matrix, -1,
                         (video_buttonInfo[buttonIdx].type == 0 || video_buttonInfo[buttonIdx].type == 1 ||
                          video_buttonInfo[buttonIdx].type == 2) ? 0x42000 : 0);
                     ZOID_SetColor(video_buttonInfo[buttonIdx].handle, &buttonColor);
@@ -82,24 +79,24 @@ void video_initScreen(void)
             ZOID_SetTexture(video_buttonInfo[8].handle, tex, -1);
             tex = MBOX_FindTexture_WORK("B1", &texIdx, 0, gNumModels[0] - 1, 1);
             ZOID_SetTexture(video_buttonInfo[9].handle, tex, -1);
-            memcpy(video_buttonInfo[9].mat, unitmatrix, 36);
-            WPitchUV(-1.5707964f, video_buttonInfo[9].mat);
-            video_buttonInfo[9].pos[0] = -75.1f;
-            video_buttonInfo[9].pos[1] = 55.2f;
-            video_buttonInfo[9].pos[2] = 100.0f;
-            ScaleUV(video_buttonInfo[9].mat, video_buttonInfo[9].mat, 0.5f);
-            memcpy(video_buttonInfo[10].mat, unitmatrix, 36);
-            WPitchUV(-1.5707964f, video_buttonInfo[10].mat);
-            video_buttonInfo[10].pos[0] = -87.1f;
-            video_buttonInfo[10].pos[1] = 55.2f;
-            video_buttonInfo[10].pos[2] = 100.0f;
+            memcpy(video_buttonInfo[9].matrix, unitmatrix, 36);
+            WPitchUV(-1.5707964f, video_buttonInfo[9].matrix);
+            video_buttonInfo[9].position[0] = -75.1f;
+            video_buttonInfo[9].position[1] = 55.2f;
+            video_buttonInfo[9].position[2] = 100.0f;
+            ScaleUV(video_buttonInfo[9].matrix, video_buttonInfo[9].matrix, 0.5f);
+            memcpy(video_buttonInfo[10].matrix, unitmatrix, 36);
+            WPitchUV(-1.5707964f, video_buttonInfo[10].matrix);
+            video_buttonInfo[10].position[0] = -87.1f;
+            video_buttonInfo[10].position[1] = 55.2f;
+            video_buttonInfo[10].position[2] = 100.0f;
             tex = MBOX_FindTexture_WORK("BUTTON_TITLE", &texIdx, 0, gNumModels[0] - 1, 1);
             ZOID_SetTexture(video_buttonInfo[11].handle, tex, -1);
-            memcpy(video_buttonInfo[11].mat, unitmatrix, 36);
-            WPitchUV(-1.5707964f, video_buttonInfo[11].mat);
-            video_buttonInfo[11].pos[0] = 0.0f;
-            video_buttonInfo[11].pos[1] = 115.0f;
-            video_buttonInfo[11].pos[2] = 200.0f;
+            memcpy(video_buttonInfo[11].matrix, unitmatrix, 36);
+            WPitchUV(-1.5707964f, video_buttonInfo[11].matrix);
+            video_buttonInfo[11].position[0] = 0.0f;
+            video_buttonInfo[11].position[1] = 115.0f;
+            video_buttonInfo[11].position[2] = 200.0f;
             video_buttonsInited = 1;
             video_buttonsJustInited = 1;
             ZeroCameras();

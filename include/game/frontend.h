@@ -193,6 +193,7 @@
 #define CONTROLS_CURSOR 14              /* the cursor */
 #define CONTROLS_B_ICON 15              /* the B button's icon, by the "back" text */
 #define CONTROLS_B_ICON_BACK 16         /* the icon's backing */
+#define CONTROLS_BUTTONS 17
 
 /* The options screen: options_buttonInfo[]: a label and a value button for each of the 14 rows, then the cursor. */
 #define OPTIONS_ROWS 14
@@ -208,9 +209,40 @@
  * (docs/port/SANITIZE.md 3.2). */
 #define PC_WORD_ALIGNED __attribute__((aligned(4)))
 
+/* ---- Records */
+
+/* A menu screen's 3D button (MAT3 tMenuButton): one entry of a screen's buttonInfo table (the options, audio, video,
+ * controls, mode, track, car, circuit, player and record screens). The screen makes its scene object from the model
+ * buttonNames[type], turns the button over as the selection moves (angle), and draws the object by the button's
+ * matrix and position, which it rebuilds each frame; the text beside a button is projected from its position. */
+typedef struct MenuButton {
+    s32 type;          /* its model, the screen's buttonNames[type] (MAT3 buttonType) */
+    s32 handle;        /* its scene object (MBOX_NewObject), -1 until it is made (MAT3 objIdx) */
+    f32 angle;         /* how far it has turned, radians: a row's button turns over to pi while the row is selected,
+                        * showing its other side, and back to 0; the cursor spins. The text beside a button is
+                        * hidden while it is edge-on (EDGE_ON_FROM to EDGE_ON_TO) */
+    f32 matrix[3][3];  /* its orientation (wave 4: tUVMatrix, with position: MAT3 mat.uvs) */
+    f32 position[3];   /* its place (MAT3 mat.pos) */
+    u8 alpha;          /* its text's opacity, 0-255, 0 hidden: the screens whose lists scroll fade the buttons at the
+                        * list's ends (the mode, audio and video screens leave it 0 and draw their text regardless) */
+} MenuButton;
+
+/* A start menu button (MAT3 startscr.c's buttonInfo, anon_buttonType_objIdx_3c): a MenuButton without the alpha,
+ * so 4 bytes shorter; the start menu never fades its text. */
+typedef struct StartScreenButton {
+    s32 type;          /* its model, startscr_buttonNames[type] */
+    s32 handle;        /* its scene object, -1 until it is made */
+    f32 angle;         /* how far it has turned over, radians */
+    f32 matrix[3][3];  /* its orientation (wave 4: tUVMatrix, with position) */
+    f32 position[3];   /* its place */
+} StartScreenButton;
+
 /* Data */
 extern s32 build_date_text;
 extern s32 build_time_text;
+/* The audio screen's buttons: its four lines' left buttons (0-3) and right ones (4-7), the cursor (8), the B button's
+ * icon and its arrow (9, 10) and the title (11). The video screen's are laid out alike. */
+extern MenuButton audio_buttonInfo[EXTENT(12)];
 extern s32 gAudioMenuSelect;
 extern s32 exitAudioScreen;
 extern s32 gLastSong;
@@ -287,6 +319,7 @@ extern const HudBlitDef SureMultiBlit;
 extern const HudBlitDef RumbleMultiBlit;
 extern tRGBA coin_gold_glow_color;
 extern tRGBA coin_silver_glow_color;
+extern MenuButton video_buttonInfo[EXTENT(12)];
 extern s8 video_panesCreated;
 extern s32 exitVideoScreen;
 extern s32 gVideoMenuSelect;
@@ -460,7 +493,7 @@ extern HudBlitDef licensescr_blits[EXTENT(2)];
 extern struct Blit *licensescr_blit;
 extern s8 licensescr_inited;
 extern char *modescr_buttonNames[EXTENT(8)];
-extern ModeScreenButton modescr_buttonInfo[EXTENT(13)];
+extern MenuButton modescr_buttonInfo[EXTENT(13)];
 #define modescr_title_button_position (modescr_buttonInfo[12].position)   /* the title's button's place */
 extern s32 modescr_buttonsInited;
 extern s32 modescr_buttonsJustInited;
@@ -882,13 +915,13 @@ void AnimateWeaponIcon(struct pc_visual *v, s16 op);
 s32 animControllerDim(void *blit);
 s32 animControls(struct Blit *blt);
 s32 animPause(struct Blit *blt);
-s32 animPauseText(struct MenuItem *item);
+s32 animPauseText(struct Blit *blt);
 s32 animRumbleText(struct Blit *blt);
 s32 animStatBars(struct Blit *blt);
 s32 animStatText(s32 i);
-s32 animSureText(struct MenuItem *item);
+s32 animSureText(struct Blit *blt);
 s32 AnimText(void *callback);
-s32 animTitleText(struct MenuItem *item);
+s32 animTitleText(struct Blit *blt);
 void animTrackMaps(void);
 s32 audio_animText(s32 arg0);
 void BlowFog(void);

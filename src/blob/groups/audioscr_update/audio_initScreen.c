@@ -2,11 +2,8 @@
 #include "game/game.h"
 
 typedef struct Blit Blit; typedef struct MultiBlit MultiBlit;
-typedef struct { s32 type, handle; f32 ang; f32 mat[3][3]; f32 pos[3]; u8 pad3C[4]; } Button;
 
 typedef union Color { u8 c[4]; u32 rgba; } Color;
-VIEW(Button[12], audio_buttonInfo);
-#define audio_buttonInfo audio_buttonInfo_view
 void *memcpy(void *,const void *,u32);
 
 s32 osSendMesg(OSMesgQueue *, void *, s32);
@@ -30,11 +27,11 @@ void audio_initScreen(void)
         s32 buttonIdx;
         for (buttonIdx = 0; buttonIdx < 12; buttonIdx++) {
             if (audio_buttonInfo[buttonIdx].handle == -1) {
-                memcpy(audio_buttonInfo[buttonIdx].mat, unitmatrix, 36);
+                memcpy(audio_buttonInfo[buttonIdx].matrix, unitmatrix, 36);
                 audio_buttonInfo[buttonIdx].handle = MBOX_NewObject(
                     MBOX_FindObject_WORK(audio_buttonNames[audio_buttonInfo[buttonIdx].type], 0,
                                        (s8)(gNumModels[0] - 1), 1),
-                    &audio_buttonInfo[buttonIdx].mat, -1,
+                    &audio_buttonInfo[buttonIdx].matrix, -1,
                     (audio_buttonInfo[buttonIdx].type == 0 ||
                      audio_buttonInfo[buttonIdx].type == 1 ||
                      audio_buttonInfo[buttonIdx].type == 2) ? 0x42000 : 0);
@@ -45,25 +42,25 @@ void audio_initScreen(void)
         ZOID_SetTexture(audio_buttonInfo[8].handle, tex, -1);
         tex = MBOX_FindTexture_WORK(audio_init_texture_name_2, &texIdx, 0, (s8)(gNumModels[0] - 1), 1);
         ZOID_SetTexture(audio_buttonInfo[9].handle, tex, -1);
-        memcpy(audio_buttonInfo[9].mat, unitmatrix, 36);
-        WPitchUV(-1.5707964f, audio_buttonInfo[9].mat);
-        audio_buttonInfo[9].pos[0] = -75.1f;
-        audio_buttonInfo[9].pos[1] = 55.2f;
-        audio_buttonInfo[9].pos[2] = 100.0f;
-        ScaleUV(audio_buttonInfo[9].mat, audio_buttonInfo[9].mat, 0.5f);
-        memcpy(audio_buttonInfo[10].mat, unitmatrix, 36);
-        WPitchUV(-1.5707964f, audio_buttonInfo[10].mat);
-        audio_buttonInfo[10].pos[0] = -87.1f;
-        audio_buttonInfo[10].pos[1] = 55.2f;
-        audio_buttonInfo[10].pos[2] = 100.0f;
+        memcpy(audio_buttonInfo[9].matrix, unitmatrix, 36);
+        WPitchUV(-1.5707964f, audio_buttonInfo[9].matrix);
+        audio_buttonInfo[9].position[0] = -75.1f;
+        audio_buttonInfo[9].position[1] = 55.2f;
+        audio_buttonInfo[9].position[2] = 100.0f;
+        ScaleUV(audio_buttonInfo[9].matrix, audio_buttonInfo[9].matrix, 0.5f);
+        memcpy(audio_buttonInfo[10].matrix, unitmatrix, 36);
+        WPitchUV(-1.5707964f, audio_buttonInfo[10].matrix);
+        audio_buttonInfo[10].position[0] = -87.1f;
+        audio_buttonInfo[10].position[1] = 55.2f;
+        audio_buttonInfo[10].position[2] = 100.0f;
         tex = MBOX_FindTexture_WORK(audio_init_texture_name_3, &texIdx, 0, (s8)(gNumModels[0] - 1), 1);
         ZOID_SetTexture(audio_buttonInfo[11].handle, tex, -1);
         do {} while (0);
-        memcpy(audio_buttonInfo[11].mat, unitmatrix, 36);
-        WPitchUV(-1.5707964f, audio_buttonInfo[11].mat);
-        audio_buttonInfo[11].pos[0] = 0.0f;
-        audio_buttonInfo[11].pos[1] = 115.0f;
-        audio_buttonInfo[11].pos[2] = 200.0f;
+        memcpy(audio_buttonInfo[11].matrix, unitmatrix, 36);
+        WPitchUV(-1.5707964f, audio_buttonInfo[11].matrix);
+        audio_buttonInfo[11].position[0] = 0.0f;
+        audio_buttonInfo[11].position[1] = 115.0f;
+        audio_buttonInfo[11].position[2] = 200.0f;
         audio_buttonsInited = 1;
         audio_buttonsJustInited = 1;
         ZeroCameras();

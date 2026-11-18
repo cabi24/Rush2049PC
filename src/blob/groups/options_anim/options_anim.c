@@ -3,29 +3,12 @@
 
 #define TEXT_OFF_ON 16            /* gText.tab[]: the options' values: off, on ... */
 
-typedef struct ButtonInfo {
-    u8 pad0[8];
-    f32 ang;
-    u8 padC[48 - 12];
-    f32 pos[3];
-    u8 alpha;
-    u8 pad3D[3];
-} ButtonInfo;
-
-
-VIEW(ButtonInfo[], options_buttonInfo);
-#define options_buttonInfo options_buttonInfo_view
-
-
-
-
-
 /* Draws option item's name and value at (x, y): the chosen one flashing (with the 3D buttons, the one facing the
  * viewer), the others white. */
 void options_printOption(s32 x, s32 y, s32 item, char *name, char *value)
 {
     if (options_buttonsInited == 1) {
-        if (options_buttonInfo[item].ang < 1.5707964f) {
+        if (options_buttonInfo[item].angle < 1.5707964f) {
             TB_FlashTextColors(flashColors[0], flashColors[1]);
             TB_SetTextColor(1);
         } else {
@@ -53,7 +36,7 @@ void options_animButtonText(void)
     HAL_SetTextDepth(0.0f);
     TB_SetJust(0, 1);
     HAL_SetTextDepth(32320.0f);
-    ZOID_ProjectWindow(0, options_buttonInfo[31].pos, gCamera, 0, screenPos);   /* the title's position */
+    ZOID_ProjectWindow(0, options_buttonInfo[31].position, gCamera, 0, screenPos);   /* the title's position */
     x = screenPos[0];
     y = screenPos[1];
     HAL_SetFont(13);
@@ -62,12 +45,12 @@ void options_animButtonText(void)
     TB_DrawText(TB_CenterText(str, x), y, str);
     HAL_SetFont(11);
     for (i = 0; i < 14; i++) {
-        if ((0.69813168f < options_buttonInfo[i].ang && options_buttonInfo[i].ang < 2.443461f) || !options_buttonInfo[i].alpha) {
+        if ((0.69813168f < options_buttonInfo[i].angle && options_buttonInfo[i].angle < 2.443461f) || !options_buttonInfo[i].alpha) {
             continue;
         }
         HAL_SetTextTranslucency(options_buttonInfo[i].alpha);
         HAL_SetTextDepth(32384.0f);
-        ZOID_ProjectWindow(0, options_buttonInfo[i].pos, gCamera, 0, screenPos);
+        ZOID_ProjectWindow(0, options_buttonInfo[i].position, gCamera, 0, screenPos);
         x = screenPos[0] + 50;
         y = screenPos[1];
         switch (i) {

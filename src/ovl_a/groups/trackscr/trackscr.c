@@ -12,7 +12,6 @@ typedef struct MultiBlit {
     char *name;s16 x,y,width,height,top,bottom,left,right;
     u32 z,alpha;s32 (*callback)(Blit *);u32 descriptor;
 } MultiBlit;
-typedef struct tMenuButton {s32 type,handle;f32 angle,matrix[3][3],position[3];u8 alpha,pad[3];} tMenuButton;
 typedef union Color {u32 word;u8 channel[4];} Color;
 /* A pak file record (MAT3 tPS_File) in its PC layout (pc_prelude.h PSF_OFS, docs/port/POINTERS.md 9.10). */
 typedef struct FileInfo {void *next, *prev; void (*RemoveFile)(void *), (*MoveFile)(void *, void *); u8 pak;} FileInfo;
@@ -41,6 +40,10 @@ typedef struct Player {u8 slot,controller,pad02[2];u32 pressed,levels,repeated;u
 #define TRACK_BUTTON_B_ARROW 47
 #define TRACK_BUTTONS 48
 
+/* The screen's button table with its extent, which include/game leaves open (EXTENT): this file's code is compiled
+ * knowing it, as it always was. */
+extern MenuButton trackscr_buttonInfo[TRACK_BUTTONS];
+
 #define WAVE_PATHS 158                  /* a race track's path data: this + the track */
 #define CIRCUIT_DEATH_MODE_BYTE 1785    /* the profile's save data: the circuit's death mode */
 
@@ -50,9 +53,6 @@ extern Player gPlayers[];        /* gPlayers */
  * docs/port/MORECARS.md 1.3, 10.1): 5 with the setting at original, as on the N64. Its reset value and its default
  * (GetDefaultOption, GetDefaultOption) stay 5, so a player who never touches it races 6 cars. */
 #define PC_DRONES_MAX (pc_cars_setting() - 1)
-
-VIEW(tMenuButton[48], trackscr_buttonInfo);
-#define trackscr_buttonInfo trackscr_buttonInfo_view
 
 VIEW(Color, trackscr_init_button_color);
 #define trackscr_init_button_color trackscr_init_button_color_view

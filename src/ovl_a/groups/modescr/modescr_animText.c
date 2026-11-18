@@ -1,7 +1,6 @@
 /* modescr_animText: the mode menu's text (MAT3 modescr.c animText). */
 #include "game/game.h"
 
-typedef struct Slot { f32 x,y,angle; u8 unknown0C[36]; f32 position[3]; u8 unknown3C[4]; } Slot;
 
 
 VIEW(tRGBA, flashColors_at_1);
@@ -21,7 +20,7 @@ s32 modescr_animText(void *callback_context)
     s16 x, y;
     s32 i;
     char *title;
-    Slot *slot;
+    MenuButton *slot;
     char text[36];
     s16 point[2];
     HAL_SetTextDepth(0.0f);

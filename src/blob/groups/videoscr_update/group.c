@@ -1,18 +1,6 @@
 /* The video options screen: its buttons and its update (MAT3 videoscr.c). */
 #include "game/game.h"
 
-typedef struct {
-    s32 type;            /* 0x00 */
-    s32 handle;          /* 0x04 */
-    f32 ang;             /* 0x08 */
-    f32 mat[3][3];       /* 0x0C */
-    f32 pos[3];          /* 0x30 */
-    u8 pad3C[4];
-} Button; /* 0x40 */
-
-VIEW(Button[], video_buttonInfo);
-#define video_buttonInfo video_buttonInfo_view
-
 f32 fabsf(f32);
 #pragma intrinsic(fabsf)
 void *memcpy(void *, const void *, u32);
@@ -72,34 +60,34 @@ void video_updateButtons(void) {
     for (i = 0; i < 4; i++) {
         if (i == gVideoMenuSelect) {
             sel_y = y;
-            if (video_buttonInfo[i].ang < 3.1415927f)
-                video_buttonInfo[i].ang += 12.566371f * gFrameSeconds;
-            if (3.1415927f < video_buttonInfo[i].ang || video_buttonsJustInited == 1)
-                video_buttonInfo[i].ang = 3.1415927f;
+            if (video_buttonInfo[i].angle < 3.1415927f)
+                video_buttonInfo[i].angle += 12.566371f * gFrameSeconds;
+            if (3.1415927f < video_buttonInfo[i].angle || video_buttonsJustInited == 1)
+                video_buttonInfo[i].angle = 3.1415927f;
         } else {
-            if (0.0f < video_buttonInfo[i].ang)
-                video_buttonInfo[i].ang -= 12.566371f * gFrameSeconds;
-            if (video_buttonInfo[i].ang < 0.0f || video_buttonsJustInited == 1)
-                video_buttonInfo[i].ang = 0.0f;
+            if (0.0f < video_buttonInfo[i].angle)
+                video_buttonInfo[i].angle -= 12.566371f * gFrameSeconds;
+            if (video_buttonInfo[i].angle < 0.0f || video_buttonsJustInited == 1)
+                video_buttonInfo[i].angle = 0.0f;
         }
-        memcpy(video_buttonInfo[i].mat, unitmatrix, 36);
-        memcpy(old, video_buttonInfo[i].pos, 12);
-        video_buttonInfo[i].pos[0] = -90.0f;
-        video_buttonInfo[i].pos[1] = y;
-        video_buttonInfo[i].pos[2] = 300.0f;
+        memcpy(video_buttonInfo[i].matrix, unitmatrix, 36);
+        memcpy(old, video_buttonInfo[i].position, 12);
+        video_buttonInfo[i].position[0] = -90.0f;
+        video_buttonInfo[i].position[1] = y;
+        video_buttonInfo[i].position[2] = 300.0f;
         if (video_buttonsJustInited == 0) {
-            if (old[1] + 180.0f * gFrameSeconds < video_buttonInfo[i].pos[1])
-                video_buttonInfo[i].pos[1] = old[1] + 180.0f * gFrameSeconds;
-            if (video_buttonInfo[i].pos[1] < old[1] - 180.0f * gFrameSeconds)
-                video_buttonInfo[i].pos[1] = old[1] - 180.0f * gFrameSeconds;
+            if (old[1] + 180.0f * gFrameSeconds < video_buttonInfo[i].position[1])
+                video_buttonInfo[i].position[1] = old[1] + 180.0f * gFrameSeconds;
+            if (video_buttonInfo[i].position[1] < old[1] - 180.0f * gFrameSeconds)
+                video_buttonInfo[i].position[1] = old[1] - 180.0f * gFrameSeconds;
         }
-        video_buttonInfo[i + 4].ang = video_buttonInfo[i].ang;
-        video_buttonInfo[i + 4].pos[0] = 150.0f;
-        video_buttonInfo[i + 4].pos[1] = video_buttonInfo[i].pos[1];
-        video_buttonInfo[i + 4].pos[2] = video_buttonInfo[i].pos[2];
-        WPitchUV(video_buttonInfo[i].ang - 1.5707964f, video_buttonInfo[i].mat);
-        memcpy(video_buttonInfo[i + 4].mat, video_buttonInfo[i].mat, 36);
-        if (1.5707964f < video_buttonInfo[i].ang)
+        video_buttonInfo[i + 4].angle = video_buttonInfo[i].angle;
+        video_buttonInfo[i + 4].position[0] = 150.0f;
+        video_buttonInfo[i + 4].position[1] = video_buttonInfo[i].position[1];
+        video_buttonInfo[i + 4].position[2] = video_buttonInfo[i].position[2];
+        WPitchUV(video_buttonInfo[i].angle - 1.5707964f, video_buttonInfo[i].matrix);
+        memcpy(video_buttonInfo[i + 4].matrix, video_buttonInfo[i].matrix, 36);
+        if (1.5707964f < video_buttonInfo[i].angle)
             texture = MBOX_FindTexture_WORK("BUTTON_SELECT", &tex, 0, (s8)(gNumModels[0] - 1), 1);
         else
             texture = MBOX_FindTexture_WORK("BUTTON", &tex, 0, (s8)(gNumModels[0] - 1), 1);
@@ -117,31 +105,31 @@ void video_updateButtons(void) {
             y -= 40.0f;
         }
     }
-    memcpy(old, video_buttonInfo[8].pos, 12);
-    video_buttonInfo[8].ang += 6.2831855f * gFrameSeconds;
-    if (6.2831855f < video_buttonInfo[8].ang)
-        video_buttonInfo[8].ang -= 6.2831855f;
-    memcpy(video_buttonInfo[8].mat, unitmatrix, 36);
-    video_buttonInfo[8].pos[0] = -160.0f;
-    video_buttonInfo[8].pos[2] = 225.0f;
-    video_buttonInfo[8].pos[1] = sel_y * 225.0f / 300.0f;
+    memcpy(old, video_buttonInfo[8].position, 12);
+    video_buttonInfo[8].angle += 6.2831855f * gFrameSeconds;
+    if (6.2831855f < video_buttonInfo[8].angle)
+        video_buttonInfo[8].angle -= 6.2831855f;
+    memcpy(video_buttonInfo[8].matrix, unitmatrix, 36);
+    video_buttonInfo[8].position[0] = -160.0f;
+    video_buttonInfo[8].position[2] = 225.0f;
+    video_buttonInfo[8].position[1] = sel_y * 225.0f / 300.0f;
     if (video_buttonsJustInited == 0) {
-        y = video_buttonInfo[8].pos[1];
+        y = video_buttonInfo[8].position[1];
         if (video_buttonSlideSpeed < fabsf(y - old[1]) * 60.0f / 10.0f) {
             video_buttonSlideSpeed = fabsf(y - old[1]) * 60.0f / 10.0f;
             video_buttonSlideSpeed = (video_buttonSlideSpeed < 540.0f * video_buttonSlideScale) ? video_buttonSlideSpeed : 540.0f * video_buttonSlideScale;
             video_buttonSlideSpeed = (180.0f * video_buttonSlideScale < video_buttonSlideSpeed) ? video_buttonSlideSpeed : 180.0f * video_buttonSlideScale;
         }
         if (old[1] + video_buttonSlideSpeed * gFrameSeconds < y)
-            video_buttonInfo[8].pos[1] = old[1] + video_buttonSlideSpeed * gFrameSeconds;
+            video_buttonInfo[8].position[1] = old[1] + video_buttonSlideSpeed * gFrameSeconds;
         else if (y < old[1] - video_buttonSlideSpeed * gFrameSeconds)
-            video_buttonInfo[8].pos[1] = old[1] - video_buttonSlideSpeed * gFrameSeconds;
+            video_buttonInfo[8].position[1] = old[1] - video_buttonSlideSpeed * gFrameSeconds;
         else
             video_buttonSlideSpeed = 180.0f * video_buttonSlideScale;
     }
-    WRollUV(video_buttonInfo[8].ang, video_buttonInfo[8].mat);
-    WPitchUV(1.5707964f, video_buttonInfo[8].mat);
-    ScaleUV(video_buttonInfo[8].mat, video_buttonInfo[8].mat, 0.4f);
+    WRollUV(video_buttonInfo[8].angle, video_buttonInfo[8].matrix);
+    WPitchUV(1.5707964f, video_buttonInfo[8].matrix);
+    ScaleUV(video_buttonInfo[8].matrix, video_buttonInfo[8].matrix, 0.4f);
     video_buttonsJustInited = 0;
 }
 

@@ -2,10 +2,10 @@
  * scrolls to keep the chosen one in view, turns the chosen button face up and spins the cursor beside it. */
 #include "game/game.h"
 
-typedef struct Item { s32 type, handle; f32 angle, matrix[3][3], position[3]; u8 alpha, pad[3]; } Item;
-/* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
-VIEW(Item[4][17], controls_buttonInfo);
-#define controls_buttonInfo controls_buttonInfo_view
+/* The screen's button table with its extent, which include/game leaves open (EXTENT): this file's code is compiled
+ * knowing it, as it always was. */
+extern MenuButton controls_buttonInfo[4][CONTROLS_BUTTONS];
+
 typedef struct NameEntry NameEntry;
 
 void *memcpy(void *,const void *,u32);

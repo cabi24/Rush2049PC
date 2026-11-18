@@ -123,7 +123,6 @@ struct MacroStateTrapKeyOff;
 struct MacroStateUntrapKeyOff;
 struct MacroStateVibrato;
 struct MapRecord;
-struct MenuItem;
 struct MenuNode;
 struct MessageQueue;
 struct Metadata48;
@@ -666,15 +665,6 @@ typedef struct CircuitChance { /* 0x4 bytes */
     u16 unused; /* 0x0 */
     u16 range;  /* 0x2 */
 } CircuitChance;
-
-typedef struct ScreenButton { /* 0x40 bytes */
-    s32 type;      /* 0x0 */
-    s32 handle;    /* 0x4 */
-    f32 ang;       /* 0x8 */
-    f32 mat[3][3]; /* 0xC */
-    f32 pos[3];    /* 0x30 */
-    u8 pad3C[4];   /* 0x3C */
-} ScreenButton;
 
 typedef struct ScreenPos { /* 0x8 bytes */
     s32 x; /* 0x0 */
@@ -2449,27 +2439,6 @@ typedef struct HighScoreRect { /* 0xC bytes: a player's box on the high-score sc
     s16 cy;         /* 0xA */
 } HighScoreRect;
 
-/* A menu screen's 3D button (MAT3 tMenuButton): its model, its scene object, its turn, the tUVMatrix it draws by and
- * its alpha. */
-typedef struct MenuButton { /* 0x40 bytes */
-    s32 type;         /* 0x0 */
-    s32 handle;       /* 0x4 */
-    f32 angle;        /* 0x8 */
-    f32 matrix[3][3]; /* 0xC */
-    f32 position[3];  /* 0x30 */
-    u8 alpha;         /* 0x3C */
-    u8 pad[3];        /* 0x3D */
-} MenuButton;
-
-typedef struct ModeScreenButton { /* 0x40 bytes */
-    s32 unknown0;     /* 0x0 */
-    s32 id;           /* 0x4 */
-    f32 angle;        /* 0x8 */
-    f32 matrix[3][3]; /* 0xC */
-    f32 position[3];  /* 0x30 */
-    s32 unknown3C;    /* 0x3C */
-} ModeScreenButton;
-
 typedef struct MotionFrame { /* 0xE0 bytes */
     BackgroundMotion slot[4]; /* 0x0 */
 } MotionFrame;
@@ -2510,15 +2479,6 @@ typedef struct SelectCarWaveSlot { /* 0xC bytes: a car model load (MAT3 anon_wav
 typedef struct SoundClearRecord { /* 0x30 bytes */
     struct pc_multiblit m; /* 0x0 */
 } SoundClearRecord;
-
-/* A start screen button (MAT3 startscr.c's buttonInfo, anon_buttonType_objIdx_3c): a MenuButton without the alpha. */
-typedef struct StartScreenButton { /* 0x3C bytes */
-    s32 type;         /* 0x0 its model, startscr_buttonNames[type] */
-    s32 handle;       /* 0x4 its scene object, -1 until it is made */
-    f32 angle;        /* 0x8 how far it has turned over, radians */
-    f32 matrix[3][3]; /* 0xC its orientation; with position, the tUVMatrix its scene object draws by */
-    f32 position[3];  /* 0x30 */
-} StartScreenButton;
 
 typedef struct TrackMapEntry { /* 0x48 bytes */
     s32 handle;       /* 0x0 */

@@ -9,21 +9,8 @@ typedef union Color {
     u32 rgba;
 } Color;
 
-typedef struct {
-    s32 type;            /* 0x00 */
-    s32 handle;          /* 0x04 */
-    f32 ang;             /* 0x08 */
-    f32 mat[3][3];       /* 0x0C */
-    f32 pos[3];          /* 0x30 */
-    u8 alpha;            /* 0x3C */
-    u8 pad3D[3];
-} Button; /* 0x40, MAT3 tMenuButton */
-
 /* options_buttonInfo[]: the rows' buttons, a label and a value button for each of the 14 rows, then the cursor. */
 #define OPTION_ROW_LANGUAGE 0
-
-VIEW(Button[], options_buttonInfo);
-#define options_buttonInfo options_buttonInfo_view
 
 f32 fabsf(f32);
 #pragma intrinsic(fabsf)
@@ -83,17 +70,17 @@ void options_updateButtons(void) {
         if (options_validOption[j] != 0)
             n++;
     }
-    memcpy(old, options_buttonInfo[OPTIONS_CURSOR].pos, 12);
-    options_buttonInfo[OPTIONS_CURSOR].ang += 6.2831855f * gFrameSeconds;
-    if (6.2831855f < options_buttonInfo[OPTIONS_CURSOR].ang)
-        options_buttonInfo[OPTIONS_CURSOR].ang -= 6.2831855f;
-    memcpy(options_buttonInfo[OPTIONS_CURSOR].mat, unitmatrix, 36);
+    memcpy(old, options_buttonInfo[OPTIONS_CURSOR].position, 12);
+    options_buttonInfo[OPTIONS_CURSOR].angle += 6.2831855f * gFrameSeconds;
+    if (6.2831855f < options_buttonInfo[OPTIONS_CURSOR].angle)
+        options_buttonInfo[OPTIONS_CURSOR].angle -= 6.2831855f;
+    memcpy(options_buttonInfo[OPTIONS_CURSOR].matrix, unitmatrix, 36);
     sel_y = 75.0f - n * 165.0f / (gMenuCount - 1);
-    options_buttonInfo[OPTIONS_CURSOR].pos[0] = -160.0f;
-    options_buttonInfo[OPTIONS_CURSOR].pos[2] = 225.0f;
-    options_buttonInfo[OPTIONS_CURSOR].pos[1] = sel_y;
+    options_buttonInfo[OPTIONS_CURSOR].position[0] = -160.0f;
+    options_buttonInfo[OPTIONS_CURSOR].position[2] = 225.0f;
+    options_buttonInfo[OPTIONS_CURSOR].position[1] = sel_y;
     if (options_buttonsJustInited == 0) {
-        y = options_buttonInfo[OPTIONS_CURSOR].pos[1];
+        y = options_buttonInfo[OPTIONS_CURSOR].position[1];
         if (cursorSpeed < fabsf(y - old[1]) * 60.0f / 10.0f) {
             cursorSpeed = fabsf(y - old[1]) * 60.0f / 10.0f;
             if (!(cursorSpeed < 540.0f))
@@ -102,70 +89,70 @@ void options_updateButtons(void) {
                 cursorSpeed = 180.0f;
         }
         if (old[1] + cursorSpeed * gFrameSeconds < y)
-            options_buttonInfo[OPTIONS_CURSOR].pos[1] = old[1] + cursorSpeed * gFrameSeconds;
+            options_buttonInfo[OPTIONS_CURSOR].position[1] = old[1] + cursorSpeed * gFrameSeconds;
         else if (y < old[1] - cursorSpeed * gFrameSeconds)
-            options_buttonInfo[OPTIONS_CURSOR].pos[1] = old[1] - cursorSpeed * gFrameSeconds;
+            options_buttonInfo[OPTIONS_CURSOR].position[1] = old[1] - cursorSpeed * gFrameSeconds;
         else
             cursorSpeed = 180.0f;
     }
-    WRollUV(options_buttonInfo[OPTIONS_CURSOR].ang, options_buttonInfo[OPTIONS_CURSOR].mat);
-    WPitchUV(1.5707964f, options_buttonInfo[OPTIONS_CURSOR].mat);
-    ScaleUV(options_buttonInfo[OPTIONS_CURSOR].mat, options_buttonInfo[OPTIONS_CURSOR].mat, 0.4f);
+    WRollUV(options_buttonInfo[OPTIONS_CURSOR].angle, options_buttonInfo[OPTIONS_CURSOR].matrix);
+    WPitchUV(1.5707964f, options_buttonInfo[OPTIONS_CURSOR].matrix);
+    ScaleUV(options_buttonInfo[OPTIONS_CURSOR].matrix, options_buttonInfo[OPTIONS_CURSOR].matrix, 0.4f);
     yi = sel_y * 1.33f + n * 40;
     for (i = 0; i < OPTIONS_ROWS; i++) {
         if (i == options_gSelectedOption) {
-            if (options_buttonInfo[i].ang < 3.1415927f)
-                options_buttonInfo[i].ang += 12.566371f * gFrameSeconds;
-            if (3.1415927f < options_buttonInfo[i].ang)
-                options_buttonInfo[i].ang = 3.1415927f;
+            if (options_buttonInfo[i].angle < 3.1415927f)
+                options_buttonInfo[i].angle += 12.566371f * gFrameSeconds;
+            if (3.1415927f < options_buttonInfo[i].angle)
+                options_buttonInfo[i].angle = 3.1415927f;
             if (options_buttonsJustInited != 0)
-                options_buttonInfo[i].ang = 3.1415927f;
+                options_buttonInfo[i].angle = 3.1415927f;
         } else {
-            if (0.0f < options_buttonInfo[i].ang)
-                options_buttonInfo[i].ang -= 12.566371f * gFrameSeconds;
-            if (options_buttonInfo[i].ang < 0.0f)
-                options_buttonInfo[i].ang = 0.0f;
+            if (0.0f < options_buttonInfo[i].angle)
+                options_buttonInfo[i].angle -= 12.566371f * gFrameSeconds;
+            if (options_buttonInfo[i].angle < 0.0f)
+                options_buttonInfo[i].angle = 0.0f;
             if (options_buttonsJustInited != 0)
-                options_buttonInfo[i].ang = 0.0f;
+                options_buttonInfo[i].angle = 0.0f;
         }
-        options_buttonInfo[i + 14].ang = options_buttonInfo[i].ang;
-        memcpy(options_buttonInfo[i].mat, unitmatrix, 36);
-        memcpy(options_buttonInfo[i + 14].mat, unitmatrix, 36);
-        memcpy(old, options_buttonInfo[i].pos, 12);
-        options_buttonInfo[i].pos[0] = -90.0f;
-        options_buttonInfo[i].pos[1] = yi;
-        options_buttonInfo[i].pos[2] = 300.0f;
+        options_buttonInfo[i + 14].angle = options_buttonInfo[i].angle;
+        memcpy(options_buttonInfo[i].matrix, unitmatrix, 36);
+        memcpy(options_buttonInfo[i + 14].matrix, unitmatrix, 36);
+        memcpy(old, options_buttonInfo[i].position, 12);
+        options_buttonInfo[i].position[0] = -90.0f;
+        options_buttonInfo[i].position[1] = yi;
+        options_buttonInfo[i].position[2] = 300.0f;
         if (options_buttonsJustInited == 0) {
-            if (scrollSpeed < fabsf(options_buttonInfo[i].pos[1] - old[1]) * 60.0f / 10.0f) {
-                scrollSpeed = fabsf(options_buttonInfo[i].pos[1] - old[1]) * 60.0f / 10.0f;
+            if (scrollSpeed < fabsf(options_buttonInfo[i].position[1] - old[1]) * 60.0f / 10.0f) {
+                scrollSpeed = fabsf(options_buttonInfo[i].position[1] - old[1]) * 60.0f / 10.0f;
                 if (!(scrollSpeed < 540.0f))
                     scrollSpeed = 540.0f;
             }
-            if (old[1] + scrollSpeed * gFrameSeconds < options_buttonInfo[i].pos[1]) {
+            if (old[1] + scrollSpeed * gFrameSeconds < options_buttonInfo[i].position[1]) {
                 settled = 0;
-                options_buttonInfo[i].pos[1] = old[1] + scrollSpeed * gFrameSeconds;
-            } else if (options_buttonInfo[i].pos[1] < old[1] - scrollSpeed * gFrameSeconds) {
+                options_buttonInfo[i].position[1] = old[1] + scrollSpeed * gFrameSeconds;
+            } else if (options_buttonInfo[i].position[1] < old[1] - scrollSpeed * gFrameSeconds) {
                 settled = 0;
-                options_buttonInfo[i].pos[1] = old[1] - scrollSpeed * gFrameSeconds;
+                options_buttonInfo[i].position[1] = old[1] - scrollSpeed * gFrameSeconds;
             }
         }
-        options_buttonInfo[i + 14].pos[0] = 150.0f;
-        options_buttonInfo[i + 14].pos[1] = options_buttonInfo[i].pos[1] * 31.0f / 30.0f;
-        options_buttonInfo[i + 14].pos[2] = 310.0f;
-        WPitchUV(options_buttonInfo[i].ang - 1.5707964f, options_buttonInfo[i].mat);
-        WPitchUV(options_buttonInfo[i + 14].ang - 1.5707964f, options_buttonInfo[i + 14].mat);
-        if (1.5707964f < options_buttonInfo[i].ang)
+        options_buttonInfo[i + 14].position[0] = 150.0f;
+        options_buttonInfo[i + 14].position[1] = options_buttonInfo[i].position[1] * 31.0f / 30.0f;
+        options_buttonInfo[i + 14].position[2] = 310.0f;
+        WPitchUV(options_buttonInfo[i].angle - 1.5707964f, options_buttonInfo[i].matrix);
+        WPitchUV(options_buttonInfo[i + 14].angle - 1.5707964f, options_buttonInfo[i + 14].matrix);
+        if (1.5707964f < options_buttonInfo[i].angle)
             texture = MBOX_FindTexture_WORK("BUTTON_SELECT", &tex, 0, (s8)(gNumModels[0] - 1), 1);
         else
             texture = MBOX_FindTexture_WORK("BUTTON", &tex, 0, (s8)(gNumModels[0] - 1), 1);
         ZOID_SetTexture(options_buttonInfo[i].handle, texture, -1);
         ZOID_SetTexture(options_buttonInfo[i + 14].handle, texture, -1);
-        if (140.0f < options_buttonInfo[i].pos[1] || options_buttonInfo[i].pos[1] < -160.0f)
+        if (140.0f < options_buttonInfo[i].position[1] || options_buttonInfo[i].position[1] < -160.0f)
             options_buttonInfo[i].alpha = 0;
-        else if (100.0f < options_buttonInfo[i].pos[1])
-            options_buttonInfo[i].alpha = 255.0f - (options_buttonInfo[i].pos[1] - 100.0f) * 255 / 40.0f;
-        else if (options_buttonInfo[i].pos[1] < -120.0f)
-            options_buttonInfo[i].alpha = 255.0f - (-120.0f - options_buttonInfo[i].pos[1]) * 255 / 40.0f;
+        else if (100.0f < options_buttonInfo[i].position[1])
+            options_buttonInfo[i].alpha = 255.0f - (options_buttonInfo[i].position[1] - 100.0f) * 255 / 40.0f;
+        else if (options_buttonInfo[i].position[1] < -120.0f)
+            options_buttonInfo[i].alpha = 255.0f - (-120.0f - options_buttonInfo[i].position[1]) * 255 / 40.0f;
         else
             options_buttonInfo[i].alpha = 255;
         options_buttonInfo[i + 14].alpha = options_buttonInfo[i].alpha;
