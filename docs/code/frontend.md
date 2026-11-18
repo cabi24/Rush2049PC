@@ -111,7 +111,7 @@ tree: `modescr_initScreen`, `trackscr_buttonInfo`):
 - `validOption` / `optionValid`: which rows are offered (by the player count, the race type, unlocks, cheats).
 
 The **buttons** are `gActiveEdges` (newly pressed, any pad), `gActiveAutoEdges` (newly pressed or auto-repeating),
-`gActiveLevels` (held), and per player `gPlayers[p].edges` / `.repeated`: bits `BUTTON_START`, `BUTTON_A`,
+`gActiveLevels` (held), and per player `gPlayers[p].edges` / `.autoEdges`: bits `BUTTON_START`, `BUTTON_A`,
 `BUTTON_B`, `BUTTON_UP` ... (input.h). `PlayStartABSound`, `PlayUDSound` and `PlayLRSound` play the matching
 menu sound. The secret codes (`gEggs`, `CheckForEgg`) are sequences of held and new buttons.
 
@@ -122,13 +122,14 @@ the selection).
 
 ## 4. The main data
 
-- `gPlayers[4]` (MAT3 `tPadState`, 76 bytes, 80 on the PC): a player's controller (`CONTROLLER_NONE` 5 without one),
-  its button words, and at 0x48 a pointer to its profile handle. Files declare their own view of it.
+- `gPlayers[4]` (MAT3 `tPadState`, input.h; 80 bytes): a player's car slot and controller (`CONTROLLER_NONE` 5
+  without one), its button words, its control layout, and `save`, its profile's handle (a `tProfile **`).
+  Every file uses input.h's declaration ([docs/port/RECORDS.md](../port/RECORDS.md) 4.1).
 - The **profile** (MAT3 `tPlayerProfile`, save.c's record; 48 bytes, 64 on the PC): links, its pak file handle
   (`fileh`, NULL for a guest), its id, `name[13]`, `controls[10]`, `rumble`, `datah`. On the PC its pointers are 8
   bytes, so its fields are later than on the N64 (`PROFILE_OFS` in pc_prelude.h); the files read it through a
-  `PlayerProfile` view in its PC layout. `gPlayers_save` is the label of `gPlayers[0].profile`
-  (the data loader makes it an alias into gPlayers' storage); the high-score files now write the field.
+  `PlayerProfile` view in its PC layout; reached through a player, `(*gPlayers[p].save)->name` is types.h's
+  `tProfile`.
 - The **pak file record** (MAT3 `tPS_File`; 76 bytes, 96 on the PC): links and two functions, then `pak`,
   `fileNo`, the note's name and suffix, its pages (`PSF_OFS`).
 - Each screen's `buttonInfo[]` (`MenuButton` or a file view of it), its `MultiBlit` table (the texture name, place,
@@ -210,7 +211,6 @@ because the library is the same.
 - **Records with pointers** (the profile, the pak file record, a ghost) are in their PC layout, but the code still
   reaches some of them through `PROFILE_OFS`/`PSF_OFS`-style views per file; the shared definitions in types.h
   (`PlayerSaveSlot`, `ProfileRec`) disagree with each other and should become one `PlayerProfile`.
-- **gPlayers** has no shared type; each file has a view (`PadState`, `InputRecord`, `Player76` ...).
 - **The controller pak**: the pak manager, the warning screen, `gBlocksNeeded`, the licence screen's pak gate and
   the pak status strings are N64 only; on the PC the paks are files (docs/port/SAVES.md).
 - **The buttons' meaning** comes from the cartridge's `n64_button_map`: bits 0-2 and 10-13 are known from the code
@@ -223,8 +223,8 @@ because the library is the same.
 - **The track maps** (trackscr.c): `MapLod.displayList` and `verts` were 32-bit fields given host pointers to the
   display lists `buildTrackMaps` makes, which held only while the heap was in the fixed window; they are pointers
   since [NATIVE.md](../port/NATIVE.md) step 10.
-- **Labels into objects**: `flashColors_at_1` is `flashColors[1]`, `gPlayers_save` is `gPlayers[0].profile` (no
-  longer used here), the trophy sheen's scale is `ObjInstanceList[node].w` (until wave 2c circuitscr.c wrote it
+- **Labels into objects**: `flashColors_at_1` is `flashColors[1]` (`gPlayers_save`, `gPlayers[0]`'s profile handle,
+  went in wave 4: `gPlayers[k].save`), the trophy sheen's scale is `ObjInstanceList[node].w` (until wave 2c circuitscr.c wrote it
   through `object_list_scale_view`, a label 0x10 before `ObjInstanceList` read as 0x44-byte records: the window's
   copy, so the drawn sheen kept w 1; the label is gone); `gFrontTireScale` and `gRearTireScale` are declared
   [5][13] (until [NATIVE.md](../port/NATIVE.md) 18 one row long, rows 1-4 read through `gFrontTireScale_players`).

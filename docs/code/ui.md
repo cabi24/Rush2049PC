@@ -126,7 +126,8 @@ the circuit before). A player without a profile plays on a "just play" profile (
   profile, pak file and ghost records to the PC's: `groups/save/group.c` (CheckAndRepairPlayer, CreatePlayer,
   ReadPlayer ...) and `groups/save/ghost_files.c` still read them so; `tProfile`, `PakFileRecord` and `tGhostFile` are
   the structures to use instead. Several files still read a record through a view of their own with N64-sized
-  padding (`groups/save/ghost_files.c`'s `Slot` and `Obj`; the HUD's input records `gPlayers`, 0x4C bytes on the N64).
+  padding (`groups/save/ghost_files.c`'s `Slot` and `Obj`). The input records `gPlayers` have one type, input.h's
+  `tPadState`, since wave 4 ([docs/port/RECORDS.md](../port/RECORDS.md) 4.1).
   The ghost header has one type, `tGhostHeader`, in every file since [NATIVE.md](../port/NATIVE.md) step 11.
 - **Window addresses in data: none left here.** The heap functions (`ClearMemoryHeap`, `allocate_memory_at`,
   `heap_move_block_low`) and the overlay loader (`load_overlay`, `runtime_image_block`) work in host pointers since
