@@ -1348,8 +1348,8 @@ REFERENCE = [
      "the 3D-sound sources (an FX tag's data): InsertLLE's two links are pointers"),
     (r"src/blob/groups/audiomgr_emitters/group\.c$", "CamSlot", "an FX tag's data, a 3D-sound source",
      r"src/blob/groups/audiomgr/ProcessEmitters\.c$", "Source"),
-    (r"src/blob/NewMultiBlit\.c$", "Blit", "a blit, NewMultiBlit.c's (POINTERS.md 9.3)"),
-    (r".", "Blit", "a blit: NewMultiBlit.c's layout (POINTERS.md 9.3)", r"src/blob/NewMultiBlit\.c$", "Blit"),
+    (r"src/blob/NewMultiBlit\.c$", "tBlit", "a blit: include/game's tBlit, the one declaration (RECORDS.md 3.3)"),
+    (r".", "tBlit", "a blit: include/game's tBlit (RECORDS.md 3.3)", r"src/blob/NewMultiBlit\.c$", "tBlit"),
 ]
 # Symbols whose reference is not gen_data's choice, because the chosen declaration is one of the views in question:
 # symbol -> (unit regex, view name, why).

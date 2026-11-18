@@ -54,7 +54,7 @@ prefix in the map, `playerscr_initScreen`, `trackscr_buttonInfo`):
 
 - `update<Name>Screen` runs once a frame. On its first frame (`inited`, `screenInited`) it calls `initScreen`,
   which creates the screen's 3D buttons (`initButtons`), a pane (`InitPane`) and the text blit (`NewMultiBlit`
-  over the screen's `MultiBlit` table). It reads the pads' new and auto-repeated buttons (`gActiveEdges`,
+  over the screen's `tBlitDef` table). It reads the pads' new and auto-repeated buttons (`gActiveEdges`,
   `gActiveAutoEdges`), moves the selection, and when the player leaves it calls `uninitScreen` and `setGameState`
   with the next screen's state bit.
 - `updateButtons` lays out the 3D buttons every frame: each option is a model (`tMenuButton`, 64 bytes:
@@ -98,7 +98,7 @@ code.
 
 - `tMenuButton` (64 bytes) and its 0x3C variant without alpha (`ButtonInfo`, the start menu); the tree's file-local
   slot structs of those sizes in image A are views of these.
-- `MultiBlit` (MAT3 `tBlitDef`, 0x24 bytes): texture name, position and size, z, alpha, callback, callback id; one
+- `tBlitDef` (MAT3's, 0x24 bytes on the N64, 0x30 on the PC): texture name, position and size, z, alpha, callback, callback id; one
   table per screen. The callback slot is how the screen's `animText` is reached; on the PC the data loader resolves
   that N64 address to the function.
 - `tCircuit` (the circuit record: active, type, track), MAT3's `tCircuitCar` (one car's circuit results), MAT3's

@@ -87,9 +87,9 @@ game's data declarations.
 **Unions.** A union with a member made only of bytes (a `u8` array or a struct of `u8`s) that covers all of it is
 copied as bytes, unless a member has a pointer or a `long` (whose host layout needs that member). Any other union
 is laid out by its largest member with the most non-byte elements. The first kind is the game's colours
-(`tRGBA`, include/game's, then also `TextColor`, `RGBA`, `Color`, `Color4`: `{ u8 c[4]; u32 rgba; }` or `{ u32 word;
-struct { u8 r, g, b, a; } rgba; }`): the ROM holds R, G, B, A, the game reads those bytes, and swapped as a u32 they
-came out A, B, G, R. Every
+(`tRGBA`, `{ u8 c[4]; u32 rgba; }`, the one colour type since wave 4, [RECORDS.md](RECORDS.md) 3.3; before it
+also `TextColor`, `RGBA`, `Color`, `Color4`, `{ u32 word; struct { u8 r, g, b, a; } rgba; }` and the like): the ROM
+holds R, G, B, A, the game reads those bytes, and swapped as a u32 they came out A, B, G, R. Every
 union in the layout was checked against the game's reads (`endian_check.py`'s accesses and value flow,
 [ENDIAN.md](ENDIAN.md) 4). The 22 colour symbols in initialized data are read as bytes; their words are only
 copied (into locals, scene nodes, the car records, by value) or tested for equality, and no code shifts them,

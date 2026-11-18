@@ -259,8 +259,8 @@ both arrays for an index that is no car slot, such as -1). `In` has the PC layou
 `REFERENCE`: level_objects' `Node` (the level-object nodes) and `Matrix64` (the dead-reckoning records),
 audiomgr_thread's `tFxSequence`, `anon_ll_id_3c` and the sorted-tag node `anon_te_tag_c` (also for AudioInit's
 pools, through its `Voice` and `Chan`),
-ProcessEmitters's `Source` (also for entity_helpers' `CamSlot`), NewMultiBlit's `Blit` (for any view named
-`Blit`). `SYMBOL_REFERENCE`: `audiomgr_gCmds` takes audiomgr_thread's `tAudioMsg`, since gen_data chose transform's
+ProcessEmitters's `Source` (also for entity_helpers' `CamSlot`), include/game's `tBlit` (every file's blit since
+wave 4, [RECORDS.md](RECORDS.md) 3.3). `SYMBOL_REFERENCE`: `audiomgr_gCmds` takes audiomgr_thread's `tAudioMsg`, since gen_data chose transform's
 `Msg`. `LINKS`: `InsertLLE`, `pool_init`, `InitStatLL`.
 
 ## 8. Limits

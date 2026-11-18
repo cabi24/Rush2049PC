@@ -140,6 +140,7 @@ the circuit before). A player without a profile plays on a "just play" profile (
   `pak_file_records`) are own storage; the save data's totals are data of their own (DATA.md 3).
 - **The RDP.** The blitter writes N64 display list commands (`G_TEXRECT`, `G_LOADTLUT` ...) that port/gfx renders;
   `BLIT_ATTR_TALL` and the copy mode are the N64's ways of drawing.
-- **Types to finish**: `HudBlitDef` is an alias of `tBlitDef` (frontend.h uses it); the prototypes of `NewBlit`, `NewMultiBlit`,
-  `InitPane`, `RemoveBlit` and `PS_WriteFile` are still each caller's own, as the callers pass blits and addresses as
-  pointers or integers.
+- **One declaration each** (wave 4, [RECORDS.md](../port/RECORDS.md) 3.3): every file's blit is `tBlit`, its
+  multiblit table `tBlitDef`, its pane `tBlitSet`, and every colour a `tRGBA` (the HUD's, the menus', the text's,
+  a blit's flat colour). Left: the HUD animators whose parameter is an `s32` or a `void *` (`animPlace`,
+  `hud_updateFrame` ...).

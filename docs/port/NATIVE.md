@@ -2143,7 +2143,8 @@ same union, the flashing text's, the cars' sheen and IR colours', the arrows') i
 files that defined `tRGBA` for themselves (two with named bytes `c.r`, `c.red`, one with `w`) and the screens'
 `Color4` aliases use it; `ZOID_SetColor` and `ZOID_SetEnvColor` take a `tRGBA *`, as MAT3's do. Left for a later
 cleanup: include/game's other colour unions (`ArrowColor`, `HudColor`, `ButtonColor`: the same four bytes under other
-member names) and the files' own `union Color` views.
+member names) and the files' own `union Color` views; done in wave 4, where every colour is a `tRGBA`
+([RECORDS.md](RECORDS.md) 3.3).
 
 ### 19.2 The records left in the ROM's order
 
