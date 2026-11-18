@@ -30,6 +30,60 @@
 #define PATH_PTS(path) ((path)->pts)
 #define TARGET_PATH(state) (&gTargetPaths.paths[(state)->pathIdx])
 
+/* A car's respawn (MAT3's anonymous resurrect record, tModelData.resurrect): where it is put back after a crash or an
+ * abort, or on the grid at the start, and its flight there (SetResurrectionData, Resurrect, UpdateResurrectingCar,
+ * FinishResurrecting: docs/code/race.md). MAT3's names. */
+typedef struct tResurrect {
+    f32 pos[3];             /* the respawn point */
+    f32 save_pos[3];        /* the point it is worked out from: the grid's at the start, else where the car crashed */
+    f32 uvs[3][3];          /* the orientation at the respawn point (at save_pos until Resurrect moves it) */
+    f32 quat_start[4];      /* the orientation the flight leaves with, as a quaternion */
+    f32 quat_end[4];        /* and the one it arrives with */
+    s32 velocity;           /* the speed it arrives with, feet a second */
+    f32 crash_time;         /* the model time of the crash, 0 at the race start */
+    s16 moving_state;       /* RES_IDLE, RES_START, then the frames in flight, RES_DONE (physics.h) */
+    f32 resurrect_time;     /* the model time the flight began */
+    s8 autoAbort;           /* the game aborted the car (a drone left behind or stuck: DetectDroneAbort), not a crash */
+    s8 waterAbort;          /* the road under it aborted the car (TireSurf: road codes 3 and 7), so a human isn't
+                             * respawned in place */
+} tResurrect;
+
+/* A part of the track's world (MAT3 tModelPart): a node of a world tree in the track's world file (its WOBJ chunk),
+ * which the game reads where the file lies: WorldBase is the first, and the trees link their parts by index into it
+ * (NewWorld, NewWorldObject). A file format: the offsets are the file's, which the PC reads as they are (no
+ * pointers). A part whose name matches a target kind's becomes that target (SetupTarget). */
+typedef struct tModelPart {
+    char name[16];          /* 0x00 its model's name (MBOX_FindObject_WORK) */
+    UVMatrixRows mat;       /* 0x10 its place relative to its parent: uvs[0..2] the orientation's rows, uvs[3] the
+                             * position (wave 4: tUVMatrix) */
+    u32 dlflags;            /* 0x40 its scene node's flags (OBJ_*, scene.h) */
+    s16 next;               /* 0x44 its next sibling, an index into WorldBase; -1 none */
+    s16 child;              /* 0x46 its first child, the same */
+    s16 sfx1;               /* 0x48 MAT3's sounds; no code reads them */
+    s16 sfx2;               /* 0x4A */
+    s32 tidx;               /* 0x4C the key the world's target groups (gTargetGroupList) know it by */
+    f32 min[3];             /* 0x50 its bounding box, relative to its position: the culling list's, and the world */
+    f32 max[3];             /* 0x5C group a point is in (FindWorldGroup, WorldCullObjects) */
+} tModelPart;
+
+/* A car's contact with a wall of the road tree (MAT3's anonymous collision record): the deepest one found among the
+ * walls round the car's corners this step (CollideCarBody, CollideCarBodyAgainstSurface), which pushes the car back
+ * (CarApplyCollision). */
+typedef struct CCol {
+    surftyp *surf;          /* the wall, NULL none yet */
+    f32 uvs[9];             /* its frame, by rows: uvs[3..5] its normal */
+    s16 carEdge;            /* the car's corner (tireIndex) */
+    s16 index;              /* the wall's edge */
+    f32 dist;               /* how far the car is into it, feet */
+} CCol;
+
+/* A knocked-over cone's or gas pump's flight (MAT3 tTargetStructVelRot, its target's data: StartCone sets it,
+ * AnimateVelRotGeneric flies it). */
+typedef struct tTargetStructVelRot {
+    f32 angV[3];            /* its spin, radians a second about x, y, z */
+    f32 vel[3];             /* its velocity, feet a frame */
+} tTargetStructVelRot;
+
 /* Data */
 extern f32 ghostRaceTimes[EXTENT(6)];
 extern f32 gravitySpeedIncrease[EXTENT(4)];
@@ -160,7 +214,7 @@ s16 FindClosestDronePathPtEfficiently(s16 *pos, s16 lastPath, s16 lastIdx, s16 l
 s16 FindClosestPathPt(s16 *pos, s16 path);
 void FindClosestPt(s32 alt, s32 first, s32 *outPath, s16 *pos, s32 *outIdx);
 s16 FindDronePathIntersect(s16 cp, s16 path);
-void FindInterval(struct tModelData *m, struct pc_car_nav *cp);
+void FindInterval(struct tModelData *m, struct tPathPoint *cp);
 void FindMaxpathIntervals(void);
 s16 FindResPathIntersect(s16 cp);
 s32 FindResPt(s32 inPath, s32 inIdx, s32 *outPath, s32 *outIdx, s32 honorAltRes);
@@ -180,8 +234,8 @@ void InitCPTime(void);
 void InitPathData(void);
 void InitSTree(void);
 void initTargetStructs(s32 unused);
-void IntervalPos(struct tModelData *m, struct pc_car_nav *cp);
-void IntervalPosChange(struct tModelData *m, struct pc_car_nav *cp, s32 change_flag);
+void IntervalPos(struct tModelData *m, struct tPathPoint *cp);
+void IntervalPosChange(struct tModelData *m, struct tPathPoint *cp, s32 change_flag);
 s32 LoadTrack(s32 track, s32 background, s32 reloading);
 void mats2fcopy(void *in, void *out);
 void MaxPathControls(struct tModelData *m);
@@ -219,8 +273,8 @@ void SyncAltPaths(void);
 void SyncCheckpointsToPaths(s16 path);
 void SyncMaxpathToLastCheckpoint(s16 slot);
 void TargetPathAvoid(struct tModelData *m, f32 *scale1);
-void TargetSpeed(struct tModelData *m, struct pc_car_nav *cp);
-void TargetSteerPos(struct tModelData *m, struct pc_car_nav *cp);
+void TargetSpeed(struct tModelData *m, struct tPathPoint *cp);
+void TargetSteerPos(struct tModelData *m, struct tPathPoint *cp);
 void TireSurf(struct EUCar *car, f32 *pos, f32 *out, s32 *surf, f32 (*mat)[3], s32 wheel);
 s32 TraceCheck(s32 inPath, s32 depth);
 void TracePathPtForward(s32 res, s32 inPath, s32 inIdx, s32 numPts, s32 *outPath, s32 *outIdx);

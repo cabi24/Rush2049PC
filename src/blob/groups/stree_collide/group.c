@@ -161,15 +161,6 @@ void *updownleaf(streetyp *n, s16 x, s16 y, s16 *out) {
 
 float fabsf(float);
 
-/* A contact with a wall (MAT3 anon_surf_uvs_30; CollideCarBodyAgainstSurface's): host layout. */
-typedef struct CCol {
-    surftyp *surf;  /* the wall */
-    f32 uvs[9];     /* its frame: uvs[3..5] its normal */
-    s16 carEdge;    /* the car's corner (tireIndex) */
-    s16 index;
-    f32 dist;       /* how far the car is into it */
-} CCol;
-
 /* The model record (MAT3 tModelData): the fields this reads and sets. */
 typedef struct CCar {
     _tCar *car;

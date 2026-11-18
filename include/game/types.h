@@ -137,7 +137,6 @@ struct ModelView;
 struct MultiBlit;
 struct Nav;
 struct Node;
-struct Node104;
 struct Node16;
 struct Node68;
 struct OSContPad;

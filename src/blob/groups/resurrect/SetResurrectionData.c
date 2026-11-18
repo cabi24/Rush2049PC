@@ -7,25 +7,12 @@
  * turned to face along the path. */
 #include "game/game.h"
 
-typedef s16 SearchPoint[4];     /* a drone path point: pos[3], then mph and hints in the last halfword */
+/* The car record (tCarData, N64 layout: docs/port/CARS.md 2), the field used here: its place on its drone path. */
+typedef struct tCarData { u8 pad[0x110 - 0x0]; struct pc_visual visuals[21]; u8 pad_308[0x314 - 0x308]; tPathPoint mpctl; u8 rest[0x380 - 0x340]; void *input; u8 rest_384[0x3B8 - 0x384]; } tCarData;
 
-/* PC: gResPath and gDronePaths are native structs and the resurrection path's branches a native array
- * (ReadPathData), so these views have host offsets and strides. */
-
-/* A drone path (MAT3 gDronePaths[4], anon_numPts_pts_8). */
-typedef struct tDronePath {
-    u16 numPts, gap;
-    SearchPoint *pts;
-} tDronePath;
-
-/* The drone's path state in the car record (MAT3 tPathPoint, tCarData.mpctl; struct pc_car_nav), the fields used
- * here: the point on the drone path and the path. */
-typedef struct tPathPoint { u8 pad[0x24]; s16 idx; s16 newIdx; s16 path; } tPathPoint;
-/* The car record (tCarData, N64 layout: docs/port/CARS.md 2), the field used here. */
-typedef struct tCarData { u8 pad[0x110 - 0x0]; struct pc_visual visuals[21]; u8 pad_308[0x314 - 0x308]; tPathPoint mpctl; u8 rest[0x380 - 0x33E]; void *input; u8 rest_384[0x3B8 - 0x384]; } tCarData;
-
-/* Drone path `p`, through a pointer to the array's first element: the shape the code compiled from */
-#define DRONE_PATH(p) (((tDronePath *)gDronePaths)[p])
+/* Drone path `p` (gDronePaths, a DronePath), indexed through a pointer to the array's first element as the
+ * original code did: the same path as gDronePaths[p], which the compiler would address in another order. */
+#define DRONE_PATH(p) (((DronePath *)gDronePaths)[p])
 
 extern f32 sqrtf(f32), fabsf(f32), sinf(f32), cosf(f32);
 
@@ -90,17 +77,17 @@ void FindSurfaceUvsFromResPoint(s32 res, s32 path, s32 idx, f32 *uvs)
                 pt[2] = gResPath.alt[path].pts[idx+1][2] - pos[2];
             }
         } else {
-            pos[0] = DRONE_PATH(path).pts[idx][0];
-            pos[1] = DRONE_PATH(path).pts[idx][1];
-            pos[2] = DRONE_PATH(path).pts[idx][2];
+            pos[0] = DRONE_PATH(path).pts[idx].pos[0];
+            pos[1] = DRONE_PATH(path).pts[idx].pos[1];
+            pos[2] = DRONE_PATH(path).pts[idx].pos[2];
             if (idx == DRONE_PATH(path).numPts - 1) {
-                pt[0] = DRONE_PATH(path).pts[gCheckpoints.points[gCheckpoints.loopPt].pathPts[path+1]][0] - DRONE_PATH(path).pts[idx][0];
-                pt[1] = DRONE_PATH(path).pts[gCheckpoints.points[gCheckpoints.loopPt].pathPts[path+1]][1] - DRONE_PATH(path).pts[idx][1];
-                pt[2] = DRONE_PATH(path).pts[gCheckpoints.points[gCheckpoints.loopPt].pathPts[path+1]][2] - DRONE_PATH(path).pts[idx][2];
+                pt[0] = DRONE_PATH(path).pts[gCheckpoints.points[gCheckpoints.loopPt].pathPts[path+1]].pos[0] - DRONE_PATH(path).pts[idx].pos[0];
+                pt[1] = DRONE_PATH(path).pts[gCheckpoints.points[gCheckpoints.loopPt].pathPts[path+1]].pos[1] - DRONE_PATH(path).pts[idx].pos[1];
+                pt[2] = DRONE_PATH(path).pts[gCheckpoints.points[gCheckpoints.loopPt].pathPts[path+1]].pos[2] - DRONE_PATH(path).pts[idx].pos[2];
             } else {
-                pt[0] = DRONE_PATH(path).pts[idx+1][0] - DRONE_PATH(path).pts[idx][0];
-                pt[1] = DRONE_PATH(path).pts[idx+1][1] - DRONE_PATH(path).pts[idx][1];
-                pt[2] = DRONE_PATH(path).pts[idx+1][2] - DRONE_PATH(path).pts[idx][2];
+                pt[0] = DRONE_PATH(path).pts[idx+1].pos[0] - DRONE_PATH(path).pts[idx].pos[0];
+                pt[1] = DRONE_PATH(path).pts[idx+1].pos[1] - DRONE_PATH(path).pts[idx].pos[1];
+                pt[2] = DRONE_PATH(path).pts[idx+1].pos[2] - DRONE_PATH(path).pts[idx].pos[2];
             }
         }
     } else {
@@ -171,9 +158,9 @@ void SetResurrectionData(s16 mode, tModelData *m, u32 abort) {
             }
             SetDroneResPathIndex((struct State *)m, -1, gDemoPathPt);
             car = PC_CAR(m->slot);
-            m->resurrect_save_pos[0] = (f32)DRONE_PATH(car->mpctl.path).pts[car->mpctl.idx][0];
-            m->resurrect_save_pos[1] = (f32)DRONE_PATH(car->mpctl.path).pts[car->mpctl.idx][1];
-            m->resurrect_save_pos[2] = (f32)DRONE_PATH(car->mpctl.path).pts[car->mpctl.idx][2];
+            m->resurrect_save_pos[0] = (f32)DRONE_PATH(car->mpctl.path).pts[car->mpctl.idx].pos[0];
+            m->resurrect_save_pos[1] = (f32)DRONE_PATH(car->mpctl.path).pts[car->mpctl.idx].pos[1];
+            m->resurrect_save_pos[2] = (f32)DRONE_PATH(car->mpctl.path).pts[car->mpctl.idx].pos[2];
         } else if (gRace == kBattle || gRace == kStunt) {
 #define ARENA_START(slot) ((slot) == 0 ? 0 : ((slot) == 1 ? 2 : ((slot) == 2 ? 1 : 3)))
             m->resurrect_save_pos[0] = gCheckpoints.points[ARENA_START(m->slot)].pos[0];

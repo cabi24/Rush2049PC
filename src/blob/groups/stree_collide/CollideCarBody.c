@@ -1,15 +1,6 @@
 /* CollideCarBody: a car against the track's walls (MAT3 stree.c). */
 #include "game/game.h"
 
-/* A contact with a wall (MAT3 anon_surf_uvs_30). */
-typedef struct CCol {
-    surftyp *surf;  /* the wall, NULL none */
-    f32 uvs[9];     /* its frame */
-    s16 carEdge;    /* the car's corner (tireIndex) */
-    s16 index;
-    f32 dist;       /* how far the car is into it */
-} CCol;
-
 /* The model record (MAT3 tModelData): the corners' positions now and last step, and each tyre's last node of the
  * surface tree (TireSurf finds it). */
 typedef struct VCar {

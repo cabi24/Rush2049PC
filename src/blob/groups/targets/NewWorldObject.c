@@ -5,15 +5,6 @@
  * target (SetupTarget: a moving or breakable track object) becomes that instead of a plain scene node. */
 #include "game/game.h"
 
-/* A world part (MAT3 tModelPart, 0x68 bytes). */
-typedef struct tModelPart {
-    u8 name[16];        /* +0x00 its model's name */
-    f32 mat[12];        /* +0x10 its place: the orientation (3x3) and position (MAT3 tUVMatrix) */
-    u32 dlflags;        /* +0x40 its scene node flags */
-    s16 next,child;     /* +0x44 its next sibling and first child, indexes into WorldBase; -1 none */
-    u8 opaque72[8];     /* +0x48 sfx1, sfx2, tidx */
-    f32 min[3],max[3];  /* +0x50 its bounding box, for the culling list */
-} tModelPart;
 /* Add the part `wnode`, its siblings and (recursively) their children to the scene under the scene node `parent`
  * (-1: the top). Each part that is not a target becomes a scene node of its model (MBOX_FindObject_WORK by name)
  * with its flags; in the attract demo (GS_DEMO) with the flags get_world_part_flags gives and 0xE00 (hidden in
@@ -33,11 +24,11 @@ void NewWorldObject(tModelPart *wnode,s16 parent)
         cur_world_obj=ptr;
         if(!SetupTarget(ptr,parent,0,1,-1,1,0)) {
             dlindex=parent;
-            mbobj=MBOX_FindObject_WORK(ptr,0,gNumModels[0]-1,1);
+            mbobj=MBOX_FindObject_WORK(ptr->name,0,gNumModels[0]-1,1);
             if(gGameState & GS_DEMO)
-                dlindex=(s16)ZOID_AddObject(mbobj,ptr->mat,dlindex,get_world_part_flags(ptr)|0xE00);
+                dlindex=(s16)ZOID_AddObject(mbobj,&ptr->mat,dlindex,get_world_part_flags(ptr)|0xE00);
             else
-                dlindex=(s16)ZOID_AddObject(mbobj,ptr->mat,dlindex,ptr->dlflags);
+                dlindex=(s16)ZOID_AddObject(mbobj,&ptr->mat,dlindex,ptr->dlflags);
             if(ptr->min[0]!=ptr->max[0] || ptr->min[1]!=ptr->max[1]) {
                 if(parent==-1)ZOID_BuildCullingList(ptr->min,ptr->max,dlindex);
             }

@@ -3,12 +3,6 @@
  * time runs out it is removed. */
 #include "game/game.h"
 
-/* The debris' motion (MAT3 tTargetStructVelRot), the target's per-kind data (a record of its kind's). */
-typedef struct VelRot {
-    f32 angV[3];            /* 0x00 its spin, radians a second about x, y, z */
-    f32 vel[3];             /* 0x0C its velocity, feet a frame */
-} VelRot;
-
 /* targetInfo[].Flags: the target's scene object goes when its animation ends (MAT3 TInfo(t)->Flags & 0x2000). */
 #define TINFO_REMOVE_WHEN_DONE 0x2000
 
@@ -26,7 +20,7 @@ static void debris_remove(struct pc_visual *v, tTarget *t, TargInfo *info) {
  * down. Nothing moves while the game is paused. The visual's data is the target; its timeStamp the seconds of
  * flight left (StartCone gives 5). */
 void AnimateVelRotGeneric(struct pc_visual *v, s16 op) {
-    VelRot *motion;
+    tTargetStructVelRot *motion;
     tTarget *t;
     f32 angle[3];
     f32 *vel;

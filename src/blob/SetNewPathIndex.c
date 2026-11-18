@@ -18,7 +18,7 @@ struct tModelData {
 /* Puts the drone of model `m` on point `idx` of its drone path, as if it had just reached it: 20 feet along the
  * stretch from there, on its line, with no jump pending. */
 void SetNewPathIndex(struct tModelData *m, s16 idx) {
-    struct pc_car_nav *ctl;
+    tPathPoint *ctl;
     ctl = &PC_CAR_NAV(m->slot);
     ctl->idx = idx;
     ctl->interval_time = (f32) gModelTime;
