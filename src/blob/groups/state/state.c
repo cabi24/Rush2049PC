@@ -5,12 +5,9 @@
 #include "game/game.h"
 #define OSMesgQueue OSMesgQueueView   /* this file's own OSMesgQueue: include/game's OSMesgQueue is another type */
 
-typedef struct PadState { u8 pad0[72]; tProfile **save; } PadState; /* gPlayers[] (tPadState): the profile at +72 */
 typedef struct { u32 opaque[6]; } OSMesgQueue;
 s32 osRecvMesg(OSMesgQueue *mq, void **msg, s32 flag);
 s32 osSendMesg(OSMesgQueue *mq, void *msg, s32 flag);
-
-extern PadState gPlayers[];           /* gPlayers */
 
 
 /* Loads runtime image A, the front end (load set), freeing image B first if it is in; or frees image A (load

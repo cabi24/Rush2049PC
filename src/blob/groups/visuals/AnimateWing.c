@@ -5,8 +5,7 @@
 /* PC: a visual (tVisual) is 0x28 bytes: next, data and func are pointer-sized (struct pc_visual, docs/port/CARS.md 3);
  * a wing keeps its flags in the data word. */
 typedef struct Visual { void *opaque0; s16 index, object, slot, opaque10; uintptr_t flags; f32 time; void (*func)(struct Visual *v, s16 op); } Visual;
-typedef struct Pose { u8 opaque0[20]; f32 angle; } Pose;
-typedef struct Player952 { u8 opaque0[232]; u32 flags; u8 opaque236[0x110 - 0xEC]; struct pc_visual visuals[21]; u8 opaque236_308[0x35C - 0x308]; s8 shift, quality, opaque862, disabled; u8 opaque864[32]; Pose *pose; u8 opaque900[52]; } Player952;
+typedef struct Player952 { u8 opaque0[232]; u32 flags; u8 opaque236[0x110 - 0xEC]; struct pc_visual visuals[21]; u8 opaque236_308[0x35C - 0x308]; s8 shift, quality, opaque862, disabled; u8 opaque864[32]; tPadState *pose; u8 opaque900[52]; } Player952;
 /* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
 
 /* PC: game.frame_rate 60 (pc_game_fps.h). The wings step out and in one sixth at a frame whose model time is past
@@ -119,7 +118,7 @@ grow:
     }
     if (v->flags & 0x10) {
         CopyUV(unitmatrix, basis);
-        PitchUV(PC_CAR_INPUT_AS(Pose, slot)->angle * 0.507f, basis);
+        PitchUV(PC_CAR_INPUT_AS(tPadState, slot)->analog[1] * 0.507f, basis);
         ZOID_UpdateObject(v->object, 0, basis);
         if (gNumPlayers == 1) StartSmoke(slot, reverse ? 7 : 6, 0, position);
     }

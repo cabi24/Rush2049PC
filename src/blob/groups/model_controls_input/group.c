@@ -4,22 +4,11 @@
  * gRealEdges, gRealStick: controlsys/group.c). */
 #include "game/game.h"
 
-/* A player's input record (include/game's tPadState, under the name the prototypes give it). */
-typedef struct InputRecord {
-    u8 slot;                /* 0x00: the player's car */
-    u8 controller;          /* 0x01 */
-    u8 pad2[0x18 - 2];
-    u32 controls[12];       /* 0x18: each control's button bits (CONTROL_GAS ...) */
-    void *save;             /* 0x48 */
-} InputRecord;
-
-extern InputRecord gPlayers[];
-
 /* The steering from the stick's x: with the dead-zone setting (CONTROL_VALUE_STICK_DEAD) the dead zone is taken
  * out, else the stick is cubed (fine control near the centre); quantized to 1/127; a change smaller than the
  * thresholds keeps the previous value. Mirrored or upside-down tracks reverse it (unless both, without
  * gMirrorControls). Nothing while the cars coast at the end. */
-void ReadSteeringWheel(tModelData *car, InputRecord *player)
+void ReadSteeringWheel(tModelData *car, tPadState *player)
 {
     f32 x;
     f32 q;
@@ -62,7 +51,7 @@ void ReadSteeringWheel(tModelData *car, InputRecord *player)
 /* The throttle and the brake, each from its control: the stick's y axis (up the gas, down the brake past a dead
  * zone), an analog trigger, or a button (full or nothing); reverse also gives full throttle; gNoBrakes (a cheat)
  * takes the brake away. Both are quantized to 1/15. Nothing while the cars coast at the end. */
-void ReadGasAndBrake(tModelData *car, InputRecord *player)
+void ReadGasAndBrake(tModelData *car, tPadState *player)
 {
     f32 q;
 
@@ -127,7 +116,7 @@ void ReadGasAndBrake(tModelData *car, InputRecord *player)
  * kBattle), neither while the cars coast at the end. */
 void UpdateModelControls(void)
 {
-    InputRecord *player;
+    tPadState *player;
     tModelData *car;
     s32 i;
 
@@ -158,7 +147,7 @@ void UpdateModelControls(void)
  * Shift down pressed: one down, not below first. Shift up pressed: one up, not past fourth; from reverse (gear 0
  * then, or still reverse when not shifting up) the gear is chosen by the car's speed (the reckoned mph / 4: above
  * 110 fourth, above 80 third, above 50 second, else first). */
-void ReadShifter(tModelData *car, InputRecord *player)
+void ReadShifter(tModelData *car, tPadState *player)
 {
     s32 speed;
 

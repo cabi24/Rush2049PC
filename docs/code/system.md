@@ -10,11 +10,11 @@ named; the rest is the N64's own.
 The headers: [include/game/system.h](../../include/game/system.h) (the frame's buffers) with
 [threads.h](../../include/game/threads.h) (the threads' ids and priorities, the main thread's messages, which the
 boot code includes too; the game states are race.h's `GS_*`), [memory.h](../../include/game/memory.h),
-[input.h](../../include/game/input.h) (the game's buttons, `BUTTON_*`), [heap.h](../../include/game/heap.h) (the
+[input.h](../../include/game/input.h) (the game's buttons, `BUTTON_*`; the controllers' `ControllerState`, the
+players' input records `tPadState` and the `CONTROL_*` indices), [heap.h](../../include/game/heap.h) (the
 heap's own headers, for the heap's files only), and these sections of
 [types.h](../../include/game/types.h): system (`PcSched`, `FrameRecord`, `PcScTaskShape` ...), memory
-(`anon_loaded_ready_14`, the wave instance; `WadHandle`, `WadEntry`, `WadFileHeader`), input (`ControllerState`,
-`tPadState`, the `CONTROL_*` indices).
+(`anon_loaded_ready_14`, the wave instance; `WadHandle`, `WadEntry`, `WadFileHeader`).
 
 ## 1. Start-up and the threads
 
@@ -203,12 +203,11 @@ same input.
   bytes in).
 - **The scheduler's** queues and thread keep N64-sized storage at their N64 offsets in `PcSched`, because the game
   takes their addresses (`scheduler_task_queue` ...) and reads the retrace count at 0x27C.
-- **Data declared with the wrong width** in input.h: `gNewLevels` is one s32 to the data loader, MAT3's volatile
-  u32[4] in controlsys/group.c's view (the loader's size for the symbol would change). `gNewStick` (volatile
-  s8[4][2]), `gNewEdges`, `gContStickRange`, `gAutoEdgeTimes` (u32[4][32]) and the frame's words (`gContLevels` ...
-  u32, `gContStick` f32[4][2]) have MAT3's types since wave 2c.
-- **gPlayers** has no shared declaration: each file declares it with its own type (InitOptions.c defines it).
-  `tPadState` (types.h) is the record; the 67 files that read it could use it once the header declares it.
+- **The input data's types** are MAT3's: `gNewLevels` (volatile u32[4], since wave 4: it was one s32 to the data
+  loader and controlsys/group.c's view), `gNewStick` (volatile s8[4][2]), `gNewEdges`, `gContStickRange`,
+  `gAutoEdgeTimes` (u32[4][32]) and the frame's words (`gContLevels` ... u32, `gContStick` f32[4][2]) since wave 2c.
+- **gPlayers** is input.h's `tPadState[4]` since wave 4 ([docs/port/RECORDS.md](../port/RECORDS.md) 4.1), the one
+  declaration every file uses (InitOptions.c defines it).
 - Dead code the PC links but never calls: `InitGraphics`, `InitGfx`, `UpdateGraphics`, `unload_start_overlay`,
   `pak_set_error_func`, `pak_shutdown`, `audio_user`, the ordered list's `InitBST`,
   `ClearBST`, `WalkBST` (audiomgr_thread.c has its own clear and walk because a test links it without them).

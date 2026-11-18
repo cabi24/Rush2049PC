@@ -56,7 +56,7 @@ void highscore_InitScreen(void)
         oldCircuitTrack = gCircuitTrack;
         UpdateCircuit(ranks, PC_CAR_SCORE(gCircuitPlayer));
         gCircuitTrack = oldCircuitTrack;
-        if ((*gPlayers_save[gCircuitPlayer].profile)->fileh == NULL && gCircuitTrack < gCircuitSize - 1) {
+        if ((*gPlayers[gCircuitPlayer].save)->fileh == NULL && gCircuitTrack < gCircuitSize - 1) {
             circuitCode = 1;
             GetCircuitCode(highscore_gCircuitCode);
         }

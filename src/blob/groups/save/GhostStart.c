@@ -1,19 +1,9 @@
 /* GhostStart: a ghost race's ghosts, recorded and raced against (MAT3 ghost.c). */
 #include "game/game.h"
 
-typedef struct Player {           /* GC gPlayers (0x50); N64 0x4C */
-    u8 node;                      /* 0x00 */
-    u8 slot;                      /* 0x01 */
-    u8 pad2[66 - 2];
-    u8 carTrans;                  /* 0x42 */
-    u8 pad43[72 - 67];
-    tProfile **handle;            /* 0x48 */
-} Player;
-
 void *memset(void *, s32, u32);
 void *memcpy(void *, const void *, u32);
 
-extern Player gPlayers[];                                 /* GC gPlayers */
 
 /* Sets a ghost race's ghosts up (only in a ghost race): each player gets a new ghost to record, its header from the
  * player (its number: the profile's ghost races on the track; name, id, car, transmission and settings, the frame
@@ -54,13 +44,13 @@ void GhostStart(void) {
         gRealNewGhosts[i].header = &gNewGhostHeaders[i];
         g->flag = -1;
         bk = gBackwards ? 6 : 0;
-        g->id = (*(*gPlayers[i].handle)->datah)->raceStats[gTrackNum + bk].totalGhosts;
+        g->id = (*(*gPlayers[i].save)->datah)->raceStats[gTrackNum + bk].totalGhosts;
         g->track = gTrackNum;
         g->backward = gBackwards;
-        memcpy(g->name, (*gPlayers[i].handle)->name, 13);
-        memcpy(g->playerId, (*gPlayers[i].handle)->id, 8);
-        g->carTrans = GetPlayerCarTrans(gPlayers[i].handle);
-        memcpy(g->settings, (*(*gPlayers[i].handle)->datah)->carSettings[PC_LINK_CAR(i)].settings, 12);
+        memcpy(g->name, (*gPlayers[i].save)->name, 13);
+        memcpy(g->playerId, (*gPlayers[i].save)->id, 8);
+        g->carTrans = GetPlayerCarTrans(gPlayers[i].save);
+        memcpy(g->settings, (*(*gPlayers[i].save)->datah)->carSettings[PC_LINK_CAR(i)].settings, 12);
         g->car = PC_LINK_CAR(i);
         g->frameTime = gRetraceTime;
         if (!gRestartGame) {
@@ -86,13 +76,13 @@ void GhostStart(void) {
         g = *(*gGhosts[i])->header;
         g->offset = 0;
         car = g->car;
-        memset(&gPlayers[i], 0, 76);
-        gPlayers[i].handle = &gGhostPlayers[i];
+        memset(&gPlayers[i], 0, sizeof gPlayers[i]);
+        gPlayers[i].save = &gGhostPlayers[i];   /* the ghost's profile */
         memset(gGhostPlayers[i], 0, sizeof(tProfile));
-        memcpy((*gPlayers[i].handle)->name, g->name, 13);
-        gPlayers[i].node = i;
+        memcpy((*gPlayers[i].save)->name, g->name, 13);
         gPlayers[i].slot = i;
-        gPlayers[i].carTrans = g->carTrans;
+        gPlayers[i].controller = i;
+        gPlayers[i].trans = g->carTrans;
         gCarHandling[i + 1][car] = g->settings[0];
         gCarEngines[i + 1][car] = g->settings[1];
         gCarTires[i + 1][car] = g->settings[2];

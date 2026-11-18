@@ -1,8 +1,6 @@
 /* FindPlayerNum (MAT3 controls.c): gives a player a controller when that controller is first used. */
 #include "game/game.h"
 
-extern tPadState gPlayers[];
-
 /* Gives player num controller num, with this frame's input copied in, and makes the controller active: always when
  * force is set, else only when the player has no controller yet and controller num's first button (bit 0) was just
  * pressed. */

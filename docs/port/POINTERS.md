@@ -679,6 +679,10 @@ pause screen's `pause_TitlePane`).
   them pointer-sized now (`intptr_t`; CASTS.md 7). The save-data block itself, at +0x6F4, is front-end work.
 - `gPlayers_save` (+0x48) is declared as records seen from their profile pointer, `{pointer; the next record's 72
   bytes}`, which is 80 bytes already; `input_rec1` (record 1) is at host +0x50.
+- **Since wave 4** (2026-11-18, [RECORDS.md](RECORDS.md) 4.1) the record has one declaration, input.h's `tPadState`
+  (MAT3's), and every file uses it: no view, no `INPUT_SIZE` stride, no `gPlayers_save` (each player's profile
+  handle is `gPlayers[k].save`). The listener at +0x44 is the listener's number in `gListeners` since
+  [NATIVE.md](NATIVE.md) step 9.
 
 ### 10.4 The ZOID windows `ZoidWinInfo`
 

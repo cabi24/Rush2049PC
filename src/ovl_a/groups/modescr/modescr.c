@@ -7,10 +7,6 @@
  * knowing it, as it always was. */
 extern MenuButton modescr_buttonInfo[MODE_BUTTONS];
 
-/* A player's pad record (MAT3 tPadState, gPlayers): only its profile. */
-typedef struct Player76 { u8 unknown0[72]; tProfile **profile; } Player76;
-
-extern Player76 gPlayers[];
 
 extern void *memcpy(void *,const void *,u32);
 
@@ -130,7 +126,7 @@ void updateModeScreen(void)
         do { if (++gModeMenuSelect >= kModeMenuCount) gModeMenuSelect = 0; } while (!modescr_optionValid(gModeMenuSelect));
     }
     for (i = 0; i < gNumPlayers; i++) {
-        tPakHandle *fileh = (*gPlayers[i].profile)->fileh;
+        tPakHandle *fileh = (*gPlayers[i].save)->fileh;
         if (fileh && PS_PakChanged(fileh->file->pak)) {
             modescr_uninitScreen(); setGameState(GS_PLAYER); return;
         }

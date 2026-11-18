@@ -1,8 +1,6 @@
 /* SetOptions: the game takes the options screen's choices (MAT3 options.c). */
 #include "game/game.h"
 
-typedef struct InputRecord { u8 pad[72]; tProfile **player; } InputRecord;
-extern InputRecord gPlayers[];
 
 
 /* Saves the game options to every player's profile (not in attract mode) and sets the game from them: the HUD's
@@ -16,9 +14,9 @@ void SetOptions(void)
     tProfile **player;
     if (!(gGameState & GS_DEMO)) {
         for (i = 0; i < gNumPlayers; i++) {
-            if (gPlayers[i].player != 0) {
+            if (gPlayers[i].save != 0) {
                 for (setting = 0; setting < 21; setting++) {
-                    SavePlayerOption(gPlayers[i].player, (u8)setting, gOptions[setting]);
+                    SavePlayerOption(gPlayers[i].save, (u8)setting, gOptions[setting]);
                 }
             }
         }
@@ -107,7 +105,7 @@ void SetOptions(void)
             gFogIntensity = options->fog;
             gWind = options->wind;
             gGravityScale = 1;
-            player = gPlayers[gCircuitPlayer].player;
+            player = gPlayers[gCircuitPlayer].save;
             gDifficulty = (*(*player)->datah)->circuit.difficulty;
             gCatchup = 2;
             gDeathMode = (*(*player)->datah)->circuit.death;

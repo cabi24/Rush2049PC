@@ -8,7 +8,7 @@ void GetCircuitCode(u8 *code)
 {
     s32 i;
     tCircuit *circuit;
-    circuit = &(*(*gPlayers_save[gCircuitPlayer].profile)->datah)->circuit;
+    circuit = &(*(*gPlayers[gCircuitPlayer].save)->datah)->circuit;
     ContinueCircuit();
     gCircuitTrack -= 1;
     NewPassword(0x56U, 0xEU);

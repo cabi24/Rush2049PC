@@ -1,10 +1,7 @@
 /* The mode menu's set-up (MAT3 modescr.c initScreen and initButtons). */
 #include "game/game.h"
 
-/* A player's pad record (MAT3 tPadState, gPlayers): only its profile. */
-typedef struct Player76 { u8 unknown0[72]; tProfile **profile; } Player76;
 
-extern Player76 gPlayers[];
 
 extern void *memcpy(void *,const void *,u32);
 
@@ -25,7 +22,7 @@ void modescr_initScreen(void)
     modescr_blit=NewMultiBlit(0,0,&modescr_mblit,1);
     exitModeScreen=0;
     ClearRushControls();
-    gModeMenuSelect=GetPlayerRaceType(gPlayers[0].profile);
+    gModeMenuSelect=GetPlayerRaceType(gPlayers[0].save);
     switch(gModeMenuSelect) {
     case 1: gModeMenuSelect=1; break;
     case 2: gModeMenuSelect=2; break;

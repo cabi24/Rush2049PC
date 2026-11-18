@@ -7,8 +7,6 @@
 #include "game/game.h"
 #define Gfx GfxView   /* this file's own Gfx: include/game's Gfx is another type */
 
-/* A player's pad record (MAT3 tPadState, gPlayers): its buttons and its profile. */
-typedef struct Player {u8 slot,controller,pad02[2];u32 pressed,levels,repeated;u8 unknown10[56];tProfile **save;} Player;
 
 #define RACE_OPTIONS_FIRST 21           /* gOptions[21..40]: the race options, kept per profile */
 #define RACE_OPTIONS_END 41
@@ -33,8 +31,6 @@ typedef struct Player {u8 slot,controller,pad02[2];u32 pressed,levels,repeated;u
 extern MenuButton trackscr_buttonInfo[TRACK_BUTTONS];
 
 #define WAVE_PATHS 158                  /* a race track's path data: this + the track */
-
-extern Player gPlayers[];        /* gPlayers */
 
 /* PC: the Drones option (gOptions[22], item 17) goes up to the cars a race may hold less one ([game] cars,
  * docs/port/MORECARS.md 1.3, 10.1): 5 with the setting at original, as on the N64. Its reset value and its default

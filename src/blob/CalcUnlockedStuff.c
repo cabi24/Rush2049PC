@@ -1,13 +1,6 @@
 /* CalcUnlockedStuff: what each player has unlocked (MAT3 save.c). */
 #include "game/game.h"
 
-/* A player's input record as this reads it: the profile handle in use. */
-typedef struct {
-    /* 0x00 */ u8 pad0[0x48];
-    /* 0x48 */ tProfile **profile;
-} PlayerPad; /* 0x4C */
-
-extern PlayerPad gPlayers[];
 
 /* Fills the unlock tables (gUnlockedCars, gUnlockedTrans, gUnlockedEngines, gUnlockedTires, gUnlockedFrames,
  * gUnlockedTracks, gUnlockedCircuits) for each player from its profile, or all of them with the cheats:
@@ -28,7 +21,7 @@ void CalcUnlockedStuff(void) {
     s32 raceCoins2;
     s32 stuntCoins;
     s32 stuntCoins2;
-    PlayerPad *p;
+    tPadState *p;
     tRaceStats *track;
     tStuntStats *arena;
     s32 miles;
@@ -55,7 +48,7 @@ void CalcUnlockedStuff(void) {
             raceCoins2 = 0;
             stuntCoins = 0;
             stuntCoins2 = 0;
-            if ((*p->profile)->datah == 0) {
+            if ((*p->save)->datah == 0) {
                 continue;
             }
             for (j = 0; j < 13; j++) {
@@ -66,12 +59,12 @@ void CalcUnlockedStuff(void) {
                 }
             }
             for (k = 0; k != 6; k++) {
-                track = &(*(*p->profile)->datah)->raceStats[k];
+                track = &(*(*p->save)->datah)->raceStats[k];
                 raceCoins += CountBits(track->coinsFound & 0xFF, 16);
                 raceCoins2 += CountBits(track->coinsFound & 0xFF00, 16);
             }
             for (k = 0; k != 4; k++) {
-                arena = &(*(*p->profile)->datah)->stuntStats[k];
+                arena = &(*(*p->save)->datah)->stuntStats[k];
                 stuntCoins += CountBits(arena->coinsFound & 0xFF, 16);
                 stuntCoins2 += CountBits(arena->coinsFound & 0xFF00, 16);
             }
@@ -101,7 +94,7 @@ void CalcUnlockedStuff(void) {
 
     if (cheat_all_parts == 1) {
         for (i = 0; i < gNumPlayers; i++) {
-            if ((*gPlayers[i].profile)->datah == 0) {
+            if ((*gPlayers[i].save)->datah == 0) {
                 continue;
             }
             for (j = 0; j < 8; j++) {
@@ -124,7 +117,7 @@ void CalcUnlockedStuff(void) {
     } else {
         for (i = 0; i < gNumPlayers; i++) {
             miles = 0;
-            datah = (*gPlayers[i].profile)->datah;
+            datah = (*gPlayers[i].save)->datah;
             if (datah == 0) {
                 continue;
             }
@@ -185,7 +178,7 @@ void CalcUnlockedStuff(void) {
             gUnlockedTracks[i][7] = 1;
             gUnlockedTracks[i][8] = 1;
             gUnlockedTracks[i][9] = 1;
-            datah = (*gPlayers[i].profile)->datah;
+            datah = (*gPlayers[i].save)->datah;
             if (datah == 0) {
                 continue;
             }
@@ -224,7 +217,7 @@ void CalcUnlockedStuff(void) {
         i = 0;
         if (i < gNumPlayers) {
             do {
-                datah4 = (*gPlayers[i].profile)->datah;
+                datah4 = (*gPlayers[i].save)->datah;
                 if (datah4 == 0) {
                     continue;
                 }

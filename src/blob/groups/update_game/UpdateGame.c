@@ -2,11 +2,6 @@
  * (MAT3 game.c). */
 #include "game/game.h"
 
-/* A player's input record (gPlayers): its car slot and its crashes. */
-typedef struct Player76 { u8 slot; u8 pad01[63]; u16 numCrashes; u8 pad42[0x48 - 0x42]; void *ref; } Player76;
-
-extern Player76 gPlayers[];   /* gPlayers */
-
 
 void *memset(void *, s32, u32);
 
@@ -116,7 +111,7 @@ void UpdateGame(void)
             case 2:
                 numDeaths = 0;
                 for (i = 0; i < gNumPlayers; i++) {
-                    if (PC_CAR_INPUT_AS(Player76, i)->numCrashes >= gStuntModeDeaths) { PC_CAR_DEAD(i) = 1; numDeaths++; }
+                    if (PC_CAR_INPUT_AS(tPadState, i)->numCrashes >= gStuntModeDeaths) { PC_CAR_DEAD(i) = 1; numDeaths++; }
                 }
                 if (numDeaths == gNumPlayers) {
                     gCoastFlag = 1;

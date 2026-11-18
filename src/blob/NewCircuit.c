@@ -9,9 +9,9 @@ extern void *memset(void *s, s32 c, u32 n);
 void NewCircuit(s32 type) {
     tCircuit *circuit;
 
-    circuit = &(*(*gPlayers_save[gCircuitPlayer].profile)->datah)->circuit;
+    circuit = &(*(*gPlayers[gCircuitPlayer].save)->datah)->circuit;
     memset(circuit, 0, sizeof(tCircuit));
-    PS_WriteFile((*gPlayers_save[gCircuitPlayer].profile)->fileh, circuit, sizeof(tCircuit));
+    PS_WriteFile((*gPlayers[gCircuitPlayer].save)->fileh, circuit, sizeof(tCircuit));
     circuit->type = (s8) type;
     circuit->seed = *(s32 *) &gSeconds & 0xFFFFF;   /* the game time's float bits (MAT3: *(unsigned int *)&gSeconds) */
     circuit->active = 1;

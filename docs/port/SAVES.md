@@ -229,7 +229,7 @@ handed to the writer and written, the pak out at once, built again, in after the
 found it empty; ULTRA.md 3 "Hot swaps").
 
 **When.** Taking a pak out frees its records (`RemovePlayerFile`, the files' RemoveFile): a profile a player is on is
-taken off the player (`gPlayers[i].handle = 0`), and a ghost chosen for the next race leaves a stale handle in
+taken off the player (`gPlayers[i].save = 0`), and a ghost chosen for the next race leaves a stale handle in
 `gGhosts`. So si.c swaps only when main's `swap_safe` says so, at a flush (once a second): the game at its start
 prompt, "press start" or main menu (gGameState 2, 4, 0x10), no player on a saved profile (each input record's profile
 handle one of the default profiles, `&gJustPlayers[k]`) and no ghost chosen (`gGhosts` empty). Until then the change

@@ -128,12 +128,6 @@ void controlCircuitCode(void)
     }
 }
 
-/* A player's pad record (MAT3 tPadState, gPlayers): only its profile. */
-typedef struct Player { u8 other[72]; tProfile **owner; } Player;
-extern Player gPlayers[];
-
-
-
 /* Set the screen up: the players' race type is saved as circuit; a circuit that is active but has run no race is
  * dropped; an active one is continued (ContinueCircuit sets the race up), and if it is finished the trophy for the
  * first player's place (on the podium only) is made, turning in front of the camera. Then the menu, the review
@@ -145,7 +139,7 @@ void circuitscr_initScreen(void)
     s32 model;
     s16 texture_index;
     for (i = 0; i < gNumPlayers; i++) {
-        SavePlayerRaceType(gPlayers[i].owner, gRace);
+        SavePlayerRaceType(gPlayers[i].save, gRace);
     }
     newCircuitType = 0;
     if (gCircuit->active && gCircuit->track == 0)
@@ -196,7 +190,7 @@ void circuitscr_initScreen(void)
  * resetEnabled allows them. */
 s32 menuItemValid(s32 mode)
 {
-    return (mode != kCircuitMenuCode || (*gPlayers[gCircuitPlayer].owner)->fileh == 0)
+    return (mode != kCircuitMenuCode || (*gPlayers[gCircuitPlayer].save)->fileh == 0)
         && (!(mode == kCircuitMenuContinue) || gContinueEnabled != 0)
         && (!(mode == kCircuitMenuStats) || gStatsEnabled != 0);
 }
@@ -210,7 +204,7 @@ s32 menuItemValid(s32 mode)
 void updateCircuitScreen(void)
 {
     s32 i;
-    gCircuit = &(*(*gPlayers[gCircuitPlayer].owner)->datah)->circuit;
+    gCircuit = &(*(*gPlayers[gCircuitPlayer].save)->datah)->circuit;
     if (gSkipToGameState != SKIP_NONE) {
         if (gSkipToGameState != gGameState) {
             setGameState(GS_TRACK);
@@ -329,8 +323,8 @@ void updateCircuitScreen(void)
         }
     }
     for (i = 0; i < gNumPlayers; i++) {
-        if ((*gPlayers[i].owner)->fileh) {
-            if (PS_PakChanged((*gPlayers[i].owner)->fileh->file->pak)) {
+        if ((*gPlayers[i].save)->fileh) {
+            if (PS_PakChanged((*gPlayers[i].save)->fileh->file->pak)) {
                 circuitscr_uninitScreen();
                 setGameState(GS_PLAYER);
                 return;
@@ -641,7 +635,7 @@ void getFinishedStr(u8 *destination)
 /* Player's profile name, into destination (MAT3 circuitscr.c getPlayerStr). */
 void getPlayerStr(s32 player,u8 *destination)
 {
-    TB_Strcpy(destination,(*gPlayers[player].owner)->name);
+    TB_Strcpy(destination,(*gPlayers[player].save)->name);
 }
 
 /* The progress box's size and place (gProgressWidth, gProgressHeight, gProgressTop): wide enough for the circuit's
@@ -728,7 +722,7 @@ void drawReview(void)
         y=129+(rank%3)*24;
         TB_DrawText(TB_CenterText(number,x+6),y+1,number);
         HAL_SetFont(11);
-        if(i<gNumPlayers)TB_Strcpy(name,(*gPlayers[i].owner)->name);
+        if(i<gNumPlayers)TB_Strcpy(name,(*gPlayers[i].save)->name);
         else TB_Strcpy(name,gDefaultNames[gCircuitCars[i].name]);
         TB_DrawEllipseText((s16)(x+15),y+2,120,name);
         TB_Sprintf(number,circuitscr_review_points_format,gReviewTrack==gCircuit->track ?

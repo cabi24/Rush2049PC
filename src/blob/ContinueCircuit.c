@@ -1,9 +1,6 @@
 /* ContinueCircuit: a circuit's races and drones, from its seed (MAT3 circuit.c). */
 #include "game/game.h"
 
-/* A player's input record (gPlayers): its profile slot and profile. */
-typedef struct { u8 pad0; u8 selector; u8 pad[0x46]; tProfile **profile; } InRec;
-extern InRec gPlayers[];
 
 /* The circuit's drones: the cars after the players. */
 #define RI(e) gCircuitCars[(e) + gNumPlayers]
@@ -25,7 +22,7 @@ void ContinueCircuit(void) {
     tSaveData *v;
     tCircuit *info;
     u8 pad[8];
-    v = *((*gPlayers[gCircuitPlayer].profile)->datah);
+    v = *((*gPlayers[gCircuitPlayer].save)->datah);
     info = &v->circuit;
     gCircuitSeed = info->seed;
     n = gNumCircuitTracks[info->type];
@@ -95,9 +92,9 @@ void ContinueCircuit(void) {
     }
     m = 6 - (gNumPlayers == 1 ? 0 : 2);
     for (i = 0; i < m; i++) {
-        gCircuitCars[i].totalPoints = info->temp ? gTempCircuitPoints[gPlayers[gCircuitPlayer].selector][i] : 0;
+        gCircuitCars[i].totalPoints = info->temp ? gTempCircuitPoints[gPlayers[gCircuitPlayer].controller][i] : 0;
         for (j = 0; j < info->track; j++) {
-            if (info->temp && j < gTempCircuitFirstTrack[gPlayers[gCircuitPlayer].selector]) {
+            if (info->temp && j < gTempCircuitFirstTrack[gPlayers[gCircuitPlayer].controller]) {
                 gCircuitCars[i].places[j] = 6;
                 gCircuitCars[i].points[j] = 0;
             } else {

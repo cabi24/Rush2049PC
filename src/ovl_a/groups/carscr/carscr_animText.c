@@ -1,8 +1,5 @@
 #include "game/game.h"
 
-typedef struct Player { u32 held, pressed, unknown08, repeated; u8 unknown10[50]; u8 paint, unknown43[5]; tProfile **owner; } Player;
-
-extern Player gPlayers[];
 
 
 extern void TB_FlashTextColors(tRGBA first, tRGBA second);
@@ -38,7 +35,7 @@ static void animButtonText(s32 p)
     ZOID_ProjectWindow(p, carscr_buttonInfo[p][38].position, &gCamera[p], 0, screenPos);
     x = screenPos[0];
     y = screenPos[1];
-    str = (*gPlayers[p].owner)->name;
+    str = (*gPlayers[p].save)->name;
     TB_SetTextColor(1);
     TB_DrawEllipseText(x, y, w, str);
     TB_SetJust(0, 1);
@@ -98,7 +95,7 @@ static void animButtonText(s32 p)
             y += TB_GetFontLineHeight();
             if (notReadyCount == 1) {
                 TB_SetTextColor(playerTextColor[notReadyIdx]);
-                str = (*gPlayers[notReadyIdx].owner)->name;
+                str = (*gPlayers[notReadyIdx].save)->name;
             } else str = gText.single[31];
         }
         TB_DrawText(TB_CenterText(str, x), y, str);

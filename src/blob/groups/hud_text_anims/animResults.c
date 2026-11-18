@@ -6,10 +6,8 @@
 typedef struct OSMesgQueue OSMesgQueue;
 #define TEXT_PLACE_SUFFIXES 55            /* gText.tab[]: the places' suffixes ("st", "nd" ...) */
 
-typedef struct PlayerRow { u8 vehicle; u8 pak; u8 other[70]; tProfile **profile; } PlayerRow;   /* 76 B */
-
+/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-extern PlayerRow gPlayers[];                   /* gPlayers */
 
 extern s32 osRecvMesg(OSMesgQueue *, void **, s32), osSendMesg(OSMesgQueue *, void *, s32);
 
@@ -52,7 +50,7 @@ s32 animResults(s32 unused)
         } else if (ties) {
             TB_Sprintf(str, gText.single[201], ties + 1);
         } else {
-            TB_Sprintf(str, gText.single[199], (*gPlayers[gRankedPlayer[0]].profile)->name);
+            TB_Sprintf(str, gText.single[199], (*gPlayers[gRankedPlayer[0]].save)->name);
         }
         TB_DrawTextScrollBox(160, 110, 160, 110, -1, 0, str);
     }
@@ -70,48 +68,48 @@ s32 animResults(s32 unused)
                             hud_playerPaneColors[playerIdx].border.c);
         }
         if (gRace == kStunt) {
-            TB_Sprintf(str, "%s\n%d %s", (*gPlayers[playerIdx].profile)->name, gStuntPlayer[playerIdx].totalPoints,
+            TB_Sprintf(str, "%s\n%d %s", (*gPlayers[playerIdx].save)->name, gStuntPlayer[playerIdx].totalPoints,
                          gText.single[130]);
         } else if (gRace == kObstacle) {
             if (gLap[playerIdx] != 1) {
-                TB_Sprintf(str, "%s\n%s", (*gPlayers[playerIdx].profile)->name, gText.single[214]);
+                TB_Sprintf(str, "%s\n%s", (*gPlayers[playerIdx].save)->name, gText.single[214]);
             } else {
                 u32 min;
                 u32 sec;
                 u32 thou;
 
-                min = (u32)PC_CAR_SCORE(gPlayers[playerIdx].vehicle);
+                min = (u32)PC_CAR_SCORE(gPlayers[playerIdx].slot);
                 min = min / 60 % 100;
-                sec = (u32)PC_CAR_SCORE(gPlayers[playerIdx].vehicle) % 60;
-                thou = (u32)(1000.0f * PC_CAR_SCORE(gPlayers[playerIdx].vehicle));
+                sec = (u32)PC_CAR_SCORE(gPlayers[playerIdx].slot) % 60;
+                thou = (u32)(1000.0f * PC_CAR_SCORE(gPlayers[playerIdx].slot));
                 thou %= 1000;
-                TB_Sprintf(str, "%s\n%s %d:%02d.%03d", (*gPlayers[playerIdx].profile)->name, gText.single[208],
+                TB_Sprintf(str, "%s\n%s %d:%02d.%03d", (*gPlayers[playerIdx].save)->name, gText.single[208],
                              min, sec, thou);
             }
         } else if (gRace == kBattle) {
-            TB_Sprintf(str, "%s\n%d %s", (*gPlayers[playerIdx].profile)->name, PC_CAR_POINTS(playerIdx),
+            TB_Sprintf(str, "%s\n%d %s", (*gPlayers[playerIdx].save)->name, PC_CAR_POINTS(playerIdx),
                          gText.single[130]);
         } else {
             char str1[32], str2[32];
-            s32 place = PC_CAR_PLACE(gPlayers[playerIdx].vehicle);
+            s32 place = PC_CAR_PLACE(gPlayers[playerIdx].slot);
 
             TB_Sprintf(str1, gText.single[198], place + 1,
                          gText.taba[gText.tab[TEXT_PLACE_SUFFIXES] + place]);
-            if (gNumLaps != pc_models[gPlayers[playerIdx].vehicle].laps) {
-                TB_Sprintf(str2, gText.single[207], pc_models[gPlayers[playerIdx].vehicle].laps, gNumLaps);
+            if (gNumLaps != pc_models[gPlayers[playerIdx].slot].laps) {
+                TB_Sprintf(str2, gText.single[207], pc_models[gPlayers[playerIdx].slot].laps, gNumLaps);
             } else {
                 u32 min;
                 u32 sec;
                 u32 thou;
 
-                min = (u32)PC_CAR_SCORE(gPlayers[playerIdx].vehicle);
+                min = (u32)PC_CAR_SCORE(gPlayers[playerIdx].slot);
                 min = min / 60 % 100;
-                sec = (u32)PC_CAR_SCORE(gPlayers[playerIdx].vehicle) % 60;
-                thou = (u32)(1000.0f * PC_CAR_SCORE(gPlayers[playerIdx].vehicle));
+                sec = (u32)PC_CAR_SCORE(gPlayers[playerIdx].slot) % 60;
+                thou = (u32)(1000.0f * PC_CAR_SCORE(gPlayers[playerIdx].slot));
                 thou %= 1000;
                 TB_Sprintf(str2, "%s %d:%02d.%03d", gText.single[208], min, sec, thou);
             }
-            TB_Sprintf(str, "%s\n%s\n%s", (*gPlayers[playerIdx].profile)->name, str1, str2);
+            TB_Sprintf(str, "%s\n%s\n%s", (*gPlayers[playerIdx].save)->name, str1, str2);
         }
         TB_DrawTextScrollBox(x, y, 160, 110, -1, 0, str);
     }

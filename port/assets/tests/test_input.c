@@ -36,11 +36,9 @@ typedef struct {
 } Input;
 _Static_assert(sizeof(Input) == 80 && offsetof(Input, profile) == 0x48, "the input record's host layout");
 
-#define ALIAS(name, base, off) __asm__(".globl " #name "\n.set " #name ", " #base " + " #off)
 #define NF8(p, off) (((uint8_t *)(p))[off])
 
 Input gPlayers[4] __attribute__((aligned(16)));
-ALIAS(gPlayers_save, gPlayers, 0x48);   /* record 0's profile pointer, as gen_data places it */
 int16_t gNumPlayers, gNumPlayers;
 uint32_t gContLevels[8], gContEdges[8], gAutoEdges[8];
 struct { float h, v; } gContStick[8];

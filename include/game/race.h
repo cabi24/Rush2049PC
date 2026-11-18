@@ -239,7 +239,7 @@ void PlayGame(void);
 void PreInitBattlePowerUps(void);
 s32 PrePlay(s32 useHud, s32 cancel);
 void ProximityDamage(f32 *origin, f32 *endpoint, s32 source_index, f32 radius_squared, s32 magnitude);
-void ReadSteeringWheel(struct tModelData *st, struct InputRecord *in);
+void ReadSteeringWheel(struct tModelData *st, tPadState *in);
 void RemoveCannMFlash(s16 slot);
 void RemoveGattMFlash(s16 slot);
 s32 seeded_rand(u32 *seed);

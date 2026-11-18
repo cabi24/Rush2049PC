@@ -54,9 +54,6 @@ void playerscr_updateSelectInfo(s32 player)
     }
 }
 
-/* A player's pad record (MAT3 tPadState, gPlayers): 76 bytes, 80 on the PC. */
-typedef struct Player {u8 slot,controller;u16 unaccessed2;u32 edges;u32 levels;u32 autoEdges;u8 unaccessed10[56];tProfile **owner;} Player;
-extern Player gPlayers[];
 
 
 /* Set the screen up: lock the players' profile files, read the paks, start every window on the select menu (on
@@ -66,7 +63,7 @@ void playerscr_initScreen(void)
 {
     s32 p;
     for (p = 0; p < gNumPlayers; p++) {
-        if (gPlayers[p].owner) PS_LockFile((*gPlayers[p].owner)->fileh,0);
+        if (gPlayers[p].save) PS_LockFile((*gPlayers[p].save)->fileh,0);
     }
     playerscr_updatePakInfo();
     for (p = 0; p < gNumPlayers; p++) {
@@ -146,10 +143,10 @@ void setPlayerState(s32 player,s32 mode)
         gSelectedPlayer[player] = 0;
         node = gPlayerFiles.head;
         while (node) {
-            if (node == gPlayers[player].owner) break;
+            if (node == gPlayers[player].save) break;
             node = (*node)->next;
         }
-        gPlayers[player].owner = 0;
+        gPlayers[player].save = 0;
         if (!node || !(*node)->fileh) {
             gSelectedPlayer[player] = &gJustPlayers[player];
             if (gPlayerState[player] != kPlayerStateCreatePlayer && gPlayerState[player] != kPlayerStateDeletePlayer)
@@ -173,13 +170,13 @@ void setPlayerState(s32 player,s32 mode)
         memset(gCreatePlayerNames[player],0,13);
         playerscr_gNameSelect[player] = 0;
         playerscr_gNameLen[player] = 0;
-        gPlayers[player].owner = 0;
+        gPlayers[player].save = 0;
     } else if (mode == kPlayerStateDeletePlayer) {
         gDeleteMenuSelect[player] = kSelectMenuSelectPak;
         gDeleteMenuConfirm[player] = 0;
         gDeleteMenuYes[player] = 0;
         gDeleteMenuNotify[player] = 0;
-        gPlayers[player].owner = 0;
+        gPlayers[player].save = 0;
     }
     gPlayerState[player] = mode;
     playerscr_buttonsJustInited[player] = 1;
@@ -679,9 +676,9 @@ void playerscr_controlSelect(s32 p)
         if (IS_PROFILE_ROW(playerscr_gSelectMenuSelect[p])) {
             claimPlayer(p, gSelectedPlayer[p]);
             if (gSelectMenuControls[p] == 1) {
-                if (ReadPlayerData(gPlayers[p].owner)) {
+                if (ReadPlayerData(gPlayers[p].save)) {
                     controlScrActive[p] = 1;
-                    PS_LockFile((*gPlayers[p].owner)->fileh, 1);
+                    PS_LockFile((*gPlayers[p].save)->fileh, 1);
                     setPlayerState(p, kPlayerStateControls);
                 }
             } else setPlayerState(p, kPlayerStateWait);
@@ -690,7 +687,7 @@ void playerscr_controlSelect(s32 p)
             claimPlayer(p, &gJustPlayers[p]);
             if (gSelectMenuControls[p] == 1) {
                 controlScrActive[p] = 1;
-                PS_LockFile((*gPlayers[p].owner)->fileh, 1);
+                PS_LockFile((*gPlayers[p].save)->fileh, 1);
                 setPlayerState(p, kPlayerStateControls);
             } else setPlayerState(p, kPlayerStateWait);
             break;
@@ -789,7 +786,7 @@ void playerscr_controlSelect(s32 p)
 /* Give player playerIdx profile `player` (gPlayers[].save) and work out every window's menu again. */
 void claimPlayer(s32 playerIdx, tProfile **player)
 {
-    gPlayers[playerIdx].owner = player;
+    gPlayers[playerIdx].save = player;
     playerscr_updateSelectInfo(-1);
 }
 
@@ -907,9 +904,9 @@ void updatePlayerScreen(void)
                 s32 i;
                 tProfile **player;
                 for (i = 0; i < gNumPlayers; i++) {
-                    if (gPlayers[i].owner != &gJustPlayers[i]) {
+                    if (gPlayers[i].save !=&gJustPlayers[i]) {
                         for (player = gPlayerFiles.head; player; player = (*player)->next)
-                            if (gPlayers[i].owner == player) break;
+                            if (gPlayers[i].save == player) break;
                         if (!player) {
                             gSkipToGameState = SKIP_NONE;
                             goto restart;
@@ -975,13 +972,13 @@ restart:;
             tProfile **player;
             for (player = gPlayerFiles.head; player; player = (*player)->next) {
                 for (p = 0; p < gNumPlayers; p++)
-                    if (player == gPlayers[p].owner) break;
+                    if (player == gPlayers[p].save) break;
                 if (p >= gNumPlayers) PurgePlayerData(player);
             }
             for (p = 0; p < gNumPlayers; p++) {
-                if (!ReadPlayerData(gPlayers[p].owner)) break;
-                SaveSelectPlayer(gPlayers[p].owner);
-                PS_LockFile((*gPlayers[p].owner)->fileh, 1);
+                if (!ReadPlayerData(gPlayers[p].save)) break;
+                SaveSelectPlayer(gPlayers[p].save);
+                PS_LockFile((*gPlayers[p].save)->fileh, 1);
                 if (p > 1) SetControllerStickEdges(p, 1);
                 FindPlayerNum(p, 1);
             }
@@ -1004,7 +1001,7 @@ restart:;
             s32 i;
             playerscr_uninitScreen();
             setGameState(GS_START);
-            for (i = 0; i < gNumPlayers; i++) gPlayers[i].owner = 0;
+            for (i = 0; i < gNumPlayers; i++) gPlayers[i].save = 0;
             break;
         }
         }
@@ -1018,9 +1015,9 @@ restart:;
  * or its pak has been changed. */
 void controlWait(s32 p)
 {
-    if (!gPlayers[p].owner ||
-        ((*gPlayers[p].owner)->fileh &&
-         PS_PakChanged((*gPlayers[p].owner)->fileh->file->pak)) ||
+    if (!gPlayers[p].save ||
+        ((*gPlayers[p].save)->fileh &&
+         PS_PakChanged((*gPlayers[p].save)->fileh->file->pak)) ||
         (gPlayers[p].edges & BUTTON_B)) {
         if (gPlayers[p].edges & BUTTON_B) PlayStartABSound(gPlayers[p].edges);
         playerscr_updateSelectInfo(-1);
@@ -1034,8 +1031,8 @@ void controlControls(s32 p)
 {
     if (!controlScrActive[p]) {
         SaveFlush(1);
-        PS_LockFile((*gPlayers[p].owner)->fileh, 0);
-        PurgePlayerData(gPlayers[p].owner);
+        PS_LockFile((*gPlayers[p].save)->fileh, 0);
+        PurgePlayerData(gPlayers[p].save);
         playerscr_updateSelectInfo(-1);
         setPlayerState(p, kPlayerStateSelect);
         playerscr_updateButtons(p);

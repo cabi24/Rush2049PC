@@ -3,15 +3,6 @@
 #include "game/game.h"
 #include "game/audiomgr.h"
 
-/* The player record's field this file reads (MAT3 tPlayer.listener): its listener's number in gListeners
- * (StartListeners), -1 for none. */
-typedef struct PlayerRec {
-    /* 0x00 */ s32 unk0[17];
-    /* 0x44 */ s32 listener;
-    /* 0x48 */ void *unk48;
-} PlayerRec;
-
-extern PlayerRec gPlayers[];
 s32 osRecvMesg(OSMesgQueue *queue, OSMesg *message, s32 flags);
 s32 osSendMesg(OSMesgQueue *queue, OSMesg message, s32 flags);
 

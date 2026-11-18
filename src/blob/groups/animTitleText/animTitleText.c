@@ -4,13 +4,6 @@
 #define TEXT_PAUSE 56             /* gText.tab[]: the pause screen's strings: "paused", the menu, quit, restart */
 #define TEXT_REMOVED 233          /* gText.single[]: "removed" (a controller) */
 
-typedef struct PlayerRec {
-    u8 pad0[0x48];
-    tProfile **profile; /* the player's profile (a handle) */
-} PlayerRec;
-
-extern PlayerRec gPlayers[];
-
 /* The pause screen's title: "controller N removed" when a controller was pulled out; else the restart or quit
  * word (gPauseState 7, 8), nothing for the rumble screen (6), or the pausing player's name and "paused" in the
  * player's colour. Returns 1: the blit stays. */
@@ -42,7 +35,7 @@ s32 animTitleText(tBlit *blt)
         } else if (v == 6) {
             buf[0] = 0;
         } else {
-            TB_Sprintf(buf, pause_player_title_format, (*gPlayers[playerInPause].profile)->name, gText.taba[gText.tab[TEXT_PAUSE]]);
+            TB_Sprintf(buf, pause_player_title_format, (*gPlayers[playerInPause].save)->name, gText.taba[gText.tab[TEXT_PAUSE]]);
             TB_SetTextColor(playerTextColor[playerInPause]);
         }
     }

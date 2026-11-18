@@ -126,8 +126,8 @@ the circuit before). A player without a profile plays on a "just play" profile (
 - **One type per record** (wave 4, [RECORDS.md](../port/RECORDS.md) 4.2): every file reads the profiles, pak files,
   ghosts and save data through save.h's `tProfile`, `PakFileRecord`, `tGhostFile`, `tSaveData` and `tGhostHeader`,
   by their fields; the save code's byte offsets and pc_prelude.h's `PROFILE_OFS`, `PSF_OFS` and `GHOST_OFS` are gone.
-  The high score tables keep a profile's handle or a typed name's index in a union (`tScoreOwner`). Still each
-  file's own: the players' input records (`gPlayers`, 0x4C bytes on the N64).
+  The high score tables keep a profile's handle or a typed name's index in a union (`tScoreOwner`). The players' input
+  records (`gPlayers`) have one type too, input.h's `tPadState` ([RECORDS.md](../port/RECORDS.md) 4.1).
 - **Window addresses in data: none left here.** The heap functions (`ClearMemoryHeap`, `allocate_memory_at`,
   `heap_move_block_low`) and the overlay loader (`load_overlay`, `runtime_image_block`) work in host pointers since
   [NATIVE.md](../port/NATIVE.md) step 6, as do the heap's links and its handle slots; a font letter's kerning row

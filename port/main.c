@@ -669,7 +669,7 @@ static void mods_install(void)
  * profile (each input record's profile handle a default one, &gJustPlayers[k], or none) and no ghost chosen for a
  * race (gGhosts). Elsewhere the change waits, at most until the next start. */
 extern void *gJustPlayers[4];                                 /* the default profiles' handles */
-extern struct { void **handle; uint8_t rest[72]; } gPlayers_save[4];   /* gPlayers, seen from their profile handle */
+extern struct { uint8_t head[72]; void **save; } gPlayers[4];   /* the input records (the game's tPadState): the profile handle */
 extern void **gGhosts[4];                                /* gGhosts: the ghosts of the next race */
 
 static int swap_safe(int ch)
@@ -679,7 +679,7 @@ static int swap_safe(int ch)
     if (s != 0x2 && s != 0x4 && s != 0x10)
         return 0;
     for (int i = 0; i < 4; i++) {
-        void **h = *(void **volatile *)&gPlayers_save[i].handle;
+        void **h = *(void **volatile *)&gPlayers[i].save;
         if (h && (h < &gJustPlayers[0] || h >= &gJustPlayers[4]))
             return 0;
         if (*(void **volatile *)&gGhosts[i])

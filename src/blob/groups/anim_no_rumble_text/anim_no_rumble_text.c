@@ -2,15 +2,6 @@
  * whose player has no Rumble Pak. */
 #include "game/game.h"
 
-typedef struct Player {   /* gPlayers' record (tPadState) */
-    u8 b0;
-    u8 control;
-    u8 pad2[0x48 - 0x2]; void *ref;
-} Player;
-
-
-extern Player gPlayers[];
-
 /* Until the race starts (hidden from GS_RACING on, when the blit's animation is dropped): during the
  * countdown and not paused, message 226 ("no Rumble Pak") centred at each window's place for a player without
  * one, in the player's colour; the smaller font when the message is wider than a window. */
@@ -38,7 +29,7 @@ s32 anim_no_rumble_text(tBlit *blt)
     }
     for (i = 0; i < gNumWindows; i++) {
         if ((gGameState & GS_COUNTDOWN) && !gPauseState) {
-            ctl = gPlayers[i].control;
+            ctl = gPlayers[i].controller;
             if (!PS_PakRumble(ctl)) {
                 x = no_rumble_text_pos[gNumWindows - 1][i].x;
                 y = no_rumble_text_pos[gNumWindows - 1][i].y;

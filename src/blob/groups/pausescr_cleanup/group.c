@@ -2,18 +2,13 @@
  * updatePauseState does the same in its uninit part). */
 #include "game/game.h"
 
-/* A player's pad record (MAT3 tPadState, gPlayers): only its profile. */
-typedef struct Player { u8 opaque[72]; tProfile **handle; } Player;
-
-extern Player gPlayers[];
-
 /* Remove the pause menu's blits and panes for the state it is leaving. Leaving the pause altogether (kNoPause) also
  * removes the dimming blit and saves each player's profile that has save data (SaveSelectPlayer: the settings may
  * have changed); every page's state removes the title, menu, "are you sure" and rumble blits. */
 void updatePauseStateCleanup(void)
 {
     int i;
-    Player *player;
+    tPadState *player;
     switch(gPauseState) {
     case kNoPause:
         if(pause_DimBlit) {
@@ -22,7 +17,7 @@ void updatePauseStateCleanup(void)
         }
         player=gPlayers;
         for(i=0;i<gNumPlayers;i++,player++) {
-            if((*player->handle)->datah)SaveSelectPlayer(player->handle);
+            if((*player->save)->datah)SaveSelectPlayer(player->save);
         }
         /* fall through: the pages' blits go too */
     case kPauseMainScreen: case kPauseAudioScreen: case kPauseVideoScreen: case kPauseControlsScreen:

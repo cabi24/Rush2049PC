@@ -1,10 +1,5 @@
 #include "game/game.h"
 
-typedef struct Player76 { u8 slot; u8 pad01[63]; s16 numCrashes; u8 pad42[0x48 - 0x42]; void *ref; } Player76;
-
-
-extern Player76 gPlayers[];   /* gPlayers */
-
 /* game.frame_rate = 60 (docs/port/FRAMERATE.md 7.3): the track's load goes a wave a call, a call a frame, so at 60 it
  * is called on the frames that complete a 30 Hz frame: the countdown begins within a retrace of original's. */
 #define PC_LOAD_ON30(call) ((!pc_fps60 || pc_frame_steps) ? (call) : 0)

@@ -111,7 +111,7 @@ tree: `modescr_initScreen`, `trackscr_buttonInfo`):
 - `validOption` / `optionValid`: which rows are offered (by the player count, the race type, unlocks, cheats).
 
 The **buttons** are `gActiveEdges` (newly pressed, any pad), `gActiveAutoEdges` (newly pressed or auto-repeating),
-`gActiveLevels` (held), and per player `gPlayers[p].edges` / `.repeated`: bits `BUTTON_START`, `BUTTON_A`,
+`gActiveLevels` (held), and per player `gPlayers[p].edges` / `.autoEdges`: bits `BUTTON_START`, `BUTTON_A`,
 `BUTTON_B`, `BUTTON_UP` ... (input.h). `PlayStartABSound`, `PlayUDSound` and `PlayLRSound` play the matching
 menu sound. The secret codes (`gEggs`, `CheckForEgg`) are sequences of held and new buttons.
 
@@ -122,12 +122,13 @@ the selection).
 
 ## 4. The main data
 
-- `gPlayers[4]` (MAT3 `tPadState`, 76 bytes, 80 on the PC): a player's controller (`CONTROLLER_NONE` 5 without one),
-  its button words, and at 0x48 a pointer to its profile handle. Files declare their own view of it.
+- `gPlayers[4]` (MAT3 `tPadState`, input.h; 80 bytes): a player's car slot and controller (`CONTROLLER_NONE` 5
+  without one), its button words, its control layout, and `save`, its profile's handle (a `tProfile **`).
+  Every file uses input.h's declaration ([docs/port/RECORDS.md](../port/RECORDS.md) 4.1).
 - The **profile** (`tProfile`, MAT3 `tPlayerProfile`, in save.h): links, its pak file handle (`fileh`, NULL for a
   guest), its id, `name[13]`, `controls[10]`, `rumble`, `datah`. Every screen reads it through save.h's declaration
-  (RECORDS.md 4.2). `gPlayers_save` is the label of `gPlayers[0].profile`
-  (the data loader makes it an alias into gPlayers' storage); the high-score files now write the field.
+  (RECORDS.md 4.2); reached through a player, `(*gPlayers[p].save)->name` is types.h's
+  `tProfile`.
 - The **pak file record** (`PakFileRecord`, MAT3 `tPS_File`, in save.h, reached through a `tPakHandle`): links and
   two functions, then `pak`, `fileNo`, the note's name and extension, its size and pages, its data.
 - Each screen's `buttonInfo[]` (a `MenuButton` table, MAT3's `tMenuButton`; the start screen's `StartScreenButton`
@@ -209,7 +210,6 @@ because the library is the same.
   `tBlitDef` tables hold N64 callback addresses the loader resolves.
 - **Records with pointers** (the profile, the pak file record, a ghost) have one declaration each, save.h's, which
   every screen uses (wave 4, [RECORDS.md](../port/RECORDS.md) 4.2).
-- **gPlayers** has no shared type; each file has a view (`PadState`, `InputRecord`, `Player76` ...).
 - **The controller pak**: the pak manager, the warning screen, `gBlocksNeeded`, the licence screen's pak gate and
   the pak status strings are N64 only; on the PC the paks are files (docs/port/SAVES.md).
 - **The buttons' meaning** comes from the cartridge's `n64_button_map`: bits 0-2 and 10-13 are known from the code
@@ -223,7 +223,7 @@ because the library is the same.
   display lists `buildTrackMaps` makes, which held only while the heap was in the fixed window; they are pointers
   since [NATIVE.md](../port/NATIVE.md) step 10.
 - **Labels into objects**: `flashColors_at_1` was `flashColors[1]` (the screens read that; the label went in wave
-  4), `gPlayers_save` is `gPlayers[0].profile` (no longer used here), the trophy sheen's scale is `ObjInstanceList[node].w` (until wave 2c circuitscr.c wrote it
+  4) (`gPlayers_save`, `gPlayers[0]`'s profile handle, went in wave 4: `gPlayers[k].save`), the trophy sheen's scale is `ObjInstanceList[node].w` (until wave 2c circuitscr.c wrote it
   through `object_list_scale_view`, a label 0x10 before `ObjInstanceList` read as 0x44-byte records: the window's
   copy, so the drawn sheen kept w 1; the label is gone); `gFrontTireScale` and `gRearTireScale` are declared
   [5][13] (until [NATIVE.md](../port/NATIVE.md) 18 one row long, rows 1-4 read through `gFrontTireScale_players`).

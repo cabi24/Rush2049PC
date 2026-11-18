@@ -32,7 +32,8 @@ void TB_SetTextColor(int32_t id) {}
 void TB_DrawTextScrollBox(int32_t x, int32_t y, int32_t w, int32_t h, int32_t color, int32_t flags, void *text) { g_drawn = text; }
 void TB_DrawText(int16_t x, int16_t y, void *text) { g_value = text; }   /* TB_DrawText */
 
-uint8_t text_lock_queue[24], pause_titlePos[4], gPlayers_save[76 * 2];
+uint8_t text_lock_queue[24], pause_titlePos[4];
+uint8_t gPlayers[4 * 80];   /* the input records (tPadState, 80 bytes): record 0's profile handle at +0x48 */
 char pause_title_format[] = "%d %s", pause_title_name_format[] = "%s %s";
 int32_t gPauseState, playerInPause;
 int8_t pause_gControllerRemoved;
@@ -162,7 +163,7 @@ int main(void)
     {
         static char name[32] = "....................PLAYER";   /* static: pause_TitlePane reads it after the block */
         void *p = name;
-        memcpy(gPlayers_save, &p, sizeof p);
+        memcpy(gPlayers + 0x48, &p, sizeof p);
     }
     pause_TitlePane();
     CHECK(g_formatted == (char *)gText.taba[3]);

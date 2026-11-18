@@ -2,7 +2,6 @@
 #include "game/game.h"
 
 /* On the PC the race roster is pc_links, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-extern s8 gPlayers;   /* the first player's record; its first byte is the car slot it watches */
 
 /* PC: the attract demo races the setting's cars, all drones (pc_game_types.h, docs/port/MORECARS.md 3.1), latched
  * here at its start; the camera's car (the counter) goes round them all. The loop walks every slot a PC race can
@@ -33,12 +32,12 @@ void fake_init(s8 track)
             PC_LINK_FLAGS(i) = 176;
         }
     }
-    if (gPlayers) {}
+    if (gPlayers[0].slot) {}
     attractSlot++;
     if (attractSlot >= DEMO_CARS) {
         attractSlot = 0;
     }
-    gPlayers = attractSlot & 0xFF;
+    gPlayers[0].slot = attractSlot & 0xFF;
     gCamera[0].slot = attractSlot;
     gUseCatchup = 2;
 }

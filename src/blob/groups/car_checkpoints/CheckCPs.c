@@ -13,9 +13,6 @@ typedef struct {
     u8 pad359[0x380 - 0x359]; void *input; u8 pad359_384[0x3B8 - 0x384];
 } CarData;                  /* 0x3B8 */
 
-/* gPlayers[0].slot: the first player's car slot, the first byte of its input record. */
-extern u8 gPlayers;
-
 /* Adds the distance each car drove since the last frame to its mileage, and passes a car through its next
  * checkpoint (PassedCP) when it crossed the checkpoint's plane within its radius: a car driven here or by the
  * network's dead reckoning (link owner 0 or 6), not crashed nor being put back. The passing time is the frame's
@@ -80,10 +77,10 @@ void CheckCPs(void)
     if (gFirstPlaceTime != 0.0f && gSeconds - gFirstPlaceTime > 3.0f) {
         gFirstPlaceTime = 0.0f;
     }
-    if (num_humans == 1 && PC_CAR_PLACE(gPlayers) == 0 && !(gGameState & GS_DEMO)) {
+    if (num_humans == 1 && PC_CAR_PLACE(gPlayers[0].slot) == 0 && !(gGameState & GS_DEMO)) {
         if (gInFirstPlace == 0 && gFirstPlaceTime == 0.0f) {
             gFirstPlaceTime = gSeconds;
-            PlayGameSound(16, gPlayers, 1, 1); /* MAT3 0x8E: the lead */
+            PlayGameSound(16, gPlayers[0].slot, 1, 1); /* MAT3 0x8E: the lead */
         }
         gInFirstPlace = 1;
     } else {

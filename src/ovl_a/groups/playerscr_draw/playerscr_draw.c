@@ -2,10 +2,6 @@
  * text over its 3D buttons, by the window's state. playerscr_animText is the screen's text blit callback. */
 #include "game/game.h"
 
-/* A player's pad record (MAT3 tPadState, gPlayers): 76 bytes, 80 on the PC. */
-typedef struct Player { u8 unknown00[4];u32 edges;u8 unknown08[4];u32 autoEdges;u8 unknown10[56]; tProfile **owner; } Player;
-
-extern Player gPlayers[];
 
 
 /* How many profile rows away from the selected one a row is. */
@@ -37,7 +33,7 @@ s32 playerClaimed(s32 skip,tProfile **owner)
 {
     s8 i;
     s32 found=0;
-    if(owner)for(i=0;i<gNumPlayers;i++)if(i!=skip && owner==gPlayers[i].owner)found=1;
+    if(owner)for(i=0;i<gNumPlayers;i++)if(i!=skip && owner==gPlayers[i].save)found=1;
     return found;
 }
 /* playerBeingDeleted and playerBeingCreated take the player to skip as their second parameter after an unused one
@@ -211,7 +207,7 @@ void drawWait(s32 player)
     s32 i,count,other;
     u8 *text;
     if(gNumPlayers>=2)HAL_SetFont(11);else HAL_SetFont(13);
-    if(gPlayers[player].owner)text=(*gPlayers[player].owner)->name;
+    if(gPlayers[player].save)text=(*gPlayers[player].save)->name;
     else text=gJustPlayers[player]->name;
     TB_SetTextColor(playerTextColor[player]);
     TB_SetJust(kTB_JustCenter, kTB_JustCenter);
@@ -235,7 +231,7 @@ void drawWait(s32 player)
     }
     if(count==1) {
         TB_SetTextColor(playerTextColor[other]);
-        if(gPlayers[other].owner)text=(*gPlayers[other].owner)->name;
+        if(gPlayers[other].save)text=(*gPlayers[other].save)->name;
         else text=gJustPlayers[other]->name;
     } else text=gText.single[31];
     TB_DrawText(TB_CenterText(text,x),y,text);

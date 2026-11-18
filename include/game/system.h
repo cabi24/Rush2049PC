@@ -165,7 +165,6 @@ extern OSMesg text_lock_msg[EXTENT(1)];
 extern Gfx *frame_dl;
 extern OSMesgQueue si_lock_queue;
 extern u8 *frame_dl_start;
-extern PlayerTail gPlayers_save[EXTENT(3)];
 extern s32 retraces_since_frame;
 extern OSMesg si_lock_msg;
 /* gOPPFuncs: declared by its files (src/blob/groups/hal_time/group.c: defines it) */
@@ -341,7 +340,7 @@ void pc_CheckMulti(s32 idx);
 void pc_ContinueSkid(struct WheelSlot *ns, s16 slot, u32 tire, u8 *color);
 f32 *pc_grid_start(struct tModelData *m, s32 what);
 f32 *pc_pole_row(s32 place);
-void pc_ReadShifter(struct tModelData *car, struct InputRecord *player);
+void pc_ReadShifter(struct tModelData *car, struct tPadState *player);
 s32 pc_scenery_unplaced(s32 idx, void *node_obj, s32 absolute);
 void pc_ValidateEmitter(struct CamSlot *c);
 void pdf_dealloc(void *ptr);

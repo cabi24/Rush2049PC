@@ -2,17 +2,9 @@
  * track in turn, with the credits after the last. */
 #include "game/game.h"
 
-/* A player's input record (gPlayers): its node. */
-typedef struct Player {
-    u8 node;
-    u8 pad1[0x48 - 0x1]; void *ref;
-} Player;
-
 static s8 demo_preplayDone = 0;
 
 static s16 gCurrentDemoTrack = -1;
-
-extern Player gPlayers[4];
 
 static s8 demo_inited = 0;
 typedef struct DemoBlit DemoBlit;
@@ -115,7 +107,7 @@ void endDemoGame(void) {
             RemoveCar(i);
         }
         for (i = 0; i < 4; i++) {
-            gPlayers[i].node = i;
+            gPlayers[i].slot = i;
         }
 }
 

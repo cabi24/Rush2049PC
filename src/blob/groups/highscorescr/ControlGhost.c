@@ -2,17 +2,13 @@
  * ghost race: pick a pak, save the ghost to it, or don't. */
 #include "game/game.h"
 
-/* A player's pad record (MAT3 tPadState, gPlayers): only its profile. */
-typedef struct PadRecord { u8 pad00[0x48]; void *profile; } PadRecord;
-extern PadRecord gPlayers[];
-
 /* The menu's input, each frame. Its rows: the pak (left and right), the pak's status (skipped), save (only when
  * the pak has no ghost of this track or the profile's own) and don't save. Up and down move between the offered
  * rows. Start or A: closes the "can't save" notice; answers the overwrite question (left and right flip yes and
  * no; A on yes saves); closes the "saved" notice and ends the menu; on save, saves (or asks first over the
  * profile's own ghost, or says it can't over another's); on don't save, ends the menu without saving (SaveGhost's
  * last argument 1: only free the compressed ghost). The ghosts of the chosen pak are looked up again every frame.
- * The ghost saved is the first player's (gPlayers_save is the label of gPlayers[0].profile). */
+ * The ghost saved is the first player's (gPlayers[0].save). */
 void ControlGhost(void)
 {
     s32 finished;
@@ -51,7 +47,7 @@ void ControlGhost(void)
             gGhostMenuConflict = 0;
         } else if (gGhostMenuConfirm == 1) {
             if ((gActiveEdges & BUTTON_A) && highscore_gYes == 1) {
-                if (SaveGhost(gGhostPak, gPlayers[0].profile, gSavedGhost, 0)) {
+                if (SaveGhost(gGhostPak, gPlayers[0].save, gSavedGhost, 0)) {
                     gGhostMenuNotify = 1;
                 }
             }
@@ -61,7 +57,7 @@ void ControlGhost(void)
             finished = 1;
         } else if ((gActiveEdges & BUTTON_A) && gGhostMenuSelect == kGhostMenuSave) {
             if (gGhostStatus[gGhostPak] == kGhostNone) {
-                if (SaveGhost(gGhostPak, gPlayers[0].profile, gSavedGhost, 0)) {
+                if (SaveGhost(gGhostPak, gPlayers[0].save, gSavedGhost, 0)) {
                     gGhostMenuNotify = 1;
                 }
             } else if (gGhostStatus[gGhostPak] == kGhostMine) {
@@ -73,7 +69,7 @@ void ControlGhost(void)
             }
         }
         if (gGhostMenuSelect == kGhostMenuNoSave) {
-            SaveGhost(gGhostPak, gPlayers[0].profile, gSavedGhost, 1);
+            SaveGhost(gGhostPak, gPlayers[0].save, gSavedGhost, 1);
             gSavedGhost = 0;
             finished = 1;
         }

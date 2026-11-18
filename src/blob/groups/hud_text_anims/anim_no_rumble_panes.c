@@ -2,15 +2,6 @@
  * of a blit. */
 #include "game/game.h"
 
-typedef struct Player {   /* gPlayers' record (tPadState) */
-    u8 b0;
-    u8 control;
-    u8 pad2[0x48 - 0x2]; void *ref;
-} Player;
-
-
-extern Player gPlayers[];
-
 /* During the countdown and not paused, a pane (in the window's colours) around the "no Rumble Pak" text of each
  * window whose player has none; the panes go otherwise. From the race on the blit's animation is dropped and it
  * hides. */
@@ -32,7 +23,7 @@ s32 anim_no_rumble_panes(tBlit *blt)
     }
     h = TB_GetFontLineHeight();
     for (i = 0; i < gNumWindows; i++) {
-        if ((gGameState & GS_COUNTDOWN) && !gPauseState && !PS_PakRumble(gPlayers[i].control)) {
+        if ((gGameState & GS_COUNTDOWN) && !gPauseState && !PS_PakRumble(gPlayers[i].controller)) {
             if (!resultPane[i]) {
                 x = no_rumble_text_pos[gNumWindows - 1][i].x;
                 y = no_rumble_text_pos[gNumWindows - 1][i].y;

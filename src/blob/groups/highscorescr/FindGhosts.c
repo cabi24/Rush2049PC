@@ -14,7 +14,7 @@ void FindGhosts(s32 pak)
     tGhostFile **node;
     tGhostFile *ghost;
 
-    player = *gPlayers_save[0].profile;
+    player = *gPlayers[0].save;
     ghosth = &gPakGhosts[pak];
     *ghosth = 0;
     if (gControllerData[pak].attached == 0) {

@@ -1,14 +1,7 @@
 /* hud_updateFrame: the HUD's per-frame bookkeeping, a blit animation function (MAT3 hud.c's updateFrame). */
 #include "game/game.h"
 
-/* A player's input record as this reads it: its car. */
-typedef struct {
-    u8 slot;
-    char pad1[0x48 - 0x1]; void *ref;
-} Pad;
-
 /* The car records are the PC's pc_cars (pc_game_types.h, docs/port/DECOUPLE.md). */
-extern Pad gPlayers[];
 
 /* PC: races of up to PC_MAX_LINKS cars (docs/port/MORECARS.md 2.5, 7). order[] has a place for every car (the N64's
  * 8 hold its 6; AddressSanitizer saw 12 cars write past them), and in a race of more than 6 cars the HUD order

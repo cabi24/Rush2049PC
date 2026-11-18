@@ -133,7 +133,7 @@ STUB_DATA(gPrevUnlockedCircuits) STUB_DATA(gGravity) STUB_DATA(gPrevUnlockedTran
 STUB_DATA(gPrevUnlockedTires) STUB_DATA(gPrevUnlockedFrames) STUB_DATA(circuitCode) STUB_DATA(highscore_gCircuitCode)
 STUB_DATA(gDrawName) STUB_DATA(gTargetList) STUB_DATA(gOptions) STUB_DATA(gSavedGhost)
 STUB_DATA(text_lock_queue) STUB_DATA(gBattlePoints) STUB_DATA(gActiveAutoEdges) STUB_DATA(gTrackNum) STUB_DATA(pauseMenuSelect)
-STUB_DATA(gPlayers_save) STUB_DATA(gUnlockedTracks) STUB_DATA(gUnlockedCars) STUB_DATA(gUnlockedCircuits)
+STUB_DATA(gUnlockedTracks) STUB_DATA(gUnlockedCars) STUB_DATA(gUnlockedCircuits)
 STUB_DATA(gUnlockedTrans) STUB_DATA(gUnlockedEngines) STUB_DATA(gUnlockedTires) STUB_DATA(gUnlockedFrames) STUB_DATA(gNumWindows)
 STUB_DATA(gUpsideDownTrack) STUB_DATA(gStuntPlayer) STUB_DATA(gTeamPoints) STUB_DATA(gBackwards) STUB_DATA(gStuntsDone)
 STUB_DATA(gNumActiveCars) STUB_DATA(num_our_drones) STUB_DATA(num_drones)

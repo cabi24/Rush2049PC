@@ -35,13 +35,8 @@ void drawRect(s32 x, s32 y, s32 w, s32 h, u8 *color)
     blitMode = -1;
 }
 
-/* A player's pad record (MAT3 tPadState, gPlayers): only its profile. */
-typedef struct PlayerRow {u8 slot;u8 other[71];tProfile **profile;} PlayerRow;
 
 #define TEXT_STUNT_RECORDS 37       /* gText.tab[]: the stunt score page's record rows */
-
-extern PlayerRow gPlayers[];
-
 
 extern s32 osRecvMesg(OSMesgQueue *,void **,s32),osSendMesg(OSMesgQueue *,void *,s32);
 
@@ -132,7 +127,7 @@ void drawRaceStandings(void)
                 HAL_SetFont(11);
                 if (gRankedPlayer[row - 1] < gNumPlayers) {
                     TB_SetTextColor(playerTextColor[gRankedPlayer[row - 1]]);
-                    str = (*gPlayers[gRankedPlayer[row - 1]].profile)->name;
+                    str = (*gPlayers[gRankedPlayer[row - 1]].save)->name;
                 } else {
                     TB_SetTextColor(4);
                     str = race_standings_drone_name;
@@ -229,7 +224,7 @@ void drawBattleStandings(void)
                     osRecvMesg(&text_lock_queue,0,1); previous = HAL_SetFontInternal(11); osSendMesg(&text_lock_queue,0,0); if (previous) {}
                     if(gRankedPlayer[row-1]<gNumPlayers) {
                         TB_SetTextColor(playerTextColor[gCarTeam[gRankedPlayer[row-1]]]);
-                        text=(*gPlayers[gRankedPlayer[row-1]].profile)->name;
+                        text=(*gPlayers[gRankedPlayer[row-1]].save)->name;
                     } else {
                         text=battle_standings_drone_name;
                         TB_SetTextColor(4);
@@ -314,7 +309,7 @@ void drawStuntStandings(void)
                     HAL_SetFont(11);
                     if(gRankedPlayer[row-1]<gNumPlayers) {
                         TB_SetTextColor(playerTextColor[gRankedPlayer[row-1]]);
-                        text=(*gPlayers[gRankedPlayer[row-1]].profile)->name;
+                        text=(*gPlayers[gRankedPlayer[row-1]].save)->name;
                     } else {
                         text=stunt_standings_drone_name;
                         TB_SetTextColor(4);
@@ -405,7 +400,7 @@ void drawStuntScore(void)
                 if(row==0) {
                     s32 i;
                     TB_SetTextColor(playerTextColor[column-1]);
-                    text=(*gPlayers[column-1].profile)->name;
+                    text=(*gPlayers[column-1].save)->name;
                     left=160-columns*60/2;
                     x=column*60;
                     TB_EllipseText(label,text,60);
@@ -554,7 +549,7 @@ void drawBattleScore(void)
                 if(row>=2) y+=8;
                 if(row==0) {
                     TB_SetTextColor(playerTextColor[gCarTeam[column-1]]);
-                    text=(*gPlayers[column-1].profile)->name;
+                    text=(*gPlayers[column-1].save)->name;
                     total=160-columns*other/2;
                     x=column*other;
                     TB_EllipseText(name,text,60);
@@ -565,7 +560,7 @@ void drawBattleScore(void)
                         text=gText.single[130];
                     } else {
                         TB_SetTextColor(playerTextColor[gCarTeam[row-2]]);
-                        text=(*gPlayers[row-2].profile)->name;
+                        text=(*gPlayers[row-2].save)->name;
                         total=160-columns*other/2;
                         x=column*other;
                         TB_EllipseText(label,text,60);
@@ -664,7 +659,7 @@ s32 gameover_animText(s32 blit)
                         if(row==0) {
                             HAL_SetFont(11);
                             TB_SetTextColor(playerTextColor[column-1]);
-                            text=(*gPlayers[column-1].profile)->name;
+                            text=(*gPlayers[column-1].save)->name;
                             left=160-columns*60/2;
                             x=column*cell;
                             TB_EllipseText(label,text,60);

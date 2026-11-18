@@ -1,10 +1,6 @@
 /* UpdateCircuit: a circuit after one of its races (MAT3 circuit.c). */
 #include "game/game.h"
 
-/* A player's input record (gPlayers): its profile. */
-typedef struct Player76 { u8 index, selector; u8 opaque[70]; tProfile **handle; } Player76;
-extern Player76 gPlayers[];
-
 #define SWAP(a, b) { (a) ^= (b); (b) ^= (a); (a) ^= (b); }
 
 /* Records the race just driven: each car's place (`values`, 3 bits each, the two players' swapped for the second
@@ -18,7 +14,7 @@ void UpdateCircuit(u8 *values, float time)
     int count, i, j, bit, best;
     int first, second, difference, level;
 
-    data = *(*gPlayers[gCircuitPlayer].handle)->datah;
+    data = *(*gPlayers[gCircuitPlayer].save)->datah;
     circuit = &data->circuit;
     count = 6 - (gNumPlayers == 1 ? 0 : 2);
     if (gCircuitPlayer > 0) {
@@ -54,5 +50,5 @@ void UpdateCircuit(u8 *values, float time)
             (best < 3 && level < 2) ||
             (best < 4 && level <= 0)) circuit->difficulty = level + 1;
     }
-    SavePlayerCircuit(gPlayers[gCircuitPlayer].handle);
+    SavePlayerCircuit(gPlayers[gCircuitPlayer].save);
 }

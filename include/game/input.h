@@ -17,6 +17,61 @@
 #define BUTTON_RIGHT 0x2000
 #define BUTTON_ACCEPT (BUTTON_START | BUTTON_A)   /* what every menu takes as "go on" */
 
+/* A controller as ControllerUpdate reads it, for ControlIRQ: gControllerData[4], one per port (MAT3 tPadInfo, which
+ * also has the buttons the pad offers). Online play's state hash takes these 64 bytes as they are (the curated
+ * "pads" region, docs/port/LOCKSTEP.md 5), and both PCs compare it: keep the layout. */
+typedef struct ControllerState {
+    s8 attached;   /* plugged in */
+    u8 unused1[3];
+    u32 buttons;   /* held, in the game's button bits (n64_button_map) */
+    s8 stick[2];   /* x, y, about -80..80 */
+    s8 stick2[2];  /* a second stick: the N64 has none (0) */
+    u8 analog[2];  /* analog triggers, 0-255 (the control values CONTROL_VALUE_ANALOG_1, _2): the N64 has none (0) */
+    u8 unusedE[2];
+} ControllerState;
+
+/* A player's input record (MAT3 tPadState): gPlayers[4], one per player, the player's car and controller and that
+ * controller's input as the game reads it. Each frame UpdateRushControls copies the controller's buttons and stick
+ * here (FindPlayerNum when a controller first joins); UpdateModelControls turns them into the car's steering,
+ * throttle, brake and gear through the player's control layout (controls[], from gNewControls by SetControls). A
+ * human car's record (its `input`, pc_cars) points here; a drone has none. 80 bytes. */
+typedef struct tPadState {
+    u8 slot;              /* the car the player drives: its slot in gGameCar[] and model[] */
+    u8 controller;        /* the player's controller port 0-3, CONTROLLER_NONE (5) for none yet */
+    u32 edges;            /* the buttons newly pressed this frame (the BUTTON_ bits) */
+    u32 levels;           /* the buttons held */
+    u32 autoEdges;        /* pressed, and repeated while held (UpdateControls) */
+    f32 analog[2];        /* the stick, x and y, -1..1 */
+    u32 controls[10];     /* each control's buttons (CONTROL_GAS ...): gControlTable[] of the player's layout, or a
+                           * CONTROL_VALUE_ for a stick or a trigger */
+    u16 numCrashes;       /* the car's crashes this race (the stunt mode's deaths, the records' totals) */
+    u8 trans;             /* the transmission chosen on the car screen, bit 0 set for a manual gearbox (init_cars
+                           * gives it to the car's model) */
+    s8 unused;            /* MAT3's unused */
+    s32 listener;         /* the player's sound listener: its number in gListeners, -1 for none */
+    tProfile **save;      /* the player's profile (a handle): a pak's, or the controller's own (gJustPlayers) */
+} tPadState;
+
+/* The controls of a layout, by their index in gNewControls[controller][] and tPadState.controls[] (UpdateModelControls,
+ * the battle's shots, the camera, the horn). */
+#define CONTROL_GAS 0
+#define CONTROL_BRAKE 1
+#define CONTROL_STEER 2         /* how the stick steers (CONTROL_VALUE_STICK_DEAD or not) */
+#define CONTROL_SHIFT_UP 3
+#define CONTROL_SHIFT_DOWN 4
+#define CONTROL_REVERSE 5       /* held: reverse gear and full throttle */
+#define CONTROL_ABORT 6         /* pressed: abort the car (respawn); in battle, drop the weapon */
+#define CONTROL_VIEW 7          /* pressed: the next camera view */
+#define CONTROL_HORN 8          /* pressed: the horn */
+#define CONTROL_WINGS 9         /* held: the wings; in battle, fire */
+/* The values in tPadState.controls[] that aren't button bits (ReadGasAndBrake, ReadSteeringWheel). */
+#define CONTROL_VALUE_STICK_Y 0x13      /* the stick's y axis: up the gas, down the brake */
+#define CONTROL_VALUE_ANALOG_1 0x15     /* the first analog trigger (none on the N64) */
+#define CONTROL_VALUE_ANALOG_2 0x16     /* the second analog trigger (none on the N64) */
+#define CONTROL_VALUE_STICK_DEAD 0x19   /* the stick, with a dead zone: steering, or the y axis as above */
+/* The controller port of a player who has none. */
+#define CONTROLLER_NONE 5
+
 /* Data */
 extern u32 gControlTable[EXTENT(26)];
 extern s8 gInitControls;
@@ -46,11 +101,10 @@ extern u32 gActiveAutoEdges;
 extern OSMesgQueue controlsys_lock_queue;
 /* What ControlIRQ (the model thread, each retrace) leaves for UpdateControls (the game thread), under
  * controlsys_lock_queue: each stick's calibration (the raw value that reads as full), the buttons pressed since the
- * last UpdateControls, the buttons held (controlsys's s32[4]: the data loader has 4 bytes for its symbol), the raw
- * sticks. Volatile, as MAT3's controlsys.c declares them. */
+ * last UpdateControls, the buttons held, the raw sticks. Volatile, as MAT3's controlsys.c declares them. */
 extern volatile s8 gContStickRange[EXTENT(4)][2];
 extern volatile u32 gNewEdges[EXTENT(4)];
-extern s32 gNewLevels;
+extern volatile u32 gNewLevels[EXTENT(4)];
 extern volatile s8 gNewStick[EXTENT(4)][2];
 extern s8 gActiveControllers[EXTENT(4)];
 extern s8 gStickEdges[EXTENT(4)];
@@ -67,6 +121,7 @@ extern f32 gContStick[EXTENT(4)][2];
 extern u32 gContLevels[EXTENT(4)];
 extern u32 gContEdges[EXTENT(4)];
 extern volatile ControllerState gControllerData[EXTENT(4)];
+extern tPadState gPlayers[EXTENT(4)];   /* the players' input records (InitOptions.c defines them) */
 extern s8 gSoftReset;
 
 /* Functions */
@@ -85,7 +140,7 @@ void InitControlSys(void);
 void InitRushControls(void);
 void loading_effect_none(void);
 f32 PotRange(f32 range, f32 calib, s32 raw);
-void ReadGasAndBrake(struct tModelData *car, struct InputRecord *player);
+void ReadGasAndBrake(struct tModelData *car, tPadState *player);
 void SetControllerActive(s32 player, s32 value);
 void SetControllerStickEdges(s32 player, s32 value);
 void SetControls(s32 resetToDefault);

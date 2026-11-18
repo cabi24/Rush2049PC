@@ -143,7 +143,8 @@ the loader still takes an arena as a block, its unit tests' form.)
 
 A symbol whose type has pointers, a `long`, or a host layout that differs gets its **own storage** in the executable
 (host size, aligned 16, or 32 from 32 bytes as x86-64 aligns such a common), and every symbol whose address lies
-inside its N64 extent is defined at the matching host offset (`input_rec1 = gPlayers + 0x50`). Names at one address
+inside its N64 extent is defined at the matching host offset (none is since wave 4: `gPlayers_save = gPlayers +
+0x48` was the last). Names at one address
 are aliases. Tentative definitions (common symbols) in game and runtime-image C get the same treatment; the linker
 prefers the strong definition. The arena's layout under own storage holds that data's N64 form, which no object
 copies (but two environment colours the game read from such bytes, NATIVE.md 18).

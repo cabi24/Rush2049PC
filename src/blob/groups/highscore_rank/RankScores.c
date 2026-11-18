@@ -1,16 +1,6 @@
 /* RankScores: who enters a name on the high-score screen (MAT3 highscorescr.c RankScores). */
 #include "game/game.h"
 
-/* A player's pad record (MAT3 tPadState, gPlayers). */
-typedef struct InputRecord {
-    u8 pad00;
-    u8 controller;          /* 0x01 */
-    u8 pad02[0x48 - 2];
-    tProfile **profile;     /* 0x48 */
-} InputRecord;
-
-extern InputRecord gPlayers[];
-
 #define NO_NAME (-1)                /* gThisPlayer[]: a guest without a name yet */
 
 void *memset(void *dst, s32 c, u32 n);
@@ -27,7 +17,7 @@ void RankScores(void)
     tProfile **profile;
 
     for (i = 0; i < gNumPlayers; i++) {
-        profile = gPlayers[i].profile;
+        profile = gPlayers[i].save;
         if ((*profile)->fileh == 0) {
             gThisPlayer[i].name = gLastPlayer[gPlayers[i].controller];
         } else {

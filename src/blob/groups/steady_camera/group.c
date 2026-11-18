@@ -8,8 +8,6 @@ float sqrtf(float);
 typedef struct V3 { float x, y, z; } V3;
 
 
-/* A player's input record (gPlayers): its profile's handle. */
-typedef struct Q { u8 p[0x48]; tProfile **h; } Q;
 /* The car record (MAT3 tCarData; the PC's pc_car, host layout): the fields these read and set. */
 typedef struct Cr {
     u8 p0[8];
@@ -26,7 +24,7 @@ typedef struct Cr {
     s8 mode;            /* 0x35D view */
     s8 mode2;           /* 0x35E saveview: the view to go back to after the crash view */
     u8 p35f[0x21];
-    Q *q;               /* 0x380 its input record, NULL for a drone */
+    tPadState *q;               /* 0x380 its input record, NULL for a drone */
 } Cr;
 
 /* Car `car`'s steady camera (view 7). `mode` 0 starts it at `pos` looking at the car (init_steady_move_cam). Then
@@ -97,8 +95,8 @@ void steady_move_cam(s16 mode, Cr *car, f32 *pos, void *uvs) {
         init_view3(car);
         if (!(gGameState & GS_DEMO)) {
             s32 v;
-            if ((*car->q->h)->datah != 0)
-                v = GetPlayerCarView(car->q->h);
+            if ((*car->q->save)->datah != 0)
+                v = GetPlayerCarView(car->q->save);
             else
                 v = 2;
             car->mode = v;

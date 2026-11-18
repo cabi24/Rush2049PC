@@ -4,18 +4,7 @@
  * with A. */
 #include "game/game.h"
 
-typedef struct {
-    u8 slot;
-    u8 controller;       /* 0x01 */
-    u8 pad2[2];
-    u32 edges;           /* 0x04 */
-    u8 pad8[64];
-    tProfile **save;     /* 0x48 */
-} PadState;              /* tPadState, 0x4C */
-
 void *memcpy(void *, const void *, u32);
-
-extern PadState gPlayers[4];           /* gPlayers */
 
 /* The list's rows (gControlSelect): the ten controls, then these two. */
 #define CONTROL_CHOICES 26          /* a control's values: 19 game buttons, then the analog sources (SetControls) */
