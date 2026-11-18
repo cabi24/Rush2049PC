@@ -633,7 +633,7 @@ void buildTrackMap(void)
                 || (gRace != kCircuit && gOptions[28])) {
                 gSPTexture(gfx++, 0xFFFF, 0xFFFF, 0, 0, 0);
                 gDPPipeSync(gfx++);
-                gDPSetRenderMode(gfx++, 0xC8112230, 0);
+                gDPSetRenderMode(gfx++, G_RM_FOG_SHADE_A, G_RM_ZB_OPA_SURF2);
                 gDPSetCombineMode(gfx++, G_CC_SHADE_OPAQUE, G_CC_PASS2);
                 for (i = 0, vertex = 0; i < kNumMapSects; i++, vertex += 4) {
                     if (i + 1 == kNumMapSects) {
@@ -779,7 +779,7 @@ void buildRaceTrackMaps(void)
             mapObj[gTrackNum].displayList = (void *)(dl = (Gfx *)(((uintptr_t)map_display_list_blocks[gTrackNum] + 7) & ~7));
             gSPTexture(dl++, 0xFFFF, 0xFFFF, 0, 0, 0);
             gDPPipeSync(dl++);
-            gDPSetRenderMode(dl++, 0xC8112230, 0);
+            gDPSetRenderMode(dl++, G_RM_FOG_SHADE_A, G_RM_ZB_OPA_SURF2);
             gDPSetCombineMode(dl++, G_CC_SHADE_OPAQUE, G_CC_PASS2);
             for (pointIdx = 0; pointIdx < kNumMapSects; pointIdx++) {
                 if (pointIdx > 0) prevPt = (gResPath.numPts * (pointIdx - 1)) / kNumMapSects; else prevPt = -1;

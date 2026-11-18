@@ -90,7 +90,8 @@ each carried their own copies of the macros (157 macro uses, over a local `Gfx` 
 the commands' words by hand (the track map's lists, `BlitFinish`, `BlitZDist`, the culled branch's patch in
 `Traverse`); they use the shared macros now, and the culled branch writes `list.list`. The combiner's raw words became
 named modes (`G_CC_DECALRGBA`, `G_CC_MODULATERGBA_PRIM`; the game's own `G_CC_DECALRGB_LERPA_ENV`,
-`G_CC_SHADE_PRIMA` ...), the m2c'd prim depth and colour words named commands (`videoscr.c`). The pipeline syncs write
+`G_CC_SHADE_PRIMA` ...), the render modes' the SDK's (`G_RM_XLU_SURF`, `G_RM_FOG_SHADE_A`, `G_RM_ZB_XLU_SURF | Z_UPD`
+...; the same words, objsame `same`), the m2c'd prim depth and colour words named commands (`videoscr.c`). The pipeline syncs write
 no-op records, which keep the lists' lengths; `gSPSegment` went.
 
 **The N64's form** is read in one place, `pc_gfx_from_n64` ([port/assets/gfx_n64.c](../../port/assets/gfx_n64.c),

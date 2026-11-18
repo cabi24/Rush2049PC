@@ -845,7 +845,7 @@ void zoid_draw_window(s32 view, tCamera *eye)
         if (poly->flags & POLY_SCREEN) {
             if (mode != 0) {
                 mode = 0;
-                gDPSetRenderMode(frame_dl++, 0x00504240, 0);
+                gDPSetRenderMode(frame_dl++, G_RM_XLU_SURF, G_RM_XLU_SURF2);
                 gDPSetCombineMode(frame_dl++, G_CC_PRIMITIVE, G_CC_PRIMITIVE);
             }
             gDPSetPrimColor(frame_dl++, 0, 0, poly->u.screen.col[0], poly->u.screen.col[1], poly->u.screen.col[2],
@@ -902,34 +902,34 @@ void zoid_draw_window(s32 view, tCamera *eye)
                                     gPalDefPtrs[poly->texidx >> 10].palDefs);
                 zoid_current_texture = tex;
             }
-            if (poly->flags & 0x200) {     /* z-buffered (the render modes with Z_CMP and Z_UPD) */
+            if (poly->flags & 0x200) {     /* z-buffered: the depth tested (and written, but in fog) */
                 if (mode != 2) {
                     mode = 2;
                     if (!fog) {
-                        gDPSetRenderMode(frame_dl++, 0x00504A70, 0);
+                        gDPSetRenderMode(frame_dl++, G_RM_ZB_XLU_SURF | Z_UPD, G_RM_ZB_XLU_SURF2);
                         gDPSetCombineMode(frame_dl++, G_CC_MODULATERGBA, G_CC_MODULATERGBA);
                     } else {
-                        gDPSetRenderMode(frame_dl++, 0xC8104A50, 0);
+                        gDPSetRenderMode(frame_dl++, G_RM_FOG_SHADE_A, G_RM_ZB_XLU_SURF2);
                         gDPSetCombineMode(frame_dl++, G_CC_MODULATERGB_PRIMA, G_CC_PASS2);
                     }
                 }
             } else if (mode != 3) {
                 mode = 3;
                 if (!fog) {
-                    gDPSetRenderMode(frame_dl++, 0x00504240, 0);
+                    gDPSetRenderMode(frame_dl++, G_RM_XLU_SURF, G_RM_XLU_SURF2);
                     gDPSetCombineMode(frame_dl++, G_CC_MODULATERGBA, G_CC_MODULATERGBA);
                 } else {
-                    gDPSetRenderMode(frame_dl++, 0xC8104240, 0);
+                    gDPSetRenderMode(frame_dl++, G_RM_FOG_SHADE_A, G_RM_XLU_SURF2);
                     gDPSetCombineMode(frame_dl++, G_CC_MODULATERGB_PRIMA, G_CC_PASS2);
                 }
             }
         } else if (mode != 1) {
             mode = 1;
             if (!fog) {
-                gDPSetRenderMode(frame_dl++, 0x00504A50, 0);
+                gDPSetRenderMode(frame_dl++, G_RM_ZB_XLU_SURF, G_RM_ZB_XLU_SURF2);
                 gDPSetCombineMode(frame_dl++, G_CC_SHADE, G_CC_SHADE);
             } else {
-                gDPSetRenderMode(frame_dl++, 0xC8104A70, 0);
+                gDPSetRenderMode(frame_dl++, G_RM_FOG_SHADE_A, G_RM_ZB_XLU_SURF2 | Z_UPD);
                 gDPSetCombineMode(frame_dl++, G_CC_SHADE_PRIMA, G_CC_PASS2);
             }
         }

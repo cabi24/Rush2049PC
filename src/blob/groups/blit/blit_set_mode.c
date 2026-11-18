@@ -12,7 +12,7 @@ void blit_set_mode(s32 mode)
         if (blitMode != BLIT_MODE_COPY) {
             gDPSetCycleType(blit_dl++, G_CYC_COPY);
         }
-        gDPSetRenderModeRaw(blit_dl++, 0x0F0A4000);
+        gDPSetRenderMode(blit_dl++, G_RM_OPA_SURF, G_RM_OPA_SURF2);
         gDPSetCombineMode(blit_dl++, G_CC_DECALRGBA, G_CC_DECALRGBA);
         break;
     case BLIT_MODE_TEXTURE:
@@ -20,19 +20,19 @@ void blit_set_mode(s32 mode)
             gDPSetCycleType(blit_dl++, G_CYC_1CYCLE);
         }
         if ((blitAttribute & BLIT_ATTR_ZDIST) && (blitAttribute & BLIT_ATTR_XLU)) {
-            gDPSetRenderModeRaw(blit_dl++, 0x00504A70);
+            gDPSetRenderMode(blit_dl++, G_RM_ZB_XLU_SURF | Z_UPD, G_RM_ZB_XLU_SURF2);
             gDPSetCombineMode(blit_dl++, G_CC_MODULATERGBA_PRIM, G_CC_MODULATERGBA_PRIM);
         }
         else if (blitAttribute & BLIT_ATTR_XLU) {
-            gDPSetRenderModeRaw(blit_dl++, 0x00504240);
+            gDPSetRenderMode(blit_dl++, G_RM_XLU_SURF, G_RM_XLU_SURF2);
             gDPSetCombineMode(blit_dl++, G_CC_MODULATERGBA_PRIM, G_CC_MODULATERGBA_PRIM);
         }
         else if (blitAttribute & BLIT_ATTR_ZDIST) {
-            gDPSetRenderModeRaw(blit_dl++, 0x00504A70);
+            gDPSetRenderMode(blit_dl++, G_RM_ZB_XLU_SURF | Z_UPD, G_RM_ZB_XLU_SURF2);
             gDPSetCombineMode(blit_dl++, G_CC_DECALRGBA, G_CC_DECALRGBA);
         }
         else {
-            gDPSetRenderModeRaw(blit_dl++, 0x00504240);
+            gDPSetRenderMode(blit_dl++, G_RM_XLU_SURF, G_RM_XLU_SURF2);
             gDPSetCombineMode(blit_dl++, G_CC_DECALRGBA, G_CC_DECALRGBA);
         }
         break;
@@ -41,19 +41,19 @@ void blit_set_mode(s32 mode)
             gDPSetCycleType(blit_dl++, G_CYC_1CYCLE);
         }
         if ((blitAttribute & BLIT_ATTR_ZDIST) && (blitAttribute & BLIT_ATTR_XLU)) {
-            gDPSetRenderModeRaw(blit_dl++, 0x00504A70);
+            gDPSetRenderMode(blit_dl++, G_RM_ZB_XLU_SURF | Z_UPD, G_RM_ZB_XLU_SURF2);
             gDPSetCombineMode(blit_dl++, G_CC_MODULATERGBA_PRIM, G_CC_MODULATERGBA_PRIM);
         }
         else if (blitAttribute & BLIT_ATTR_XLU) {
-            gDPSetRenderModeRaw(blit_dl++, 0x00504240);
+            gDPSetRenderMode(blit_dl++, G_RM_XLU_SURF, G_RM_XLU_SURF2);
             gDPSetCombineMode(blit_dl++, G_CC_MODULATERGBA_PRIM, G_CC_MODULATERGBA_PRIM);
         }
         else if (blitAttribute & BLIT_ATTR_ZDIST) {
-            gDPSetRenderModeRaw(blit_dl++, 0x00504A70);
+            gDPSetRenderMode(blit_dl++, G_RM_ZB_XLU_SURF | Z_UPD, G_RM_ZB_XLU_SURF2);
             gDPSetCombineMode(blit_dl++, G_CC_MODULATEIDECALA_PRIM, G_CC_MODULATEIDECALA_PRIM);
         }
         else {
-            gDPSetRenderModeRaw(blit_dl++, 0x00504240);
+            gDPSetRenderMode(blit_dl++, G_RM_XLU_SURF, G_RM_XLU_SURF2);
             gDPSetCombineMode(blit_dl++, G_CC_MODULATEIDECALA_PRIM, G_CC_MODULATEIDECALA_PRIM);
         }
         break;
@@ -62,19 +62,19 @@ void blit_set_mode(s32 mode)
             gDPSetCycleType(blit_dl++, G_CYC_1CYCLE);
         }
         if ((blitAttribute & BLIT_ATTR_ZDIST) && (blitAttribute & BLIT_ATTR_XLU)) {
-            gDPSetRenderModeRaw(blit_dl++, 0x00553078);
+            gDPSetRenderMode(blit_dl++, G_RM_AA_ZB_TEX_EDGE, G_RM_AA_ZB_TEX_EDGE2);
             gDPSetCombineMode(blit_dl++, G_CC_MODULATERGBA_PRIM, G_CC_MODULATERGBA_PRIM);
         }
         else if (blitAttribute & BLIT_ATTR_XLU) {
-            gDPSetRenderModeRaw(blit_dl++, 0x0F0A7008);
+            gDPSetRenderMode(blit_dl++, G_RM_TEX_EDGE, G_RM_TEX_EDGE2);
             gDPSetCombineMode(blit_dl++, G_CC_MODULATERGBA_PRIM, G_CC_MODULATERGBA_PRIM);
         }
         else if (blitAttribute & BLIT_ATTR_ZDIST) {
-            gDPSetRenderModeRaw(blit_dl++, 0x00553078);
+            gDPSetRenderMode(blit_dl++, G_RM_AA_ZB_TEX_EDGE, G_RM_AA_ZB_TEX_EDGE2);
             gDPSetCombineMode(blit_dl++, G_CC_MODULATEIDECALA_PRIM, G_CC_MODULATEIDECALA_PRIM);
         }
         else {
-            gDPSetRenderModeRaw(blit_dl++, 0x0F0A7008);
+            gDPSetRenderMode(blit_dl++, G_RM_TEX_EDGE, G_RM_TEX_EDGE2);
             gDPSetCombineMode(blit_dl++, G_CC_MODULATEIDECALA_PRIM, G_CC_MODULATEIDECALA_PRIM);
         }
         break;
@@ -82,7 +82,7 @@ void blit_set_mode(s32 mode)
         if (blitMode < BLIT_MODE_TWO_TILE) {
             gDPSetCycleType(blit_dl++, G_CYC_2CYCLE);
         }
-        gDPSetRenderModeRaw(blit_dl++, 0x00504240);
+        gDPSetRenderMode(blit_dl++, G_RM_XLU_SURF, G_RM_XLU_SURF2);
         gDPSetCombineMode(blit_dl++, G_CC_DECALRGB_LERPA_ENV, G_CC_PASS2);
         gDPSetEnvColor(blit_dl++, 0, 0, 0, 0x55);
         break;

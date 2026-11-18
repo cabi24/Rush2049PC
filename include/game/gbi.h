@@ -57,6 +57,65 @@
 #define G_ZS_PIXEL (0 << G_MDSFT_ZSRCSEL)
 #define G_ZS_PRIM (1 << G_MDSFT_ZSRCSEL)
 
+/* The render mode: the blender's two cycles and the coverage and depth bits, in the other modes' low word from bit 3
+ * (gDPSetRenderMode's c0 | c1: a G_RM_* mode for cycle 1 and one for cycle 2; the SDK's numbers). A cycle blends
+ * p * a + m * b, its inputs the G_BL_* below (GBL_c1, GBL_c2). */
+#define AA_EN 0x8
+#define Z_CMP 0x10
+#define Z_UPD 0x20
+#define IM_RD 0x40
+#define CLR_ON_CVG 0x80
+#define CVG_DST_CLAMP 0
+#define CVG_DST_WRAP 0x100
+#define CVG_DST_FULL 0x200
+#define CVG_DST_SAVE 0x300
+#define ZMODE_OPA 0
+#define ZMODE_INTER 0x400
+#define ZMODE_XLU 0x800
+#define ZMODE_DEC 0xC00
+#define CVG_X_ALPHA 0x1000
+#define ALPHA_CVG_SEL 0x2000
+#define FORCE_BL 0x4000
+#define TEX_EDGE 0x0000
+#define G_BL_CLR_IN 0
+#define G_BL_CLR_MEM 1
+#define G_BL_CLR_BL 2
+#define G_BL_CLR_FOG 3
+#define G_BL_1MA 0
+#define G_BL_A_MEM 1
+#define G_BL_A_IN 0
+#define G_BL_A_FOG 1
+#define G_BL_A_SHADE 2
+#define G_BL_1 2
+#define G_BL_0 3
+#define GBL_c1(m1a, m1b, m2a, m2b) ((u32)(m1a) << 30 | (u32)(m1b) << 26 | (u32)(m2a) << 22 | (u32)(m2b) << 18)
+#define GBL_c2(m1a, m1b, m2a, m2b) ((u32)(m1a) << 28 | (u32)(m1b) << 24 | (u32)(m2a) << 20 | (u32)(m2b) << 16)
+/* The modes the game uses: opaque, translucent (memory blended by 1 - alpha), each with the depth tested and written
+ * or not; cut-out texture edges; the fog blended by the shade's alpha (cycle 1 only, in 2-cycle mode). */
+#define RM_OPA_SURF(clk) (CVG_DST_CLAMP | FORCE_BL | ZMODE_OPA | GBL_c##clk(G_BL_CLR_IN, G_BL_0, G_BL_CLR_IN, G_BL_1))
+#define RM_XLU_SURF(clk) \
+    (IM_RD | CVG_DST_FULL | FORCE_BL | ZMODE_OPA | GBL_c##clk(G_BL_CLR_IN, G_BL_A_IN, G_BL_CLR_MEM, G_BL_1MA))
+#define RM_ZB_OPA_SURF(clk) (Z_CMP | Z_UPD | CVG_DST_FULL | ALPHA_CVG_SEL | ZMODE_OPA | \
+                             GBL_c##clk(G_BL_CLR_IN, G_BL_A_IN, G_BL_CLR_MEM, G_BL_A_MEM))
+#define RM_ZB_XLU_SURF(clk) (Z_CMP | IM_RD | CVG_DST_FULL | ZMODE_XLU | FORCE_BL | \
+                             GBL_c##clk(G_BL_CLR_IN, G_BL_A_IN, G_BL_CLR_MEM, G_BL_1MA))
+#define RM_TEX_EDGE(clk) (CVG_DST_CLAMP | CVG_X_ALPHA | ALPHA_CVG_SEL | FORCE_BL | ZMODE_OPA | TEX_EDGE | AA_EN | \
+                          GBL_c##clk(G_BL_CLR_IN, G_BL_0, G_BL_CLR_IN, G_BL_1))
+#define RM_AA_ZB_TEX_EDGE(clk) (AA_EN | Z_CMP | Z_UPD | IM_RD | CVG_DST_CLAMP | CVG_X_ALPHA | ALPHA_CVG_SEL | \
+                                ZMODE_OPA | TEX_EDGE | GBL_c##clk(G_BL_CLR_IN, G_BL_A_IN, G_BL_CLR_MEM, G_BL_A_MEM))
+#define G_RM_OPA_SURF RM_OPA_SURF(1)
+#define G_RM_OPA_SURF2 RM_OPA_SURF(2)
+#define G_RM_XLU_SURF RM_XLU_SURF(1)
+#define G_RM_XLU_SURF2 RM_XLU_SURF(2)
+#define G_RM_ZB_OPA_SURF2 RM_ZB_OPA_SURF(2)
+#define G_RM_ZB_XLU_SURF RM_ZB_XLU_SURF(1)
+#define G_RM_ZB_XLU_SURF2 RM_ZB_XLU_SURF(2)
+#define G_RM_TEX_EDGE RM_TEX_EDGE(1)
+#define G_RM_TEX_EDGE2 RM_TEX_EDGE(2)
+#define G_RM_AA_ZB_TEX_EDGE RM_AA_ZB_TEX_EDGE(1)
+#define G_RM_AA_ZB_TEX_EDGE2 RM_AA_ZB_TEX_EDGE(2)
+#define G_RM_FOG_SHADE_A GBL_c1(G_BL_CLR_FOG, G_BL_A_SHADE, G_BL_CLR_IN, G_BL_1MA)
+
 /* The colour combiner's inputs (a cycle's colour is (a - b) * c + d, its alpha likewise): the selectors' numbers. An
  * input a slot doesn't have reads as 0 there (the RDP's field is narrower: 0 in a and b is 15, in d 7). */
 #define G_CCMUX_COMBINED 0
@@ -348,9 +407,8 @@ static inline Gfx gbi_rectangle_texture(u32 s, u32 t, u32 dsdx, u32 dtdy) {
 #define gDPSetCycleType(pkt, type) gSPSetOtherMode(pkt, GFX_OP_OTHER_MODE_HIGH, G_MDSFT_CYCLETYPE, 2, type)
 #define gDPSetAlphaCompare(pkt, type) gSPSetOtherMode(pkt, GFX_OP_OTHER_MODE_LOW, G_MDSFT_ALPHACOMPARE, 2, type)
 #define gDPSetDepthSource(pkt, src) gSPSetOtherMode(pkt, GFX_OP_OTHER_MODE_LOW, G_MDSFT_ZSRCSEL, 1, src)
-/* The render mode: the blender's two cycles and the coverage and depth bits, 29 bits from bit 3 (c0 | c1 in place). */
+/* The render mode: c0 cycle 1's G_RM_* mode, c1 cycle 2's (29 bits from bit 3, in place). */
 #define gDPSetRenderMode(pkt, c0, c1) gSPSetOtherMode(pkt, GFX_OP_OTHER_MODE_LOW, G_MDSFT_RENDERMODE, 29, (c0) | (c1))
-#define gDPSetRenderModeRaw(pkt, m) gDPSetRenderMode(pkt, m, 0)   /* both cycles' bits as one word */
 
 /* The combiner: a mode for each cycle (G_CC_*), or each selector by its input's name. */
 #define gDPSetCombineMode(pkt, a, b) gDPSetCombineLERP(pkt, a, b)
