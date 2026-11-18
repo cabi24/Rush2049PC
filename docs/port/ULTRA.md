@@ -751,3 +751,29 @@ nothing the game does changed with them.
 
 ### 11.4 Proof
 
+
+The change is proven by running the game, with the reference build of the wave's start (d224beab):
+
+- **objsame**: 90 units differ in Debug, 45 in RelWithDebInfo, and no others: the units that call the API (in Debug
+  each `static inline` function is a local copy in the unit; with -O2 it is inlined, and the code differs only where
+  a result is tested against -1 rather than 0 (`osSendMesg` returns nothing else), where `queue_recv` keeps the
+  message in a slot of its own, and in the registers chosen), boot.c, scheduler.c, timer.c, and six units that read
+  `gScheduler.retraceCount` at its new offset (get_input_idle_seconds.c, animDot.c, animCountdownTimer.c,
+  pakerr/group.c, save/group.c, SetPakError.c).
+- **The data**: `data_symbols.txt` differs from the reference's in the twelve data of 11.2 (N64-layout storage to own
+  storage) and in `gScheduler` (648 bytes on the N64, 792 on the PC, libultra's layout; it was 672 and 704 with the
+  N64 offsets), whose five names placed inside it are gone; nothing else.
+- **The layout tools**: `view_check.py` agrees on every view of the OS records (`--tag OSMesgQueue` 112 views,
+  `OSThread` 117, `OSScClient` 18, `OSScTask` 22, `OSScMsg` 23; `--sym frame_records`, `gScheduler`); `layout_check`
+  finds nothing new (its open findings are the reference's: the heap's and the sound sequencer's), `offset_check
+  --strict` no open finding, `alias_check` none open, `bounds_check` none new. `n64_audit` grows only in its context
+  class `symbols.own` (405 to 417: the twelve data), which its baseline now says.
+- **ctest** (Debug): 572 of 572 (`assets_rom` skipped without a ROM); the realtime-labelled tests under the realtime
+  lock.
+- **The gate** (`pconly_gate.sh --base` the reference `--data-moved`): every one of the 64 synthetic paths `same`
+  as the reference's, its state changes, the first car's exact position and speed every second, every screenshot
+  and every sound byte for byte (three of them, `membig8`, `mods_conflict` and `mods_off`, run again alone on a
+  loaded host, as the gate does). The optimized build against the optimized reference, on the synthetic cartridge and
+  on the audible one: 64 of 64 the same, shots and sound.
+- **The sanitizers**: an ASan + UBSan build ran every synthetic path to its end with no report, and CI's ASan ctest set
+  (the sanitize job's x86-64 skip list) passed, 399 of 399 (`assets_rom` skipped).
