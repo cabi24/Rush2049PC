@@ -13,10 +13,11 @@ typedef struct MultiBlit {
 VIEW(u8, gBlocksNeeded);
 #define gBlocksNeeded gBlocksNeeded_view
 
-/* PC: both runtime images are linked in, and image B has a function at 0x8038A400 too (findDamageSlot, worlddam.c),
- * which the loader's tables name for both. Image A's is updateWarningScreen, which updateFrontEnd calls in
- * state 0x40000000 and port/data's function table gives image A's data (docs/port/SYNTH.md). Its two file statics
- * are read by drawWarningScreen (warningscr_animText) by their addresses, so they are the image A arena's bytes. */
+/* Image A's first function. Image B's first function (findDamageSlot, worlddam.c) has the same place in its image,
+ * and the cartridge's symbol tables give both that one name; both images are linked into the program, so image A's
+ * is compiled under its MAT3 name. updateFrontEnd calls it in the pak warning's state (GS_WARNING), and the data
+ * loader's function table gives image A's entry this function (docs/port/SYNTH.md). MAT3's file statics gPakScr and
+ * numPaksFound are image A's data (frontend.h), since drawWarningScreen (warningscr_animText) reads them too. */
 #define numPaksFound num_paks_found
 
 /* The warning's blit while it is up (MAT3's function-local static; image A's data: a load of the image clears it,

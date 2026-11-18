@@ -49,7 +49,8 @@ void paksys_lock(void) {
     osRecvMesg(&si_lock_queue, &message, 1);
 }
 
-/* retail stub 0x800A2D44: take a tPS_File handle off the free list (compiled-out head test: see the header) */
+/* Takes a file handle off the free list (pak_free_handles). The empty test of the list's head is what is left of the
+ * original's check, which compiled to nothing. */
 PakHandle *pfs_get_node(void)
 {
     PakHandle *fileh;
@@ -58,8 +59,6 @@ PakHandle *pfs_get_node(void)
     RemoveLLE(&pak_free_handles, fileh);
     return fileh;
 }
-
-/* 0x800A2D4C */
 
 void pdf_heap_lock(void)
 {
@@ -147,9 +146,8 @@ read_retry:
     gPaks[pak].files[fileNo].flag2 = numBytes != psfile->size;
 }
 
-/* 0x800A3640: _RemovePak (private IPA: unsaved s-registers) */
-
-/* 0x800A3724: _ClearPak (private IPA: pak in a3) */
+/* MAT3's _RemovePak and _ClearPak come next in paksysdc.c: they are RemovePak and ClearPak in
+ * groups/paksysdc/group.c. */
 
 /* inlined: does the file's write bitmap have dirty bytes */
 s32 _FileChanged(tPS_File *psfile)
@@ -175,6 +173,4 @@ void _StopRumble(s32 pak)
     gPaks[pak].motorOn = 0;
 }
 
-/* 0x800A377C: PS_PakServer */
-
-/* 0x800A4508: PS_InitPakSys */
+/* PS_PakServer and PS_InitPakSys, which come next in paksysdc.c, are in groups/paksysdc/group.c. */
