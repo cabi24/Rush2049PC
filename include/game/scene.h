@@ -77,6 +77,28 @@ struct tCamera;   /* a window's camera (camera.h), which the scene draw looks th
 
 /* Types */
 
+/* A scene node (ObjInstanceList; MAT3's mbox and zoid objects): an object definition drawn by a matrix relative to
+ * its parent's, in a tree of first children and next siblings that the scene draw walks (Traverse), with what it
+ * draws in place of its model's (lights, textures, a tile, a palette) and its colours. */
+typedef struct ObjectInstance {
+    u32 flags;                    /* OBJ_* */
+    u32 culling;                  /* its culling box: (first cull vertex << 3) | 7 (ZOID_BuildCullingList), 0 none */
+    tUVMatrix *mat;               /* its matrix, relative to its parent */
+    f32 scale;
+    f32 w;                        /* the matrix's w */
+    u16 index;                    /* its object, (model << 10) | definition; 0xFFFF a free node */
+    s16 child;                    /* its first child, -1 none */
+    s16 next;                     /* its next sibling, -1 none */
+    s16 numLights;                /* its own lights' count, -1 the scene's */
+    struct Lights2 *lights;       /* its own lights */
+    struct tTexture *texture[4];  /* a texture per level of detail in place of the model's, NULL none */
+    struct TexTile *tile;         /* the part of the texture to load in place of the model's */
+    struct TexTile *tileSize;     /* the part of it to draw */
+    struct tPaletteDef *palette;  /* a palette in place of the model's */
+    u32 color;                    /* the primitive colour: bytes R, G, B, A (OBJ_COLOR); wave 4: tRGBA */
+    u32 envcolor;                 /* the environment colour, likewise; wave 4: tRGBA */
+} ObjectInstance;
+
 /* A window of the scene (MAT3 tWindowInfo; ZoidWinInfo, one a player in split screen): where on the screen it
  * draws, its projection (ZOID_SetWindow), its clip planes and its fog (ZOID_SetFog, WorldFogDensity). The scene
  * draw (zoid_draw_window) builds each view from it; ZOID_ProjectWindow and ZOID_WindowTo3D map between the world
@@ -190,6 +212,15 @@ typedef struct tTextureSwap {
     f32 initTime;       /* its period, seconds */
     tTextureBase *swapTexs;
 } tTextureSwap;
+
+/* A car's palette (car_palettes[slot].palBase: 256 RGBA 5551 colours, as the TLUT holds them): the paint, then the
+ * tail lights and the headlights, which StartCar and AnimateBrakeLights rewrite. */
+typedef struct CarTlut {
+    u16 paint[160];
+    u16 taillights[8];  /* entries 160-167 */
+    u16 headlights[8];  /* entries 168-175 */
+    u16 rest[80];       /* entries 176-255: nothing rewrites them */
+} CarTlut;
 
 /* Data */
 extern ModelDefTable gRomObjDefPtrs[EXTENT(64)];

@@ -1085,29 +1085,6 @@ typedef struct TargetPathTable { /* 0x10 bytes (MAT3 anon_paths_count_8) */
     s32 count;                      /* 0x8 */
 } TargetPathTable;
 
-/* A scene node, an entry of ObjInstanceList (MAT3 ObjInstance; the N64's 0x44 bytes with the pointers widened):
- * its flags (OBJ_*, scene.h), its culling word, its matrix (a tUVMatrix, relative to its parent), the object handle
- * ((model << 10) | definition; 0xFFFF a free node), the first child and the next sibling (-1 none), its lights, a
- * texture for each level of detail, its tile, tile size and palette, and two colours. */
-typedef struct ObjectInstance { /* 0x68 bytes */
-    u32 flags;                    /* 0x0 OBJ_* (scene.h) */
-    u32 culling;                  /* 0x4 its culling box: (first cull vertex << 3) | 7 (ZOID_BuildCullingList), 0 none */
-    struct tUVMatrix *mat;        /* 0x8 its matrix, relative to its parent */
-    f32 scale;                    /* 0x10 */
-    f32 w;                        /* 0x14 the matrix's w */
-    u16 index;                    /* 0x18 its object, (model << 10) | definition; 0xFFFF a free node */
-    s16 child;                    /* 0x1A its first child, -1 none */
-    s16 next;                     /* 0x1C its next sibling, -1 none */
-    s16 numLights;                /* 0x1E its own lights' count, -1 the scene's */
-    struct Lights2 *lights;       /* 0x20 its own lights */
-    struct tTexture *texture[4];  /* 0x28 a texture per level of detail in place of the model's, NULL none */
-    struct TexTile *tile;         /* 0x48 the part of the texture to load in place of the model's */
-    struct TexTile *tileSize;     /* 0x50 the part of it to draw */
-    struct tPaletteDef *palette;  /* 0x58 a palette in place of the model's */
-    u32 color;                    /* 0x60 the primitive colour, OBJ_COLOR */
-    u32 envcolor;                 /* 0x64 the environment colour, OBJ_COLOR */
-} ObjectInstance;
-
 typedef struct PcViewport { /* 0x10 bytes */
     s16 scale[4];     /* 0x0 */
     s16 translate[4]; /* 0x8 */

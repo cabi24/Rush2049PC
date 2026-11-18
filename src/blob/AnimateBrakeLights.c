@@ -4,9 +4,6 @@
  * animator rewrites the eight tail-light entries each frame. */
 #include "game/game.h"
 
-/* The car's palette (256 RGBA 5551 entries): the tail lights are entries 160-167, the headlights 168-175. */
-typedef struct CarTlut { u8 paint[320]; u16 taillights[8]; } CarTlut;
-
 #define CP(src) do { \
     tlut->taillights[0] = (src)[0]; tlut->taillights[1] = (src)[1]; tlut->taillights[2] = (src)[2]; tlut->taillights[3] = (src)[3]; \
     tlut->taillights[4] = (src)[4]; tlut->taillights[5] = (src)[5]; tlut->taillights[6] = (src)[6]; tlut->taillights[7] = (src)[7]; } while (0)

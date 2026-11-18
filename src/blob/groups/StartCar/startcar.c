@@ -2,9 +2,6 @@
  * StartBrakeLights()). */
 #include "game/game.h"
 
-/* The car's palette (256 RGBA 5551 entries): the tail lights are entries 160-167, the headlights 168-175. */
-typedef struct CarTlut { u8 paint[320]; u16 taillights[8]; u16 headlights[8]; } CarTlut;
-
 static void StartHeadLights(s16 slot);
 static void StartTire(s16 slot, u32 tire);
 static void StartBrakeLights(s16 slot);
