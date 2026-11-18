@@ -261,8 +261,7 @@ cartridge's assembly, the IDO settings and tools) is in the history before that 
 src/rom/            the boot code's libraries the PC still runs: libultra's math and Pfs, the audio library, the
                     boot logic
 src/blob/           the game code; groups/ holds files of several functions
-src/ovl_a, ovl_b/   runtime images A and B (the front end's screens)
-nonmatching/        functions the decompilation never byte-matched, whose C is nowhere in src/
+src/ovl_a, ovl_b/   runtime images A (the front end's screens) and B (the HUD's extras: battle, stunt)
 include/            headers (libultra, game types)
 port/               the PC layer: libultra, rendering, audio, input, the data loader, the program
 asm/us/             the three code images' symbol tables (symbols.json), which the data loader reads, and the boot
@@ -274,7 +273,8 @@ docs/               docs/port/ for the PC port; the memory map, the symbol notes
 
 [docs/memory_map.md](docs/memory_map.md) is the N64's RAM and ROM layout, which the data loader still follows;
 [docs/SYMBOL_NOTES.md](docs/SYMBOL_NOTES.md) the static names corrected against ultralib;
-[docs/game-asm-ceiling.md](docs/game-asm-ceiling.md) the identities of the functions the decompilation never matched.
+[docs/game-asm-ceiling.md](docs/game-asm-ceiling.md) the identities of the functions the decompilation never matched,
+and where their C is now.
 
 ## Legal
 

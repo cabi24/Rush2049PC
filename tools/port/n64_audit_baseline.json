@@ -10,7 +10,7 @@
  "port.zext.tests": 7,
  "src.lit.annotation": 1,
  "src.lit.code.bit": 15,
- "src.lit.comment": 10,
+ "src.lit.comment": 3,
  "src.trunc": 3,
  "src.zext": 2,
  "symbols.decoupled": 39,

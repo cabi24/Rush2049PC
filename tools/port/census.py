@@ -1,17 +1,18 @@
 #!/usr/bin/env python3
-"""Port census: how far the PC build is from linking, written to docs/port/STATUS.md.
+"""The build's census: does every C file compile, with which warnings, and does the game link? Written to
+docs/port/STATUS.md.
 
     python3 tools/port/census.py --build build/pc [--jobs N] [--nm nm] [--no-warnings]
 
 Reads the CMake build's compile_commands.json, so every file is checked with the build's own flags.
 
 1. Compile: every C file is compiled again with -fsyntax-only, counting failures and warnings by flag.
-   The 64-bit pointer warnings (-Wpointer-to-int-cast, -Wint-to-pointer-cast) are the porting work list.
-2. Link: nm over the build's objects (game code, generated data, and the PC layer as it grows). Every
-   symbol still undefined is classified by kind (function or data) and N64 memory region.
+   The 64-bit pointer warnings (-Wpointer-to-int-cast, -Wint-to-pointer-cast) were the porting work list.
+2. Link: nm over the build's objects (game code, generated data and the PC layer). A symbol the game references and
+   nothing defines is listed, by kind (function or data) and by where the cartridge's symbol file puts it.
 
 The link test's stubs.c (tools/port/gen_stubs.py) is left out: it stands in for what is still missing.
-Also writes build/pc/census.json and build/pc/undefined.txt (one name per line) for the generators.
+Also writes build/pc/census.json and build/pc/undefined.txt (one name per line).
 Stdlib only, Python 3.9+.
 """
 import argparse
@@ -170,15 +171,17 @@ def main():
         L += ["Failing:", ""] + [f"- `{f}`: {err.split(': error: ', 1)[-1]}" for f, err in failing] + [""]
     if warn_kinds:
         L += ["| Warning | Count |", "|---|---:|"] + [f"| `{k}` | {n} |" for k, n in warn_kinds.most_common()] + [""]
+    if pointer_total:
         L += ["Most pointer warnings:", "", "| File | Warnings |", "|---|---:|"]
         L += [f"| `{f}` | {n} |" for f, n in per_file.most_common(15) if n] + [""]
     L += ["## Link", "", f"Defined: {len(defined)}. Still undefined: **{len(undefined)}**.", "",
           f"Defined more than once (strong): **{len(strong_dups)}**"
           + (": " + ", ".join(f"`{n}`" for n in strong_dups[:40]) if strong_dups else "")
-          + f". Weak definitions (the PC layer's defaults): {weak_resolved}.", "",
-          "| Kind | Region | Undefined |", "|---|---|---:|"]
-    L += [f"| {k} | {r} | {n} |" for (k, r), n in sorted(classes.items())]
-    L += [f"| ? | not in the symbol file | {len(unknown)} |", ""]
+          + f". Weak definitions (the PC layer's defaults): {weak_resolved}.", ""]
+    if undefined:
+        L += ["| Kind | Where the symbol file puts it | Undefined |", "|---|---|---:|"]
+        L += [f"| {k} | {r} | {n} |" for (k, r), n in sorted(classes.items())]
+        L += [f"| ? | not in the symbol file | {len(unknown)} |", ""]
     if unknown:
         L += ["Not in the symbol file: " + ", ".join(f"`{n}`" for n in unknown[:60])
               + (" ..." if len(unknown) > 60 else ""), ""]

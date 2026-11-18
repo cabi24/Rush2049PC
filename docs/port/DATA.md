@@ -264,8 +264,8 @@ libultra, libc and inflate routines the PC layer replaces (port/ultra, the host'
 under the same name, which the weak reference then reaches. A function with nothing linked is NULL there, not a
 stub, unless some other file calls it (then the link test's stub is what it gets).
 
-The last 23 were matched assembly with no C on the PC (`docs/game-asm-ceiling.md`); their C is in `nonmatching/`
-(README there), and no code in any image calls them or builds their address, so the game reaches them only through
+The last 23 were matched assembly with no C on the PC ([game-asm-ceiling.md](../game-asm-ceiling.md), whose tables
+name the file under `src/` that holds each one's C now), and no code in any image calls them or builds their address, so the game reaches them only through
 data:
 
 | Function | What | Reached through |
@@ -579,7 +579,7 @@ the generator makes no thunk:
 | `func_80090F44`, `func_8009EA68`, `func_800A5A40`, `func_800CD104` | | `PitchUV`, `RollUV`, `ZOID_ResetWindows`, `CreatePlayer` |
 
 Left when this was written, with no C yet at their address: `PrePlay` (0x800FB2C8) and `createBG` (0x800B8374);
-both have C now (nonmatching/game). The `rom_symbol_aliases.ld` names (`osEPiRaw*`, `__osPi*`, `__osTLBLookup`,
+both have C now (`src/blob/groups/update_game/PrePlay.c`, `src/blob/createBG.c`). The `rom_symbol_aliases.ld` names (`osEPiRaw*`, `__osPi*`, `__osTLBLookup`,
 `__osPfsDataChecksum`) are left to the libultra layer.
 
 ## Verification

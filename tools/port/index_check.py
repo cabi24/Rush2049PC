@@ -55,7 +55,7 @@ def main():
     by_name = {n: r for r in rows for n in r[5]}
 
     users = {}
-    for path in sorted(list((ROOT / "src").rglob("*.c")) + list((ROOT / "nonmatching").rglob("*.c"))):
+    for path in sorted((ROOT / "src").rglob("*.c")):
         text = path.read_text(errors="replace")
         for m in INDEXED.finditer(text):
             name = m.group(1) or m.group(2) or m.group(3) or m.group(4)

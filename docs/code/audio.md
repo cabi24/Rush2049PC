@@ -171,7 +171,7 @@ sent (`SetSoundVP`).
   sources too, which the cartridge's read takes (`pc_cart_read`); the cache bookkeeping counts the N64's record sizes (12-byte DMA entries, 0x50-byte SFD
   records) from the low 32 bits of the records' addresses, which nothing reads memory by.
 - **The sequencer**: a song's studio groups are its player's `track_groups`, a volume fader's type its record's
-  `type`, and the macros' global variables `sound_global_variables` by name (until [NATIVE.md](NATIVE.md) 18 labels
+  `type`, and the macros' global variables `sound_global_variables` by name (until [NATIVE.md](../port/NATIVE.md) 18 labels
   inside other data, and 32 bytes past `sound_seq_current_index` by the N64's order).
 - **The RSP task** (`sound_task`, `musyx_submit_audio_task`'s `OSScTask`) and the microcode pointers; the AI output
   thread and the cartridge's reads are port/ultra's on the PC (the N64's D-cache calls are gone: ULTRA.md 11).

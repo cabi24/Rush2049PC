@@ -339,7 +339,7 @@ earlier: nothing reads the SI between retraces except through the same latched p
 **How the game sets them up.**
 
 - PrePlay sets `gNumWindows = gRace == 2 ? 1 : gNumPlayers`
-  (`nonmatching/game/PrePlay.c:373`) and calls `ZOID_SplitMenuScreen(gNumWindows)`.
+  (`src/blob/groups/update_game/PrePlay.c:373`) and calls `ZOID_SplitMenuScreen(gNumWindows)`.
 - `ZOID_SplitMenuScreen` (`src/blob/ZOID_SplitMenuScreen.c:50-90`) gives two players two panes, each 3/4 of the width and
   half the height (240 × 110), at x = 2, top and bottom, with the unscaled field of view (`HFOV`, 90). A 78-pixel
   panel is left at the right (GFX.md "Widescreen", the table of views).
@@ -946,7 +946,7 @@ Code: `port/ultra/loop.c` 528-540, 543-, 579-586, 612, 633-647, 688-716; `port/u
 702-; `CMakeLists.txt` 161, 165; `tools/port/pe_check.py` 23-24; `src/blob/ControllerUpdate.c` 73-127;
 `src/blob/groups/modelthread/modelthread.c` 63; `src/rom/scheduler.c` 93, 189-197, 263, 340, 362, 421;
 `src/rom/timer.c` 74; `src/rom/libultra/controller.c` 26; `src/rom/libultra/contpfs.c` 54; `src/blob/point_at_car.c` 43-56;
-`nonmatching/game/PrePlay.c` 373; `src/blob/ZOID_SplitMenuScreen.c` 50-90;
+`src/blob/groups/update_game/PrePlay.c` 373; `src/blob/ZOID_SplitMenuScreen.c` 50-90;
 `src/blob/groups/zoid_draw/group.c` 1613-1650; `src/blob/UpdateCameras.c` 3819;
 `src/blob/SkyClear.c` 3806; `src/blob/animRadarBlip.c` 125, 160; the LCG at `src/blob/init_camera_on_track.c:48`,
 `UpdateSmoke.c:168`, `CheckCameraView.c:156`, `AnimateNewBlast.c:104`, `groups/blast/blast.c:135`,

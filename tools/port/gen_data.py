@@ -69,7 +69,7 @@ IMAGE_INDEX = {img[0]: i for i, img in enumerate(n64syms.IMAGES)}
 # The game's libc names compile as n64_<name> (CMakeLists.txt).
 RENAMED = {n: "n64_" + n for n in ("main", "memcpy", "memset", "memchr", "strlen", "strchr", "sinf", "cosf")}
 # A runtime image's function whose name the other image's function at the same address has (both are linked in):
-# its PC name (nonmatching/ovl_a/updateWarningScreen.c).
+# its PC name (src/ovl_a/updateWarningScreen.c).
 IMAGE_RENAMED = {("ovl_a", "findDamageSlot"): "updateWarningScreen"}
 # N64 (IDO, o32) sizes of the C base types, by DWARF name.
 N64_BASE = {"char": 1, "signed char": 1, "unsigned char": 1, "_Bool": 1, "short int": 2, "short unsigned int": 2,

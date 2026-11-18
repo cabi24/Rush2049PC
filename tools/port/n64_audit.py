@@ -53,7 +53,7 @@ RCP_REGS_K1 = (n64syms.KSEG1 | 0x04000000, n64syms.KSEG1 | 0x04900000)
 PIF_K1 = (n64syms.KSEG1 | 0x1FC00000, n64syms.KSEG2)
 
 ROOT = Path(__file__).resolve().parents[2]
-GAME_DIRS = ("src", "nonmatching")   # the game C (and the m2c contexts beside it)
+GAME_DIRS = ("src",)   # the game C
 PC_DIRS = ("port",)
 SOURCE_SUFFIXES = (".c", ".h")
 

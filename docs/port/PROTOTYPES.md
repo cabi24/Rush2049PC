@@ -230,7 +230,7 @@ element widths (190 pairs). Only two were still an integer table or scalar again
 
 - `CollisionTargetPtrs` (`Camera *[30]`): `InitCollisionTargetPtrs.c`'s tentative definition `s32[30]` cleared 120 of its 240 bytes on
   the PC (the link's "size changed" warning). Now `intptr_t[30]`.
-- `gLights` (`Lights2 *` vs `s32`): `nonmatching/game/PrePlay.c`, not mine. That file should declare it
+- `gLights` (`Lights2 *` vs `s32`): `src/blob/groups/update_game/PrePlay.c`, not mine. That file should declare it
   `intptr_t`, or the pointer type.
 
 Symbols that hold pointers but were `s32` in every user never appear in that list, because the views agree. gen_data
@@ -257,7 +257,7 @@ Harmful views in files I may not edit:
 | `src/rom/sound/hardware.c` | `bzero(void *, int)` | sizes in variables reach the host's `size_t`: declare it with `__SIZE_TYPE__` on the PC |
 | `src/rom/sound/hardware.c`, `dma_queue.c` | `dcache_create_dirty_lines` | **`port/ultra/misc.c` defines it `void`**, but it returns `start` advanced in 16-byte cache lines to at least `end` (`asm/us/boot_data/func_8002C5E0.s`), and `sound_dma_flush_requests` keeps that as its audio DMA cursor: `uint32_t dcache_create_dirty_lines(uint32_t s, uint32_t e) { do s += 16; while (s < e); return s; }` |
 | `src/ovl_a/groups/trackscr/trackscr.c` | `LoadWave`, `AllocateMemoryHeap`, `DeallocateMemory`, `MBOX_NewObject` | harmless now (constant arguments, window addresses, the wrapper returns `s32`); no change needed |
-| `nonmatching/game/PrePlay.c` | `gLights` | section 5 |
+| `src/blob/groups/update_game/PrePlay.c` | `gLights` | section 5 |
 
 Harmful views that needed a typed PC version or struct unification, not a prototype change, are done
 (POINTERS.md 9): `ZOID_SetTexture`, `ZOID_SetObjLights`, `MBOX_FindPalette_WORK` and `MBOX_FindTexture_WORK` (the scene nodes

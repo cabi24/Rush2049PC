@@ -4,11 +4,11 @@
  * head) and every use of a node read them that way: battle mode's power-up selection InitBattlePowerUps, which keeps
  * the flagged nodes in a heap block of slots, UpdateBattleHealth, UpdateBattleShield and UpdateBattleInvs (a node's
  * flags, handle and object), PauseTargets, which gives every node on the list state 2 and no sound, and the pause
- * screen's PauseTargets, which does the same when a race is paused (updatePauseScreen, the nonmatching draft the PC
- * builds). The heap's blocks are the test's own memory.
+ * screen's PauseTargets, which does the same when a race is paused (updatePauseScreen).
+ * The heap's blocks are the test's own memory.
  * game: src/blob/initTargetStructs.c src/blob/ClearStatLL.c src/blob/GetStatLLE.c
  * game: src/blob/PauseTargets.c src/ovl_b/InitBattlePowerUps.c src/ovl_b/groups/powerups/powerups.c
- * game: nonmatching/game/updatePauseScreen.c src/blob/AudPauseAllEffects.c src/blob/AudResumeAllEffects.c
+ * game: src/blob/groups/pausescr_state/updatePauseScreen.c src/blob/AudPauseAllEffects.c src/blob/AudResumeAllEffects.c
  * game: src/blob/AudStopAllEffects.c
  */
 #include <stddef.h>

@@ -563,7 +563,7 @@ display-list building, text layout and init code are counted in the last row of 
 | src/blob/are_all_cars_stopped.c:56, 63 | are_all_cars_stopped | the race end's settle timer | time | |
 | src/blob/groups/update_game/UpdateGame.c:171-325 | UpdateGame | the race's state machine | time | deadlines in retraces, model time |
 | src/blob/groups/countdown/animCountdownTimer.c:112, 115 | animCountdownTimer | the beeps; the blink by the retrace count | delta | |
-| nonmatching/game/PrePlay.c:379 | PrePlay | the track's load, a wave a call (LoadTrack waits on four waves), a call a frame | changed | `PC_LOAD_ON30`: at 60 called on the frames that complete a 30 Hz frame (the countdown began 5 or 6 retraces sooner) |
+| src/blob/groups/update_game/PrePlay.c:379 | PrePlay | the track's load, a wave a call (LoadTrack waits on four waves), a call a frame | changed | `PC_LOAD_ON30`: at 60 called on the frames that complete a 30 Hz frame (the countdown began 5 or 6 retraces sooner) |
 | src/blob/DetectDroneAbort.c:197-226 | DetectDroneAbort (detect_drone_abort, from PlayGame) | a car under 25 ft/s for 6 s of model time aborted and resurrected | time | its test at a frame: at 60 the abort can come a retrace sooner (7.4) |
 | src/blob/groups/hud_text_anims/animLapTimeText.c:120; animFlag.c:185-188 | animLapTimeText, animFlag | the lap time's display, the flag's frames by dt × 1000 | time | |
 | src/blob/race_countdown_display.c:116 | PassedCP | `laps++` | unchanged | a checkpoint event |
@@ -769,7 +769,7 @@ at 60 is the same data as one recorded at original, and either plays back the sa
 cartridge (2026-11-04, Pi 5, `--fast`, the scripts in the ignored `build/scratch/ghost/`): a profile is made on a
 fresh pak by a press script (the player screen's two DOWNs to CREATE PLAYER, A, A for the letter under the cursor,
 START for END, START: player A on the pak, which the player screen then lists, and mode select follows). A ghost race
-saves the car's ghost only when the car has finished (GhostEnd, `nonmatching/game/GhostEnd.c:117`; the high
+saves the car's ghost only when the car has finished (GhostEnd, `src/blob/GhostEnd.c:117`; the high
 scores save `gGhostToSave`, `updateHighScoreScreen.c:117`), its three laps (ghost mode's laps are 3 whatever the track
 select's LAPS row shows: SetOptions, `options_set/group.c`) within the ghost race's time limit, one per track
 (`CalcRaceTime`). The open-loop scripts tried (the gas alone; the gas and the stick swung every 15 s) drove two laps

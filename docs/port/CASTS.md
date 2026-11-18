@@ -146,8 +146,8 @@ probability of about 1 - 8 MB / 4 GB.
 
 | File | Function | Warnings (left) | Class | Why |
 |---|---|---:|---|---|
-| `nonmatching/game/PS_ReadPartialFile.c` | `PS_ReadPartialFile` | 1 | harmless | heap: `pdf_dealloc` frees `psfile->data`, an `AllocateHandleHeap` handle |
-| `nonmatching/game/GhostEnd.c` | `GhostEnd` | 1 | harmless | heap: DeallocateMemory of the ghost's data block |
+| `src/blob/PS_ReadPartialFile.c` | `PS_ReadPartialFile` | 1 | harmless | heap: `pdf_dealloc` frees `psfile->data`, an `AllocateHandleHeap` handle |
+| `src/blob/GhostEnd.c` | `GhostEnd` | 1 | harmless | heap: DeallocateMemory of the ghost's data block |
 | `src/blob/MBSetupWad.c` | `MBSetupWad` | 6 | harmless | window: rebases a WAD's TOC in place; the WAD is a heap block (`SetupWaveModel`, `LoadTrack`) |
 | `src/blob/UpdateEnvirons.c` | `UpdateEnvirons` | 2 (0) | **bug**, fixed | walked the environment visuals (C-defined, host) through `s32` and called `func` at N64 +0x14 |
 | `src/blob/InitBlast.c` | `InitBlast` | 1 (0) | **bug**, fixed | wrote the 50 blast matrix pointers of `gBlastMats` (own storage, 8 bytes each) as `s32` at a 4-byte stride |
@@ -225,7 +225,7 @@ probability of about 1 - 8 MB / 4 GB.
 
 | File | Functions (warnings), each a weak copy of the owner's | Owner |
 |---|---|---|
-| `nonmatching/game/PS_ReadPartialFile.c` | `RemovePak` (1), `PS_DeleteFile` (1) | `src/blob/groups/paksysdc/group.c` |
+| `src/blob/PS_ReadPartialFile.c` | `RemovePak` (1), `PS_DeleteFile` (1) | `src/blob/groups/paksysdc/group.c` |
 | `src/blob/groups/waves/group.c` | `prepare_model_dl` (1) | `src/blob/prepare_model_dl.c` |
 | `src/blob/groups/StartCar/group.c` | `StartWingFlame` (1) | `src/blob/groups/StartWingFlame/group.c` |
 | `src/blob/groups/AudioInitSys/ctx_func_800A4E58.c` | `AdjustTextWavePointers` (3) | `src/blob/groups/slot_sound/AdjustTextWavePointers.c` |

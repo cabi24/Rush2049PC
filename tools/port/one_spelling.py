@@ -14,7 +14,7 @@ this tool brings the files to them. It is re-runnable: run it again after mergin
 the old way or keeps a file's own copy, and it changes only what is left. Three passes, in this order:
 
 1. spell (tools/port/consts/spellings.tsv: `old  new  old_value  note`): another name for a meaning becomes the
-   meaning's name, as a whole identifier token, in code and comments, in src/, include/, nonmatching/ and the
+   meaning's name, as a whole identifier token, in code and comments, in src/, include/ and the
    area pages (docs/code/*.md but README.md). A file's own `#define old ...` becomes `#define
    new ...` (pass 3 then drops it as a copy). In the docs only a name with one row, an underscore (or MAT3's kName
    form) and no inlined namesake is renamed. The rename is checked per C file: the value `old` has there (the
@@ -49,7 +49,7 @@ Removing lines: a definition's continuation lines (a backslash, or a comment tha
 (up to a blank line) goes with them, unless it starts the file; blank lines left doubled are made one.
 
 Proof that a pass changes no code: tools/port/objsame.py against a build of the tree before it (every unit `same`).
---census prints, for each macro name #defined in more than one place under src/, include/ and nonmatching/, its
+--census prints, for each macro name #defined in more than one place under src/ and include/, its
 places, values and whether the values agree: what is left for a hand decision. Stdlib only, Python 3.9+.
 """
 import argparse
@@ -63,7 +63,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 CONSTS = Path(__file__).resolve().parent / "consts"
-C_DIRS = ("src", "include", "nonmatching")
+C_DIRS = ("src", "include")
 C_SUFFIXES = (".c", ".h", ".inc")
 DOC_GLOBS = ("docs/code/*.md",)
 DOC_EXCLUDE = ("docs/code/README.md",)
@@ -832,7 +832,7 @@ class Run:
             rx = re.compile(pattern)
             nx = re.compile(names_re)
             for rel in sorted(self.tree.text):
-                if not rel.endswith(".c") or not rel.startswith(("src/", "nonmatching/")):
+                if not rel.endswith(".c") or not rel.startswith("src/"):
                     continue
                 text = self.tree.text[rel]
                 if not rx.search(text):

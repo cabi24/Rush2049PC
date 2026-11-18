@@ -152,7 +152,7 @@ int main(void)
     /* the runtime images' block: the N64's place, taken and locked, where the image loads find it (load_overlay's
      * allocate_memory_at) */
     Chunk *img = HDR(images);
-    CHECK(images == AT(PC_HEAP_OFFSET + PC_RUNTIME_IMAGE_OFFSET));   /* 0x8038A400 on the N64 */
+    CHECK(images == AT(PC_HEAP_OFFSET + PC_RUNTIME_IMAGE_OFFSET));
     CHECK(img->magic == CHUNK_MAGIC && img->used == 1 && img->locked == 1 && img->size == PC_RUNTIME_IMAGE_SIZE);
     CHECK(allocate_memory_at(images, PC_RUNTIME_IMAGE_SIZE) == images && img->size == 0x30F80u);
     /* below the images' block and above it, to the floor: two more locked blocks, nothing free */

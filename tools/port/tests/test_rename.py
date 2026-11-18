@@ -111,7 +111,7 @@ class Apply(Fixture):
         # the function's file follows its name; the header moves; the draft CMake lists by stem follows its name
         self.assertFalse((self.root / "src/blob/func_80F00010.c").exists())
         self.assertFalse((self.root / "include/game/old_header.h").exists())
-        self.assertTrue((self.root / "nonmatching/game/thing_draft.c").exists())
+        self.assertTrue((self.root / "src/ovl_a/thing_draft.c").exists())
         c = self.text("src/blob/thing_count_read.c")
         for want in ('/* thing_count_read.c: the fixture\'s function (src/blob/thing_count_read.c).',
                      '#include "game/thing.h"', "#include <game/thing.h>",
@@ -257,7 +257,7 @@ class Apply(Fixture):
         moves = {line[3:] for line in status.splitlines() if line.startswith("R")}   # RM: moved, then edited
         for want in ("include/game/old_header.h -> include/game/thing.h",
                      "src/blob/func_80F00010.c -> src/blob/thing_count_read.c",
-                     "nonmatching/game/draft_old.c -> nonmatching/game/thing_draft.c",
+                     "src/ovl_a/draft_old.c -> src/ovl_a/thing_draft.c",
                      "src/blob/groups/old_group/member.c -> src/blob/groups/new_group/member.c"):
             self.assertIn(want, moves)
 
@@ -325,9 +325,9 @@ class Chains(Fixture):
                             ("helper_old_name", "draft_old", "func", "code", "sure", "A to B")])
         out = self.apply(m)
         self.assertIn("rows in tools/port/names/applied.tsv", out)
-        self.assertEqual(self.text("nonmatching/game/thing_draft.c").splitlines()[1:3],
+        self.assertEqual(self.text("src/ovl_a/thing_draft.c").splitlines()[1:3],
                          ["s32 thing_draft(void)", "{"])
-        self.assertIn("return draft_old(1);", self.text("nonmatching/game/thing_draft.c"))
+        self.assertIn("return draft_old(1);", self.text("src/ovl_a/thing_draft.c"))
         # the file chain in one folder: draft_old.c became thing_draft.c before helper_old_name.c became draft_old.c
         self.assertEqual(self.text("src/blob/thing_draft.c"), "s32 thing_draft(void) { return 0; }\n")
         self.assertEqual(self.text("src/blob/draft_old.c"), "s32 draft_old(s32 x) { return x; }\n")

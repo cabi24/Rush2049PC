@@ -12,7 +12,7 @@ tested (sections 6, 7). Written 2026-11-03 on main 0d7d016.
 | The settings the game reads, the scene's counts | `port/config/detail.c`; accessors in `port/include/pc_game_types.h` ("Draw distance and detail"); the levels in `port/include/pc_detail.h` |
 | The renderer's depth range and fog | `port/gfx/gfx_detail.c` |
 | The settings | `port/config/config.c` (`[video]`), `port/input/menu.c` (F1's Video page), `port/main.c` |
-| The game C | `nonmatching/game/WorldCullObjects.c`, `src/blob/groups/zoid_draw/group.c`, `src/blob/build_node_matrix.c`, `build_node_matrix_rows4.c`, `build_far_node_matrix.c`, `src/blob/groups/waves/waves.c`, `src/blob/groups/targets/group.c` |
+| The game C | `src/blob/WorldCullObjects.c`, `src/blob/groups/zoid_draw/group.c`, `src/blob/build_node_matrix.c`, `build_node_matrix_rows4.c`, `build_far_node_matrix.c`, `src/blob/groups/waves/waves.c`, `src/blob/groups/targets/group.c` |
 | Tests | `gfx.detail`, `gfx.all.draw-max`, `gfx.interp.all.draw-max`, `frontend.detail`, the synthetic paths `detail*` (`tools/port/detail_check.py`) |
 | Retail runs, logs, frames | `build/scratch/retail/` (local only, never committed) |
 
@@ -26,7 +26,7 @@ sixteenths of a foot. `gNumPlayers` is the number of human players (`gNumPlayers
 
 ### 1.1 The world's visibility tables
 
-`WorldCullObjects` (MAT3's WorldCullObjects, `nonmatching/game/WorldCullObjects.c:223-293`), called at the start
+`WorldCullObjects` (MAT3's WorldCullObjects, `src/blob/WorldCullObjects.c:223-293`), called at the start
 of each view (`zoid_draw/group.c:1271`):
 
 - WorldDistance (`:61-90`) walks the world's top-level list (`WorldBase`, the world WAD's nodes, from
@@ -178,7 +178,7 @@ renderer's own (a layer of the settings, as `RUSH_GFX_HUD` is). The defaults are
 
 ### 2.1 The visibility tables
 
-`nonmatching/game/WorldCullObjects.c:92-221`, the PC's WorldCullObjects: original the N64's (the row of the eye's
+`src/blob/WorldCullObjects.c:92-221`, the PC's WorldCullObjects: original the N64's (the row of the eye's
 cell). Far ORs into it the rows of every cell within `PC_VIS_FAR` = 2,000 ft of the eye (the distance to the cell's
 box, without its top, as WorldDistance tests it; `VisReach`), for cells with a box and a row of their own table (each
 table runs to the next one's address: the battle arenas' have one row, `VisRows`): what the cells the eye reaches in

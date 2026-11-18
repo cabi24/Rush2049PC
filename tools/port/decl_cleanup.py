@@ -2,7 +2,7 @@
 """Declarations the name maps left contradicting each other, removed (docs/port/PCONLY.md 3, wave 2's hand edits after
 tools/port/rename.py --apply).
 
-    python3 tools/port/decl_cleanup.py [--apply] [-v] [--root DIR] [PATH ...]   (default: src include port nonmatching)
+    python3 tools/port/decl_cleanup.py [--apply] [-v] [--root DIR] [PATH ...]   (default: src include port)
 
 Three kinds of line go, in C files (.c, .h, .inc):
 
@@ -28,7 +28,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 C_EXTS = (".c", ".h", ".inc")
-DEFAULT_DIRS = ("src", "include", "port", "nonmatching")
+DEFAULT_DIRS = ("src", "include", "port")
 
 TRAIL = r"[ \t]*(?:/\*(?:[^*]|\*(?!/))*\*/[ \t]*|//[^\n]*)?$"
 IDENTITY = re.compile(r"^[ \t]*#[ \t]*define[ \t]+(\w+)[ \t]+\1" + TRAIL)

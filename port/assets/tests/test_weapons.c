@@ -1,10 +1,10 @@
 /* port/assets/tests/test_weapons.c: the weapon icons, the targets that the target info table (targetInfo, 0x40 bytes
  * a record on the PC) names the start and visual functions of: StartWeaponIcon (_StartWeaponIcon) and AnimateWeaponIcon
- * (_AnimateWeaponIcon), from their drafts in nonmatching/game (docs/port/POINTERS.md 10). The icon is a level-object
+ * (_AnimateWeaponIcon), in src/blob/groups/targets (docs/port/POINTERS.md 10). The icon is a level-object
  * node (struct tTarget, the host layout), the cars have their PC layout (0x510 bytes, docs/port/CARS.md) and the
  * model records their N64 one. Cars, records and nodes past the first are used, so an N64 stride or a field at its
  * N64 offset lands somewhere else. The heap's records are the test's own memory.
- * game: nonmatching/game/StartWeaponIcon.c nonmatching/game/AnimateWeaponIcon.c
+ * game: src/blob/groups/targets/StartWeaponIcon.c src/blob/groups/targets/AnimateWeaponIcon.c
  * game: src/blob/ZOID_ObjectFlags.c
  */
 #include <math.h>

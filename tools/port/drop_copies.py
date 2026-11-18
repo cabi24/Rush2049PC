@@ -352,9 +352,8 @@ def main():
         return 0
     lists = weak_lists(a.weak_dir)
     files = {}
-    for d in ("src", "nonmatching"):
-        for p in sorted((a.root / d).rglob("*.c")):
-            files[p.relative_to(a.root).as_posix()] = p
+    for p in sorted((a.root / "src").rglob("*.c")):
+        files[p.relative_to(a.root).as_posix()] = p
     texts = {rel: p.read_text(errors="surrogateescape") for rel, p in files.items()}
     # stand-ins nothing else names (their definitions and declarations aside)
     defined = {}

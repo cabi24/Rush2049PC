@@ -12,7 +12,7 @@
  * game: src/blob/groups/audioscr_update/audio_uninitScreen.c src/blob/groups/audioscr_update/audio_initScreen.c
  * game: src/blob/groups/audioscr_update/updateAudioScreen.c src/blob/groups/highscorescr/highscore_InitScreen.c
  * game: src/blob/groups/gameover/gameover.c src/blob/groups/abort_game/group.c
- * game: nonmatching/game/updatePauseScreen.c nonmatching/game/PrePlay.c
+ * game: src/blob/groups/pausescr_state/updatePauseScreen.c src/blob/groups/update_game/PrePlay.c
  * game: src/blob/PauseTargets.c src/blob/InitBattlePoints.c
  * game: src/blob/groups/heap_release/audio_shutdown_posts.c
  * game: src/blob/InitStunt.c src/blob/ZOID_Reset.c src/blob/groups/state/halfont.c src/blob/ZOID_SetColor.c

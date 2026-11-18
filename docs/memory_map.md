@@ -541,7 +541,7 @@ DPC_TMEM_REG      = 0xA410001C  // TMEM counter
 ## ROM identity and compressed images
 
 The US ROM is 12,582,912 bytes in Z64 big-endian format. Its internal name is `uRhs2 40 9`, cartridge ID `UR`;
-its SHA-1 is in [`us.sha1`](../us.sha1).
+its SHA-1 was in `us.sha1`, which went with the N64 build (2026-11-08).
 
 The compressed game image occupies 326,180 bytes at ROM 0xB0CB10 and inflates to 647,072 bytes at RAM
 0x80086A50. Runtime image A's stream (80,272 B) starts at 0xB5C534 and image B's (23,639 B) at 0xB6FEC4; the

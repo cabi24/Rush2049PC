@@ -98,6 +98,9 @@ codes in the bit stream); its three inner kernels (`gsm_rpe_decode`, `gsm_long_t
 
 ## 5. The low image's data
 
+On the N64, by address (the cartridge's layout, which the data loader reads; on the PC each datum is an object of its
+own, section 6):
+
 | Range | What |
 |---|---|
 | 0x80000000-0x80000400 | exception vectors and libultra's boot globals (`osTvType`, `osMemSize`, ...; on the PC ordinary variables of port/ultra/misc.c) |
@@ -112,13 +115,13 @@ section.
 
 ## 6. On the PC
 
-`CMakeLists.txt` compiles all of `src/rom` but the units port/ultra replaces (`GAME_REPLACED`): threads, message
-queues, events, timers, interrupts, the VI/PI/SI/AI/SP managers and raw device access, cache and TLB operations,
-the inflater and LZSS reader (zlib and C in `port/ultra/pi.c`), and the IDO libc (the host's is used). Compiled
-natively: the timer, the scheduler, the video-mode code (its VI writes go to port/ultra), the `gu*` helpers and libm,
-the Controller Pak file system and controller packing, and the whole sound library. The data is host storage, in
-the N64's layout in the data loader's blocks ([DATA.md](../port/DATA.md)); nothing is at an N64 address since wave 3
-([NATIVE.md](../port/NATIVE.md) step 12).
+`CMakeLists.txt` compiles all of `src/rom`, which no longer has the units port/ultra replaces (they went with the N64
+build): threads, message queues, events, timers, interrupts, the VI/PI/SI/AI/SP managers and raw device access, cache
+and TLB operations, the inflater and LZSS reader (zlib and C in `port/ultra/pi.c`), and the IDO libc (the host's is
+used). Compiled natively: the timer, the scheduler, the video-mode code (its VI writes go to port/ultra), the `gu*`
+helpers and libm, the Controller Pak file system and controller packing, and the whole sound library. The data is
+host storage, each datum an object of its own ([DATA.md](../port/DATA.md), [NATIVE.md](../port/NATIVE.md) 18);
+nothing is at an N64 address since wave 3 ([NATIVE.md](../port/NATIVE.md) step 12).
 
 Things a reader may trip on:
 

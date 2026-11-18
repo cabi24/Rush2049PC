@@ -25,7 +25,7 @@ Where each count comes from:
   by arena; the names at an offset inside own storage; the reserved PC data in the window; own and decoupled storage
   for context) and pc-data/aliases.ld (gen_stubs: absolute RDRAM and cartridge names). nm over the game's objects
   (game_objects.txt) and the PC layer's: the objects that reach a window name by name.
-- The sources, comments and strings told from code (src/, nonmatching/, include/: the game; port/: the PC layer,
+- The sources, comments and strings told from code (src/, include/: the game; port/: the PC layer,
   its test programs apart): the prelude's translations (PC_N64P, PC_N64A, PC_N64W, PC_SLOT_N64/SET) used directly;
   each file's own conversion macros (a #define whose body uses one of them, or pc_n64_ptr / pc_n64_addr; the
   N64P/N64W/N64A/N64PTR families), their definitions and their uses in the files that see them; calls of pc_n64_ptr,
@@ -69,7 +69,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import n64_audit  # noqa: E402  split_code, the compiler pass
 
-GAME_DIRS = ("src", "nonmatching", "include")
+GAME_DIRS = ("src", "include")
 PORT_DIRS = ("port",)
 C_SUFFIXES = (".c", ".h")
 

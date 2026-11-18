@@ -5,7 +5,7 @@
 
 In lockstep both PCs run the same game; a value the game C takes from the PC layer that one PC's window, renderer,
 audio device, input or settings file decides can make the two games differ. This lists every place the game C
-(src/, nonmatching/, include/) names such a value, comments left out:
+(src/, include/) names such a value, comments left out:
 
   - a function of the PC layer's render or per-PC parts: pc_gfx_*, pc_audio_*, pc_input_*, pc_menu_*, pc_app_*,
     pc_cfg*, pc_settings_*, and the detail settings' readers (pc_detail, pc_draw_distance, pc_fog, pc_draw_reach,
@@ -51,7 +51,7 @@ def found():
     macros = header_macros()
     names = re.compile(r"\b(" + "|".join(sorted(map(re.escape, macros))) + r")\b") if macros else None
     hits = {}
-    for top in ("src", "nonmatching", "include"):
+    for top in ("src", "include"):
         for p in sorted((ROOT / top).rglob("*")):
             if p.suffix not in (".c", ".h") or not p.is_file():
                 continue

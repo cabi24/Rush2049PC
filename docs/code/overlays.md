@@ -6,40 +6,39 @@ block of its heap when it needs them, one at a time:
 
 | | Image A: the front end | Image B: the HUD extras |
 |---|---|---|
-| Sources | `src/ovl_a/`, `nonmatching/ovl_a/` | `src/ovl_b/`, `nonmatching/ovl_b/` |
+| Sources | `src/ovl_a/` | `src/ovl_b/` |
 | Loaded | when the game enters its menus (after boot, and after each race) | at the start of a battle, stunt or obstacle race, and of every race when the game found an Expansion Pak (`expansion_pak_present`) |
 | Unloaded | when a race starts | when the front end is loaded again |
 | Loaded flag | `start_overlay_loaded` | `extra_overlay_loaded` |
-| Code | 0x8038A400 to 0x803AF978 | 0x8038A400 to 0x80393B34 |
-| Data | 0x803AF978 to 0x803B9A50 | 0x80393B34 to 0x80394F70 |
-| BSS | 0x803B9A50 to `start_overlay_bss_end` (0x803BAE20) | `gShotObjList` (0x80394F70) to `extra_overlay_bss_end` (0x8039B440) |
+| Code | 152,952 bytes | 38,708 bytes |
+| Data | 41,176 bytes | 5,180 bytes |
+| BSS | 5,072 bytes | 25,808 bytes (from `gShotObjList`) |
 | Original modules (MAT3) | warningscr, trackscr, titlescr, licensescr, eggs, startscr, selectcarload, recordscr, playerscr, pakscr, modescr, circuitscr, cheatscr, carscr |
  worlddam, weapons, streaks, shots, powerups, hudextra |
 
-Both images start at 0x8038A400 on the N64 (`overlay_base`): the game's overlay loader (`load_overlay`, `PrevMaxPath` in
-the C) reserves the heap block from there to 0x803BB380 (`PurgeableMemory`), inflates the image into it, clears its BSS
-and sets the flag; unloading frees the block (`DeallocateMemoryInternal(overlay_base)`) and clears the flag. On the PC
-the block is an offset in the heap, the same place (`runtime_image_block`: `PC_RUNTIME_IMAGE_OFFSET` past the main
-heap's header, [NATIVE.md](../port/NATIVE.md) step 6), and a load resets the linked-in image's data.
-`LoadFrontEndOverlay(1)` (`display_enable` in the C) unloads image B if it is there and loads image A;
-`LoadFrontEndOverlay(0)` unloads image A when the race state starts, and `load_extra_overlay` (`InitMaxPath` in the C)
-loads image B there for the battle, stunt and obstacle modes, or for any race with an Expansion Pak. The game image
-calls into whichever image is loaded by plain function calls and reads some of its data by name; nothing checks that the
-right image is loaded, the state machine just never calls the other one's code.
+Both images start at the same place on the N64, the start of one block of the main heap: the game's overlay loader
+(`load_overlay`) reserves that block (`allocate_memory_at`, then `PurgeableMemory`), inflates the image into it,
+clears its BSS and sets the flag; unloading frees the block and clears the flag. On the PC the block is at the same
+place in the heap (`runtime_image_block`: `PC_RUNTIME_IMAGE_OFFSET` past the main heap's header,
+[NATIVE.md](../port/NATIVE.md) step 6), and a load resets the linked-in image's data.
+`LoadFrontEndOverlay(1)` unloads image B if it is there and loads image A; `LoadFrontEndOverlay(0)` unloads image A
+when the race state starts, and `load_extra_overlay` loads image B there for the battle, stunt and obstacle modes, or
+for any race with an Expansion Pak. The game image calls into whichever image is loaded by plain function calls and
+reads some of its data by name; nothing checks that the right image is loaded, the state machine just never calls the
+other one's code.
 
-**On the PC** both images' code is linked into the executable like the rest of the game, and their data and BSS are
-arenas, blocks of host memory in the N64's layout (their data ranges don't overlap, only their code did). Loading
-an image refills its arena from the cached inflated image, zeroes its BSS and puts back the data its C defines
-(`pc_data_overlay_load`, docs/port/DATA.md section 5); the other image's data is left alone. The flags and the
-heap reservation still work as on the N64, so the game's behaviour is unchanged. Wave 3 makes the images ordinary
-PC data and the load a reset of that data.
+**On the PC** both images' code is linked into the executable like the rest of the game, and each datum of their
+data and BSS is an object of its own, like the game image's ([NATIVE.md](../port/NATIVE.md) 18). Loading an image
+puts its data back from the cached inflated image, zeroes its BSS and puts back the data its C defines, datum by
+datum (`pc_data_overlay_load`, `pc_cdata`: [DATA.md](../port/DATA.md) section 5); the other image's data is left
+alone. The flags and the heap reservation still work as on the N64, so the game's behaviour is unchanged.
 
 Names: every function and datum named here comes from `tools/port/names/ovl.tsv`, with its evidence; MAT3 names
 where the N64 function is shown to be MAT3's, else a name from what the code does. A file-static MAT3 name that
 several files use (`initScreen`, `animText`, `blit`) carries its file's name as a prefix (`cheatscr_initScreen`,
 `hudextra_blit`). The `_stub` functions and the stubs named after an inlined static are the 8-byte empty bodies IDO
-leaves where it inlined a static function: nothing calls them, and the PC defines them only so that a pointer to
-one would still resolve (nonmatching/ovl_*/stubs.c).
+leaves where it inlined a static function: nothing calls them or takes their address, so the PC has no C for them
+(the data loader's function table has none in their places).
 
 ## Image A: the front end
 
@@ -75,7 +74,7 @@ alphabetical order of the original file names (that order identified most of it)
 
 | MAT3 file | Screen | Entry | What else is there |
 |---|---|---|---|
-| warningscr.c | the controller-pak warning at boot | `updateWarningScreen` (image A's function at 0x8038A400), `warningscr_animText` | `warningscr_blits`, `gPakScr` (the highlighted choice), `num_paks_found`, `gBlocksNeeded` (free pages a profile needs) |
+| warningscr.c | the controller-pak warning at boot | `updateWarningScreen` (image A's first function), `warningscr_animText` | `warningscr_blits`, `gPakScr` (the highlighted choice), `num_paks_found`, `gBlocksNeeded` (free pages a profile needs) |
 | trackscr.c | track select: a carousel of track pictures, the race options (laps, mirror, fog, wind, ghosts, drones, death mode, difficulty, catch-up), a rotating 3D map of the track | `updateTrackScreen`, `trackscr_animText`, `trackscr_animNewSlider`, `animArrows` | `gTracks` (the carousel), `trackMap` (one 0x48-byte entry per map object), `buildTrackMaps` builds a display list per track from the path data (`buildRaceTrackMaps` and the stunt, battle, obstacle variants), keeping each map model's first LOD in `saved_map_lods` so `clearTrackMaps` can restore it; `n64FogPal` is the fog picture's palette (N64 only); the function-local statics of `showTrackSelect`, `trackscr_animTrackMap`, `animTrackMaps` and `BlowFog` |
 | titlescr.c | the title | `updateTitleScreen`, `titlescr_animText` | a countdown to the attract mode; Start gives player 0 controller 0 |
 | licensescr.c | the licence screen | `updateLicenseScreen`, `licensescr_animText` | on the N64 also the gate that opens the pak manager when a button is held at boot |
@@ -123,8 +122,7 @@ Image B holds what only the special race modes need: the battle weapons, shots, 
 power-ups, the scorch marks shots leave on the road, the light streaks behind shots, and the extra HUD of battle and
 stunt races (weapon and power-up icons, ammo counts, health bars, battle points and coins, stunt points and coins).
 The game loads it at the start of a race in battle, stunt or obstacle mode (with an Expansion Pak, at the start of
-every race), and the front end's load drops it again. Its code is 0x8038A400 to 0x80393B34, its data
-0x80393B34 to 0x80394F70, its BSS 0x80394F70 to 0x8039B440.
+every race), and the front end's load drops it again. Its code is 38,708 bytes, its data 5,180 and its BSS 25,808.
 
 It is six MAT3 files, in this order in the image. Every function has its MAT3 name; the evidence is in
 `tools/port/names/ovl.tsv`.
@@ -161,13 +159,14 @@ through the weapon visual. Game code also reads some image-B data directly: `coi
   frame, the defense flags (1 invisible, 2 shield, 4 damage reduced), shot and fade state, points, the reload state.
 
 **What is N64-only, and what the PC changed.**
-- The image itself: inflated from the cartridge into the shared heap block at 0x8038A400, its BSS cleared, and the
+- The image itself: inflated from the cartridge into the heap block both images share, its BSS cleared, and the
   8-byte stubs IDO leaves where it inlined a static (`NewStreakPoly`, `AnimateStreakPolys`, `animStuntCoins_stub`,
   `animBattleCoins_stub`, `ClearBattlePoints`; nothing calls them). On the PC the code is linked into the executable,
-  the stubs are empty functions (nonmatching/ovl_b/stubs.c), and a load refills image B's data arena and C data
+  the stubs have no C (nothing calls them), and a load puts image B's data and C data back, datum by datum
   (docs/port/DATA.md section 5).
-- Image B's first function and image A's first function share the address 0x8038A400. On the PC image B's is
-  `findDamageSlot` and image A's is compiled under its own name (`updateWarningScreen`).
+- Image B's first function and image A's first function share their place, the start of the block, so the
+  cartridge's symbol tables give both one name. On the PC image B's is `findDamageSlot` and image A's is compiled
+  under its own name (`updateWarningScreen`).
 - The pooled lists' element sizes are the host sizes on the PC (pointers are 8 bytes); the power-up targets are
   level-object nodes that keep their N64 layout with 32-bit links (docs/port/POINTERS.md 9, 10).
 - `weapons.c`'s three statics are `extern` on the PC so that `InitBattlePlayer`, a separate file, resets the same
@@ -195,4 +194,4 @@ through the weapon visual. Game code also reads some image-B data directly: `coi
 - **Same-named statics.** MAT3 gives many screens a static with the same name (`initScreen`, `animText`,
   `buttonInfo`, `blit`); the map prefixes them with the file (`trackscr_buttonInfo`). The two carscr.c statics the
   tree already calls `animButtonText` and `drawOptions` keep those names (they are `static` and only in
-  nonmatching/ovl_a).
+  src/ovl_a/groups/carscr/carscr_animText.c).
