@@ -19,37 +19,6 @@ typedef struct {
     f32 sidefk;             /* +0x1C the side grip's */
 } tTune;
 
-/* The model record (tModelData), the fields dotireforce reads. */
-typedef struct tModelData {
-    _tCar *car;             /* +0x000 the physics descriptor */
-    tTune *tune;            /* +0x004 the tune record */
-    char pad8[1];
-    s8 trans;               /* +0x009 the transmission choice */
-    s8 autotrans;           /* +0x00A */
-    s8 handling;            /* +0x00B the handling (tune) choice */
-    s8 engine_type;         /* +0x00C the engine choice */
-    char padD[0x3A0 - 0x00D];
-    streetyp *lasttp[4];
-    char pad3B0[0x3F4 - 0x3B0];
-    s16 gear;               /* +0x3F4 */
-    char pad3F6[0x40C - 0x3F6];
-    const s16 *torquecurve;
-    char pad410[0x430 - 0x410];
-    Tire tires[4];          /* +0x430 */
-    char pad5A0[16];
-    f32 sidefk;             /* +0x5B0 the tires' side grip (CalcTireSideForce) */
-    f32 offroadtires;       /* +0x5B4 the tires' off-road factor */
-    char pad5B8[4];
-    f32 weight;             /* +0x5BC */
-    f32 mass;               /* +0x5C0 */
-    char pad5C4[0x638 - 0x5C4];
-    f32 idt;                /* +0x638 1 / dt, steps a second */
-    char pad63C[0x648 - 0x63C];
-    surftyp *movingSurface;
-    char pad64C[0x720 - 0x64C];
-    f32 wheel;              /* +0x720 mainin.wheel, the steering -1..1 */
-} tModelData;
-
 f32 fabsf(f32);
 
 /* Tire `tire`'s force on model m, into forcevec (the car's frame). tirev is its contact patch's velocity and tireuvs
@@ -110,7 +79,7 @@ void dotireforce(tModelData *m, f32 *tirev, void *tireuvs, Tire *tire, f32 torqu
 
     if (tire == &m->tires[2] || tire == &m->tires[3]) {
         traction *= carEngineFwdForce[m->engine_type][m->handling];
-        traction *= 1.0f + (carTransTraction_by_gear[m->trans][m->gear] - 1) * (1.0f - fabsf(m->wheel));
+        traction *= 1.0f + (carTransTraction_by_gear[m->trans][m->gear] - 1) * (1.0f - fabsf(m->mainin.wheel));
         traction *= m->tune->fwdfk;
         sideforce *= m->sidefk * (1.0f - m->tune->sidefk * dotireforce_side_drop);
         if (poortract) {

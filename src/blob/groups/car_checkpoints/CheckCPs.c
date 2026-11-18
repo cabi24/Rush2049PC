@@ -13,25 +13,6 @@ typedef struct {
     u8 pad359[0x380 - 0x359]; void *input; u8 pad359_384[0x3B8 - 0x384];
 } CarData;                  /* 0x3B8 */
 
-/* The model record (MAT3 tModelData): the fields this reads and sets. */
-typedef struct Model {
-    _tCar *car;
-    Tune44 *tune;
-    u8 pad8[0x398];
-    streetyp *lasttp[4];
-    u8 pad3B0[0x5C];
-    const s16 *torquecurve;
-    u8 pad410[0x238];
-    surftyp *movingSurface;
-    u8 pad64C[0x78];
-    s16 moving_state;       /* +0x6C4 resurrect.moving_state: -1 unless being put back on the road */
-    u8 pad6C6[0x7E4 - 0x6C6];
-    s16 next_cp_index;      /* +0x7E4 the next checkpoint to pass */
-    u8 pad7E6[3];
-    s8 cpSign;              /* +0x7E9 the side of its plane the car was on last frame */
-    u8 pad7EA[0x808 - 0x7EA];
-} Model;                    /* 0x808 */
-
 /* gPlayers[0].slot: the first player's car slot, the first byte of its input record. */
 extern u8 gPlayers;
 
@@ -51,7 +32,7 @@ void CheckCPs(void)
     f32 plane;
     CarData *gc;
     f32 *prev;
-    Model *m;
+    tModelData *m;
     f32 move[3];
     f32 zvec[3];
 
@@ -66,8 +47,8 @@ void CheckCPs(void)
         prev[1] = gc->dr_pos[1];
         prev[2] = gc->dr_pos[2];
         if ((PC_LINK_OWNER(index) == 0 || PC_LINK_OWNER(index) == 6) && gc->crash_state == 0) {
-            m = PC_MODEL(index);
-            if (m->moving_state == -1) {
+            m = &pc_models[index];
+            if (m->resurrect.moving_state == -1) {
                 diff[0] = gc->dr_pos[0] - gCheckpoints.points[m->next_cp_index].pos[0];
                 diff[1] = gc->dr_pos[1] - gCheckpoints.points[m->next_cp_index].pos[1];
                 diff[2] = gc->dr_pos[2] - gCheckpoints.points[m->next_cp_index].pos[2];

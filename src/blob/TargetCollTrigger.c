@@ -4,25 +4,6 @@
  * start; it never reports a hit itself. */
 #include "game/game.h"
 
-/* The model record's view (MAT3 tModelData): what the test reads. */
-typedef struct Car {
-    _tCar *car;
-    Tune44 *tune;
-    u8 pad8[0x398];
-    streetyp *lasttp[4];
-    u8 pad3B0[0x5C];
-    const s16 *torquecurve;
-    u8 pad410[0x190];
-    u16 wheelPoly[4];       /* 0x5A0 tiresli: the road polygon under each tyre */
-    u8 pad5A8[0x640 - 0x5A8];
-    s8 crashflag;           /* 0x640 the car is wrecked */
-    u8 pad641[0x648 - 0x641];
-    surftyp *movingSurface;
-    u8 pad64C[0x6C4 - 0x64C];
-    s16 moving_state;       /* 0x6C4 resurrect.moving_state: not negative while it is respawning */
-    u8 pad6C6[0x808 - 0x6C6];
-} Car;
-
 /* The target's data is its path record (MAT3 tTargetStructPath), which names its path (TARGET_PATH: a track WAD
  * record, tBasicTargetPath). What this reads of the path: its flags (PATH_START, PATH_RETRIGGER; bits 24-31 the cars
  * on it) and its collision object's number (collIdx), which is the trigger number its polygons carry. */
@@ -67,25 +48,25 @@ static void scene_car(tBasicTargetPath *path, s32 idx, s32 in)
  * always, with PATH_RETRIGGER) and the car is marked on it; else the car is marked off it. Always returns 0. */
 s32 TargetCollTrigger(tTarget *t, s16 *player, s32 unused3, s32 unused4) {
     s32 idx;
-    Car *car;
+    tModelData *car;
     tTargetStructPath *state;
     tBasicTargetPath *path;
     s32 id;
     u16 f0, f1, f2, f3;
 
     idx = *player;
-    car = PC_MODEL(idx);
-    if (car->crashflag != 0 || car->moving_state >= 0) {
+    car = &pc_models[idx];
+    if (car->crashflag != 0 || car->resurrect.moving_state >= 0) {
         return 0;
     }
     state = t->data;
     path = TARGET_PATH(state);
     id = path->collIdx;
     id <<= 11;
-    f0 = stree_surf[car->wheelPoly[0]].snd_flags;
-    f1 = stree_surf[car->wheelPoly[1]].snd_flags;
-    f2 = stree_surf[car->wheelPoly[2]].snd_flags;
-    f3 = stree_surf[car->wheelPoly[3]].snd_flags;
+    f0 = stree_surf[car->tiresli[0]].snd_flags;
+    f1 = stree_surf[car->tiresli[1]].snd_flags;
+    f2 = stree_surf[car->tiresli[2]].snd_flags;
+    f3 = stree_surf[car->tiresli[3]].snd_flags;
     if (((f0 & TRIGGER_POLY) && (f0 & TRIGGER_NUMBER) == id) || ((f1 & TRIGGER_POLY) && (f1 & TRIGGER_NUMBER) == id) ||
         ((f2 & TRIGGER_POLY) && (f2 & TRIGGER_NUMBER) == id) || ((f3 & TRIGGER_POLY) && (f3 & TRIGGER_NUMBER) == id)) {
         if (SCENE_CARS(path) == 0 || (path->flags & PATH_RETRIGGER)) {

@@ -14,66 +14,6 @@ typedef struct tiredes {
     /* 0x4C */ u8 pad4C[0x10];
 } tiredes;
 
-/* The model record (tModelData), the fields sym and ModelControls read and write. */
-typedef struct tModelData {
-    /* 0x000 */ _tCar *car;
-    /* 0x004 */ Tune44 *tune;
-    /* 0x008 */ u8 pad008[2];
-    /* 0x00A */ s8 autotrans;
-    /* 0x00B */ u8 pad00B[0xC4 - 0xB];
-    /* 0x0C4 */ f32 bodyForce[4][3];
-    /* 0x0F4 */ u8 pad0F4[0x124 - 0xF4];
-    /* 0x124 */ f32 centerForce[3];
-    /* 0x130 */ f32 centerForceLast[3];
-    /* 0x13C */ f32 centerMoment[3];
-    /* 0x148 */ f32 peak_body_force[2][3];     /* the largest and smallest body force on each axis */
-    /* 0x160 */ f32 peak_center_force[2][3];   /* the same of the centre force */
-    /* 0x178 */ u8 pad178[0x3A0 - 0x178];
-    /* 0x3A0 */ streetyp *lasttp[4];
-    /* 0x3B0 */ f32 steerangle;
-    /* 0x3B4 */ f32 torque[4];
-    /* 0x3C4 */ f32 steergain;
-    /* 0x3C8 */ f32 trail;
-    /* 0x3CC */ f32 clutch;
-    /* 0x3D0 */ f32 throttle;
-    /* 0x3D4 */ f32 brake;
-    /* 0x3D8 */ f32 brakeroll;
-    /* 0x3DC */ f32 brakegain[4];
-    /* 0x3EC */ u8 pad3EC[8];
-    /* 0x3F4 */ s16 gear;
-    /* 0x3F6 */ s16 commandgear;
-    /* 0x3F8 */ u8 pad3F8[0x408 - 0x3F8];
-    /* 0x408 */ f32 engangvel;
-    /* 0x40C */ const s16 *torquecurve;
-    /* 0x410 */ u8 pad410[0x430 - 0x410];
-    /* 0x430 */ tiredes tires[4];
-    /* 0x5A0 */ u8 pad5A0[0x634 - 0x5A0];
-    /* 0x634 */ f32 dt;
-    /* 0x638 */ f32 idt;
-    /* 0x63C */ u8 pad63C[4];
-    /* 0x640 */ s8 crashflag;
-    /* 0x641 */ u8 pad641[0x648 - 0x641];
-    /* 0x648 */ surftyp *movingSurface;
-    /* 0x64C */ u8 pad64C[0x65C - 0x64C];
-    /* 0x65C */ s16 bogState;               /* 1 the engine bogs down, 3 it recovers */
-    /* 0x65E */ u8 pad65E[0x710 - 0x65E];
-    /* 0x710 */ s32 modelIteration;         /* fastin: the steps run, negative during the countdown */
-    /* 0x714 */ u8 pad714[4];
-    /* 0x718 */ f32 fastin_dt;              /* fastin.dt: the step the model thread asks for */
-    /* 0x71C */ u8 pad71C[4];
-    /* 0x720 */ f32 mainin_wheel;           /* mainin: the controls as the game thread left them */
-    /* 0x724 */ f32 mainin_clutch;
-    /* 0x728 */ f32 mainin_brake;
-    /* 0x72C */ f32 mainin_throttle;
-    /* 0x730 */ s8 mainin_gear;
-    /* 0x731 */ u8 pad731[0x7C6 - 0x731];
-    /* 0x7C6 */ s16 slot;
-    /* 0x7C8 */ u8 pad7C8[4];
-    /* 0x7CC */ s8 drone_type;              /* DRONE_TYPE_* */
-    /* 0x7CD */ u8 pad7CD[3];
-    /* 0x7D0 */ s16 rpm;
-} tModelData;
-
 /* The car record (tCarData), the fields ModelControls reads. */
 typedef struct tCarData {
     /* 0x000 */ u8 pad000[0xEF];
@@ -96,14 +36,14 @@ void ModelControls(tModelData *m) {
     tiredes *td;
     tCarData *gc = PC_CAR(m->slot);
 
-    m->dt = m->fastin_dt;
+    m->dt = m->fastin.dt;
     m->idt = 1 / m->dt;
-    m->steerangle = m->steergain * m->mainin_wheel;
-    m->clutch = m->mainin_clutch;
+    m->steerangle = m->steergain * m->mainin.wheel;
+    m->clutch = m->mainin.clutch;
     if (gc->place_locked == 1) {
         m->throttle = 0.0f;
     } else {
-        m->throttle = m->mainin_throttle;
+        m->throttle = m->mainin.throttle;
     }
     if (gEndGame || gc->place_locked) {
         m->brake = 0.7f;
@@ -114,17 +54,17 @@ void ModelControls(tModelData *m) {
         m->throttle = 0.0f;
         m->clutch = 1.0f;
     } else {
-        m->brake = m->mainin_brake;
+        m->brake = m->mainin.brake;
     }
     if (m->brake > 0.99f) {
         m->brake = 1.0f;
     }
     if (!m->autotrans) {
-        m->commandgear = m->gear = m->mainin_gear;
+        m->commandgear = m->gear = m->mainin.gear;
     } else {
-        m->commandgear = m->mainin_gear;
+        m->commandgear = m->mainin.gear;
     }
-    if (m->modelIteration < 0) {
+    if (m->fastin.modelIteration < 0) {
         m->commandgear = 0;
         m->gear = 0;
         m->clutch = 1.0f;

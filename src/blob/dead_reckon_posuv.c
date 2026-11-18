@@ -29,28 +29,6 @@ typedef struct tReckon {
     f32 uvs[9];                 /* 0x6C the orientation to draw */
 } tReckon;
 
-/* The model record (tModelData, docs/port/CARS.md 4), the fields used here. */
-typedef struct tModelData {
-    _tCar *car;
-    Tune44 *tune;
-    u8 pad8[0x2E4];
-    f32 uvs[9];                 /* 0x2EC the orientation */
-    u8 pad310[0x3A0 - 0x310];
-    streetyp *lasttp[4];
-    u8 pad3B0[0x40C - 0x3B0];
-    const s16 *torquecurve;
-    u8 pad410[0x430 - 0x410];
-    tModelTire tires[4];        /* 0x430 */
-    u8 pad5A0[0x5CC - 0x5A0];
-    f32 suscomp[4];             /* 0x5CC */
-    u8 pad5DC[0x5EC - 0x5DC];
-    f32 airdist[4];             /* 0x5EC */
-    u8 pad5FC[0x648 - 0x5FC];
-    surftyp *movingSurface;
-    u8 pad64C[0x734 - 0x64C];
-    tReckon reckon;             /* 0x734 */
-} tModelData;
-
 /* Take model `m`'s snapshot: its orientation; the speed shown (rwmph), the rear wheels' average rim speed
  * (angvel x radius, feet a second) times 2.72727275, which is 60/88 (feet a second to mph) times 4; each tire's
  * suspension compression and height; and the base acceleration, velocity and position. */

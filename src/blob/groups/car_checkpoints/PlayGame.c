@@ -55,7 +55,7 @@ void PlayGame(void) {
     UpdateArrowVis();
     for (i = 0; i < gNumActiveCars; i++) {
         car = PC_CAR(i);
-        slot = PC_MODEL_SLOT(i);
+        slot = pc_models[i].slot;
         /* volatile: the model thread sets restart; it is read again below, as MAT3 does */
         if (*(volatile s8 *)&car->restart < 0) {
             camera = car->camera;
@@ -70,13 +70,13 @@ void PlayGame(void) {
                 gCamera[camera].fcam.pos[2] = gCamera[camera].mat.pos[2];
             }
             StartBlast(&slot, 1, 1.f, 0);
-            StopCarSounds(PC_MODEL(i));
-            if (PC_MODEL_DRONE_TYPE(i) == 2) {
-                if (gRace != kGhost || gGhosts[PC_MODEL_SLOT(i)] == 0 || (*gGhosts[PC_MODEL_SLOT(i)])->header[0]->flag < 0) {
-                    PlayGameSound(45, PC_MODEL_SLOT(i), 1, 1); /* the crash (MAT3 9) */
+            StopCarSounds(&pc_models[i]);
+            if (pc_models[i].drone_type == 2) {
+                if (gRace != kGhost || gGhosts[pc_models[i].slot] == 0 || (*gGhosts[pc_models[i].slot])->header[0]->flag < 0) {
+                    PlayGameSound(45, pc_models[i].slot, 1, 1); /* the crash (MAT3 9) */
                 }
             } else {
-                EmitGameSound(PC_MODEL_RWR(i), (const f32 *)unitmatrix_origin, 400.0f, 0.0f, 1.0f, 0.0f, 45, PC_MODEL_SLOT(i), 0, 128);
+                EmitGameSound(pc_models[i].rwr, (const f32 *)unitmatrix_origin, 400.0f, 0.0f, 1.0f, 0.0f, 45, pc_models[i].slot, 0, 128);
             }
             if (gRace == kStunt) {
                 CrashedStunt(slot);

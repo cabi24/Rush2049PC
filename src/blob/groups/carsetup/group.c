@@ -18,74 +18,6 @@ typedef struct tCar {
  TireDesc *tires[4];            /* +0x60 each tire's constants (frontTire's records) */
  Vec3 tireR[4];                 /* +0x70 each tire's position from the centre of mass */
 } tCar;
-/* The model record (tModelData), the fields carsetup reads and writes. */
-typedef struct tModelData {
- tCar *car;                     /* +0x000 the physics descriptor */
- Tune44 *tune;                  /* +0x004 the tune record */
- u8 body_type;                  /* +0x008 the car, 0..12 */
- u8 pad9[2];
- s8 handling;                   /* +0x00B */
- u8 padC[1];
- s8 tire_type;                  /* +0x00D */
- s8 frame;                      /* +0x00E */
- u8 padF[0x48 - 0xF];
- float v2;                      /* +0x048 v[2], the forward speed */
- u8 pad4C[0x58 - 0x4C];
- Vec3 d;                        /* +0x058 the drag (forces1) */
- Vec3 tireForce[4];             /* +0x064 */
- Vec3 tireV[4];                 /* +0x094 */
- u8 padC4[0xF4 - 0xC4];
- Vec3 bodyR[4];                 /* +0x0F4 the body's corners, car frame */
- u8 pad124[0x13C - 0x124];
- Vec3 centerMoment;             /* +0x13C */
- u8 pad148[0x208 - 0x148];
- Vec3 g;                        /* +0x208 gravity, car frame */
- u8 pad214[0x2D4 - 0x214];
- Vec3 grw;                      /* +0x2D4 gravity, world frame */
- u8 pad2E0[0x3A0 - 0x2E0];
- streetyp *lasttp[4];
- u8 pad3B0[0x3C4 - 0x3B0];
- float steergain,trail;         /* +0x3C4 (steer_constants) */
- u8 pad3CC[0x3D4 - 0x3CC];
- float brake;                   /* +0x3D4 */
- u8 pad3D8[0x3DC - 0x3D8];
- float brakegain[4];            /* +0x3DC each tire's braking force at full brake */
- u8 pad3EC[0x3F6 - 0x3EC];
- s16 commandgear,wing;          /* +0x3F6, +0x3F8 */
- u8 pad3FA[0x404 - 0x3FA];
- float engtorque;               /* +0x404 */
- u8 pad408[0x40C - 0x408];
- const s16 *torquecurve;        /* +0x40C the torque curve */
- float dwtorque,dwinvmi,efdwinvmi,dwangvel,clutchtorque,clutchangvel,transratio,totalratio;   /* +0x410 the
- * drivetrain (whatslips, transmission) */
- Tire tires[4];                 /* +0x430 */
- u8 pad5A0[0x5A8 - 0x5A0];
- u8 magicdiff,nothrusttorque;   /* +0x5A8 the differential's two kinds of help */
- u8 pad5AA[2];
- float drift;                   /* +0x5AC (CalcDrift) */
- float sidefk;                  /* +0x5B0 (CalcTireSideForce) */
- float offroadtires;            /* +0x5B4 (CalcOffroadTires) */
- float wingEffect;              /* +0x5B8 the wing's size */
- float weight;                  /* +0x5BC mass times gravity */
- float mass;                    /* +0x5C0 (CalcMass) */
- float collisionmass;           /* +0x5C4 the mass in car-to-car collisions */
- float wheelbase;               /* +0x5C8 */
- float suscomp[4];              /* +0x5CC */
- u8 pad5DC[0x638 - 0x5DC];
- float idt;                     /* +0x638 1 / dt */
- float crashthreshold;          /* +0x63C the impact that wrecks the car */
- u8 pad640[0x648 - 0x640];
- surftyp *movingSurface;
- u8 pad64C[0x654 - 0x64C];
- float colrad;                  /* +0x654 the collision sphere's radius */
- u8 pad658[0x730 - 0x658];
- u8 mainin_gear;                /* +0x730 mainin.gear */
- u8 pad731[0x7C6 - 0x731];
- s16 slot;                      /* +0x7C6 */
- u8 pad7C8[0x7CC - 0x7C8];
- s8 drone_type;                 /* +0x7CC DRONE_TYPE_* */
- u8 tail7CD[0x808 - 0x7CD];
-} tModelData;
 
 /* A PC datum that names the car tables only pointers reach: the six physics descriptors (gCarModels points at
  * them) and the two tire records (the descriptors' tires[] point at those). The data loader places and fills the data
@@ -130,21 +62,21 @@ void carsetup(tModelData *m)
  m->sidefk=CalcTireSideForce(m);
  m->wheelbase=car->tireR[0].z-car->tireR[2].z;
  size=&collsize[m->body_type];
- m->bodyR[0].x=m->bodyR[2].x=size->side;
- m->bodyR[1].x=m->bodyR[3].x=-size->side;
- m->bodyR[0].y=m->bodyR[1].y=size->height;
- m->bodyR[2].y=m->bodyR[3].y=size->height;
- m->bodyR[0].z=m->bodyR[1].z=size->front;
- m->bodyR[2].z=m->bodyR[3].z=-size->rear;
+ m->bodyR[0][0]=m->bodyR[2][0]=size->side;
+ m->bodyR[1][0]=m->bodyR[3][0]=-size->side;
+ m->bodyR[0][1]=m->bodyR[1][1]=size->height;
+ m->bodyR[2][1]=m->bodyR[3][1]=size->height;
+ m->bodyR[0][2]=m->bodyR[1][2]=size->front;
+ m->bodyR[2][2]=m->bodyR[3][2]=-size->rear;
  max_length=(size->rear<size->front)?size->front:size->rear;
  m->colrad=sqrtf(max_length*max_length+size->side*size->side+size->height*size->height);
  for(i=0;i<4;i++) {
   copy_tire_info(car->tires[i],&m->tires[i]);
   if(i<2)tire_constants(m,&m->tires[i],-car->tireR[i+2].z);
   else tire_constants(m,&m->tires[i],car->tireR[i-2].z);
-  m->tires[i].angvel=m->v2/m->tires[i].tradius;
+  m->tires[i].angvel=m->v[2]/m->tires[i].tradius;
   m->suscomp[i]=0.0f;
-  m->tireV[i].x=0.0f;m->tireV[i].y=0.0f;m->tireV[i].z=0.0f;
+  m->tireV[i][0]=0.0f;m->tireV[i][1]=0.0f;m->tireV[i][2]=0.0f;
  }
  m->brakegain[0]=m->weight*m->tires[0].cfmax*gCarBraking[m->body_type];
  m->brakegain[1]=m->weight*m->tires[1].cfmax*gCarBraking[m->body_type];
@@ -152,16 +84,16 @@ void carsetup(tModelData *m)
  m->brakegain[3]=m->weight*m->tires[3].cfmax*gCarBraking[m->body_type];
  m->dwinvmi=m->tires[2].invmi/2;
  steer_constants(m);
- m->grw.z=0.0f;m->grw.x=0.0f;m->grw.y=-m->weight;
- m->mainin_gear=0;m->commandgear=0;m->wing=0;
+ m->grw[2]=0.0f;m->grw[0]=0.0f;m->grw[1]=-m->weight;
+ m->mainin.gear=0;m->commandgear=0;m->wing=0;
  m->idt=0.0f;
- m->d.x=0.0f;m->d.y=0.0f;m->d.z=0.0f;
- m->g.x=0.0f;m->g.y=0.0f;m->g.z=0.0f;
- m->centerMoment.x=0.0f;m->centerMoment.y=0.0f;m->centerMoment.z=0.0f;
- m->tireForce[1].x=0.0f;m->tireForce[1].y=0.0f;m->tireForce[1].z=0.0f;
- m->tireForce[2].x=0.0f;m->tireForce[2].y=0.0f;m->tireForce[2].z=0.0f;
- m->tireForce[3].x=0.0f;m->tireForce[3].y=0.0f;m->tireForce[3].z=0.0f;
- m->tireForce[0].x=0.0f;m->tireForce[0].y=0.0f;m->tireForce[0].z=0.0f;
+ m->d[0]=0.0f;m->d[1]=0.0f;m->d[2]=0.0f;
+ m->g[0]=0.0f;m->g[1]=0.0f;m->g[2]=0.0f;
+ m->centerMoment[0]=0.0f;m->centerMoment[1]=0.0f;m->centerMoment[2]=0.0f;
+ m->tireForce[1][0]=0.0f;m->tireForce[1][1]=0.0f;m->tireForce[1][2]=0.0f;
+ m->tireForce[2][0]=0.0f;m->tireForce[2][1]=0.0f;m->tireForce[2][2]=0.0f;
+ m->tireForce[3][0]=0.0f;m->tireForce[3][1]=0.0f;m->tireForce[3][2]=0.0f;
+ m->tireForce[0][0]=0.0f;m->tireForce[0][1]=0.0f;m->tireForce[0][2]=0.0f;
  m->brake=0.0f;m->engtorque=0.0f;
  m->clutchtorque=0.0f;m->clutchangvel=0.0f;m->transratio=0.0f;m->totalratio=0.0f;
  m->dwtorque=0.0f;m->efdwinvmi=0.0f;m->dwangvel=0.0f;

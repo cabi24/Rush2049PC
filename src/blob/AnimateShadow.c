@@ -39,26 +39,6 @@ typedef struct tCarData {
     /* 0x360 */ u8 pad360[0x380 - 0x360]; void *player; u8 pad384[0x3B8 - 0x384];
 } tCarData;
 
-/* The model record (tModelData, docs/port/CARS.md 4), the fields AnimateShadow reads. */
-typedef struct tModelData {
-    /* 0x000 */ _tCar *car;
-    /* 0x004 */ Tune44 *tune;
-    /* 0x008 */ u8 body_type;
-    /* 0x009 */ u8 pad9[0x3A0 - 0x9];
-    /* 0x3A0 */ streetyp *lasttp[4];
-    /* 0x3B0 */ u8 pad3B0[0x40C - 0x3B0];
-    /* 0x40C */ const s16 *torquecurve;
-    /* 0x410 */ u8 pad410[0x648 - 0x410];
-    /* 0x648 */ surftyp *movingSurface;
-    /* 0x64C */ u8 pad64C[0x6C4 - 0x64C];
-    /* 0x6C4 */ s16 moving_state;       /* resurrect.moving_state: RES_IDLE, else respawning */
-    /* 0x6C6 */ u8 pad6C6[0x76C - 0x6C6];
-    /* 0x76C */ f32 airdist[4];         /* reckon.airdist: each tire's dead-reckoned height off the ground, feet */
-    /* 0x77C */ u8 pad77C[0x7DF - 0x77C];
-    /* 0x7DF */ s8 hide_car;
-    /* 0x7E0 */ u8 pad7E0[0x808 - 0x7E0];
-} tModelData;
-
 #define rng(x, lo, hi) (((x) < (lo)) ? (lo) : (((x) > (hi)) ? (hi) : (x)))
 
 /* Car v->slot's shadow (VIS_SHADOW), each frame (op 1): a polygon whose corners are under the four tires (taken
@@ -72,7 +52,7 @@ void AnimateShadow(tVisual *v, s16 op) {
     f32 pos[3], mat[3][3], xyz[4][3], dist[4], d1, d2;
     s16 i, whl;
     tCarData *car = PC_CAR(v->slot);
-    tModelData *m = PC_MODEL(v->slot);
+    tModelData *m = &pc_models[v->slot];
     f32 fscale, bscale, len, offset;
     s32 body;
 
@@ -85,18 +65,18 @@ void AnimateShadow(tVisual *v, s16 op) {
         return;
     }
 
-    d1 = m->airdist[3] - m->airdist[1];
-    offset = m->airdist[2] - m->airdist[0];
-    fscale = m->airdist[1] - m->airdist[0];
-    bscale = m->airdist[3] - m->airdist[2];
+    d1 = m->reckon.airdist[3] - m->reckon.airdist[1];
+    offset = m->reckon.airdist[2] - m->reckon.airdist[0];
+    fscale = m->reckon.airdist[1] - m->reckon.airdist[0];
+    bscale = m->reckon.airdist[3] - m->reckon.airdist[2];
     if (fabsf(d1) > 20 || fabsf(offset) > 20 || fabsf(fscale) > 20 || fabsf(bscale) > 20 ||
-        car->carMine != 0 || m->moving_state > -1 || (car->appearance & APPEAR_INVISIBLE) || gInvisibleCar != 0 || m->hide_car) {
+        car->carMine != 0 || m->resurrect.moving_state > -1 || (car->appearance & APPEAR_INVISIBLE) || gInvisibleCar != 0 || m->hide_car) {
         ZOID_HidePoly(&PolyInstanceList[v->objnum]);
         return;
     }
 
     for (d1 = i = 0; i < 4; i++) {
-        d1 += (dist[i] = m->airdist[i]);
+        d1 += (dist[i] = m->reckon.airdist[i]);
         if (dist[i] < 0.0f) {
             dist[i] = 0.0f;
         }

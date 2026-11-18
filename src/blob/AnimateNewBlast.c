@@ -44,14 +44,14 @@ void AnimateNewBlast(tVisual *v, s16 op)
     float y;
     if (gPauseState) return;
     gBlastObjs[v->slot].lifeTime -= gFrameSeconds;
-    if (gBlastObjs[v->slot].lifeTime <= 0.0f || PC_MODEL_MOVING_STATE(v->slot) >= 0) {
+    if (gBlastObjs[v->slot].lifeTime <= 0.0f || pc_models[v->slot].resurrect.moving_state >= 0) {
         for (i = 0; i < 4; i++) {
             b = &gBlastObjs[v->slot].blastObjs[i];
             if (b->mbIdx != -1) ZOID_RemoveObject(b->mbIdx);
             b->mbIdx = -1;
         }
     }
-    if (!PC_MODEL_CRASHFLAG(v->slot)) {
+    if (!pc_models[v->slot].crashflag) {
         if (expansion_pak_present || gTrackNum >= 6) {
             if (gBlastObjs[v->slot].glowIdx != -1) {
                 ZOID_RemoveObject(gBlastObjs[v->slot].glowIdx);

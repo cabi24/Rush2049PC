@@ -142,7 +142,7 @@ release:
         return;
     }
     if (v->slot >= 0) {
-        if (!PC_MODEL_CRASHFLAG(v->slot)) goto release;
+        if (!pc_models[v->slot].crashflag) goto release;
         ObjInstanceList[v->objnum].mat->pos[0] = PC_CAR_POS(v->slot)[0];
         ObjInstanceList[v->objnum].mat->pos[1] = PC_CAR_POS(v->slot)[1];
         ObjInstanceList[v->objnum].mat->pos[2] = PC_CAR_POS(v->slot)[2];

@@ -33,24 +33,6 @@ typedef struct tVisual {
 
 /* A tire of the model record (MAT3 anon_tradius_springK_5c, 0x5C bytes): its radius. */
 typedef struct { f32 tradius; u8 pad04[0x5C - 4]; } Tire;
-/* The model record (tModelData): the speed, the tires' radii, the roof scraping. */
-typedef struct {
-    /* 0x000 */ _tCar *car;
-    /* 0x004 */ Tune44 *tune;
-    /* 0x008 */ u8 pad008[0x3A0 - 0x008];
-    /* 0x3A0 */ streetyp *lasttp[4];
-    /* 0x3B0 */ u8 pad3B0[0x3F0 - 0x3B0];
-    /* 0x3F0 */ f32 magvel;     /* the speed, mph */
-    /* 0x3F4 */ u8 pad3F4[0x40C - 0x3F4];
-    /* 0x40C */ const s16 *torquecurve;
-    /* 0x410 */ u8 pad410[0x430 - 0x410];
-    /* 0x430 */ Tire tires[4];
-    /* 0x5A0 */ u8 pad5A0[0x641 - 0x5A0];
-    /* 0x641 */ s8 topscrape;   /* the roof is scraping */
-    /* 0x642 */ u8 pad642[0x648 - 0x642];
-    /* 0x648 */ surftyp *movingSurface;
-    /* 0x64C */ u8 pad64C[0x808 - 0x64C];
-} tModelData;
 
 /* Show visual v's spark object in every view if `on`, else hide it; returns `on`. */
 s32 CheckVisibleAll(tVisual *v, s32 on) {
@@ -104,14 +86,14 @@ void HandleASpark(tVisual *v, s32 on, s32 spark, f32 x, f32 y, f32 z, s16 op) {
             }
             v->index = 0;
             PositionObject(v->objnum, car->v[0], car->v[1], car->v[2], x, y, z);
-            mph = (s32) PC_MODEL_SPEED(v->slot);
+            mph = (s32) pc_models[v->slot].magvel;
             if (mph < 100) {
                 mat = model_mat(v->objnum);
                 ScaleUV(mat, mat, (f32) mph / 100.0f);
             }
         } else if (on != 0) {
             PositionObject(v->objnum, car->v[0], car->v[1], car->v[2], x, y, z);
-            mph = (s32) PC_MODEL_SPEED(v->slot);
+            mph = (s32) pc_models[v->slot].magvel;
             if (mph < 100) {
                 mat = model_mat(v->objnum);
                 ScaleUV(mat, mat, (f32) mph / 100.0f);
@@ -150,11 +132,11 @@ void AnimateBSpark(tVisual *v, s16 op) {
     s32 top;
 
     car = PC_CAR(v->slot);
-    mph = (s32) ((tModelData *) PC_MODEL(v->slot))->magvel;
-    top = ((tModelData *) PC_MODEL(v->slot))->topscrape;
+    mph = (s32) pc_models[v->slot].magvel;
+    top = pc_models[v->slot].topscrape;
     HandleASpark(v, mph >= 13 && (top != 0 || (car->appearance & APPEAR_THUMP) != 0), 194,
                                  0.0f,
-                                 car->tireR[3][1] + (top != 0 ? 2.0f : ((tModelData *) PC_MODEL(v->slot))->tires[3].tradius),
+                                 car->tireR[3][1] + (top != 0 ? 2.0f : pc_models[v->slot].tires[3].tradius),
                                  car->tireR[3][2] - 2.0f,
                                  op);
 }
@@ -170,7 +152,7 @@ void AnimateRRSpark(tVisual *v, s16 op) {
     f32 z;
 
     car = PC_CAR(v->slot);
-    m = PC_MODEL(v->slot);
+    m = &pc_models[v->slot];
     mph = (s32) m->magvel;
     on = mph >= 21 && (car->appearance & APPEAR_SPARK_C2) != 0;
     z = car->tireR[2][2];
@@ -191,7 +173,7 @@ void AnimateRFSpark(tVisual *v, s16 op) {
     f32 z;
 
     car = PC_CAR(v->slot);
-    m = PC_MODEL(v->slot);
+    m = &pc_models[v->slot];
     mph = (s32) m->magvel;
     on = mph >= 21 && (car->appearance & APPEAR_SPARK_C0) != 0;
     z = car->tireR[0][2];
@@ -212,7 +194,7 @@ void AnimateLRSpark(tVisual *v, s16 op) {
     f32 z;
 
     car = PC_CAR(v->slot);
-    m = PC_MODEL(v->slot);
+    m = &pc_models[v->slot];
     mph = (s32) m->magvel;
     on = mph >= 21 && (car->appearance & APPEAR_SPARK_C3) != 0;
     z = car->tireR[3][2];
@@ -233,7 +215,7 @@ void AnimateLFSpark(tVisual *v, s16 op) {
     f32 z;
 
     car = PC_CAR(v->slot);
-    m = PC_MODEL(v->slot);
+    m = &pc_models[v->slot];
     mph = (s32) m->magvel;
     on = mph >= 21 && (car->appearance & APPEAR_SPARK_C1) != 0;
     z = car->tireR[1][2];

@@ -60,30 +60,6 @@ typedef struct Car {
     Battle battle;        /* 0x384 */
 } Car;
 
-typedef struct Model {
-    _tCar *car;
-    Tune44 *tune;
-    u8 body_type;         /* 0x08 */
-    u8 pad09[0xf4 - 9];
-    f32 bodyR[4][3];      /* 0xf4 */
-    f32 centerForce[3];   /* 0x124 */
-    u8 pad130[0x13c - 0x130];
-    f32 centerMoment[3];  /* 0x13c */
-    u8 pad148[0x3A0 - 0x148];
-    streetyp *lasttp[4];
-    u8 pad3B0[0x40C - 0x3B0];
-    const s16 *torquecurve;
-    u8 pad410[0x640 - 0x410];
-    s8 crashflag;         /* 0x640 */
-    u8 pad641[0x648 - 0x641];
-    surftyp *movingSurface;
-    u8 pad64C[0x654 - 0x64C];
-    f32 colrad;           /* 0x654 */
-    u8 pad658[0x6c4 - 0x658];
-    s16 moving_state;     /* 0x6c4 */
-    u8 pad6c6[0x808 - 0x6c6];
-} Model;
-
 typedef struct ColSize { f32 colfront, colrear, colside, colheight; } ColSize;
 
 typedef struct Streak {
@@ -164,7 +140,7 @@ void ElevateGun(Car *car)
 
     for (hit = PC_CARS; hit < PC_CAR(gNumCars); hit++) {
         if (car->slot == hit->slot || gCarTeam[car->slot] == gCarTeam[hit->slot] ||
-            PC_MODEL_CRASHFLAG(hit->slot) || !hit->collidable || hit->dead)
+            pc_models[hit->slot].crashflag || !hit->collidable || hit->dead)
             goto next;
         pos[0] = hit->pos[0] - car->pos[0];
         pos[1] = hit->pos[1] - car->pos[1];
@@ -173,7 +149,7 @@ void ElevateGun(Car *car)
             h = -1.0f * ShotOffsets[car->battle.type][1];
         else
             h = -1.0f * (ShotOffsets[car->battle.type][1] +
-                  weaponOffsets[car->battle.type][PC_MODEL_BODY(car->slot)][1]);
+                  weaponOffsets[car->battle.type][pc_models[car->slot].body_type][1]);
         pos[0] = pos[0] + car->uvs[1][0] * h;
         pos[1] = pos[1] + car->uvs[1][1] * h;
         pos[2] = pos[2] + car->uvs[1][2] * h;
@@ -230,8 +206,8 @@ Car *ShotToCarCollision(Shot *shot, f32 *old)
     t0 = 1.0f;
     hit = 0;
     for (i = 0, car = PC_CARS; i < gNumCars; i++, car++) {
-        if (shot->slot == car->slot || PC_MODEL_MOVING_STATE(i) != -1 ||
-            !car->collidable || PC_MODEL_CRASHFLAG(i))
+        if (shot->slot == car->slot || pc_models[i].resurrect.moving_state != -1 ||
+            !car->collidable || pc_models[i].crashflag)
             continue;
         delta[0] = car->pos[0] - old[0];
         delta[1] = car->pos[1] - old[1];
@@ -272,7 +248,7 @@ void SonicCarCollision(Shot *shot)
 {
     Car *car;
     Car *our;
-    Model *m;
+    tModelData *m;
     s32 i;
     s32 dam;
     f32 vec[3];
@@ -300,7 +276,7 @@ void SonicCarCollision(Shot *shot)
     pos[1] = shot->obj->mat.pos[1];
     pos[2] = shot->obj->mat.pos[2];
     for (car = PC_CARS, i = 0; i < gNumCars; i++, car++) {
-        if (shot->slot == car->slot || PC_MODEL_MOVING_STATE(i) != -1 ||
+        if (shot->slot == car->slot || pc_models[i].resurrect.moving_state != -1 ||
             !car->collidable || (shot->slotDamaged & (1 << car->slot)))
             continue;
         vec[0] = car->pos[0] - pos[0];
@@ -315,7 +291,7 @@ void SonicCarCollision(Shot *shot)
             vec2[1] = mul * (330000.0f * (vec[1] / rad) + 66000.0f);
             vec2[0] = mul * (330000.0f * (vec[0] / rad));
             BodyVector(vec2, vec, &car->uvs[0][0]);
-            m = PC_MODEL(car->slot);
+            m = &pc_models[car->slot];
             m->centerForce[0] = m->centerForce[0] + vec[0];
             m->centerForce[1] = m->centerForce[1] + vec[1];
             m->centerForce[2] = m->centerForce[2] + vec[2];
@@ -401,7 +377,7 @@ reduceScale:
 
 /* Car `car`'s (model `m`, slot `i`) defence `defense`: its shield (grown to the car's size, spun, faded out) or
  * its invisibility (the car faded out and back) counts down and ends. */
-void UpdateDefense(Car *car, Model *m, Defense *defense, s32 i)
+void UpdateDefense(Car *car, tModelData *m, Defense *defense, s32 i)
 {
     RGBA clr = { { 255, 255, 255, 255 } };
     s32 j, k;
@@ -481,7 +457,7 @@ void UpdateShots(void)
     HitPoly *h;
     ShotObj *o;
     Car *car, *hit;
-    Model *m;
+    tModelData *m;
     f32 old[3];
     f32 vel;
     f32 off[3];
@@ -499,7 +475,7 @@ void UpdateShots(void)
         nexts = shot->next;
         if (shot->type == 3) {
             car = PC_CAR(shot->slot);
-            m = PC_MODEL(shot->slot);
+            m = &pc_models[shot->slot];
             if (shot->incTime == 0) {
                 shot->pos[0] = car->pos[0];
                 shot->pos[1] = car->pos[1];
@@ -907,14 +883,14 @@ void ShotUpdate(void)
     ShotCase *h;
     HitPoly *hp;
     Car *car;
-    Model *m;
+    tModelData *m;
     ColSize *sizep;
     f32 z;
     f32 off[3];
 
     AnimateCase();
     for (i = 0, car = PC_CARS; i < gNumCars; i++, car++) {
-        m = PC_MODEL(car->slot);
+        m = &pc_models[car->slot];
         if (car->battle.defense.active)
             UpdateDefense(car, m, &car->battle.defense, car->slot);
         switch (car->battle.type) {

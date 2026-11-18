@@ -3,32 +3,6 @@
 
 float fabsf(float);
 
-/* The model record (MAT3 tModelData): the fields this reads and sets. */
-typedef struct EUCar {
-    _tCar *car;
-    Tune44 *tune;
-    u8 pad8[920];
-    streetyp *lasttp[4];            /* 0x3A0 each tyre's last node of the surface tree */
-    u8 pad944[0x40C - 0x3B0];
-    const s16 *torquecurve;
-    u8 pad1040[0x5A0 - 0x410];
-    u16 tiresli[4];                 /* 0x5A0 each tyre's surface last found, which DecodeSlist puts first */
-    u8 pad1448[1564 - 1448];
-    s16 sviscode[4];                /* 0x61C each tyre's surface's visual code (flags bits 4-7) */
-    s16 roadboost[4];               /* 0x624 its boost (bits 8-11, negative with 0x8000) */
-    u16 sound_flags[4];             /* 0x62C its sound (snd_flags) */
-    u8 pad1588[1600 - 1588];
-    u8 crashflag;                   /* 0x640 */
-    u8 pad1601[7];
-    surftyp *movingSurface;         /* 0x648 a moving surface it is on (snd_flags 0x30) */
-    u8 pad1612[1732 - 1612];
-    s16 moving_state;               /* 0x6C4 resurrect.moving_state: -1 unless being put back */
-    u8 pad1734[1741 - 1734];
-    u8 waterAbort;                  /* 0x6CD resurrect.waterAbort */
-    u8 pad1742[1990 - 1742];
-    s16 slot;                       /* 0x7C6 */
-} EUCar;
-
 /* An empty function the N64 code calls after the kill wall's sound. */
 static void eu_nop(void) {}
 
@@ -37,7 +11,7 @@ static void eu_nop(void) {}
  * frame, *surf its kind; the tyre's visual code, boost and sound flags from it, and a moving surface it is on. A
  * tyre on water (7), a kill surface (3) or a battle trap (4) within a quarter foot ends the car as in
  * CollideCarBodyAgainstSurface. With no surface: kind 0, `out` 200 feet below. */
-void TireSurf(EUCar *car, f32 *pos, f32 *out, s32 *surf, f32 (*mat)[3], s32 wheel) {
+void TireSurf(tModelData *car, f32 *pos, f32 *out, s32 *surf, f32 (*mat)[3], s32 wheel) {
     f32 m[3][3];
     u32 i;
     u8 *p;
@@ -124,16 +98,16 @@ void TireSurf(EUCar *car, f32 *pos, f32 *out, s32 *surf, f32 (*mat)[3], s32 whee
         car->sound_flags[wheel] &= 0x7FF;
     }
     if ((*surf == 3 || *surf == 4 || *surf == 7) && out[1] < 0.25f) {
-        if (PC_CAR_DEAD(car->slot) == 0 && PC_CAR_CRASH_STATE(car->slot) == 0 && car->moving_state == -1) {
+        if (PC_CAR_DEAD(car->slot) == 0 && PC_CAR_CRASH_STATE(car->slot) == 0 && car->resurrect.moving_state == -1) {
             if (PC_CAR_SLOT(car->slot)) {}
             if (*surf == 4) {
                 AddBattlePoint(car->slot, car->slot, -1);
                 car->crashflag = 1;
             } else if (*surf == 7) {
-                car->waterAbort = 1;
+                car->resurrect.waterAbort = 1;
                 AbortCar(car->slot, 1);
             } else {
-                car->waterAbort = 1;
+                car->resurrect.waterAbort = 1;
                 AbortCar(car->slot, 1);
                 PlayGameSound(21, 0, 1, 2);
                 eu_nop();

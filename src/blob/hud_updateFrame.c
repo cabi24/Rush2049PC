@@ -7,7 +7,7 @@ typedef struct {
     char pad1[0x48 - 0x1]; void *ref;
 } Pad;
 
-/* The car and model records are the PC's pc_cars and pc_models (pc_game_types.h, docs/port/DECOUPLE.md). */
+/* The car records are the PC's pc_cars (pc_game_types.h, docs/port/DECOUPLE.md). */
 extern Pad gPlayers[];
 
 /* PC: races of up to PC_MAX_LINKS cars (docs/port/MORECARS.md 2.5, 7). order[] has a place for every car (the N64's
@@ -38,7 +38,7 @@ s32 hud_updateFrame(s32 blit) {
     for (i = 0; i < num; i++) {
         idx = 0;
         for (j = 0; j < num; j++) {
-            idx = PC_MODEL_SLOT(j);
+            idx = pc_models[j].slot;
             if (i == PC_CAR_PLACE(idx)) {
                 break;
             }
@@ -51,7 +51,7 @@ s32 hud_updateFrame(s32 blit) {
     }
     for (; i < num; i++) {
         idx = order[i];
-        if (PC_MODEL_DRONE_TYPE(idx) == 1) {
+        if (pc_models[idx].drone_type == 1) {
             dot_order_list[num - j++ - 1] = idx;
         }
         if (j == num) {

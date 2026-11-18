@@ -30,6 +30,7 @@
 
 #include "pc_prelude.h"
 #include "support.h"
+#include "game/modeldata.h"
 
 #define ALIAS(name, base, off) __asm__(".globl " #name "\n.set " #name ", " #base " + " #off)
 /* p is in the game heap's memory (pc_heap_memory: the tests' memory from PC_HEAP_OFFSET to osMemSize). */
@@ -197,7 +198,7 @@ int16_t gNumPlayers;
 float gRetraceTime = 1.0f / 60;                   /* gRetraceTime */
 volatile int8_t gEndingGhosts;
 int32_t gModelIteration;
-struct pc_model pc_models[PC_MODEL_SLOTS];    /* the model records (pc_game_types.h) */
+tModelData pc_models[PC_MODEL_SLOTS];    /* the model records (game/modeldata.h) */
 struct pc_car pc_cars[PC_CAR_SLOTS];            /* the car records (pc_game_types.h) */
 int16_t gPickedPak;
 int8_t gCarHandling[13], gCarEngines[13], gCarTires[13], gCarFrame[13], gCarWings[13], car_color_choice_a[13],

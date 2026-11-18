@@ -41,7 +41,7 @@ void SetupCar(s16 slot, u8 type, int for_game)
    if(PC_LINK_OWNER(slot)!=6 || gDriveHulk[slot]==0)mask=~APPEAR_HULK;   /* owner 6: LINK_OWNER_HUMAN */
    else if(gDriveHulk[slot]==2)mask=~APPEAR_WRECK_SMOKE;
    else mask=-1;
-   PC_MODEL_FLAGS(slot)&=mask;
+   pc_models[slot].appearance&=mask;
    PC_CAR_FLAGS(slot)&=mask;
    osStartThread(&model_thread);
   }
@@ -54,7 +54,7 @@ void SetupCar(s16 slot, u8 type, int for_game)
  ZOID_SetObjectDef(parts->hood,gObjList[(s16)(slot*3) + 1]);
  for(i=0;i<4;i++)ZOID_SetObjectDef(gCarParts[slot].tires[i],gObjList[OBJLIST_TIRE]);
  if(expansion_pak_present || gTrackNum>=6) {
-  ZOID_SetTexture((s16)parts->tires[0],gWheelTextures[PC_MODEL_TIRE_RIMS(slot) + 3],-1);
+  ZOID_SetTexture((s16)parts->tires[0],gWheelTextures[pc_models[slot].tireRims + 3],-1);
  } else {
   ZOID_SetTexture((s16)parts->tires[0],gWheelTextures[16],-1);
  }
@@ -71,7 +71,7 @@ void SetupCar(s16 slot, u8 type, int for_game)
    if(type==13) {
     MBOX_HideObject(parts->hood,1,15);
     osStopThread(&model_thread);
-    PC_MODEL_FLAGS(slot)|=APPEAR_HULK;
+    pc_models[slot].appearance|=APPEAR_HULK;
     car->appearance|=APPEAR_HULK;
     osStartThread(&model_thread);
    }

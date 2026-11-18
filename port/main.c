@@ -27,6 +27,7 @@
 #include "pc_ghost_prompt.h"
 #include "pc_cheats.h"
 #include "pc_game_types.h"
+#include "game/modeldata.h"
 #include "pc_lockstep.h"
 #include "netmenu.h"
 #include "netplay.h"
@@ -282,7 +283,7 @@ static int g_cars_started;
 static void cars_note_start(void)
 {
     uint32_t s = game_state();
-    int demo = (s & 8u) && *(volatile int8_t *)&gNumActiveCars > 0 && *(volatile int16_t *)&pc_models[0].active;
+    int demo = (s & 8u) && *(volatile int8_t *)&gNumActiveCars > 0 && *(volatile int16_t *)&pc_models[0].in_game;
     if (!g_log_cars || g_cars_started || s == 0xFFFFFFFFu || !((s & 0x400000u) || demo))
         return;
     for (int i = 0; i < PC_MODEL_SLOTS; i++)
@@ -307,8 +308,8 @@ static void cars_info(char *out, size_t size)
         const volatile float *c = pc_cars[i].pos;
         len += snprintf(out + len, size - (size_t)len,
                         "; %d %s place %d lap %d distance %.0f moved %.0f at %.0f %.0f %.0f", i,
-                        *(volatile int16_t *)&pc_models[i].active ? "active" : "inactive",
-                        *(volatile signed char *)&pc_cars[i].place, *(volatile signed char *)&pc_models[i].lap,
+                        *(volatile int16_t *)&pc_models[i].in_game ? "active" : "inactive",
+                        *(volatile signed char *)&pc_cars[i].place, *(volatile signed char *)&pc_models[i].laps,
                         (double)*(volatile float *)&pc_cars[i].distance, moved, (double)c[0], (double)c[1],
                         (double)c[2]);
     }
@@ -335,7 +336,7 @@ static void physics_info(char *out, size_t size)
         len += snprintf(out + len, size - (size_t)len, exact ? "; %d %a %a %a v %a %a %a lap %d place %d"
                         : "; %d %.2f %.2f %.2f v %.2f %.2f %.2f lap %d place %d", i, (double)r[0], (double)r[1],
                         (double)r[2], (double)v[0], (double)v[1], (double)v[2],
-                        *(volatile signed char *)&pc_models[i].lap, *(volatile signed char *)&pc_cars[i].place);
+                        *(volatile signed char *)&pc_models[i].laps, *(volatile signed char *)&pc_cars[i].place);
     }
 }
 
@@ -468,8 +469,8 @@ static void game_info(char *out, size_t size)
     if (exact < 0)
         exact = getenv("RUSH_STATE_EXACT") != NULL;
     cars_note_start();
-    const volatile float *v = pc_models[0].rwv, *r = pc_models[0].rwr;   /* the model record (pc_game_types.h) */
-    const volatile float *steer = &pc_models[0].steer;                     /* its controls: steer -1..1 */
+    const volatile float *v = pc_models[0].rwv, *r = pc_models[0].rwr;   /* the model record (game/modeldata.h) */
+    const volatile float *steer = &pc_models[0].mainin.wheel;              /* its controls: the steering, -1 to 1 */
     double speed = sqrt((double)v[0] * v[0] + (double)v[1] * v[1] + (double)v[2] * v[2]);
     snprintf(out, size, exact ? "players %d, windows %d, cars %d, mode %d, track %d, pause %d; car 0 at %a %a %a, "
              "speed %a, steer %a" : "players %d, windows %d, cars %d, mode %d, track %d, pause %d; car 0 at %.0f %.0f "

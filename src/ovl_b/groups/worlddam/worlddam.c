@@ -5,21 +5,6 @@
 typedef struct tPoly tPoly;
 typedef struct tRGBA { u8 c[4]; } tRGBA;
 
-/* The model record (MAT3 tModelData): each tyre's height off the ground. */
-typedef struct tModelData {
-    _tCar *car;
-    Tune44 *tune;
-    u8 unknown008[0x398];
-    streetyp *lasttp[4];
-    u8 unknown3B0[0x5c];
-    const s16 *torquecurve;
-    u8 unknown410[0x1dc];
-    f32 airdist[4];
-    u8 unknown5fc[0x648 - 0x5fc];
-    surftyp *movingSurface;
-    u8 unknown64c[0x808 - 0x64c];
-} tModelData;
-
 extern f32 fabsf(f32);
 
 /* Returns the next scorch mark of the ring: a new polygon until there are 25, then the oldest, hidden. The four
@@ -71,7 +56,7 @@ void newWorldDamage(f32 *pos, s32 slot)
     tModelData *m;
     s32 unused_0, unused_1, unused_2, unused_3, unused_4, unused_5, unused_6, unused_7, unused_8, unused_9;
 
-    m = PC_MODEL(slot);
+    m = &pc_models[slot];
     if (m->airdist[0] > 8.0f || m->airdist[1] > 8.0f || m->airdist[2] > 8.0f || m->airdist[3] > 8.0f) {
         return;
     }

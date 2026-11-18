@@ -26,7 +26,7 @@ void LoadCars(s32 select)
  }
  numLoadedCars=0;
  for(i=0;i<13;i++) {
-  if(i<PC_RACE_CARS && ((gGameState&GS_DEMO)||PC_MODEL_DRONE_TYPE(i)==1)) {   /* GS_DEMO, DRONE_TYPE_AI */
+  if(i<PC_RACE_CARS && ((gGameState&GS_DEMO)||pc_models[i].drone_type==1)) {   /* GS_DEMO, DRONE_TYPE_AI */
 again:
    PC_LINK_CAR(i)=Random(13.0f);
    for(j=0;j<i;j++) {
@@ -55,7 +55,7 @@ load:
     numLoadedCars++;
    }
    car_palette_init(i,PC_LINK_CAR(i),0);
-  } else if(i<PC_RACE_CARS && PC_MODEL_DRONE_TYPE(i)==2) {   /* DRONE_TYPE_HUMAN */
+  } else if(i<PC_RACE_CARS && pc_models[i].drone_type==2) {   /* DRONE_TYPE_HUMAN */
    if(heap_total_free(0)<gWaveSizes[PC_LINK_CAR(i)+CAR_WAVE]+CAR_PALETTE_BYTES) { pc_heap_short("LoadCars, a player's car", gWaveSizes[PC_LINK_CAR(i)+CAR_WAVE]+CAR_PALETTE_BYTES);
     for(PC_LINK_CAR(i)=0;PC_LINK_CAR(i)<13;PC_LINK_CAR(i)++) {
      if(heap_total_free(0)>=gWaveSizes[PC_LINK_CAR(i)+CAR_WAVE]+CAR_PALETTE_BYTES)goto load2;

@@ -4,36 +4,6 @@
  * Init_MDrive. */
 #include "game/game.h"
 
-/* A tire in the model record (MAT3 anon_tradius_springK_5c) seen from its sideforce field (+0x50), the 92-byte
- * stride kept. */
-typedef struct TireForces { float sideforce, traction; u8 rest[84]; } TireForces;
-/* The model record (tModelData), the fields Init_MDrive and multiinit read and write. */
-typedef struct tModelData {
- _tCar *car;
- Tune44 *tune;
- u8 pad8[0x398];
- streetyp *lasttp[4];
- u8 pad3B0[0x5C];
- const s16 *torquecurve;
- u8 pad410[0x70];
- TireForces tires[4];           /* +0x480 tires[i].sideforce, .traction */
- u8 pad5F0[0x640 - 0x5F0];
- s8 crashflag;                  /* +0x640 */
- u8 pad641[0x648 - 0x641];
- surftyp *movingSurface;
- u8 pad64C[0x6BC - 0x64C];
- int resurrect_velocity;        /* +0x6BC resurrect.velocity: the respawn's speed, feet a second */
- u8 pad6C0[0x6D0 - 0x6C0];
- s16 polepos;                   /* +0x6D0 initin.polepos: the start place (PC_RESPAWN_BASE and up: a respawn) */
- u8 pad6D2[0x71C - 0x6D2];
- s16 fastin_modelrun;           /* +0x71C fastin.modelrun: the model thread steps this car */
- u8 pad71E[0x730 - 0x71E];
- u8 gear;                       /* +0x730 mainin.gear */
- u8 pad731[0x7C6 - 0x731];
- s16 slot;                      /* +0x7C6 */
- u8 pad7C8[0x7F8 - 0x7C8];
- float skidIntensity[4];        /* +0x7F8 each tire's skid sound level */
-} tModelData;
 /* The car record (tCarData), the fields Init_MDrive reads and writes. */
 typedef struct tCarData {u8 pad0[4];float modelTime;u8 pad8[0x110 - 0x8]; struct pc_visual visuals[21]; u8 pad308[0x358 - 0x308];s8 crash_state,dead;u8 pad35A[10];float strayAngle;u8 tail[0x380 - 0x368]; void *player; u8 tail_384[0x3B8 - 0x384];} tCarData;
 
@@ -47,22 +17,22 @@ static void multiinit_n64(s16,s16);
 void Init_MDrive(s16 mode,s16 slot)
 {
  tCarData *car=PC_CAR(slot);
- tModelData *m=PC_MODEL(slot);
+ tModelData *m=&pc_models[slot];
  PC_LINK *link;
  if(gDeathMode && !car->dead && mode==INIT_MODE_CRASH) {
   car->dead=CAR_DYING;
   m->crashflag=0;
-  CarReportsGameOver(slot,car->modelTime);m->fastin_modelrun=1;
+  CarReportsGameOver(slot,car->modelTime);m->fastin.modelrun=1;
  } else {
   if(car->dead<CAR_ALIVE)car->dead=CAR_ALIVE;
-  m->fastin_modelrun=0;
+  m->fastin.modelrun=0;
   multiinit_n64(mode,slot);
   link=&PC_LINKS[slot];
   if(PC_LINKP_OWNER(link)==6) {   /* LINK_OWNER_HUMAN */
-   if(mode!=INIT_MODE_START) {if(m->resurrect_velocity>=44.0f)
-    m->gear=2;
+   if(mode!=INIT_MODE_START) {if(m->resurrect.velocity>=44.0f)
+    m->mainin.gear=2;
    else
-    m->gear=1;}
+    m->mainin.gear=1;}
    car->strayAngle=0.0f;
   }
   modelrun=1;
@@ -75,15 +45,15 @@ void Init_MDrive(s16 mode,s16 slot)
  * sounds started (in a ghost race only car 0's). */
 static void multiinit_n64(s16 mode,s16 slot)
 {
- tModelData *m=PC_MODEL(slot);
+ tModelData *m=&pc_models[slot];
  int i;
  if(mode==INIT_MODE_START) {
-  if(gRace==kGhost) m->polepos=0;
-  else m->polepos=PC_LINK_PLACE(slot);
+  if(gRace==kGhost) m->initin.polepos=0;
+  else m->initin.polepos=PC_LINK_PLACE(slot);
   SetResurrectionData(INIT_MODE_START,m,0);
  } else {
-  if(gRace==kGhost) m->polepos=PC_RESPAWN_BASE;
-  else m->polepos=slot+PC_RESPAWN_BASE;
+  if(gRace==kGhost) m->initin.polepos=PC_RESPAWN_BASE;
+  else m->initin.polepos=slot+PC_RESPAWN_BASE;
  }
  Resurrect(m);
  PC_CAR_CRASH_STATE(slot)=CRASH_NONE;   /* crash_state */

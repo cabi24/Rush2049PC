@@ -25,7 +25,7 @@ void ProximityDamage(f32 *origin, f32 *endpoint, s32 source_index, f32 radius_sq
     f32 delta[3];
     f32 distance_squared;
     for (target = PC_CARS; target < PC_CARS_END(gNumCars); target++) {
-        if (!PC_MODEL_CRASHFLAG(target->slot) && target->collidable && !target->dead) {
+        if (!pc_models[target->slot].crashflag && target->collidable && !target->dead) {
             delta[0] = origin[0] - target->position[0];
             delta[1] = origin[1] - target->position[1];
             delta[2] = origin[2] - target->position[2];

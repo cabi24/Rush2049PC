@@ -4,24 +4,6 @@
  * other: an equal and opposite force along the line between them moves them apart over the next steps. */
 #include "game/game.h"
 
-/* The model record (tModelData, docs/port/CARS.md 4), the fields used here. */
-typedef struct tModelData {
-    _tCar *car;
-    Tune44 *tune;
-    char pad8[0x11C];
-    f32 centerForce[3];                         /* +0x124 the force on the body's centre this step, car frame */
-    char pad130[0x270];
-    streetyp *lasttp[4];
-    char pad3B0[0x5C];
-    const s16 *torquecurve;
-    char pad410[0x230];
-    s8 crashflag;                               /* +0x640 */
-    char pad641[0x7];
-    surftyp *movingSurface;
-    char pad64C[0x154];
-    f32 reckon_uvs[3][3];                       /* +0x7A0 reckon.uvs: the orientation the collisions use */
-} tModelData;
-
 extern f32 sqrtf(f32);
 
 /* Push the pair m1, m2 apart; `m` is the one of them this step is for, `dir` the world direction to push it in
@@ -52,11 +34,11 @@ void ForceApart(tModelData *m, tModelData *m1, tModelData *m2, f32 *dir) {
             force[i] = dir[i] * len;
         }
     }
-    BodyVector(force, cent, m->reckon_uvs[0]);
+    BodyVector(force, cent, m->reckon.uvs[0]);
     m->centerForce[0] = m->centerForce[0] + cent[0];
     m->centerForce[1] = m->centerForce[1] + cent[1];
     m->centerForce[2] = m->centerForce[2] + cent[2];
-    BodyVector(force, cent, other->reckon_uvs[0]);
+    BodyVector(force, cent, other->reckon.uvs[0]);
     other->centerForce[0] = other->centerForce[0] - cent[0];
     other->centerForce[1] = other->centerForce[1] - cent[1];
     other->centerForce[2] = other->centerForce[2] - cent[2];

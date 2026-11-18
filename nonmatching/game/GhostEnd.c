@@ -31,7 +31,7 @@ void GhostEnd(void)
         if (gGhosts[i] != 0) {
             Ghost **ghost = gGhosts[i];
             gGhosts[i] = 0;
-            PC_MODEL_MODELRUN(i) = 0;
+            pc_models[i].fastin.modelrun = 0;
             g = *(*ghost)->header;
             if (g->flag >= 0) {
                 if (g->flag > 0) {

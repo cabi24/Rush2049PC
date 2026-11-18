@@ -122,7 +122,7 @@ void AnimateWeapon(Visual *v, s16 op)
     s32 pad1;   /* unused (the N64 code's) */
     s32 pad2;   /* unused (the N64 code's) */
 
-    if (!op || PC_MODEL_CRASHFLAG(v->slot)) {
+    if (!op || pc_models[v->slot].crashflag) {
         if (gCurWeaponType[v->slot] == 1)
             RemoveGattMFlash(v->slot);
         else if (gCurWeaponType[v->slot] == 0)
@@ -149,9 +149,9 @@ void AnimateWeapon(Visual *v, s16 op)
         MBOX_ShowObject(v->objnum, 0, 15);
     }
     if (gCurWeaponType[v->slot] != car->battle.type) {
-        off[0] = WEAPON_OFF(car->battle.type)[PC_MODEL_BODY(v->slot)][0];
-        off[1] = WEAPON_OFF(car->battle.type)[PC_MODEL_BODY(v->slot)][1];
-        off[2] = WEAPON_OFF(car->battle.type)[PC_MODEL_BODY(v->slot)][2];
+        off[0] = WEAPON_OFF(car->battle.type)[pc_models[v->slot].body_type][0];
+        off[1] = WEAPON_OFF(car->battle.type)[pc_models[v->slot].body_type][1];
+        off[2] = WEAPON_OFF(car->battle.type)[pc_models[v->slot].body_type][2];
         if (gCurWeaponType[v->slot] == 1)
             RemoveGattMFlash(v->slot);
         else if (gCurWeaponType[v->slot] == 0)
@@ -229,12 +229,12 @@ void AnimateWeapon(Visual *v, s16 op)
         case 7: def = 223; break;
         }
         ZOID_SetObjectDef(gCarParts[v->slot].weap, gObjList[def]);
-        ZOID_UpdateObject(gCarParts[v->slot].weap, WEAPON_OFF(car->battle.type)[PC_MODEL_BODY(v->slot)], 0);
+        ZOID_UpdateObject(gCarParts[v->slot].weap, WEAPON_OFF(car->battle.type)[pc_models[v->slot].body_type], 0);
     }
     {
-        off[0] = WEAPON_OFF(car->battle.type)[PC_MODEL_BODY(v->slot)][0];
-        off[1] = WEAPON_OFF(car->battle.type)[PC_MODEL_BODY(v->slot)][1];
-        off[2] = WEAPON_OFF(car->battle.type)[PC_MODEL_BODY(v->slot)][2];
+        off[0] = WEAPON_OFF(car->battle.type)[pc_models[v->slot].body_type][0];
+        off[1] = WEAPON_OFF(car->battle.type)[pc_models[v->slot].body_type][1];
+        off[2] = WEAPON_OFF(car->battle.type)[pc_models[v->slot].body_type][2];
         if (gCurWeaponType[v->slot] == 1) {
             off[0] += 0.01f;
             off[1] += 0.65f;

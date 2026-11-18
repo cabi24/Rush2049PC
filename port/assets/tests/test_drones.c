@@ -24,11 +24,12 @@
 
 #include "pc_prelude.h"
 #include "support.h"
+#include "game/modeldata.h"
 
 /* ---------------------------------------------------------------- the game's data the code under test uses */
 
 struct pc_link pc_links[PC_LINK_SLOTS];
-struct pc_model pc_models[PC_MODEL_SLOTS];
+tModelData pc_models[PC_MODEL_SLOTS];
 struct pc_car pc_cars[PC_CAR_SLOTS];
 short pc_drones[PC_MAX_LINKS], pc_our_drones[PC_MAX_LINKS];
 float pc_mp_steer[PC_MAX_LINKS], pc_mp_brake[PC_MAX_LINKS], pc_mp_gas[PC_MAX_LINKS];
@@ -140,7 +141,7 @@ static void setup_cars(int n)
         MF(s, 0x638) = 1;
         MS16(s, 0x6C4) = -1;                    /* not resurrecting */
         MF(s, 0x7EC) = 0;                       /* drone_scale: no target speed */
-        PC_MODEL_SLOT(s) = (short)s;
+        pc_models[s].slot = (short)s;
         PC_CAR_NAV(s).idx = (short)(20 * s);
         PC_CAR_NAV(s).newIdx = -1;
     }
@@ -221,7 +222,7 @@ static void test_pick(void)
     num_drones = 0;
     for (int s = 1; s < 12; s++) {
         pc_drones[num_drones++] = (short)s;
-        PC_MODEL_WE_CONTROL(s) = s != 7;
+        pc_models[s].we_control = s != 7;
     }
     current_drone = -1, gLastPathSwitchTime = 0;
     for (unsigned k = 0; k < sizeof want / sizeof want[0]; k++) {
@@ -391,7 +392,7 @@ static void test_speeds(void)
         for (int s = 0; s < 16; s++) {
             MF(s, 0x788) = 3, MF(s, 0x78C) = 4, MF(s, 0x790) = 0;   /* |v| = 5 */
             MF(s, 0x3F0) = -1;
-            PC_MODEL_WE_CONTROL(s) = 0;
+            pc_models[s].we_control = 0;
         }
         set_table(0);
         start_race(0, 0);
@@ -421,9 +422,9 @@ static void test_dodrones(void)
         PC_CAR_PLACE(s) = (signed char)p;
         PC_CAR_DISTANCE(s) = 1000.0f - 100.0f * p;
         PC_CAR_POS(s)[0] = 0, PC_CAR_POS(s)[1] = 0, PC_CAR_POS(s)[2] = 1000.0f - 100.0f * p;
-        PC_MODEL_DRONE_TYPE(s) = (signed char)(s == 4 ? 2 : 1);
-        PC_MODEL_WE_CONTROL(s) = s != 4;
-        PC_MODEL_DRONE_SCALE(s) = 1, PC_MODEL_TIME_BOOST(s) = 1;
+        pc_models[s].drone_type = (signed char)(s == 4 ? 2 : 1);
+        pc_models[s].we_control = s != 4;
+        pc_models[s].drone_scale = 1, pc_models[s].time_boost = 1;
     }
     PC_CAR_POS(order[5])[2] = PC_CAR_POS(4)[2] + 50;
     PC_CAR_POS(order[7])[2] = PC_CAR_POS(4)[2] - 30;
@@ -434,10 +435,10 @@ static void test_dodrones(void)
         if (s == 4)
             continue;
         CHECK(PC_CAR_WEIGHT_INDEX(s) == w++);
-        CHECK(PC_MODEL_DRONE_TARGET(s) == (p == 7 ? 4 : s));
-        CHECK(PC_MODEL_DRONE_SCALE(s) < 1);
+        CHECK(pc_models[s].drone_target == (p == 7 ? 4 : s));
+        CHECK(pc_models[s].drone_scale < 1);
     }
-    CHECK(PC_MODEL_DRONE_SCALE(4) == 1);
+    CHECK(pc_models[4].drone_scale == 1);
 }
 
 int main(void)

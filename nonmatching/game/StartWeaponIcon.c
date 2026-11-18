@@ -23,22 +23,6 @@ typedef struct Car {
     void *input;
     Battle battle;        /* 0x384, PC 0x4D8 */
 } Car;
-typedef struct Model {
-    _tCar *car;
-    Tune44 *tune;
-    u8 body_type;         /* 0x08 */
-    u8 pad09[0xf4 - 9];
-    f32 bodyR[2][3];      /* 0xf4: [0][2] at 0xfc, [1][2] at 0x108 */
-    u8 pad10c[0x3a0 - 0x10c];
-    streetyp *lasttp[4];
-    u8 pad3b0[0x40c - 0x3b0];
-    const s16 *torquecurve;
-    u8 pad410[0x648 - 0x410];
-    surftyp *movingSurface;
-    u8 pad64c[0x654 - 0x64c];
-    f32 colrad;           /* 0x654 */
-    u8 pad658[0x808 - 0x658];
-} Model;
 typedef struct CollSize { f32 colfront, colrear, colside, colheight; } CollSize;
 f32 sqrtf(f32);
 #pragma intrinsic (sqrtf)
@@ -51,14 +35,14 @@ f32 sqrtf(f32);
 void StartWeaponIcon(tTarget *t)
 {
     Car *car;
-    Model *m;
+    tModelData *m;
     s32 type;
     s32 ammo;
     s32 wep;
     CollSize *sizep;
     if (t->Flags & 4) {
         car = PC_CAR(t->slot);
-        m = PC_MODEL(t->slot);
+        m = &pc_models[t->slot];
         t->Flags &= ~6;
         if (car->appearance & 0x10) {
             t->Flags |= 2;

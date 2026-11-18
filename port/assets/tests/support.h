@@ -27,7 +27,7 @@ extern void (*test_pool_overflow)(const char *pool, int used, int capacity);
 extern uint32_t test_memory_bytes;
 uint8_t *test_memory(void);
 
-/* The host offset in a model record (struct pc_model, port/include/pc_game_types.h) of MAT3's (the N64's) offset n,
+/* The host offset in a model record (tModelData, include/game/modeldata.h) of MAT3's (the N64's) offset n,
  * for tests that name the record's fields by MAT3's offsets: its five pointers are 8 bytes on the PC (car and tune,
  * the four lasttp, torquecurve aligned to 8, movingSurface), so a field after one lies further on. */
 #define MODEL_OFS(n) ((n) < 0x4 ? (n) : (n) < 0x8 ? (n) + 4 : (n) < 0x3A0 ? (n) + 8 : \

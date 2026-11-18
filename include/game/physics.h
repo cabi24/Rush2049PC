@@ -3,6 +3,7 @@
 #define GAME_PHYSICS_H
 
 #include "game/types.h"
+#include "game/modeldata.h"   /* the model record, tModelData, and pc_models */
 
 /* Constants: the names of MAT3's rush_flags.h, the same values.
  * World units are feet, speeds feet a second, Y is up. */

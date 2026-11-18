@@ -14,41 +14,6 @@ typedef struct tCar {
     u8 pad[0x60]; TireDesc *tires[4];   /* +0x60 each tire's constants */
     Vec3 tireR[4];                      /* +0x70 each tire's position from the centre of mass */
 } tCar;
-/* The model record (tModelData), the fields torques reads and writes. */
-typedef struct tModelData {
-    tCar *car;                  /* +0x000 the physics descriptor */
-    Tune44 *tune;
-    u8 pad8[0x1C - 0x08];
-    Vec3 m;                     /* +0x01C the total moment, the result */
-    u8 pad28[0x64 - 0x28];
-    Vec3 tireForce[4];          /* +0x064 each tire's force */
-    u8 pad94[0xC4 - 0x94];
-    Vec3 bodyForce[4];          /* +0x0C4 each body corner's force */
-    u8 padF4[0x13C - 0xF4];
-    Vec3 centerMoment;          /* +0x13C */
-    u8 pad148[0x3A0 - 0x148];
-    streetyp *lasttp[4];
-    u8 pad3B0[0x3F0 - 0x3B0];
-    f32 magvel;                 /* +0x3F0 the speed, feet a second */
-    u8 pad3F4[0x3F8 - 0x3F4];
-    s16 wing;                   /* +0x3F8 the wing deployed */
-    u8 pad3FA[0x40C - 0x3FA];
-    const s16 *torquecurve;
-    u8 pad410[0x5B8 - 0x410];
-    f32 wingEffect;             /* +0x5B8 the wing's size (gWingSizes) */
-    u8 pad5BC[0x5CC - 0x5BC];
-    f32 suscomp[4];             /* +0x5CC each corner's suspension compression */
-    u8 pad5DC[0x5EC - 0x5DC];
-    f32 airdist[4];             /* +0x5EC each tire's height above the road */
-    u8 pad5FC[0x648 - 0x5FC];
-    surftyp *movingSurface;
-    u8 pad64C[0x731 - 0x64C];
-    s8 mainin_wing;             /* +0x731 mainin.wing: the player holds the wing button */
-    u8 pad732[0x7C6 - 0x732];
-    s16 slot;                   /* +0x7C6 */
-    u8 pad7C8[0x7D4 - 0x7C8];
-    s32 appearance;             /* +0x7D4 APPEAR_* */
-} tModelData;
 
 #define veccopy(a,r) {r[0]=a[0]; r[1]=a[1]; r[2]=a[2];}
 #define crossprod(a,b,r) {r[0]=a[1]*b[2]-a[2]*b[1]; r[1]=a[2]*b[0]-a[0]*b[2]; r[2]=a[0]*b[1]-a[1]*b[0];}
@@ -80,7 +45,7 @@ void torques(tModelData *m) {
         vecadd(m->m,moment,m->m);
     }
     if (!(m->appearance & APPEAR_HULK) && m->airdist[0]>5.0f && m->airdist[1]>5.0f && m->airdist[2]>5.0f && m->airdist[3]>5.0f && gRace != kBattle /* kBattle */) {
-        if(m->mainin_wing) m->wing=1; else m->wing=0;
+        if(m->mainin.wing) m->wing=1; else m->wing=0;
         if(m->wing) {
             car=PC_CAR(m->slot);
             player=car->player;

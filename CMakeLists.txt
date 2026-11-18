@@ -326,6 +326,8 @@ target_include_directories(pcmods PRIVATE port/include port/ultra port/config po
 target_compile_options(pcmods PRIVATE -std=gnu11 -Wall -Wextra -Wno-unused-parameter)
 list(APPEND PC_PORT_OBJECT_LIBS pcmods)
 target_include_directories(pcultra PRIVATE port/mods port/data)   # main.c: the mods, port/data's image table
+# main.c and statehash.c: the model record (include/game/modeldata.h), which the state log and the state hash read
+target_include_directories(pcultra PRIVATE include)
 list(APPEND PC_PORT_ARCHIVES pcaudio pcgfx)            # port/audio, port/gfx (docs/port/AUDIO.md, GFX.md)
 
 # Everything the game and the generated data still leave undefined becomes a stub that prints its name and a
@@ -1094,7 +1096,7 @@ foreach(t ${PC_ASSETS_TESTS})
     string(REGEX REPLACE "^test_" "" n ${n})
     add_executable(test_assets_${n} ${t} port/assets/tests/support.c port/ultra/n64mem.c
         $<TARGET_OBJECTS:pcassets>)
-    target_include_directories(test_assets_${n} PRIVATE port/include port/assets port/assets/tests)
+    target_include_directories(test_assets_${n} PRIVATE port/include port/assets port/assets/tests include)
     target_compile_options(test_assets_${n} PRIVATE -std=gnu11 -Wall -Wextra -Wno-unused-parameter)
     target_link_libraries(test_assets_${n} PRIVATE m)
     set_target_properties(test_assets_${n} PROPERTIES EXPORT_COMPILE_COMMANDS OFF)
@@ -1265,6 +1267,7 @@ target_link_libraries(test_overlay_data_game PRIVATE game_flags)
 target_compile_options(test_overlay_data_game PRIVATE -w)
 add_executable(test_overlay_data port/data/test_overlay_data.c $<TARGET_OBJECTS:test_overlay_data_game>)
 target_link_libraries(test_overlay_data PRIVATE pcdata_rt)
+target_include_directories(test_overlay_data PRIVATE include)   # the model record (game/modeldata.h)
 pc_link_scripts(test_overlay_data)
 add_test(NAME pc_data_overlay COMMAND test_overlay_data)
 # tools/port/endian_check.py (docs/port/ENDIAN.md): the detector on its synthetic cases, and the loader's element

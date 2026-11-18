@@ -3,56 +3,7 @@
  * bumps (UpdateBumps.c), the horn and the bog. A human's car (drone_type 2) plays plain effects, a drone's 3D emitters. */
 #include "game/game.h"
 
-/* The model record's fields this file reads (MAT3 tModelData, docs/port/CARS.md 4). */
-typedef struct ModelView {
-    _tCar *car;
-    Tune44 *tune;
-    u8 body_type;           /* 0x8: picks the horn */
-    u8 other9[0x22C - 0x009];
-    f32 rwr[3];             /* 0x22C: the car's position (the screech's emitter) */
-    u8 other238[0x3A0 - 0x238];
-    streetyp *lasttp[4];
-    u8 other3B0[0x40C - 0x3B0];
-    const s16 *torquecurve;
-    u8 other410[0x61C - 0x410];
-    u16 sviscode[4];        /* 0x61C: each tire's surface: 0 pavement, 1 dirt, 2 and 3 water */
-    u8 other624[0x648 - 0x624];
-    surftyp *movingSurface;
-    u8 other64C[0x65C - 0x64C];
-    s16 bogState;           /* 0x65C: 1 start the bog sound, 3 stop it */
-    u8 other65E[0x758 - 0x65E];
-    s16 rwmph;              /* 0x758: the speed at the wheels (MAT3 reckon.rwmph) */
-    u8 other75A[0x7C6 - 0x75A];
-    s16 slot;               /* 0x7C6 */
-    u8 other7C8[0x7CC - 0x7C8];
-    s8 drone_type;          /* 0x7CC: 2 a human's car */
-    u8 other7CD[0x7D4 - 0x7CD];
-    u32 appearance;         /* 0x7D4: 0x10 no horn */
-    u8 other7D8[0x7F8 - 0x7D8];
-    f32 skidIntensity[4];   /* 0x7F8 */
-} ModelView;
-
 /* The engine update's view of the same record. */
-typedef struct MODELDAT {
-    _tCar *car;
-    Tune44 *tune;
-    u8 pad8[0x224];
-    f32 rwr[3];         /* 0x22C: the car's position */
-    u8 pad238[0x3A0 - 0x238];
-    streetyp *lasttp[4];
-    u8 pad3B0[0x404 - 0x3B0];
-    f32 engtorque;      /* 0x404 */
-    u8 pad408[0x40C - 0x408];
-    const s16 *torquecurve;
-    u8 pad410[0x648 - 0x410];
-    surftyp *movingSurface;
-    u8 pad64C[0x7C6 - 0x64C];
-    s16 slot;           /* 0x7C6 */
-    u8 pad7C8[4];
-    s8 drone_type;      /* 0x7CC */
-    u8 pad7CD[3];
-    s16 rpm;            /* 0x7D0 */
-} MODELDAT;
 
 /* tModelData.appearance's bit of a car without a horn. */
 #define APPEARANCE_NO_HORN 0x10
@@ -83,7 +34,7 @@ void SetSoundVP(tSoundState *sound,f32 vol,f32 pitch)
  * by the wheel speed; on dirt at least the tire's skid), and only the loudest surface plays: dirt, or water (with
  * a splash when it starts loud), or pavement, which has no sound of its own. The others are stopped. (MAT3 plays
  * every surface with any share.) */
-void UpdateRoadSounds(ModelView *model)
+void UpdateRoadSounds(tModelData *model)
 {
     s32 i,numPave,numDirt,numWater;
     f32 paveVol,dirtVol,waterVol;
@@ -96,7 +47,7 @@ void UpdateRoadSounds(ModelView *model)
     for (i=0;i<4;i++) {
         if (numPave|numDirt|numWater|i) {}
         if (model->sviscode[i]==0) {
-            vol=(f32)(model->rwmph>>2)/160.0f;
+            vol=(f32)(model->reckon.rwmph>>2)/160.0f;
             if(vol<0.0f) vol=-vol;
             vol=vol<0.0f ? 0.0f : vol>1 ? 1 : vol;
             vol=1-(1-vol)*(1-vol);
@@ -104,7 +55,7 @@ void UpdateRoadSounds(ModelView *model)
             vol/=numPave==1 ? 2.0f : numPave==2 ? 4.0f : 8.0f;
             paveVol+=vol;
         } else if(model->sviscode[i]==1) {
-            vol=(f32)(model->rwmph>>2)/80.0f;
+            vol=(f32)(model->reckon.rwmph>>2)/80.0f;
             if(vol!=0.0f) {
                 if(vol<0.0f) vol=-vol;
                 vol=vol<0.0f ? 0.0f : vol>1 ? 1 : vol;
@@ -115,7 +66,7 @@ void UpdateRoadSounds(ModelView *model)
             vol/=numDirt==1 ? 2.0f : numDirt==2 ? 4.0f : 8.0f;
             dirtVol+=vol;
         } else if(model->sviscode[i]==2 || model->sviscode[i]==3) {
-            vol=(f32)(model->rwmph>>2)/80.0f;
+            vol=(f32)(model->reckon.rwmph>>2)/80.0f;
             numWater++;
             if(vol!=0.0f) {
                 if(vol<0.0f)vol=-vol;
@@ -186,7 +137,7 @@ void update_skid_emitter(tSoundState *sound, f32 *pos, f32 vol, f32 pitch)
  * as effect changes (its pitch lowered more the more players share the screen); a drone's moves its emitters to the
  * car, with its rpm capped at 890 once the race runs, and now and then (one in five tries, after the countdown's
  * start) plays one of three random engine sounds there. */
-void UpdateEngineSound(MODELDAT *m) {
+void UpdateEngineSound(tModelData *m) {
     f32 rpm;
     f32 torque;
     f32 unused[2];
@@ -273,7 +224,7 @@ void UpdateEngineSound(MODELDAT *m) {
 /* Each frame for each car: updates its sounds on every other frame (the cars alternate, pc_engine_phase): the
  * engine, and for a human's car the tire screech (from the tires' skids: volume up to 0.6 each, pitch from 0.5),
  * the road noises, the bumps and scrapes, the horn (its button, at most every 0.1 s) and the bog. */
-void UpdateCarSounds(ModelView *model)
+void UpdateCarSounds(tModelData *model)
 {
     s32 original_slot=model->slot;
     s32 slot;
@@ -290,7 +241,7 @@ void UpdateCarSounds(ModelView *model)
     }
     PC_ENGINE_PHASE(original_slot)=1;
     if (!PC_CAR_SOUNDS_ON(original_slot)) return;
-    UpdateEngineSound((MODELDAT *)model);
+    UpdateEngineSound(model);
     slot=model->slot;
     if (model->drone_type==DRONE_TYPE_HUMAN) {
         pitch=0.5f;

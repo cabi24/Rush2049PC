@@ -1,32 +1,6 @@
 /* PassedCP: a car passes a checkpoint: laps, the finish, the lap calls (MAT3 checkpoint.c). */
 #include "game/game.h"
 
-/* The model record (MAT3 tModelData): the fields this reads and sets. */
-typedef struct Model {
-    _tCar *car;
-    Tune44 *tune;
-    u8 pad008[0x398];
-    streetyp *lasttp[4];
-    u8 pad3B0[0x5C];
-    const s16 *torquecurve;
-    u8 pad410[0x238];
-    surftyp *movingSurface;
-    u8 pad64C[0x17A];
-    s16 slot;          /* +0x7C6 the car slot */
-    u8 pad7C8[0x7D4 - 0x7C8];
-    u32 appearance;    /* +0x7D4 appearance flags; 8 a ghost (not collidable) */
-    u8 pad7D8[0x7DC - 0x7D8];
-    s8 started;        /* +0x7DC it has passed the start checkpoint, so laps count */
-    u8 pad7DD[0x7E2 - 0x7DD];
-    s16 last_cp_index; /* +0x7E2 */
-    s16 next_cp_index; /* +0x7E4 */
-    u8 pad7E6[2];
-    s8 laps;           /* +0x7E8 laps completed */
-    u8 pad7E9;
-    s8 collidable;     /* +0x7EA */
-    s8 solid;          /* +0x7EB */
-} Model;
-
 /* The car record (MAT3 tCarData; the PC's pc_car, host layout; MAT3's offsets past the visuals are 0x18 more). */
 typedef struct GameCar {
     u8 pad000[0xEE];
@@ -49,7 +23,7 @@ typedef struct GameCar {
  * laps-left count down with its call (sound 74 for the last lap, else a sequence: the count's sound then 80), or
  * on the last lap the finish: the finish camera, the call for its place, and the car made solid again. A car that completes the last lap and has no place
  * yet reports its finish (CarReportsGameOver). */
-void PassedCP(Model *m, f32 time)
+void PassedCP(tModelData *m, f32 time)
 {
     s32 prevLapsLeft;
     s32 slot;

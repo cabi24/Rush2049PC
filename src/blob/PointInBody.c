@@ -4,14 +4,6 @@
  * this car's box, in this car's frame. */
 #include "game/game.h"
 
-/* The model record (tModelData), the body corners it reads. */
-typedef struct tModelData {
-    _tCar *car;
-    Tune44 *tune;
-    u8 pad8[0xEC];
-    f32 bodyR[4][3];            /* +0x0F4 the body's corners in the car's frame: [0] front right, [3] rear left */
-} tModelData;
-
 /* 1 if pt (in model m's frame, feet) lies within m's body: x between the corners 3 and 0, y between 1 ft below the
  * car's origin and `top`, z between the rear and the front corners; else 0. */
 s32 PointInBody(tModelData *m, f32 *pt, f32 top) {

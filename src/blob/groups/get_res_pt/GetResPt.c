@@ -65,7 +65,7 @@ void GetResPt(void) {
 
 /* Car 0's obResPt becomes `index` if that is further along. */
 void raise_ob_res_pt(s32 index) {
-    if (PC_MODEL_OB_RES_PT(0) < index) {
-        PC_MODEL_OB_RES_PT(0) = index;
+    if (pc_models[0].obResPt < index) {
+        pc_models[0].obResPt = index;
     }
 }

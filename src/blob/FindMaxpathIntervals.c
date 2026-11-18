@@ -2,28 +2,6 @@
  * got, which orders the cars (MAT3 maxpath.c). */
 #include "game/game.h"
 
-/* The model record (MAT3 tModelData): the fields this reads. */
-typedef struct Model {
-    /* 0x000 */ _tCar *car;
-    /* 0x004 */ Tune44 *tune;
-    /* 0x008 */ char pad8[0x224];
-    /* 0x22C */ f32 rwr[3];        /* its position */
-    /* 0x238 */ char pad238[0x168];
-    /* 0x3A0 */ streetyp *lasttp[4];
-    /* 0x3B0 */ char pad3B0[0x5C];
-    /* 0x40C */ const s16 *torquecurve;
-    /* 0x410 */ char pad410[0x238];
-    /* 0x648 */ surftyp *movingSurface;
-    /* 0x64C */ char pad64C[0x17A];
-    /* 0x7C6 */ s16 slot;
-    /* 0x7C8 */ char pad7C8[0x1A];
-    /* 0x7E2 */ s16 last_cp_index; /* the last checkpoint it passed */
-    /* 0x7E4 */ s16 next_cp_index; /* the next one */
-    /* 0x7E6 */ s16 drone_target;
-    /* 0x7E8 */ s8 laps;           /* laps completed */
-    /* 0x7E9 */ char pad7E9[0x1F];
-} Model; /* 0x808 */
-
 /* The car record (MAT3 tCarData; the PC's pc_car, host layout): the fields this reads and sets. */
 typedef struct Car {
     /* 0x000 */ char pad0[0xEF];
@@ -50,8 +28,8 @@ void FindMaxpathIntervals(void)
     s32 j;
     s16 end;
     s32 k;
-    Model *m;
-    Model *m2;
+    tModelData *m;
+    tModelData *m2;
     Car *gc;
     s32 idx;
     s32 limit;
@@ -69,9 +47,9 @@ void FindMaxpathIntervals(void)
     f32 dz;
 
     for (i = 0; i < gNumActiveCars; i++) {
-        slot = PC_MODEL_SLOT(i);
-        m = PC_MODEL(slot);
-        m2 = PC_MODEL(slot);
+        slot = pc_models[i].slot;
+        m = &pc_models[slot];
+        m2 = &pc_models[slot];
         if (AreWeSolid(slot)) {
             gc = PC_CAR(slot);
             if (gc->place_locked == 1) {

@@ -12,37 +12,12 @@ typedef struct CCol {
     f32 dist;       /* how far the car is into it */
 } CCol;
 
-/* The model record (MAT3 tModelData): the fields this reads and sets. */
-typedef struct CCar {
-    _tCar *car;
-    Tune44 *tune;
-    u8 p8[0x26C];
-    f32 bodyrwr[4][3];      /* 0x274 the corners' positions */
-    f32 bodyrwr2[4][3];     /* 0x2A4 the same last step */
-    u8 p724[24];
-    f32 uvs[9];             /* 0x2EC the orientation */
-    u8 p784[144];
-    streetyp *lasttp[4];
-    u8 p944[92];
-    const s16 *torquecurve;
-    u8 p1040[560];
-    s8 crashflag;           /* 0x640 */
-    u8 p1601[7];
-    surftyp *movingSurface;
-    u8 p1612[120];
-    s16 moving_state;       /* 0x6C4 resurrect.moving_state: -1 unless being put back */
-    u8 p1734[7];
-    s8 waterAbort;          /* 0x6CD resurrect.waterAbort */
-    u8 p1742[248];
-    s16 slot;               /* 0x7C6 */
-} CCar;
-
 /* Tests model `car`'s body (its corners, BodyVerts) against wall `poly`: finds how deep the car's outline, flattened
  * into the wall's plane, is into the wall's outline and on which edge; keeps the deepest contact of the step in
  * `col` (a wall facing the car's up more than 45 degrees away is no wall). A wall's kind can end the car, unless it
  * is out, crashed or being put back already: kind 4 crashes it (a battle point lost), kind 7 (water) and kind 3
  * abort it (kind 3 with sound 21 for a car driven here). */
-void CollideCarBodyAgainstSurface(CCar *car, surftyp *poly, CCol *col) {
+void CollideCarBodyAgainstSurface(tModelData *car, surftyp *poly, CCol *col) {
     u32 n;
     s32 type;
     u16 idx[16];
@@ -93,12 +68,12 @@ void CollideCarBodyAgainstSurface(CCar *car, surftyp *poly, CCol *col) {
     type = poly->flags & 0xF;
     if (type == 5 || type == 6) {
         dz = -3.0f;
-    } else if (mtx[3] * car->uvs[3] + mtx[4] * car->uvs[4] + mtx[5] * car->uvs[5] < -0.707f) {
+    } else if (mtx[3] * car->uvs[1][0] + mtx[4] * car->uvs[1][1] + mtx[5] * car->uvs[1][2] < -0.707f) {
         dz = -4.5f;
     } else {
         dz = -0.5f;
     }
-    BodyVector(&car->uvs[3], d, mtx);
+    BodyVector(&car->uvs[1][0], d, mtx);
     for (ka = 0; ka < 4; ka++) {
         pts[ka + 4][0] = pts[ka][0] + d[0] * dz;
         pts[ka + 4][1] = pts[ka][1] + d[1] * dz;
@@ -170,18 +145,18 @@ void CollideCarBodyAgainstSurface(CCar *car, surftyp *poly, CCol *col) {
                             }
                         }
                         if (type == 4) {
-                            if (PC_CAR_DEAD(car->slot) == 0 && PC_CAR_CRASH_STATE(car->slot) == 0 && car->moving_state == -1) {
+                            if (PC_CAR_DEAD(car->slot) == 0 && PC_CAR_CRASH_STATE(car->slot) == 0 && car->resurrect.moving_state == -1) {
                                 AddBattlePoint(car->slot, car->slot, -1);
                                 car->crashflag = 1;
                             }
                         } else if (type == 7) {
-                            if (PC_CAR_DEAD(car->slot) == 0 && PC_CAR_CRASH_STATE(car->slot) == 0 && car->moving_state == -1) {
-                                car->waterAbort = 1;
+                            if (PC_CAR_DEAD(car->slot) == 0 && PC_CAR_CRASH_STATE(car->slot) == 0 && car->resurrect.moving_state == -1) {
+                                car->resurrect.waterAbort = 1;
                                 AbortCar(car->slot, 1);
                             }
                         } else if (type == 3) {
-                            if (PC_CAR_DEAD(car->slot) == 0 && PC_CAR_CRASH_STATE(car->slot) == 0 && car->moving_state == -1) {
-                                car->waterAbort = 1;
+                            if (PC_CAR_DEAD(car->slot) == 0 && PC_CAR_CRASH_STATE(car->slot) == 0 && car->resurrect.moving_state == -1) {
+                                car->resurrect.waterAbort = 1;
                                 AbortCar(car->slot, 1);
                                 if (PC_LINK_OWNER(car->slot) == 6) {
                                     PlayGameSound(21, 0, 1, 2);

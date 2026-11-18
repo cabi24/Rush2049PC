@@ -11,30 +11,6 @@ typedef struct Car {
     u8 tail[0x380 - 0x35A]; void *input; u8 tail_384[0x3B8 - 0x384];
 } Car;
 
-/* A model record (MAT3 tModelData) as this reads it. */
-typedef struct Model {
-    _tCar *car;
-    Tune44 *tune;
-    u8 pad8[920];
-    streetyp *lasttp[4];
-    u8 pad3B0[92];
-    const s16 *torquecurve;
-    u8 pad410[560];
-    s8 crash;
-    u8 pad641[0x648 - 0x641];
-    surftyp *movingSurface;
-    u8 pad64C[0x6C4 - 0x64C];
-    s16 hit_target;
-    u8 pad6C6[1996 - 1734];
-    s8 mode;
-    u8 pad7CD[2015 - 1997];
-    s8 hide;
-    u8 pad7E0[2027 - 2016];
-    s8 collidable;
-    u8 tail[2056 - 2028];
-} Model;
-
-
 
 /* The dot of the car at place animID & 0xF of the map's drawing order (dot_order_list, hud_updateFrame) on the track
  * map (hud_mapPos, kMapSize square, the track's path bounds fitted in it; mirrored with gMirrorWaves): a human's own
@@ -43,7 +19,7 @@ typedef struct Model {
  * the map. Returns 1 (or Hidden's answer). */
 s32 animDot(tBlit *blt)
 {
-    Model *m;
+    tModelData *m;
     Car *car;
     s16 b, flash, slot;
     s16 size;
@@ -54,7 +30,7 @@ s32 animDot(tBlit *blt)
     slot = dot_order_list[id & 0xf];
     if (Hidden(blt, gNumWindows >= 5 || slot == -1 || !gShowTrackMap))
         return 1;
-    m = PC_MODEL(slot);
+    m = &pc_models[slot];
     car = PC_CAR(slot);
 
     world_width = gPathMax[0] - gPathMin[0];
@@ -79,14 +55,14 @@ s32 animDot(tBlit *blt)
     blt->y += (car->position[2] - gPathMin[2]) * map_height / world_height;
     gBlitInstanceList[blt->blidx].flags |= BLITINST_ALPHA_COMPARE;
     if (size) { }
-    flash = car->dead || m->crash || !m->collidable || m->hide || m->hit_target != -1;
+    flash = car->dead || m->crashflag || !m->solid || m->hide_car || m->resurrect.moving_state != -1;
     if (car->active > 0)
         flash = 0;
     if (slot < gNumCars) {
         blt->alpha = ((gScheduler.retraceCount & 8) && flash) ? 64 : 255;
-        if (m->mode == 2)
+        if (m->drone_type == 2)
             SelectBlit(blt, slot, size, size);
-        else if (m->mode == 1)
+        else if (m->drone_type == 1)
             SelectBlit(blt, 7, size, size);
     } else {
         return Hidden(blt, 1);

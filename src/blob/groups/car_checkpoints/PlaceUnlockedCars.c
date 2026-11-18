@@ -20,10 +20,10 @@ void PlaceUnlockedCars(void) {
     num_done = 0;
     num_left = 0;
     for (i = 0; i < gNumActiveCars; i++) {
-        if (PC_CAR_DEAD(PC_MODEL_SLOT(i)) > 0 && PC_MODEL_LAP(i) < gNumLaps) {
+        if (PC_CAR_DEAD(pc_models[i].slot) > 0 && pc_models[i].laps < gNumLaps) {
             num_done++;
-        } else if (PC_CAR_PLACE_LOCKED(PC_MODEL_SLOT(i)) != 1) {
-            place[num_left++] = PC_MODEL_SLOT(i);
+        } else if (PC_CAR_PLACE_LOCKED(pc_models[i].slot) != 1) {
+            place[num_left++] = pc_models[i].slot;
         }
     }
     if (num_left != 0) {

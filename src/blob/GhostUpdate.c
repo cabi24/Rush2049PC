@@ -48,19 +48,19 @@ s32 GhostUpdate(s32 idx, f32 *out)
             }
         }
         if (s->offset == s->size) {
-            PC_MODEL_ABORT(idx) = 0;
-            PC_MODEL_WING(idx) = 0;
-            PC_MODEL_STEER(idx) = 0.0f;
-            PC_MODEL_GAS(idx) = 0.0f;
-            PC_MODEL_BRAKE(idx) = 0.0f;
+            pc_models[idx].mainin.abort = 0;
+            pc_models[idx].mainin.wing = 0;
+            pc_models[idx].mainin.wheel = 0.0f;
+            pc_models[idx].mainin.throttle = 0.0f;
+            pc_models[idx].mainin.brake = 0.0f;
         } else {
             data = ghost_samples(ghost, s);
-            PC_MODEL_GEAR(idx) = (s8) (data[s->offset] & 7) - 1;
-            PC_MODEL_ABORT(idx) = (data[s->offset] & 8) >> 3;
-            PC_MODEL_WING(idx) = (data[s->offset] & 0x10) >> 4;
-            PC_MODEL_STEER(idx) = (f32) ((s8 *) data)[s->offset + s->size] / 127;
-            PC_MODEL_GAS(idx) = (f32) (data[s->offset + s->size + s->size] >> 4) / 15.0f;
-            PC_MODEL_BRAKE(idx) = (f32) (data[s->offset + s->size + s->size] & 0xF) / 15.0f;
+            pc_models[idx].mainin.gear = (s8) (data[s->offset] & 7) - 1;
+            pc_models[idx].mainin.abort = (data[s->offset] & 8) >> 3;
+            pc_models[idx].mainin.wing = (data[s->offset] & 0x10) >> 4;
+            pc_models[idx].mainin.wheel = (f32) ((s8 *) data)[s->offset + s->size] / 127;
+            pc_models[idx].mainin.throttle = (f32) (data[s->offset + s->size + s->size] >> 4) / 15.0f;
+            pc_models[idx].mainin.brake = (f32) (data[s->offset + s->size + s->size] & 0xF) / 15.0f;
             s->offset++;
         }
         if (gRetraceTime != s->frameTime && 0.016666668f == s->frameTime) {
@@ -77,14 +77,14 @@ s32 GhostUpdate(s32 idx, f32 *out)
             return 0;
         }
         data = ghost_samples(ghost, s);
-        data[s->offset] = (PC_MODEL_GEAR(idx) + 1) | (PC_MODEL_ABORT(idx) * 8) | (PC_MODEL_WING(idx) * 16);
-        if (PC_MODEL_STEER(idx) * 127.0f < 0.0f) {
-            f = PC_MODEL_STEER(idx) * 127.0f - 0.5f;
+        data[s->offset] = (pc_models[idx].mainin.gear + 1) | (pc_models[idx].mainin.abort * 8) | (pc_models[idx].mainin.wing * 16);
+        if (pc_models[idx].mainin.wheel * 127.0f < 0.0f) {
+            f = pc_models[idx].mainin.wheel * 127.0f - 0.5f;
         } else {
-            f = PC_MODEL_STEER(idx) * 127.0f + 0.5f;
+            f = pc_models[idx].mainin.wheel * 127.0f + 0.5f;
         }
         data[s->offset + s->size] = (s32) f;
-        data[s->offset + s->size + s->size] = ((u8) (PC_MODEL_GAS(idx) * 15.0f + 0.5f) * 16) | (u8) (PC_MODEL_BRAKE(idx) * 15.0f + 0.5f);
+        data[s->offset + s->size + s->size] = ((u8) (pc_models[idx].mainin.throttle * 15.0f + 0.5f) * 16) | (u8) (pc_models[idx].mainin.brake * 15.0f + 0.5f);
         s->offset++;
         return 0;
     }

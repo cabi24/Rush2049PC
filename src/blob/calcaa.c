@@ -7,11 +7,6 @@ typedef struct tCar {
     f32 invi[3];                /* +0x0C their inverses */
 } tCar;
 
-/* The model record (tModelData): its descriptor. */
-typedef struct tModelData {
-    tCar *car;                  /* +0x000 the physics descriptor */
-} tModelData;
-
 /* angaccel = moment / inertia, axis by axis (the car's frame, whose axes are the principal axes of inertia). */
 void calcaa(tModelData *m, f32 *moment, f32 *angaccel)
 {

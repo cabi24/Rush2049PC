@@ -55,7 +55,7 @@ s32 animOdometer(Blit *blt) {
         }
         return 1;
     }
-    hide = gShowOdometer == 0 || PC_CAR_PLACE_LOCKED(PC_MODEL_SLOT(slot)) == 1;
+    hide = gShowOdometer == 0 || PC_CAR_PLACE_LOCKED(pc_models[slot].slot) == 1;
     if (hide != blt->Hide) {
         blt->Hide = hide;
         UpdateBlit(blt);

@@ -15,22 +15,6 @@ typedef struct tTune {
   u8 pad0[0xC];
   f32 trans_scale;              /* +0x0C */
 } tTune;
-/* The model record (tModelData), the fields transmission reads and writes. */
-typedef struct tModelData {
-  tCar *car;                    /* +0x000 the physics descriptor */
-  tTune *tune;                  /* +0x004 the tune record */
-  u8 pad8;
-  s8 trans;                     /* +0x009 the transmission (a row of carTransGearRatio) */
-  u8 padA[0x3A0 - 0x00A];
-  streetyp *lasttp[4];
-  u8 pad3B0[0x3F4 - 0x3B0];
-  s16 gear;                     /* +0x3F4 -1 reverse, 0 neutral, 1..4 */
-  u8 pad3F6[0x40C - 0x3F6];
-  const s16 *torquecurve;
-  u8 pad410[0x428 - 0x410];
-  f32 transratio;               /* +0x428 the gearbox's ratio */
-  f32 totalratio;               /* +0x42C the gearbox's and the differential's */
-} tModelData;
 
 /* Model m's gearbox ratio, its transmission's ratio for its gear (carTransGearRatio[trans][gear + 1], column 0
  * reverse) times the tune's trans_scale, and the total ratio to the wheels, that times the descriptor's dwratio. */

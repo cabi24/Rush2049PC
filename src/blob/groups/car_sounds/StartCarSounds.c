@@ -23,14 +23,11 @@ void InitBumps(s16 slot)
  * two sounds, the hum (which the N64 never starts) and the drones' random engine sound. */
 typedef struct EngineSounds {Definitions64 *specs;tSoundState state[2];tSoundState hum;tSoundState rev;} EngineSounds;
 
-/* The model record's fields this file reads (MAT3 tModelData). */
-typedef struct Vehicle2056 {_tCar *car; Tune44 *tune; u8 prefix[4];s8 engine_type;u8 gap13[915]; streetyp *lasttp[4]; u8 gap944[92]; const s16 *torquecurve; u8 gap1040[560];s8 crashflag;u8 gap1601[7]; surftyp *movingSurface; u8 gap1612[378];s16 slot;u8 gap1992[4];s8 drone_type;u8 tail[59];} Vehicle2056;
-
 /* Starts the sounds of the car of model vehicle, unless the game's sounds are off or the car has crashed: its
  * engine type's two layers (silent effects for a human's car, emitters for a drone), its other records empty, and
  * for the first four slots its road noises, scrape, bumps, horn and bog reset. Then marks its sounds on
  * (pc_car_sounds_on), which StopCarSounds clears. */
-void StartCarSounds(Vehicle2056 *vehicle)
+void StartCarSounds(tModelData *vehicle)
 {
  s32 slot=vehicle->slot;
  EngineSounds *engine;

@@ -3,23 +3,6 @@
 
 #define RADAR_RANGE 480.0f       /* the radar's reach across, feet */
 
-/* A model record (MAT3 tModelData) as this reads it. */
-typedef struct MODELDAT {
-    _tCar *car;
-    Tune44 *tune;
-    u8 pad8[920];
-    streetyp *lasttp[4];
-    u8 pad3B0[92];
-    const s16 *torquecurve;
-    u8 pad410[568];
-    surftyp *movingSurface;
-    u8 pad64C[378];
-    s16 index;              /* 1990 */
-    s16 in_game;            /* 1992 */
-    u8 pad7CA[2];
-    s8 drone_type;          /* 1996 */
-    u8 pad7CD[2056 - 1997];
-} MODELDAT;
 /* A car record as this reads it: its position and orientation. */
 typedef struct CAR_DATA {
     u8 pad0[8];
@@ -38,7 +21,7 @@ typedef struct CAR_DATA {
  * windows, in attract mode, with one car, or for a car out of the game. Returns 1 (or Hidden's answer). */
 s32 animRadarBlip(tBlit *blt) {
     s32 me;
-    MODELDAT *m;
+    tModelData *m;
     CAR_DATA *gc;
     CAR_DATA *mc;
     f32 scale;
@@ -61,7 +44,7 @@ s32 animRadarBlip(tBlit *blt) {
     if (Hidden(blt, !gShowRadar || PC_CAR_PLACE_LOCKED(me) == 1)) {
         return 1;
     }
-    m = PC_MODEL(slot);
+    m = &pc_models[slot];
     gc = PC_CAR(slot);
     if (!m->in_game) {
         blt->animFunc = 0;
@@ -91,7 +74,7 @@ s32 animRadarBlip(tBlit *blt) {
     blt->x += radarPos[gNumWindows - 1][me].x;
     blt->y += radarPos[gNumWindows - 1][me].y;
     if (m->drone_type == 2) {
-        SelectBlit(blt, m->index, blt->width * 0.125f, blt->height);
+        SelectBlit(blt, m->slot, blt->width * 0.125f, blt->height);
     } else if (m->drone_type == 1) {
         SelectBlit(blt, 5, blt->width * 0.125f, blt->height);
     }

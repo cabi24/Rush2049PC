@@ -31,19 +31,19 @@ void UpdateVisuals(s16 slot)
     if (car->appearance & APPEAR_WRECK_SMOKE)
         StartSmoke(slot, 4, 0, 0);
 
-    if (PC_MODEL_VISCODE(slot)[0] == SURF_VIS_WATER)
+    if (pc_models[slot].sviscode[0] == SURF_VIS_WATER)
         StartSmoke(slot, 0, 1, 0);
     else if (car->appearance & APPEAR_SMOKE_T0)
         StartSmoke(slot, 0, 0, 0);
-    if (PC_MODEL_VISCODE(slot)[1] == SURF_VIS_WATER)
+    if (pc_models[slot].sviscode[1] == SURF_VIS_WATER)
         StartSmoke(slot, 1, 1, 0);
     else if (car->appearance & APPEAR_SMOKE_T1)
         StartSmoke(slot, 1, 0, 0);
-    if (PC_MODEL_VISCODE(slot)[2] == SURF_VIS_WATER)
+    if (pc_models[slot].sviscode[2] == SURF_VIS_WATER)
         StartSmoke(slot, 2, 1, 0);
     else if (car->appearance & APPEAR_SMOKE_T2)
         StartSmoke(slot, 2, 0, 0);
-    if (PC_MODEL_VISCODE(slot)[3] == SURF_VIS_WATER)
+    if (pc_models[slot].sviscode[3] == SURF_VIS_WATER)
         StartSmoke(slot, 3, 1, 0);
     else if (car->appearance & APPEAR_SMOKE_T3)
         StartSmoke(slot, 3, 0, 0);

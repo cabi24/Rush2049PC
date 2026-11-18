@@ -31,24 +31,6 @@ typedef struct tCarData {
     s8 fadeState;           /* 930: battle.fadeState */
     u8 pad3A3[952 - 931];
 } tCarData;
-/* The model record (tModelData): the respawn's state, the slot, who drives. */
-typedef struct tModelData {
-    _tCar *car;
-    Tune44 *tune;
-    u8 pad8[920];
-    streetyp *lasttp[4];
-    u8 pad3B0[92];
-    const s16 *torquecurve;
-    u8 pad410[568];
-    surftyp *movingSurface;
-    u8 pad64C[120];
-    s16 resurrect_moving_state; /* 1732: RES_* */
-    u8 pad6C6[1990 - 1734];
-    s16 slot;               /* 1990 */
-    u8 pad7C8[1996 - 1992];
-    s8 drone_type;          /* 1996: 1 a drone, 2 a human (MAT3 DRONE_TYPE_AI, DRONE_TYPE_HUMAN) */
-    u8 pad7CD[2056 - 1997];
-} tModelData;
 /* A view's window (ZoidWinInfo[view], MAT3 tWindowInfo): its view angles. PC: the two pointers are host ones. */
 typedef struct tWindowInfo {
     void *vp; void *s; u8 pad8[0xC - 0x8];
@@ -85,10 +67,10 @@ void AnimateArrow(tVisual *v, s16 op) {
     u32 j;
 
     car = PC_CAR(v->slot);
-    m = PC_MODEL(v->slot);
+    m = &pc_models[v->slot];
     oslot = v->index;
     clr = arrow_base_color;
-    if (!gShowPlayerArrows || !(gGameState & GS_RACING) || (!(!car->crash_state && m->resurrect_moving_state < 0) && gRace == kBattle)) {
+    if (!gShowPlayerArrows || !(gGameState & GS_RACING) || (!(!car->crash_state && m->resurrect.moving_state < 0) && gRace == kBattle)) {
         ZOID_HidePoly(&PolyInstanceList[v->objnum]);
         return;
     }

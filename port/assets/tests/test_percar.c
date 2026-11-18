@@ -29,6 +29,7 @@
 
 #include "pc_prelude.h"
 #include "support.h"
+#include "game/modeldata.h"
 
 #define CARS 12                  /* the race's */
 #define SENTINEL 0xEE
@@ -38,7 +39,7 @@
 /* ---------------------------------------------------------------- the game's data the code under test uses */
 
 struct pc_car pc_cars[PC_CAR_SLOTS];
-struct pc_model pc_models[PC_MODEL_SLOTS];
+tModelData pc_models[PC_MODEL_SLOTS];
 struct pc_link pc_links[PC_LINK_SLOTS];
 struct pc_engine_sound pc_engine_sounds[PC_MAX_LINKS];   /* data.c defines these in the game */
 struct pc_sound_rec pc_screech_sounds[PC_MAX_LINKS];
@@ -205,22 +206,22 @@ static void test_sounds(void)
         }
     /* car 0 a human (mode 2), the other 11 drones; each car's model record: its slot, type, mode, engine */
     for (int k = 0; k < CARS; k++) {
-        PC_MODEL_SLOT(k) = (short)k;
+        pc_models[k].slot = (short)k;
         MF(k, 0xC, int8_t) = (int8_t)type_of(k);
-        PC_MODEL_CRASHFLAG(k) = 0;
-        PC_MODEL_DRONE_TYPE(k) = k == 0 ? 2 : 1;
-        PC_MODEL_RPM(k) = (short)(100 * (k + 1));   /* the rpm */
+        pc_models[k].crashflag = 0;
+        pc_models[k].drone_type = k == 0 ? 2 : 1;
+        pc_models[k].rpm = (short)(100 * (k + 1));   /* the rpm */
         MF(k, 0x404, float) = 700.0f;                 /* the load: (700 + 200) / 900, a factor of 1 */
         for (int w = 0; w < 4; w++)
-            PC_MODEL_VISCODE(k)[w] = 1, MF(k, 0x7F8 + 4 * w, float) = 0.0f;
+            pc_models[k].sviscode[w] = 1, MF(k, 0x7F8 + 4 * w, float) = 0.0f;
         MF(k, 0x65C, int16_t) = 0;
         MF(k, 0x75A, int16_t) = 0;                    /* the steering */
     }
-    PC_MODEL_VISCODE(0)[0] = 0, MF(0, 0x7F8, float) = 1.0f;   /* the human's tire 0 on the road, sliding: a screech */
+    pc_models[0].sviscode[0] = 0, MF(0, 0x7F8, float) = 1.0f;   /* the human's tire 0 on the road, sliding: a screech */
     memset(gPlayers, 0, sizeof gPlayers);
     g_nstart = 0;
     for (int k = 0; k < CARS; k++)
-        StartCarSounds(PC_MODEL(k));
+        StartCarSounds(&pc_models[k]);
     CHECK(g_nstart == 2 * CARS);
     for (int k = 0; k < CARS; k++) {
         struct pc_engine_sound *s = &pc_engine_sounds[k];
@@ -243,7 +244,7 @@ static void test_sounds(void)
     for (int frame = 0; frame < 2; frame++) {
         g_nclip = 0;
         for (int k = 0; k < CARS; k++)
-            UpdateCarSounds(PC_MODEL(k));
+            UpdateCarSounds(&pc_models[k]);
         int n = 0;
         for (int k = 1; k < CARS; k++) {
             int runs = (k & 1) == frame;
@@ -256,7 +257,7 @@ static void test_sounds(void)
             CHECK(n + 3 <= g_nclip && g_clip[n].handle == 98 * 100 + k && g_clip[n].pitch == 0.8f);
             for (int l = 0; l < 2 && n + 1 + l < g_nclip; l++) {
                 CHECK(g_clip[n + 1 + l].handle == pc_engine_sounds[k].rec[l].handle);
-                CHECK(g_clip[n + 1 + l].pos == PC_MODEL_RWR(k) && near(g_clip[n + 1 + l].pitch, 0.75f));
+                CHECK(g_clip[n + 1 + l].pos == pc_models[k].rwr && near(g_clip[n + 1 + l].pitch, 0.75f));
                 CHECK(near(g_clip[n + 1 + l].vol, vol) && near(pc_engine_sounds[k].rec[l].style, vol));
             }
             n += 3;
@@ -278,7 +279,7 @@ static void test_sounds(void)
         int32_t h0 = pc_engine_sounds[k].rec[0].handle, h1 = pc_engine_sounds[k].rec[1].handle;
         int32_t h3 = pc_engine_sounds[k].rec[3].handle;
         int at = g_nrelease;
-        StopCarSounds(PC_MODEL(k));
+        StopCarSounds(&pc_models[k]);
         CHECK(g_released[at] == h0 && g_released[at + 1] == h1);
         if (k == 0)   /* the human's record 3 never started: the screech next */
             CHECK(h3 == -1 && g_released[at + 2] == 7036);
@@ -324,11 +325,11 @@ static void test_checkpoints(void)
         PC_CAR_CRASH_STATE(k) = 0, PC_CAR_DEAD(k) = 0;    /* not crashed; racing */
         PC_CAR_PLACE_LOCKED(k) = 0, PC_CAR_PLACE(k) = 1;
         PC_CAR_DISTANCE(k) = 1000.0f + 37.0f * (float)((5 * k) % 12);
-        PC_MODEL_SLOT(k) = (short)k, PC_MODEL_MOVING_STATE(k) = -1, PC_MODEL_FLAGS(k) = 0xFF;
+        pc_models[k].slot = (short)k, pc_models[k].resurrect.moving_state = -1, pc_models[k].appearance = 0xFF;
         MF(k, 0x7E4, int16_t) = 0;                  /* the next checkpoint */
         MF(k, 0x7E9, int8_t) = -1;                  /* behind its plane */
         MF(k, 0x7DC, int8_t) = 1;                   /* laps count */
-        PC_MODEL_LAP(k) = 2;
+        pc_models[k].laps = 2;
         pc_cp_plane[k] = -(float)(k + 1);
     }
     gCheckpoints.points[0].pos[0] = 0.0f, gCheckpoints.points[0].pos[1] = 0.0f, gCheckpoints.points[0].pos[2] = 5.0f;
@@ -344,7 +345,7 @@ static void test_checkpoints(void)
         CHECK(PC_CAR_MILEAGE(k) == 10.0f && pc_cp_last_pos[k][0] == (float)k + 10.0f && pc_cp_last_pos[k][2] == 5.0f);
         CHECK(MF(k, 0x7E9, int8_t) == 1 && pc_cp_plane[k] == plane);
         CHECK(g_cross[k].slot == k && near(g_cross[k].time, 100.0f + (float)k - cent));
-        CHECK(PC_MODEL_LAP(k) == 3 && PC_MODEL_LAST_CP(k) == 0 && MF(k, 0x7E4, int16_t) == 1);
+        CHECK(pc_models[k].laps == 3 && pc_models[k].last_cp_index == 0 && MF(k, 0x7E4, int16_t) == 1);
         CHECK(PC_CAR_PLACE(k) == rank_of(k));
         if (is_human(k))
             CHECK(pc_finish_cam[k] == 1 && pc_finish_cam_time[k] == 50.0f);
@@ -383,7 +384,7 @@ static void test_cameras(void)
     for (int k = 0; k < 4; k++)
         MF(9, 0x5EC + 4 * k, float) = 10.0f;         /* no tire compressed: no suspension average */
     for (int j = 0; j < PC_MAX_LINKS; j++) {
-        PC_MODEL_ACTIVE(j) = 1, PC_MODEL_HIDE_CAR(j) = 0, PC_MODEL_DRONE_TYPE(j) = is_human(j) ? 2 : 1;
+        pc_models[j].in_game = 1, pc_models[j].hide_car = 0, pc_models[j].drone_type = is_human(j) ? 2 : 1;
         PC_CAR_NODE(j) = j;
         PC_CAR_POS(j)[0] = 10.0f + (float)j, PC_CAR_POS(j)[1] = 0.0f, PC_CAR_POS(j)[2] = 5.0f;
         for (int e = 0; e < 9; e++)

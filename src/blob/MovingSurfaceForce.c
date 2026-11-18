@@ -4,35 +4,6 @@
  * mark it as moving: a boost strip pushes the car up to a speed, a platform or conveyor carries it. */
 #include "game/game.h"
 
-/* The model record (tModelData), the fields MovingSurfaceForce reads and writes. */
-typedef struct tModelData {
-    _tCar *car;
-    Tune44 *tune;
-    u8 pad8[0x5C];
-    f32 tireForce[4][3];    /* +0x064 the force on each tire, in the car's frame */
-    u8 pad94[0x124 - 0x94];
-    f32 centerForce[3];     /* +0x124 the force at the centre of mass, in the car's frame */
-    u8 pad130[0x220 - 0x130];
-    f32 rwv[3];             /* +0x220 the velocity, world frame, feet a second */
-    f32 rwr[3];             /* +0x22C the position, world frame, feet */
-    u8 pad238[0x2EC - 0x238];
-    f32 uvs[9];             /* +0x2EC the orientation (rows: the car's axes) */
-    u8 pad310[0x3A0 - 0x310];
-    streetyp *lasttp[4];
-    u8 pad3B0[0x40C - 0x3B0];
-    const s16 *torquecurve;
-    u8 pad410[0x5A0 - 0x410];
-    u16 tiresli[4];         /* +0x5A0 each tire's road surface (an index into stree_surf) */
-    u8 pad5A8[0x5C0 - 0x5A8];
-    f32 mass;               /* +0x5C0 */
-    u8 pad5C4[0x5EC - 0x5C4];
-    f32 airdist[4];         /* +0x5EC each tire's height above the road (0 or less: touching) */
-    u8 pad5FC[0x634 - 0x5FC];
-    f32 dt;                 /* +0x634 the step, seconds */
-    u8 pad638[0x648 - 0x638];
-    surftyp *movingSurface; /* +0x648 the moving surface under the car */
-} tModelData;
-
 /* Apply model m's moving surface (m->movingSurface) for this step:
  * - a push strip (snd_flags 0x10) faster than 50 mph: a force at the centre along the strip's direction, mass times
  *   the speed the car lacks along it, so the car is driven up to the strip's speed;

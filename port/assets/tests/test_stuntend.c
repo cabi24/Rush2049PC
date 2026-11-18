@@ -9,6 +9,7 @@
 
 #include "pc_game_types.h"
 #include "support.h"
+#include "game/modeldata.h"
 
 int32_t gStuntsDone __attribute__((aligned(8)));   /* gStuntsDone */
 
@@ -16,7 +17,7 @@ int8_t gDeathMode;              /* deaths mode */
 int16_t gNumPlayers = 1;
 int32_t gAPlayerReallyFinished;
 float gDeathWaitEnd, gFrameSeconds = 1.0f / 30;
-struct pc_model pc_models[PC_MODEL_SLOTS];    /* the model records (pc_game_types.h) */
+tModelData pc_models[PC_MODEL_SLOTS];    /* the model records (game/modeldata.h) */
 #define model ((uint8_t *)pc_models)
 int16_t gNumLaps;
 int32_t gRace;

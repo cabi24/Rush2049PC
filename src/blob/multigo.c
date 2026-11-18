@@ -3,5 +3,5 @@
 
 /* Set car `slot`'s fastin.modelrun, so that the model thread steps it again (after its set-up or a respawn). */
 void multigo(s16 slot) {
-    PC_MODEL_MODELRUN(slot) = 1;
+    pc_models[slot].fastin.modelrun = 1;
 }

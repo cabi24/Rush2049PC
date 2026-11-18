@@ -12,6 +12,7 @@
 
 #include "pc_prelude.h"
 #include "support.h"
+#include "game/modeldata.h"
 
 float carTransGearRatio[6 * 13];        /* per-car inertia factors: [car][gear + 1], 6 a row */
 float carEngineTorque[13][3];         /* per-car torque scale: [car][mode] */
@@ -26,7 +27,7 @@ static void SETF(uint8_t *p, unsigned off, float f) { memcpy(p + off, &f, 4); }
 /* The physics descriptor (MAT3 _tCar, 0xB4 bytes on the N64) in its host layout: its four tire pointers at +0x60 are
  * 8 bytes each, so the words after them lie 0x10 further on (0xC8 bytes). */
 static union { uint8_t b[0xC8]; void *align; } g_car;
-static union { uint8_t b[sizeof(struct pc_model)]; struct pc_model m; } g_model;
+static union { uint8_t b[sizeof(tModelData)]; tModelData m; } g_model;
 
 int main(void)
 {

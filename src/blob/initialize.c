@@ -3,25 +3,6 @@
  * syminit calls it when a car starts or respawns. */
 #include "game/game.h"
 
-/* The model record (tModelData), the fields initialize sets itself. */
-typedef struct tModelData {
-    _tCar *car; Tune44 *tune;   /* +0x000 the physics descriptor and its tune */
-    u8 pad8[0x8]; f32 vectors[6][3];   /* +0x010 f, m, a, aa, v, w: the forces, accelerations and velocities */
-    u8 pad58[0x2EC - 0x58]; f32 uvs[9]; /* +0x2EC the orientation */
-    u8 pad310[0x3A0 - 0x310]; streetyp *lasttp[4];   /* +0x3A0 each tire's last road node */
-    u8 pad3B0[0x3B4 - 0x3B0]; f32 torque[4];   /* +0x3B4 each wheel's drive torque */
-    u8 pad3C4[0x3D8 - 0x3C4]; f32 brakeroll;   /* +0x3D8 */
-    u8 pad3DC[0x3EC - 0x3DC]; f32 pitchangle;  /* +0x3EC */
-    u8 pad3F0[0x408 - 0x3F0]; f32 engangvel;   /* +0x408 the engine's speed */
-    const s16 *torquecurve;     /* +0x40C the torque curve */
-    u8 pad410[0x634 - 0x410]; f32 dt;          /* +0x634 the model step, seconds */
-    u8 pad638[0x640 - 0x638]; u8 crashflag, topscrape, thumpflag;   /* +0x640 */
-    u8 pad643[0x648 - 0x643]; surftyp *movingSurface;   /* +0x648 the moving surface under the car */
-    f32 thumpthreshold, bodyForces;            /* +0x64C the body force a thump takes; +0x650 */
-    u8 pad654[0x658 - 0x654]; f32 shifttime; s16 bogState;          /* +0x658, +0x65C */
-    u8 pad65E[0x7C6 - 0x65E]; s16 slot;        /* +0x7C6 */
-} tModelData;
-
 /* Reset model m: no pitch, no drive torque on the front wheels and 50 on the rear, the model step (model_step_dt,
  * MAT3 0.0025 s: 400 steps a second), brakeroll 3, no shift pending, the thump threshold (initial_thump_threshold,
  * MAT3 7500), every force, acceleration and velocity 0, the engine stopped, the orientation the identity (with the
@@ -37,17 +18,17 @@ void initialize(tModelData *m) {
     m->brakeroll=3.0f; m->shifttime=0.0f;
     m->thumpthreshold=initial_thump_threshold;
     m->thumpflag=0;
-    m->vectors[0][2]=m->vectors[0][1]=m->vectors[0][0]=0.0f;
-    m->vectors[1][2]=m->vectors[1][1]=m->vectors[1][0]=0.0f;
-    m->vectors[2][2]=m->vectors[2][1]=m->vectors[2][0]=0.0f;
-    m->vectors[3][2]=m->vectors[3][1]=m->vectors[3][0]=0.0f;
-    m->vectors[5][2]=m->vectors[5][1]=m->vectors[5][0]=0.0f;
-    m->vectors[4][2]=m->vectors[4][1]=m->vectors[4][0]=0.0f;
+    m->f[2]=m->f[1]=m->f[0]=0.0f;
+    m->m[2]=m->m[1]=m->m[0]=0.0f;
+    m->a[2]=m->a[1]=m->a[0]=0.0f;
+    m->aa[2]=m->aa[1]=m->aa[0]=0.0f;
+    m->w[2]=m->w[1]=m->w[0]=0.0f;
+    m->v[2]=m->v[1]=m->v[0]=0.0f;
     m->engangvel=0.0f;
     CopyUV(unitmatrix,m->uvs);
     if(gSuperSpeed) {
         f32 diagonal=super_speed_unit_diagonal;
-        m->uvs[0]=diagonal; m->uvs[4]=diagonal; m->uvs[8]=diagonal;
+        m->uvs[0][0]=diagonal; m->uvs[1][1]=diagonal; m->uvs[2][2]=diagonal;
     }
     carsetup(m);
     init_road(m);

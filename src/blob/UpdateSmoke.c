@@ -43,7 +43,6 @@ typedef struct tCarData {
 } tCarData;
 
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 /* On the PC the tire-effect latches are pc_tire_fx, PC_MAX_LINKS long, with no N64 address (pc_game_types.h,
  * docs/port/DECOUPLE.md 6). */
 #define gCarSmokeDir pc_tire_fx
@@ -111,7 +110,7 @@ void UpdateSmoke(void)
             } else {
                 MBOX_ShowObject(puff->mbIdx.handle, 0, 1 << gc->camera);
             }
-            if (PC_MODEL_VISCODE(slot)[type] != SURF_VIS_WATER || mph2 < 10) {
+            if (pc_models[slot].sviscode[type] != SURF_VIS_WATER || mph2 < 10) {
                 switch (type) {
                 case 0:
                     gCarSmokeDir[slot] &= ~SMOKE_WATER_T0;
@@ -162,7 +161,7 @@ void UpdateSmoke(void)
             }
         } else if (type == SMOKE_FIRE) {
             do {
-                if (!PC_MODEL_CRASHFLAG(slot)) {
+                if (!pc_models[slot].crashflag) {
                     goto release;
                 }
                 if (puff->tIdx == -1) {
@@ -194,9 +193,9 @@ void UpdateSmoke(void)
                 pos[0] = pos[0] + gc->dr_uvs[2][0] * puff->vel[2];
                 pos[1] = pos[1] + gc->dr_uvs[2][1] * puff->vel[2];
                 pos[2] = pos[2] + gc->dr_uvs[2][2] * puff->vel[2];
-                pos[0] = pos[0] + gc->dr_uvs[1][0] * gCarMiddles[PC_MODEL_BODY(slot)];
-                pos[1] = pos[1] + gc->dr_uvs[1][1] * gCarMiddles[PC_MODEL_BODY(slot)];
-                pos[2] = pos[2] + gc->dr_uvs[1][2] * gCarMiddles[PC_MODEL_BODY(slot)];
+                pos[0] = pos[0] + gc->dr_uvs[1][0] * gCarMiddles[pc_models[slot].body_type];
+                pos[1] = pos[1] + gc->dr_uvs[1][1] * gCarMiddles[pc_models[slot].body_type];
+                pos[2] = pos[2] + gc->dr_uvs[1][2] * gCarMiddles[pc_models[slot].body_type];
                 puff->pos[0] = pos[0];
                 puff->pos[1] = pos[1];
                 puff->pos[2] = pos[2];

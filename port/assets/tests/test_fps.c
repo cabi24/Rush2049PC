@@ -13,6 +13,7 @@
 #include "pc_game_fps.h"
 #include "pc_game_types.h"
 #include "support.h"
+#include "game/modeldata.h"
 
 void pc_game_fps_set(int fps);
 
@@ -21,7 +22,7 @@ typedef struct { unsigned char other[96]; float matrix[3][3]; float position[3];
 Slot152 gCamera[4];
 float elasticity[4], elastic_factor[4];
 volatile int32_t gLastFrameCount;
-struct pc_model pc_models[PC_MODEL_SLOTS];
+tModelData pc_models[PC_MODEL_SLOTS];
 typedef struct { unsigned char other[0x110]; struct pc_visual visuals[21]; unsigned char other_308[0x35B - 0x308];
                  signed char car, slot; } Object;
 
@@ -55,7 +56,7 @@ int main(void)
     static const float elastic[] = {1.0f, 0.5f, 0.85f};
     car.car = 0;
     car.slot = 1;
-    pc_models[0].moving_state = -1;   /* not resurrecting: the camera follows */
+    pc_models[0].resurrect.moving_state = -1;   /* not resurrecting: the camera follows */
 
     for (size_t k = 0; k < sizeof elastic / sizeof *elastic; k++) {
         elastic_factor[1] = elastic[k];
@@ -118,7 +119,7 @@ int main(void)
         pc_game_fps_begin();
     }
     /* resurrecting: the camera holds its place, at either rate */
-    pc_models[0].moving_state = 0;
+    pc_models[0].resurrect.moving_state = 0;
     pc_game_fps_set(60);
     pc_game_fps_begin();
     {

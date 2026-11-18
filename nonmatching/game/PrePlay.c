@@ -49,12 +49,12 @@ s32 PrePlay(s32 useHud, s32 cancel)
                 PC_CAR_DEAD(slot) = 0;
                 PC_CAR_PLACE_LOCKED(slot) = 0;
                 PC_CAR_INPUT(slot) = 0;
-                PC_MODEL_DRONE_TYPE(slot) = 1;
-                PC_MODEL_WE_CONTROL(slot) = 1;
-                PC_MODEL_AUTOTRANS(slot) = 1;
-                PC_MODEL_FLAGS(slot) = 0;
+                pc_models[slot].drone_type = 1;
+                pc_models[slot].we_control = 1;
+                pc_models[slot].autotrans = 1;
+                pc_models[slot].appearance = 0;
                 PC_CAR_FLAGS(slot) = 0;
-                SetupCar(slot, PC_MODEL_BODY(slot), 1);
+                SetupCar(slot, pc_models[slot].body_type, 1);
                 PC_DRONE(num_drones++) = i;
                 PC_OUR_DRONE(num_our_drones++) = i;
             }
@@ -62,8 +62,8 @@ s32 PrePlay(s32 useHud, s32 cancel)
                 PC_CAR_DEAD(i) = 0;
                 PC_CAR_PLACE_LOCKED(i) = 0;
                 PC_CAR_FLAGS(i) = 0;
-                PC_MODEL_FLAGS(i) = 0;
-                SetupCar(i, PC_MODEL_BODY(i), 1);
+                pc_models[i].appearance = 0;
+                SetupCar(i, pc_models[i].body_type, 1);
                 PC_DRONE(num_drones++) = i;
                 PC_OUR_DRONE(num_our_drones++) = i;
             }
@@ -76,7 +76,7 @@ s32 PrePlay(s32 useHud, s32 cancel)
             gCoastFlag = 0;
             gRetireGame = 0;
             gGravity = 32.2f;
-            for (i = 0; i < gNumActiveCars; i++) Init_MDrive(0, PC_MODEL_SLOT(i));
+            for (i = 0; i < gNumActiveCars; i++) Init_MDrive(0, pc_models[i].slot);
             ShowHUD();
             inited = 0;
             return 1;
@@ -117,7 +117,7 @@ s32 PrePlay(s32 useHud, s32 cancel)
     gCoastFlag = 0; gRetireGame = 0; gOutOfTime = 0;
     gGravity = 32.2f * gravityArray[gGravityScale];
     for (i = 0; i < gNumActiveCars; i++) {
-        slot = PC_MODEL_SLOT(i);
+        slot = pc_models[i].slot;
         if (PC_LINK_OWNER(slot) == 0 || PC_LINK_OWNER(slot) == 6) Init_MDrive(0, slot);
     }
     StartEnvironment();

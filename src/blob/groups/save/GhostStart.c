@@ -138,8 +138,8 @@ void GhostStart(void) {
         PC_LINK_PLACE(np) = np;
         PC_LINK_FLAGS(np) = 176;
         PC_LINK_OWNER(np) = 6;
-        PC_MODEL_DRONE_TYPE(np) = 2;
-        PC_MODEL_DT(np) = g->frameTime;
+        pc_models[np].drone_type = 2;
+        pc_models[np].fastin.dt = g->frameTime;
         np++;
         gNumCars = np;
     }

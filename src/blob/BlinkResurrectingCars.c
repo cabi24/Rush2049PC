@@ -21,18 +21,6 @@ typedef struct tCarData
   s8 dead;                                      /* +0x359 CAR_ABORTED, CAR_ALIVE, CAR_DYING, CAR_DEAD */
 } tCarData;
 
-/* The model record (tModelData), the fields BlinkResurrectingCars uses. */
-typedef struct tModelData
-{
-  _tCar *car; Tune44 *tune;                     /* +0x000 the physics descriptor and its tune */
-  u8 pad008[0x3A0 - 0x008]; streetyp *lasttp[4]; /* +0x3A0 each tire's last road node */
-  u8 pad3B0[0x40C - 0x3B0]; const s16 *torquecurve;   /* +0x40C the torque curve */
-  u8 pad410[0x648 - 0x410]; surftyp *movingSurface;   /* +0x648 the moving surface under the car */
-  u8 pad64C[0x714 - 0x64C]; f32 modelTime;      /* +0x714 fastin.modelTime: the model thread's race clock, seconds */
-  u8 pad718[0x7C8 - 0x718]; s16 in_game;        /* +0x7C8 in the race */
-  u8 pad7CA[0x7D4 - 0x7CA]; s32 appearance;     /* +0x7D4 APPEAR_* bits */
-} tModelData;
-
 /* Once a frame, for each car in the race: while it is not solid, count its blink phase down (a frame of the game's
  * 30 a second: at 60 frames a second only every other one, PC_EACH30); when the count runs out the phase flips. A
  * shown phase lasts one frame and clears APPEAR_INVISIBLE; a hidden one lasts 2 frames in the first two seconds
@@ -47,7 +35,7 @@ void BlinkResurrectingCars(void)
   tModelData *m;
   for (i = 0; i < PC_RACE_CARS; i++)
   {
-    m = PC_MODEL(i);
+    m = &pc_models[i];
     if (m->in_game != 0)
     {
       car = PC_CAR(i);
@@ -56,7 +44,7 @@ void BlinkResurrectingCars(void)
         if (car->solid == 0)
         {
           PC_EACH30(car->collide_count = car->collide_count - 1;)
-          delta_time = m->modelTime - car->collide_time;
+          delta_time = m->fastin.modelTime - car->collide_time;
           if (car->collide_count < 0)
           {
             car->collide_state = car->collide_state + 1;

@@ -17,60 +17,6 @@ typedef struct tTune {
 /* A tire's state in the model record (MAT3 anon_tradius_springK_5c), the fields used here. */
 typedef struct tTireState { u8 pad0[0x50]; f32 sideforce; f32 traction; u8 pad58[4]; } tTireState; /* 0x5C */
 
-/* The model record (tModelData, docs/port/CARS.md 4), the fields used here. */
-typedef struct tModelData {
-    /* 0x000 */ _tCar *car;                 /* its physics descriptor */
-    /* 0x004 */ tTune *tune;                /* its tune record */
-    /* 0x008 */ u8 body_type;              /* the car, 0-12 */
-    /* 0x009 */ u8 pad009[0x40 - 0x9];
-    /* 0x040 */ f32 v[3];                  /* the velocity, car frame, feet a second */
-    /* 0x04C */ u8 pad04C[0x64 - 0x4C];
-    /* 0x064 */ f32 tireForce[4][3];       /* the force at each tire, car frame */
-    /* 0x094 */ u8 pad094[0xC4 - 0x94];
-    /* 0x0C4 */ f32 bodyForce[4][3];       /* the force at each body corner (scraping) */
-    /* 0x0F4 */ u8 pad0F4[0x2E0 - 0xF4];
-    /* 0x2E0 */ f32 stuntW[3];             /* the spin since the last frame, for the stunt code */
-    /* 0x2EC */ u8 pad2EC[0x3A0 - 0x2EC];
-    /* 0x3A0 */ streetyp *lasttp[4];
-    /* 0x3B0 */ u8 pad3B0[0x3D4 - 0x3B0];
-    /* 0x3D4 */ f32 brake;                 /* 0..1 */
-    /* 0x3D8 */ u8 pad3D8[0x3F0 - 0x3D8];
-    /* 0x3F0 */ f32 magvel;                /* the speed, feet a second */
-    /* 0x3F4 */ u8 pad3F4[0x40C - 0x3F4];
-    /* 0x40C */ const s16 *torquecurve;
-    /* 0x410 */ u8 pad410[0x430 - 0x410];
-    /* 0x430 */ tTireState tires[4];
-    /* 0x5A0 */ u8 pad5A0[0x61C - 0x5A0];
-    /* 0x61C */ u16 sviscode[4];           /* each tire's surface, SURF_VIS_* */
-    /* 0x624 */ u8 pad624[0x62C - 0x624];
-    /* 0x62C */ u16 sound_flags[4];        /* each tire's road sound flags (0x100: in a tunnel) */
-    /* 0x634 */ u8 pad634[0x642 - 0x634];
-    /* 0x642 */ s8 thumpflag;              /* frames of an underbody hit */
-    /* 0x643 */ u8 pad643[0x648 - 0x643];
-    /* 0x648 */ surftyp *movingSurface;
-    /* 0x64C */ u8 pad64C[0x710 - 0x64C];
-    /* 0x710 */ s32 modelIteration;        /* fastin: the model step's count and time */
-    /* 0x714 */ f32 modelTime;
-    /* 0x718 */ u8 pad718[0x758 - 0x718];
-    /* 0x758 */ s16 reckon_rwmph;          /* reckon (the dead-reckoned state): the speed shown, mph x 4 */
-    /* 0x75A */ u8 pad75A[0x77C - 0x75A];
-    /* 0x77C */ f32 reckon_rwa[3];         /* reckon: acceleration, velocity, position and orientation */
-    /* 0x788 */ f32 reckon_rwv[3];
-    /* 0x794 */ f32 reckon_rwr[3];
-    /* 0x7A0 */ f32 reckon_uvs[3][3];
-    /* 0x7C4 */ u8 pad7C4[4];
-    /* 0x7C8 */ s16 in_game;
-    /* 0x7CA */ u8 pad7CA[0x7D4 - 0x7CA];
-    /* 0x7D4 */ u32 appearance;            /* APPEAR_* bits */
-    /* 0x7D8 */ u8 pad7D8[0x7DD - 0x7D8];
-    /* 0x7DD */ s8 data_valid;
-    /* 0x7DE */ u8 pad7DE[0x7EA - 0x7DE];
-    /* 0x7EA */ s8 collidable;
-    /* 0x7EB */ s8 solid;
-    /* 0x7EC */ u8 pad7EC[0x7F8 - 0x7EC];
-    /* 0x7F8 */ f32 skidIntensity[4];      /* each skid direction's intensity, 0..1 (also the skid sounds') */
-} tModelData; /* 0x808 */
-
 /* The car record (tCarData, N64 layout: docs/port/CARS.md 2), the fields set here. */
 typedef struct tCarData {
     /* 0x000 */ s32 modelIteration;
@@ -144,7 +90,7 @@ void UpdateTireAppearance(s16 droneIndex)
     s32 side;
     s32 forceLow;
     s32 force;
-    tModelData *m = PC_MODEL(droneIndex);
+    tModelData *m = &pc_models[droneIndex];
     tSkidData *skidData;
     s32 airborne = m->sviscode[1] == SURF_VIS_AIRBORNE || m->sviscode[2] == SURF_VIS_AIRBORNE;
     s32 wet = m->sviscode[1] == SURF_VIS_WATER || m->sviscode[2] == SURF_VIS_WATER;
@@ -253,22 +199,22 @@ void update_game_data(void)
     osStopThread(&model_thread);
     game_reckon_all(gModelTime);
     for (i = 0; i < PC_RACE_CARS; i++) {
-        m = PC_MODEL(i);
+        m = &pc_models[i];
         gc = PC_CAR(i);
         if (m->in_game && gc->dead < CAR_DEAD) {
-            gc->modelIteration = m->modelIteration;
-            gc->modelTime = m->modelTime;
-            gc->dr_pos[0] = m->reckon_rwr[0];
-            gc->dr_pos[1] = m->reckon_rwr[1];
-            gc->dr_pos[2] = m->reckon_rwr[2];
+            gc->modelIteration = m->fastin.modelIteration;
+            gc->modelTime = m->fastin.modelTime;
+            gc->dr_pos[0] = m->reckon.rwr[0];
+            gc->dr_pos[1] = m->reckon.rwr[1];
+            gc->dr_pos[2] = m->reckon.rwr[2];
             gc->stuntW[0] = m->stuntW[0];
             gc->stuntW[1] = m->stuntW[1];
             gc->stuntW[2] = m->stuntW[2];
             m->stuntW[0] = 0.0f;
             m->stuntW[1] = 0.0f;
             m->stuntW[2] = 0.0f;
-            CopyUV(m->reckon_uvs, gc->dr_uvs);
-            CopyUV(m->reckon_uvs, gc->dr_car_uvs);
+            CopyUV(m->reckon.uvs, gc->dr_uvs);
+            CopyUV(m->reckon.uvs, gc->dr_car_uvs);
             susp = carSuspensions[gCarSuspensions[m->body_type]];
             force[0] = m->tireForce[0][0] + m->tireForce[1][0];
             force[1] = m->tireForce[0][1] + m->tireForce[1][1];
@@ -310,12 +256,12 @@ void update_game_data(void)
                 gc->dr_tirepos[j][1] = gc->dr_tirepos[j][1] + gc->dr_pos[1];
                 gc->dr_tirepos[j][2] = gc->dr_tirepos[j][2] + gc->dr_pos[2];
             }
-            gc->dr_vel[0] = m->reckon_rwv[0];
-            gc->dr_vel[1] = m->reckon_rwv[1];
-            gc->dr_vel[2] = m->reckon_rwv[2];
-            gc->dr_acc[0] = m->reckon_rwa[0];
-            gc->dr_acc[1] = m->reckon_rwa[1];
-            gc->dr_acc[2] = m->reckon_rwa[2];
+            gc->dr_vel[0] = m->reckon.rwv[0];
+            gc->dr_vel[1] = m->reckon.rwv[1];
+            gc->dr_vel[2] = m->reckon.rwv[2];
+            gc->dr_acc[0] = m->reckon.rwa[0];
+            gc->dr_acc[1] = m->reckon.rwa[1];
+            gc->dr_acc[2] = m->reckon.rwa[2];
             if (PC_LINK_OWNER(i) == 0 || PC_LINK_OWNER(i) == 6) {   /* LINK_OWNER_DRONE, LINK_OWNER_HUMAN */
                 high_index = 0;
                 for (k = 0; k < 4; k++) {
@@ -352,14 +298,14 @@ void update_game_data(void)
                 gc->v[0] = m->v[0];
                 gc->v[1] = m->v[1];
                 gc->v[2] = m->v[2];
-                gc->rwmph = m->reckon_rwmph;
+                gc->rwmph = m->reckon.rwmph;
             }
             gc->appearance = m->appearance;
             m->appearance &= ~APPEAR_BODY_HIT;
             gc->collidable = m->collidable;
             gc->solid = m->solid;
             if (!gc->solid && gc->collide_time == 0) {
-                gc->collide_time = m->modelTime;
+                gc->collide_time = m->fastin.modelTime;
                 gc->collide_state = -1;
                 gc->collide_count = -1;
             }

@@ -55,7 +55,7 @@ void UpdateGame(void)
         CarSetup();
         Update_MDrive();
         TextureAnimation();
-        CheckTargetCollision(PC_MODEL_SLOT(0));
+        CheckTargetCollision(pc_models[0].slot);
         if (startCountdown) {
             SetCountdownTimer(3.5);
             init_model_task(3.5f * gRetraceRate);
@@ -154,7 +154,7 @@ void UpdateGame(void)
         } else if (gRace == kOneRace || gRace == kPractice || gRace == kCircuit) {
             for (i = 0; i < gNumPlayers; i++) if (!PC_CAR_PLACE_LOCKED(gPlayers[i].slot)) goto done;
             gAPlayerReallyFinished = 0;
-            for (i = 0; i < gNumPlayers; i++) if (gNumLaps == PC_MODEL_LAP(i)) gAPlayerReallyFinished = 1;
+            for (i = 0; i < gNumPlayers; i++) if (gNumLaps == pc_models[i].laps) gAPlayerReallyFinished = 1;
             if (!gCoastFlag) {
                 if (gDeathMode) gDeathWaitEnd = 0.0f;
                 gCoastFlag = 1;
@@ -169,7 +169,7 @@ void UpdateGame(void)
                     AudSetMusicVol(0.0f, 3.0f);
                 }
                 for (i = 0; i < gNumPlayers; i++) {
-                    if (gNumLaps != PC_MODEL_LAP(gPlayers[i].slot)) {
+                    if (gNumLaps != pc_models[gPlayers[i].slot].laps) {
                         if (gRace != kGhost || !gGhosts[gPlayers[i].slot] || (*gGhosts[gPlayers[i].slot])->header[0]->flag < 0)
                             PlayGameSound(22, 0, 1, 0);
                         gOutOfTime = 1;
@@ -194,7 +194,7 @@ void EndGame(void)
 {
     s16 i;
     for (i = 0; i < gNumActiveCars; i++) {
-        End_MDrive(PC_MODEL_SLOT(i));
+        End_MDrive(pc_models[i].slot);
         PC_CAR_FLAGS(i) &= ~8;
         UpdateVisuals(PC_CAR_SLOT(i));
     }

@@ -30,77 +30,6 @@ typedef struct tCarData {
     u8 pad38A[0x3B8 - 0x38A];
 } tCarData;
 
-/* The model record (tModelData, docs/port/CARS.md 4), the fields used here. (Its tag is ModelRecord because
- * include/game/system.h declares update_model with that name.) */
-typedef struct ModelRecord {
-    _tCar *car;                 /* 0x000 the physics descriptor */
-    Tune44 *tune;               /* 0x004 its tune */
-    u8 pad8[0x10 - 0x8];
-    f32 f[3];                   /* 0x010 the force on the body this step */
-    u8 pad01C[0x220 - 0x1C];
-    f32 rwv[3];                 /* 0x220 the velocity in the world, feet a second */
-    f32 rwr[3];                 /* 0x22C the position in the world, feet */
-    u8 pad238[0x3A0 - 0x238];
-    streetyp *lasttp[4];        /* 0x3A0 each tire's last node of the road's surface tree */
-    u8 pad3B0[0x3F0 - 0x3B0];
-    f32 magvel;                 /* 0x3F0 the speed */
-    u8 pad3F4[0x400 - 0x3F4];
-    f32 catchup;                /* 0x400 the catch-up's time scale (SetCatchup) */
-    u8 pad404[0x40C - 0x404];
-    const s16 *torquecurve;     /* 0x40C the torque curve */
-    u8 pad410[0x488 - 0x410];
-    s8 tire0_slipflag;          /* 0x488 tires[0].slipflag */
-    u8 pad489[0x5B];
-    s8 tire1_slipflag;          /* 0x4E4 tires[1].slipflag */
-    u8 pad4E5[0x624 - 0x4E5];
-    s16 roadboost0;             /* 0x624 roadboost[0]: the boost pad under tire 0 */
-    u8 pad626[0x634 - 0x626];
-    f32 dt;                     /* 0x634 */
-    f32 idt;                    /* 0x638 */
-    u8 pad63C[0x4];
-    s8 crashflag;               /* 0x640 */
-    u8 pad641[0x648 - 0x641];
-    surftyp *movingSurface;     /* 0x648 the moving surface under the car */
-    u8 pad64C[0x6C4 - 0x64C];
-    s16 resurrect_moving_state; /* 0x6C4 resurrect.moving_state: RES_IDLE, or the respawn's flight */
-    u8 pad6C6[0x6];
-    s8 resurrect_autoAbort;     /* 0x6CC resurrect.autoAbort */
-    u8 pad6CD[0x43];
-    s32 modelIteration;         /* 0x710 fastin: the car's step count, */
-    f32 modelTime;              /* 0x714 its clock, seconds, */
-    f32 fastin_dt;              /* 0x718 its step, seconds, */
-    s16 modelrun;               /* 0x71C and whether the simulation runs it */
-    u8 pad71E[0x2];
-    f32 wheel;                  /* 0x720 mainin: the controls: steering, */
-    u8 pad724[0x4];
-    f32 brake;                  /* 0x728 brake, */
-    f32 throttle;               /* 0x72C throttle, */
-    u8 pad730[0x2];
-    s8 abort;                   /* 0x732 and the abort button */
-    u8 pad733[0x55];
-    f32 reckon_rwv[3];          /* 0x788 reckon.rwv: the velocity the others see */
-    f32 reckon_rwr[3];          /* 0x794 reckon.rwr: the position */
-    u8 pad7A0[0x26];
-    s16 slot;                   /* 0x7C6 */
-    u8 pad7C8[0x2];
-    s16 we_control;             /* 0x7CA this machine simulates it */
-    s8 drone_type;              /* 0x7CC */
-    u8 pad7CD[0x7D4 - 0x7CD];
-    s32 appearance;             /* 0x7D4 APPEAR_* bits */
-    u8 pad7D8[0x7DE - 0x7D8];
-    s8 can_we_cheat;            /* 0x7DE */
-    u8 pad7DF[0x1];
-    s16 please_abort_me;        /* 0x7E0 */
-    s16 last_cp_index;          /* 0x7E2 */
-    u8 pad7E4[0x7EA - 0x7E4];
-    s8 collidable;              /* 0x7EA */
-    s8 solid;                   /* 0x7EB */
-    f32 drone_scale;            /* 0x7EC */
-    f32 time_boost;             /* 0x7F0 */
-    f32 time_fudge;             /* 0x7F4 the car's time scale: its step is stretched by it */
-    u8 pad7F8[0x808 - 0x7F8];
-} tModelData;
-
 /* The rumble's strength steps (MAT3 percentTable[36]): the force sums at which the next step starts. */
 #define RUMBLE_STEPS percentTable
 
@@ -187,11 +116,11 @@ void UpdateModel(s32 slot) {
 
     car = PC_CAR(slot);
     player = car->player;
-    if (((s8) car->dead == CAR_DYING) && ((dying = PC_MODEL(slot), (dying->magvel < 5.0f)) || (dying->modelrun == 0))) {
+    if (((s8) car->dead == CAR_DYING) && ((dying = &pc_models[slot], (dying->magvel < 5.0f)) || (dying->fastin.modelrun == 0))) {
         *(s8 *)&car->dead = CAR_DEAD;
         car->crash_state = CRASH_NONE;
         dying->crashflag = 0;
-        dying->modelrun = 0;
+        dying->fastin.modelrun = 0;
         dying->magvel = 0.0f;
         if (player != NULL) {
             /* a human is out: back to the one-human schedules */
@@ -213,7 +142,7 @@ void UpdateModel(s32 slot) {
         new_sched_to_use -= 1;
         return;
     }
-    m = PC_MODEL(slot);
+    m = &pc_models[slot];
     CheckCrash(slot);
     FinishResurrecting(m);
     if (((s8) car->crash_state == CRASH_RESPAWN) && ((s8) car->dead <= CAR_ALIVE)) {
@@ -222,10 +151,10 @@ void UpdateModel(s32 slot) {
     } else if ((m->crashflag != 0) && ((s8) car->dead >= CAR_DEAD)) {
         m->crashflag = 0;
     }
-    time_fudge = (m->catchup * m->time_boost) * (((f32) m->roadboost0 * roadboost_time_scale) + 1.0f);
+    time_fudge = (m->catchup * m->time_boost) * (((f32) m->roadboost[0] * roadboost_time_scale) + 1.0f);
     m->time_fudge = time_fudge;
-    m->fastin_dt = (f32) (m->fastin_dt * time_fudge);
-    if (m->resurrect_moving_state >= RES_START) {
+    m->fastin.dt = (f32) (m->fastin.dt * time_fudge);
+    if (m->resurrect.moving_state >= RES_START) {
         if (player != NULL) {
             UpdateResurrectingCar(m);
             if (gGameState & GS_RACING) {
@@ -235,8 +164,8 @@ void UpdateModel(s32 slot) {
         } else {
             UpdateResurrectingCar(m);
         }
-        update_reckon_base((s32) slot, *(s32 *) &m->modelTime);
-    } else if (m->modelrun != 0) {
+        update_reckon_base((s32) slot, *(s32 *) &m->fastin.modelTime);
+    } else if (m->fastin.modelrun != 0) {
         if (player != NULL) {
             sym(m);
             if ((gGameState & GS_RACING) && ((gRace != kGhost) || (ghost = (&gGhosts)[m->slot], (ghost == 0)) || (GHOST_HEADER_FLAG(ghost) < 0))) {
@@ -279,7 +208,7 @@ rumble_off:
             MaxPathControls(m);
             sym(m);
         }
-        update_reckon_base((s32) slot, *(s32 *) &m->modelTime);
+        update_reckon_base((s32) slot, *(s32 *) &m->fastin.modelTime);
     }
     if ((gRace != kGhost) || (m->slot == 0)) {   /* kGhost: only the player's car */
         UpdateCarSounds(m);
@@ -293,11 +222,11 @@ rumble_off:
         }
     }
     if (m->solid == 0) {
-        if (m->resurrect_moving_state >= RES_START) {
+        if (m->resurrect.moving_state >= RES_START) {
             since = 0.0f;
-            car->collide_time = m->modelTime;
+            car->collide_time = m->fastin.modelTime;
         } else {
-            since = m->modelTime - car->collide_time;
+            since = m->fastin.modelTime - car->collide_time;
         }
         /* Original game: `(gRace != 6) || (gRace != 5)` (not battle or not obstacle) is always true, so every mode
          * takes the 5-second solid delay as well, and battle and obstacle become solid at whichever of the two
@@ -325,7 +254,7 @@ void update_drone_models(void) {
         return;
     }
     for (i = 0; i < num_drones_to_do; i++) {
-        update_model(PC_MODEL(PC_OUR_DRONE(cur_drone)));
+        update_model(&pc_models[PC_OUR_DRONE(cur_drone)]);
         cur_drone++;
         if (cur_drone >= num_our_drones) {
             cur_drone = 0;
@@ -361,11 +290,11 @@ void model_iteration(void) {
         gModelTime = (f32) gModelIteration * gRetraceTime;
         for (v = 0; v != PC_RACE_CARS; v++) {
             if (PC_CAR_INPUT(v) == 0) {
-                m = PC_MODEL(v);
+                m = &pc_models[v];
                 if (m->we_control == 0) {
-                    fz = m->reckon_rwv[2];
-                    fx = m->reckon_rwv[0];
-                    fy = m->reckon_rwv[1];
+                    fz = m->reckon.rwv[2];
+                    fx = m->reckon.rwv[0];
+                    fy = m->reckon.rwv[1];
                     m->magvel = sqrtf((fz * fz) + ((fx * fx) + (fy * fy)));
                 }
             }
@@ -375,7 +304,7 @@ void model_iteration(void) {
         if (num_humans > 0) {
             rec = gPlayers;
             do {
-                m = PC_MODEL(rec->slot);
+                m = &pc_models[rec->slot];
                 j = 0;
                 for (;;) {
                     if (gRace == kGhost) {
@@ -383,22 +312,22 @@ void model_iteration(void) {
                         if (r < 0) {
                             break;
                         }
-                        m->fastin_dt = t;
-                        m->modelIteration += 1;
-                        m->modelTime = (f32) m->modelIteration * t;
+                        m->fastin.dt = t;
+                        m->fastin.modelIteration += 1;
+                        m->fastin.modelTime = (f32) m->fastin.modelIteration * t;
                     } else {
-                        m->fastin_dt = (f32) (gModelIteration - m->modelIteration) * gRetraceTime;
-                        m->modelIteration = gModelIteration;
-                        m->modelTime = gModelTime;
+                        m->fastin.dt = (f32) (gModelIteration - m->fastin.modelIteration) * gRetraceTime;
+                        m->fastin.modelIteration = gModelIteration;
+                        m->fastin.modelTime = gModelTime;
                     }
                     SetClutch(m);
-                    if ((m->abort != 0) && ((gRace != kBattle) || (m->crashflag != 0)) && (gGameState & GS_RACING) && (m->resurrect_moving_state == RES_IDLE)) {
+                    if ((m->mainin.abort != 0) && ((gRace != kBattle) || (m->crashflag != 0)) && (gGameState & GS_RACING) && (m->resurrect.moving_state == RES_IDLE)) {
                         gc = &((tCarData *) PC_CARS)[rec->slot];
                         if ((gc->place_locked == 0) && (gc->dead == CAR_ALIVE) && (gCoastFlag == 0) && (((s8) gDeathMode == 0) || ((m->magvel < 10.0f) && (gc->crash_state == CRASH_NONE)))) {
                             if (gRace == kStunt) {
                                 CrashedStunt(i);
                             }
-                            m->resurrect_autoAbort = 1;
+                            m->resurrect.autoAbort = 1;
                             AbortCar(rec->slot, 0);
                         }
                     }
@@ -431,8 +360,8 @@ void model_iteration(void) {
 void update_model(tModelData *m) {
     s16 result;             /* unused */
 
-    m->fastin_dt = (f32) (gModelIteration - m->modelIteration) * gRetraceTime;
-    m->modelIteration = gModelIteration;
-    m->modelTime = gModelTime;
+    m->fastin.dt = (f32) (gModelIteration - m->fastin.modelIteration) * gRetraceTime;
+    m->fastin.modelIteration = gModelIteration;
+    m->fastin.modelTime = gModelTime;
     UpdateModel(m->slot);
 }

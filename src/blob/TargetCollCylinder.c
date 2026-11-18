@@ -22,7 +22,7 @@ s32 TargetCollCylinder(s16 *slotp, f32 *pos, f32 *radiusp, f32 *dist)
     f32 radius = *radiusp;
     GameCar *gc;
 
-    if (PC_MODEL_COLLIDABLE(slot) == 0) {
+    if (pc_models[slot].collidable == 0) {
         return 0;
     }
     p[0] = pos[0];

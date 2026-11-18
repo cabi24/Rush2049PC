@@ -15,39 +15,6 @@ typedef struct tVisual {
     f32 timeStamp;
     void (*func)(void);
 } tVisual;
-/* A tire's state in the model record, seen from 8 bytes into MAT3's tire record (which starts at +0x430), so its
- * angvel is at +0x40 here (MAT3's +0x48). */
-typedef struct TireView {
-    u8 pad[64];
-    f32 angvel;                  /* the tire's spin, radians a second */
-    u8 tail[24];
-} TireView;
-/* The model record (tModelData, docs/port/CARS.md 4), the fields AnimateTire reads. */
-typedef struct tModelData {
-    _tCar *car;
-    Tune44 *tune;
-    u8 body_type;                /* +0x008 the car, 0-12 */
-    u8 pad009[6];
-    s8 tireRims;                 /* +0x00F the rim type */
-    u8 pad010[912];
-    streetyp *lasttp[4];
-    f32 steerangle;              /* +0x3B0 the front tires' steering angle, radians */
-    u8 pad3B4[88];
-    const s16 *torquecurve;
-    u8 pad410[40];
-    TireView tires[4];           /* +0x438 */
-    u8 pad5A8[36];
-    f32 suscomp[4];              /* +0x5CC each tire's suspension compression, feet */
-    u8 pad5DC[64];
-    u16 sviscode[4];             /* +0x61C each tire's surface (SURF_VIS_*) */
-    u8 pad624[36];
-    surftyp *movingSurface;
-    u8 pad64C[378];
-    s16 slot;                    /* +0x7C6 */
-    u8 pad7C8[4];
-    s8 drone_type;               /* +0x7CC 2 a human */
-    u8 tail[59];
-} tModelData;
 /* The car record (tCarData, N64 layout: docs/port/CARS.md 2), the fields AnimateTire reads. */
 typedef struct tCarData {
     u8 pad000[232];
@@ -101,7 +68,7 @@ void AnimateTire(tVisual *v, s16 op)
     slot = v->slot;
     car = PC_CAR(slot);
     tire = v->index;
-    m = PC_MODEL(slot);
+    m = &pc_models[slot];
     spring = m->suscomp[tire];
     show = gInvisibleCar != 0;
     if (!show) show = (car->appearance & APPEAR_INVISIBLE) != 0;
@@ -115,7 +82,7 @@ void AnimateTire(tVisual *v, s16 op)
     if (show) show = car->carMine == 0;
     if (!CheckVisibleAll(v, show)) return;
     CheckVisible(v, car->view >= 2, camera);
-    if (PC_MODEL_VISCODE(slot)[tire] == SURF_VIS_DIRT) {
+    if (pc_models[slot].sviscode[tire] == SURF_VIS_DIRT) {
         t = (mph >> 2) * 0.05f;
         if (t > 0.6f) t = 0.6f;
         spring += Random(t);
@@ -127,8 +94,8 @@ void AnimateTire(tVisual *v, s16 op)
     pos[2] = cartp->tireR[tire][2];
     if (camera >= 0 && car->view == 1 && tire == 0) {
         t = (mph >> 2) * 0.002f;
-        if (PC_MODEL_VISCODE(slot)[tire] == SURF_VIS_DIRT) spring2 = (Random(2.0f) - 1.0f) * t;
-        else if (PC_MODEL_VISCODE(slot)[tire] == SURF_VIS_AIRBORNE) spring2 = 0;
+        if (pc_models[slot].sviscode[tire] == SURF_VIS_DIRT) spring2 = (Random(2.0f) - 1.0f) * t;
+        else if (pc_models[slot].sviscode[tire] == SURF_VIS_AIRBORNE) spring2 = 0;
         else spring2 = (Random(2.0f) - 1.0f) * t * 0.25f;
         gCamera[camera].view2spring = gCamera[camera].view2spring * PC_SPRING_KEEP(0.75f) + PC_SPRING_NOISE(spring2, 0.75f);
     }
