@@ -363,6 +363,13 @@ N64's 6) through its input record's node, a record pointer in the file's view, w
 10's battle reset through its model's slot; cars 1 to 3 to the cameras through what were car 1's names; a finish through
 what was `D_80152907`. It checks `struct pc_car`'s offsets against `CAR_OFS` too.
 
+**Since wave 4** (2026-11-18, [RECORDS.md](RECORDS.md) 3.1): the record has one declaration, `tCarData` in
+`include/game/cars.h`, with every field named, and `pc_cars` is declared there too; `struct pc_car` and the
+`PC_CAR_<FIELD>(i)`, `PC_CAR(i)`, `PC_CARS` and `PC_CARS_END(n)` accessors are gone, and the game reads `pc_cars[i]`'s
+fields (`pc_cars[i].place_locked`, `&pc_cars[i]`). pc_game_types.h keeps `PC_CAR_SLOTS`. `assets_carrecs` checks every
+field of `tCarData` against `CAR_OFS` of its N64 offset. data.c's storage is the same 15,552 bytes, its comment naming
+`tCarData[12]`.
+
 ## 5. Next, toward 12 cars
 
 A quick inventory: objects referencing each name and its aliases (nm, context copies included), sizes from

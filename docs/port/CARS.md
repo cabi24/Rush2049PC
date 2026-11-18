@@ -13,7 +13,7 @@ symbols live), [PROTOTYPES.md](PROTOTYPES.md).
 
 | Record | N64 | PC | Storage on the PC | Why |
 |---|---:|---:|---|---|
-| car, `pc_cars[12]` (N64 `gGameCar[6]`) | 0x3B8 | **0x510** (0x468 until 2026-11-09) | own storage, no N64 address (`struct pc_car`, [DECOUPLE.md](DECOUPLE.md) 4) | its visuals hold function pointers, and +0x380 points at own storage: those must be host pointers |
+| car, `pc_cars[12]` (N64 `gGameCar[6]`) | 0x3B8 | **0x510** (0x468 until 2026-11-09) | own storage, no N64 address (`tCarData`, include/game/cars.h: [RECORDS.md](RECORDS.md) 3.1; [DECOUPLE.md](DECOUPLE.md) 4) | its visuals hold function pointers, and +0x380 points at own storage: those must be host pointers |
 | visual, `tVisual` (21 per car at +0x110; the environment pool `gEnvirons[100]`) | 0x18 | **0x28** (0x20 until 2026-11-09) | inside the car; the pool is C-defined | `next` and `func` are host pointers; `data` holds numbers or a pointer (a target: section 3), pointer-sized |
 | model, `pc_models[12]` (N64 `D_8014A250[6]`) | 0x808 | **0x830** | own storage, no N64 address (`struct pc_model`, [DECOUPLE.md](DECOUPLE.md) 3) | its five pointer fields (MAT3's `car`, `tune`, `lasttp[4]`, `torquecurve`, `movingSurface`) are host pointers (since 2026-11-09, section 4) |
 | car physics descriptor, `car_descriptors[6]` (MAT3 `_tCar`; `model->car`, `gCarModels[body]`) | 0xB4 | **0xC8** | own storage (data.c), filled from the image | its four tire pointers (`tires[4]`, to `frontTire`) are host pointers (since 2026-11-09, section 4) |
@@ -25,11 +25,12 @@ front-end work); the link no longer warns about `gGameCar`; gen_data's pointer c
 
 ## 2. The car record
 
-Since 2026-10-29 it is PC data with no N64 address: `pc_cars[PC_CAR_SLOTS]` (12 records) of `struct pc_car` in
-`port/include/pc_game_types.h`, which has the layout below and names the 36 fields the game reaches by index; the
-game reaches them through `PC_CAR_<FIELD>(i)`, a record through `PC_CAR(i)` in its own view, and the names that were
-inside the array (`D_80152907` and 10 others) are the accessors of the fields they named ([DECOUPLE.md](DECOUPLE.md)
-4). It was own storage before (host storage, so its own address was a host one already).
+Since 2026-10-29 it is PC data with no N64 address: `pc_cars[PC_CAR_SLOTS]` (12 records), and since wave 4
+(2026-11-18, [RECORDS.md](RECORDS.md) 3.1) one declaration, `tCarData` in `include/game/cars.h`: MAT3's CAR_DATA with
+every field named, in the layout below; the game reads `pc_cars[i]`'s fields. Before that the storage was `struct
+pc_car` in `port/include/pc_game_types.h`, which named the 36 fields the game reached by index (`PC_CAR_<FIELD>(i)`),
+and each file read a record through a view of its own (`PC_CAR(i)`, a `void *`): sections 2.2 and 2.3 are that
+history. It was own storage before (host storage, so its own address was a host one already).
 
 ### 2.1 Pointer fields and their pointees
 
@@ -57,9 +58,9 @@ into later cars: `CAR_OFS(0x3B8)` is the stride) and `VIS_OFS(x)` (inside a visu
 `struct pc_car`, since the record is PC data ([DECOUPLE.md](DECOUPLE.md) 4). Game files that use them define the N64
 side, `#define CAR_OFS(n) n`, so the N64 tokens are the original ones.
 
-### 2.2 The views
+### 2.2 The views (until wave 4)
 
-Every view declares the visuals and the input pointer as pointer-sized members, with N64-sized padding between
+Every view declared the visuals and the input pointer as pointer-sized members, with N64-sized padding between
 them, so the compiler gives each one the layout above and gen_data computes the right N64 offsets from the PC
 DWARF:
 
@@ -83,9 +84,9 @@ DWARF:
   are retired with the array, and each use is the accessor of the field it named (`D_80152907[i].flag` is
   `PC_CAR_PLACE_LOCKED(i)`).
 
-### 2.3 Code at raw offsets
+### 2.3 Code at raw offsets (until DECOUPLE.md 4)
 
-m2c code that reaches cars with byte arithmetic goes through `CAR_OFS` (on existing lines; the N64 expansion is the
+m2c code that reached cars with byte arithmetic goes through `CAR_OFS` (on existing lines; the N64 expansion is the
 original token):
 
 | Site | What |
@@ -186,7 +187,7 @@ those translations as the bulk of the game C's crossings into the arenas.
 ## 5. Tools and checks
 
 - `python3 tools/port/view_audit.py --build build/pc --symbols pc_cars --size 952 --ref StartWeapon.c` (the car;
-  the reference is `struct pc_car` now: 222 views, 0 disagreeing), `--symbols pc_models --size 2056 --ref
+  the reference was `struct pc_car`: 222 views, 0 disagreeing; since wave 4 `tCarData` is the only view), `--symbols pc_models --size 2056 --ref
   init_cars.c` (the model; the reference is `struct pc_model`, with its host pointers: 143 views, 0 disagreeing),
   `--symbols gEnvirons,gEnvList,gFreeVis --size 24 --tags tVisual,Visual,Node,... --ref StartWeapon.c` (the
   visuals): every view's named fields at the host offsets the reference's field program gives, and its pointers

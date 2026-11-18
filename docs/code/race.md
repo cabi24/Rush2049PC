@@ -147,10 +147,8 @@ the N64 draws by (`n64`) and updates the sky.
 - **The model record** (`tModelData`, 0x808 bytes on the N64) has host pointers on the PC (0x830 bytes,
   [CARS.md](../port/CARS.md) 4); each file reads it through a view of the fields it needs (MAT3's names), which
   declares the pointers too.
-- **The car record** (`pc_car`, 0x510 bytes on the PC) is the N64's with host pointers in its visuals and input
-  record: the files' views pad over the visuals (`struct pc_visual visuals[21]`), and `CAR_OFS` maps an N64 offset.
-  Many fields the files read (MAT3's `restart`, `camera`, `view`, `saveview`, `collidable`, `crash_state`,
-  `lastResPath` ...) are not in `pc_car` yet.
+- **The car record** (`tCarData` in cars.h, `pc_cars`, 0x510 bytes on the PC) is the N64's with host pointers in its
+  visuals and input record, every field named as MAT3 names it ([RECORDS.md](../port/RECORDS.md) 3.1).
 - **Data laid out by bytes**: `ZoidWinInfo`'s `ArbEntry` (MAT3 `tWindowInfo`) keeps a byte array where the files
   read fields: it is own BSS, whose field runs data.c carries, so its real members change data.c (runs the loader
   does not use for BSS); its last view (ZOID_InitializeWindow, which writes the clip planes and the fog) waits for that, wave 3.
