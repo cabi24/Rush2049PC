@@ -161,12 +161,11 @@ sent (`SetSoundVP`).
   number of the cartridge's bus.
 - **The model record** (`tModelData`, 0x808 bytes on the N64, 0x830 on the PC) is read by the car sounds' views, which
   declare its host pointers ([CARS.md](../port/CARS.md) 4).
-- **MusyX's voices** keep the N64's layout after their head, read through 56 per-function views in macros.c,
-  synth.c, voices.c, api.c and controllers.c, each beginning with musyx.h's `SynthVoiceHead` (the macro pointers and
-  the handle node as host pointers, the chain's voice ids) and naming its other fields by their N64 offsets (0x1C
-  further on, on the PC: ctest `views_musyx_voice` holds them together). One shared `SynthVoice` type would replace
-  the views (macros.c's byte map is its spec); the voice flags, the controller numbers and the faders are
-  src/rom/sound/musyx.h's (the hardware voice's own states are hardware.c's `HW_VOICE_*`).
+- **MusyX's voices** keep the N64's layout after their head: one record, src/rom/sound/musyx.h's `SynthVoice`
+  (its head `SynthVoiceHead` holds the macro pointers and the handle node as host pointers, the chain's voice ids), its
+  controller inputs `SynthInputMix` and its LFOs `SynthLfo`, with the voice flags, the controller numbers and the
+  faders beside it (the hardware voice's own states are hardware.c's `HW_VOICE_*`). Until wave 4 the five files read
+  it through 56 per-function views ([RECORDS.md](../port/RECORDS.md) 4.4).
 - **MusyX's data** (project, pool, sample directory) stays in the N64's layout, byte-swapped in place; the
   registries hold pointers into it; samples and codebooks are addressed by 32-bit cartridge addresses, the DMA
   list's sources too; the cache bookkeeping counts the N64's record sizes (12-byte DMA entries, 0x50-byte SFD

@@ -289,16 +289,17 @@ indexes the slots from a `uintptr_t`.
 
 ### 8.3 The voices
 
-Since [NATIVE.md](NATIVE.md) step 9 (section 14 there): every view of a voice in `macros.c`, `synth.c`, `voices.c`,
-`api.c` and `controllers.c` (56) begins with `src/rom/sound/musyx.h`'s `SynthVoiceHead`, where the N64 had its first
-0x24 bytes: `addr`, `curAddr`, `retAddr`, `retCurAddr`, `trapAddr` and `trapCurAddr` are `MacroCommand` pointers into
-the pool, `node` the handle node (one of `pc_mx_nodes`), `next` and `previous` the chain's voice ids. The head is
-0x40 bytes, so every later field lies 0x1C past the N64 offset its name ends in, and a voice is 0x1C0 bytes
-(`PC_MX_VOICE_SIZE`: the N64's 0x1A0, the growth, and 4 bytes that keep the next voice's pointers 8-aligned; the full
-views end with `tail[SYNTH_VOICE_TAIL]`). The voice's storage is PC data (`pc_mx_voice`, decoupled). ctest
-`views_musyx_voice` (`view_check.py`) checks every view's fields against `macros.c`'s whole view, and
-`assets_musyx`, `assets_mxvoices` read the head by its host offsets. The one raw offset left in the files
-(`sound_synth_get_tick_rate`'s byte 0x4B) reads its view's field.
+Since wave 4 ([RECORDS.md](RECORDS.md) 4.4) a voice is one record, `src/rom/sound/musyx.h`'s `SynthVoice`, which
+the five files read (`sound_synth_voices`, `pc_mx_voice` seen as voices); until then each function read it through a
+view of its own (56 of them, the fields named after their N64 offsets: `flags24`, `id60`, ...). Its head
+(`SynthVoiceHead`, since [NATIVE.md](NATIVE.md) step 9, section 14 there) is where the N64 had its first 0x24 bytes:
+`addr`, `curAddr`, `retAddr`, `retCurAddr`, `trapAddr` and `trapCurAddr` are `MacroCommand` pointers into the pool,
+`node` the handle node (one of `pc_mx_nodes`), `next` and `previous` the chain's voice ids. The head is 0x40 bytes, so
+every later field lies 0x1C past its N64 offset, and a voice is 0x1C0 bytes (`PC_MX_VOICE_SIZE`: the N64's 0x1A0, the
+growth, and 4 bytes that keep the next voice's pointers 8-aligned). The record is packed, as the views were, so GCC
+makes the same code of it. The voice's storage is PC data (`pc_mx_voice`, decoupled). ctest `views_musyx_voice`
+(`view_check.py`) holds its N64 layout at 0x1A0 bytes, and `assets_musyx`, `assets_mxvoices` read the head by its host
+offsets.
 
 Before step 9, `sound_synth_voices` (32 voices of 0x1A0 bytes) was reached through about 90 views, almost all of
 them byte arrays and fields at N64 offsets (and raw offsets such as `(u8 *)state + 0xC4` and `+ 0x168`), and the

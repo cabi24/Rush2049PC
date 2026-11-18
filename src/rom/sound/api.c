@@ -7,8 +7,8 @@
  * (sound_hw_lock) around the synth's unlocked form (synth.c) and does nothing (or returns -1) before the library is
  * started. A sound is named by its handle (voices.c); -1 or VOICE_NONE is "no sound".
  *
- * MusyX is the N64's sound library: no MAT3 counterpart. The voices are seen through this file's view at the N64
- * offsets (each field's name ends in its offset); on the PC their storage is PC data, PC_MX_VOICE_SLOTS long. */
+ * MusyX is the N64's sound library: no MAT3 counterpart. The voices are musyx.h's SynthVoice records; on the PC their
+ * storage is PC data, PC_MX_VOICE_SLOTS long. */
 #include "../rom_tu.h"
 #include "musyx.h"
 #include "sound_services.h"
@@ -16,34 +16,11 @@
 #define SFX_GROUP_RESET 254        /* sound_set_sfx_volume_group: back to the default group */
 #define SFX_VOLUME_GROUP_BYTE 9    /* an effect's volume group: byte 9 of its 12 (registry.c's Descriptor) */
 
-/* A synth voice, as this file reads it (macros.c has the whole voice). */
-#pragma pack(1)
-typedef struct VoiceState {
-    SynthVoiceHead head;    /* the macro's place and the chain (musyx.h) */
-    u32 flags24;
-    u8 unknown28[4];
-    u8 unknown2C[2];
-    u8 priority2E;
-    u8 unknown2F[28];
-    u8 midiSet4B;          /* the controllers' set: a song player, or 255 for an effect's own */
-    u8 fxFlag4C;
-    u8 unknown4D[8];
-    u8 setupMidiSet55;     /* the controllers' set until the macro's first step copies it to midiSet4B */
-    u8 unknown56[10];
-    u32 identifier60;      /* the voice's id; VOICE_NONE when free */
-    u8 unknown64[316];
-    u8 tail[SYNTH_VOICE_TAIL];  /* the PC's: the record rounded to 8 bytes (SYNTH_VOICE_SIZE) */
-} VoiceState;
-#pragma pack(0)
-
 /* the 8 service callbacks are function pointers (docs/port/MUSYX_DATA.md 8.1) */
 
 extern u8 sound_initialized;
 extern void sound_hw_lock(void);
 extern void sound_hw_unlock(void);
-/* On the PC the voices are PC data, PC_MX_VOICE_SLOTS long, with no N64 address (pc_game_types.h,
- * docs/port/DECOUPLE.md 9), seen here in this file's view. */
-#define sound_synth_voices (*(VoiceState (*)[PC_MX_VOICE_SLOTS])pc_mx_voice)
 extern int sound_resolve_handle(u32);
 extern void sound_midi_set_controller(u8, u8, u8, u8);
 extern int sound_key_off_unlocked(unsigned int);
@@ -84,14 +61,14 @@ int sound_set_modulation(u32 identifier, u16 value)
         identifier = sound_resolve_handle(identifier);
         while (identifier != VOICE_NONE) {
             index = identifier & VOICE_INDEX_MASK;
-            if (sound_synth_voices[index].identifier60 == identifier) {
+            if (sound_synth_voices[index].id == identifier) {
                 low = value & 127;
-                if (sound_synth_voices[index].flags24 & VOICE_STARTING) {
-                    sound_midi_set_controller(CTRL_MODULATION, index, sound_synth_voices[index].setupMidiSet55, value >> 7);
-                    sound_midi_set_controller(CTRL_MODULATION_LOW, index, sound_synth_voices[index].setupMidiSet55, low);
+                if (sound_synth_voices[index].flags & VOICE_STARTING) {
+                    sound_midi_set_controller(CTRL_MODULATION, index, sound_synth_voices[index].setupSet, value >> 7);
+                    sound_midi_set_controller(CTRL_MODULATION_LOW, index, sound_synth_voices[index].setupSet, low);
                 } else {
-                    sound_midi_set_controller(CTRL_MODULATION, index, sound_synth_voices[index].midiSet4B, value >> 7);
-                    sound_midi_set_controller(CTRL_MODULATION_LOW, index, sound_synth_voices[index].midiSet4B, low);
+                    sound_midi_set_controller(CTRL_MODULATION, index, sound_synth_voices[index].set, value >> 7);
+                    sound_midi_set_controller(CTRL_MODULATION_LOW, index, sound_synth_voices[index].set, low);
                 }
                 result = 0;
                 identifier = sound_synth_voices[index].head.next;
@@ -115,12 +92,12 @@ int sound_set_reverb(u32 identifier, u8 value)
         identifier = sound_resolve_handle(identifier);
         while (identifier != VOICE_NONE) {
             index = identifier & VOICE_INDEX_MASK;
-            if (sound_synth_voices[index].identifier60 == identifier) {
+            if (sound_synth_voices[index].id == identifier) {
                 result = 0;
-                if (sound_synth_voices[index].flags24 & VOICE_STARTING) {
-                    sound_midi_set_controller(CTRL_REVERB, index, sound_synth_voices[index].setupMidiSet55, value);
+                if (sound_synth_voices[index].flags & VOICE_STARTING) {
+                    sound_midi_set_controller(CTRL_REVERB, index, sound_synth_voices[index].setupSet, value);
                 } else {
-                    sound_midi_set_controller(CTRL_REVERB, index, sound_synth_voices[index].midiSet4B, value);
+                    sound_midi_set_controller(CTRL_REVERB, index, sound_synth_voices[index].set, value);
                 }
                 identifier = sound_synth_voices[index].head.next;
             } else {
@@ -218,12 +195,12 @@ int sound_set_pedal(u32 identifier, u8 value)
         identifier = sound_resolve_handle(identifier);
         while (identifier != VOICE_NONE) {
             index = identifier & VOICE_INDEX_MASK;
-            if (sound_synth_voices[index].identifier60 == identifier) {
+            if (sound_synth_voices[index].id == identifier) {
                 result = 0;
-                if (sound_synth_voices[index].flags24 & VOICE_STARTING) {
-                    sound_midi_set_controller(CTRL_PEDAL, index, sound_synth_voices[index].setupMidiSet55, value);
+                if (sound_synth_voices[index].flags & VOICE_STARTING) {
+                    sound_midi_set_controller(CTRL_PEDAL, index, sound_synth_voices[index].setupSet, value);
                 } else {
-                    sound_midi_set_controller(CTRL_PEDAL, index, sound_synth_voices[index].midiSet4B, value);
+                    sound_midi_set_controller(CTRL_PEDAL, index, sound_synth_voices[index].set, value);
                 }
                 identifier = sound_synth_voices[index].head.next;
             } else {
