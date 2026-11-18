@@ -747,7 +747,21 @@ is for.
 | the pak file system's records into pfs.h | 961 of 961 same | the same |
 | the cache calls | 952 same: boot.c, scheduler.c, video_mode.c, sound/dma_queue.c, sound/hardware.c, speech/streams.c, waves.c, paksysdc_flush/group.c, PS_ReadPartialFile.c differ by the calls gone | `gDecompressedDataEnd1`, `gBssStart` (second names of `gEngineSpecs`' and `static_ltree`'s storage) not emitted: nothing names them |
 | the cartridge | 949 same: those, and sample_dma_next.c, musyx_cart_address.c, decompress.c (u32 ROM offsets: no zero-extension) | as before, and `gViModeTable`, `gViModeLan1`, `sample_dma_io` not placed: nothing names them |
-| the video interface | 947 same: those, and StartGraphics.c and mainloop.c | the same as the cartridge's | The pause key, focus loss and the F1 overlay still hold the game (re-based); a session will disable
+| the video interface | 947 same: those, and StartGraphics.c and mainloop.c | the same as the cartridge's |
+
+At the end, on Rocky (2026-11-18), against the wave's reference build:
+
+| Run | Result |
+|---|---|
+| `pconly_gate.sh --skip realtime --data-moved` (Debug) | PASS: ctest 572 of 572, every one of the 64 synthetic paths `same` (screenshots and sound), none run again |
+| the optimized build against the optimized reference, synthetic cartridge, `--same --shots --audio --data-moved` | 64 of 64 `same`: 63 at once, `mods_texture_up` alone (the reference's own two runs had differed in the sound's last subframe, PCONLY.md 2) |
+| the same on the audible cartridge (`rush2049_synth_snd.z64`) | 64 of 64 `same`: 63 at once, `mods_off` alone (the same) |
+| `ctest --test-dir build/opt -LE realtime` | 567 of 572 at once; the 5 failures were synthetic paths past ctest's 150 s while the host's GPU was shared by many runs (the reference ran `--fast` at the wall clock's speed then too), all 5 passing when run again |
+| the realtime-labelled tests, under the realtime lock | 57 of 61; the 4 failures were measures of the host's real time (vblanks lost to skipped ticks, frames not new, `paced_audio`'s re-based lags and underruns, its trace and sound `--fast`'s) |
+| ASan with UBSan (GCC 14's objects, Clang 21's runtime), CI's x86-64 ASan set and `synth_boot_race`, `synth_boot_pcsetup` | 399 of 399 and 3 of 3, no ASan, LSan or UBSan report |
+| `layout_check` | the base's 6 open findings, no new one; `offset_check --strict` 0 open; `alias_check` none open; `bounds_check` none new; `view_check` of `OSPfs`, `OSPfsState`, the three zlib records and `gPaks`: no live view disagrees |
+| `n64_audit --baseline` | no class grew; own storage 405 to 402 (the baseline lowered) |
+| `window_census` | `api.u32_address` 1 to 0, `heap.window_symbols` 2 to 0, `n64map.uses.port` 7 to 4, `context.n64map.defs` 8 to 4, `text.window.game` 51 to 45 | The pause key, focus loss and the F1 overlay still hold the game (re-based); a session will disable
 them. While a hold stops the clock, port/input's UI timers that read `pc_host_ns()` (the overlay's key-capture
 timeout, menu repeat, a status line's fade, the cursor's hide) stand still too, as with `--fast`; a session's overlay
 won't hold the game, and otherwise they want a clock of their own. Without SDL's audio (headless builds) the tap is
