@@ -27,7 +27,7 @@ void ContinueCircuit(void) {
     s32 m;
     s32 x;
     Sess *v;
-    struct tCircuit *info;
+    tCircuit *info;
     u8 pad[8];
     v = *((*gPlayers[gCircuitPlayer].profile)->s);
     info = &v->info;

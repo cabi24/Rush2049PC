@@ -887,7 +887,7 @@ extern s32 newCircuitType;
 extern s8 playerscr_gSelectMenuVisible[EXTENT(4)][14];
 extern s8 playerscr_gSelectMenuCount[EXTENT(8)];
 extern s32 playerscr_gSelectMenuSelect[EXTENT(4)];
-extern struct tCircuit *gCircuit;
+extern tCircuit *gCircuit;   /* the circuit player's circuit in progress, while the circuit screen is up */
 extern u8 circuitscr_gCircuitCode[EXTENT(20)];
 extern s8 gSelectMenuControls[EXTENT(4)];
 extern s8 playerscr_gSelectPakIdx[EXTENT(4)];
