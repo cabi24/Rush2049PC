@@ -441,3 +441,9 @@ host, and fails unless both give the same findings; a new case is a helper with 
 callers in the file type (sound_listener_build_matrix's shape). Without the fix the `-fPIC` variant misses six of the eight on
 aarch64 as on x86-64. A run over a build without `pc-data/data_symbols.txt` (an unbuilt tree, whose storages are other
 ones) stops with an error instead of reporting.
+
+**Anonymous struct types** (found 2026-11-18, wave 4, [RECORDS.md](RECORDS.md) 2.1): GCC's dump declares a local
+whose type is an unnamed struct (a pointer to the model record's tire state, `&m->tires[i]`) with the whole type, over
+several lines (`struct`, `{`, the members, `} * _47;`), and `read_gimple` took the `}` for the function's end: forces1,
+the tire code and carsetup lost every access. It reads such a declaration as one now; `endian_check.py --selftest` has a
+case (`anon_part`), which the old reader misses.
