@@ -56,7 +56,6 @@ struct GsmState;
 struct GsmStream;
 struct H12;
 struct Handle;
-struct Header;
 struct Header88;
 struct Heap;
 struct In;
@@ -164,8 +163,6 @@ struct Place;
 struct Player;
 struct PlayerData;
 struct PlayerRec;
-struct PointList;
-struct Poly;
 struct Pool;
 struct Profile;
 struct QNode;
@@ -254,7 +251,6 @@ struct tModelData;
 struct tModelDef;
 struct tModelPart;
 struct tNewSkid;
-struct tPoly;
 struct tPS_File;
 struct tPaletteDef;
 struct tPlayerProfile;
@@ -1128,14 +1124,6 @@ typedef struct PcViewport { /* 0x10 bytes */
     s16 scale[4];     /* 0x0 */
     s16 translate[4]; /* 0x8 */
 } PcViewport;
-
-typedef struct PolyInstance { /* 0x58 bytes */
-    s16 nverts;   /* 0x0 */
-    u16 flags;    /* 0x2 */
-    u16 texidx;   /* 0x4 */
-    s16 z;        /* 0x6 */
-    u8 verts[80]; /* 0x8 */
-} PolyInstance;
 
 /* A world tree's name and root node (MAT3 anon_woff_wname_14, the world WAD's WHDR entry; WorldTable): declared in
  * pc_game_types.h, where the world's converter builds the table beside the file, the root a host pointer

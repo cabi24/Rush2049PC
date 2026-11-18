@@ -2,6 +2,6 @@
 #include "game/game.h"
 
 /* Show polygon `poly` again (clears POLY_HIDDEN). */
-void ZOID_ShowPoly(PolyInstance *poly) {
+void ZOID_ShowPoly(tPoly *poly) {
     poly->flags &= ~POLY_HIDDEN;
 }

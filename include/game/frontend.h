@@ -244,7 +244,7 @@ extern SoundClearRecord trackBack[EXTENT(2)];
 extern MotionFrame gBackRects[EXTENT(4)];
 extern s32 gBackCamera[EXTENT(4)][4];
 extern struct SoundState *backBlit;
-extern struct PointList *backPolys[EXTENT(4)];
+extern tPoly *backPolys[EXTENT(4)];
 extern struct Dims *bg_texture;
 extern s32 offsetsValid[EXTENT(5)];
 extern ColorWord flashColors_at_1;

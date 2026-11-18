@@ -916,32 +916,6 @@ s32 Traverse(Gfx **gp, ObjectInstance *parent, ObjectInstance *node, s32 view, s
     return drawn;
 }
 
-/* A flat polygon's vertex (20 bytes): position (scene units, 16 a foot, or screen pixels), texture coordinates,
- * colour. */
-typedef struct {
-    f32 pos[3];
-    s16 tc[2];
-    u8 cn[4];
-} PolyVtx;
-
-/* A flat polygon (MAT3 tPoly, 0x58 bytes). A POLY_SCREEN one is a rectangle from its first vertex's x and y to its
- * second's, in its first vertex's colour (`screen`). */
-typedef struct tPoly {
-    s16 nverts;                 /* 0x00 0: free */
-    u16 flags;                  /* 0x02 POLY_* */
-    u16 texidx;                 /* 0x04 its texture, a handle */
-    s16 z;                      /* 0x06 its depth with POLY_FIXED_DEPTH */
-    union {
-        PolyVtx v[4];
-        struct {
-            f32 x0, y0;         /* 0x08 the first corner */
-            u8 pad10[8];
-            u8 col[4];          /* 0x18 the colour */
-            f32 x1, y1;         /* 0x1C the opposite corner */
-        } screen;
-    } u;
-} tPoly;
-
 
 void *memcpy(void *, const void *, unsigned int);
 
@@ -1093,10 +1067,10 @@ void zoid_draw_window(s32 view, tCamera *eye)
                 gDPSetRenderMode(frame_dl++, 0x00504240, 0);
                 gDPSetCombine(frame_dl++, 0xFFFFFF, 0xFFFDF6FB);
             }
-            gDPSetPrimColor(frame_dl++, 0, 0, poly->u.screen.col[0], poly->u.screen.col[1], poly->u.screen.col[2],
-                            poly->u.screen.col[3]);
-            gDPFillRectangle(frame_dl++, (s16)poly->u.screen.x0, (s16)poly->u.screen.y0, (s16)poly->u.screen.x1,
-                             (s16)poly->u.screen.y1);
+            gDPSetPrimColor(frame_dl++, 0, 0, poly->verts[0].cn.c[0], poly->verts[0].cn.c[1], poly->verts[0].cn.c[2],
+                            poly->verts[0].cn.c[3]);
+            gDPFillRectangle(frame_dl++, (s16)poly->verts[0].ob[0], (s16)poly->verts[0].ob[1], (s16)poly->verts[1].ob[0],
+                             (s16)poly->verts[1].ob[1]);
             gDPPipeSync(frame_dl++);
             continue;
         }
@@ -1106,20 +1080,20 @@ void zoid_draw_window(s32 view, tCamera *eye)
             /* Each vertex relative to the camera, in the scene's units, as an s16: a polygon out of that range
              * (2,048 feet) is skipped. */
             if (!(poly->flags & POLY_CAMERA_FRAME)) {
-                p[0] = poly->u.v[j].pos[0] - gCamera[view].mat.pos[0] * 16.0f;
-                p[1] = poly->u.v[j].pos[1] - gCamera[view].mat.pos[1] * 16.0f;
-                p[2] = poly->u.v[j].pos[2] - gCamera[view].mat.pos[2] * 16.0f;
+                p[0] = poly->verts[j].ob[0] - gCamera[view].mat.pos[0] * 16.0f;
+                p[1] = poly->verts[j].ob[1] - gCamera[view].mat.pos[1] * 16.0f;
+                p[2] = poly->verts[j].ob[2] - gCamera[view].mat.pos[2] * 16.0f;
                 if (p[0] <= -32768.0f || 32768.0f <= p[0] || p[1] <= -32768.0f || 32768.0f <= p[1] ||
                     p[2] <= -32768.0f || 32768.0f <= p[2]) {
                     goto skip;
                 }
             } else {
-                WorldVector(poly->u.v[j].pos, p, (f32 *)&gCamera[view]);
+                WorldVector(poly->verts[j].ob, p, (f32 *)&gCamera[view]);
             }
             zoid_poly_vertices[j].v.ob[0] = V16 p[0];
             zoid_poly_vertices[j].v.ob[1] = V16 p[1];
             zoid_poly_vertices[j].v.ob[2] = V16 p[2];
-            memcpy((j + zoid_poly_vertices)->v.tc, poly->u.v[j].tc, 8);
+            memcpy((j + zoid_poly_vertices)->v.tc, poly->verts[j].tc, 8);
         }
         if ((poly->flags & POLY_NO_FOG) && fog) {
             fog = 0;
@@ -1135,8 +1109,8 @@ void zoid_draw_window(s32 view, tCamera *eye)
             gDPSetCycleType(frame_dl++, G_CYC_2CYCLE);
         }
         if (fog) {
-            gDPSetPrimColor(frame_dl++, 0, 0, poly->u.screen.col[0], poly->u.screen.col[1], poly->u.screen.col[2],
-                            poly->u.screen.col[3]);
+            gDPSetPrimColor(frame_dl++, 0, 0, poly->verts[0].cn.c[0], poly->verts[0].cn.c[1], poly->verts[0].cn.c[2],
+                            poly->verts[0].cn.c[3]);
         }
         if (poly->flags & POLY_TEXTURED) {
             tTexture *tex;

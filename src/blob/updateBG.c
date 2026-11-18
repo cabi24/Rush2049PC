@@ -3,19 +3,6 @@
 #include "game/game.h"
 #define MotionFrame MotionFrameView   /* this file's own MotionFrame: include/game's MotionFrame is another type */
 
-/* A vertex of a background quad: its texture coordinates (s, t, in 1/32 texels). */
-typedef struct {
-    s16 x;
-    s16 y;
-    char pad4[0x10];
-} Point; /* 0x14 */
-
-typedef struct PointList {
-    s16 count;
-    char pad2[0x12];
-    Point pts[1];
-} PointList;
-
 typedef struct Dims {
     char pad0[0x10];
     u16 width;
@@ -43,7 +30,7 @@ typedef struct {
 void updateBG(void) {
     s32 slot;
     s32 i;
-    PointList *list;
+    tPoly *list;
     f32 shift[2];
 
     for (slot = 0; slot < 4; slot++) {
@@ -51,24 +38,24 @@ void updateBG(void) {
         if (list != 0) {
             shift[0] = 0.0f;
             shift[1] = 0.0f;
-            for (i = 0; i < list->count; i++) {
-                list->pts[i].x += gBackRects[gNumWindows - 1].slot[slot].dx * gFrameSeconds * (bg_texture->width << 5);
-                list->pts[i].y += gBackRects[gNumWindows - 1].slot[slot].dy * gFrameSeconds * (bg_texture->height << 5);
+            for (i = 0; i < list->nverts; i++) {
+                list->verts[i].tc[0] += gBackRects[gNumWindows - 1].slot[slot].dx * gFrameSeconds * (bg_texture->width << 5);
+                list->verts[i].tc[1] += gBackRects[gNumWindows - 1].slot[slot].dy * gFrameSeconds * (bg_texture->height << 5);
             }
-            for (i = 0; i < list->count; i++) {
-                if (list->pts[i].x >= bg_texture->width << 5) {
+            for (i = 0; i < list->nverts; i++) {
+                if (list->verts[i].tc[0] >= bg_texture->width << 5) {
                     shift[0] -= 1.0f;
                 }
-                if (list->pts[i].x <= -bg_texture->width << 5) {
+                if (list->verts[i].tc[0] <= -bg_texture->width << 5) {
                     shift[0] += 1.0f;
                 }
-                if (list->pts[i].y >= bg_texture->height << 5) {
+                if (list->verts[i].tc[1] >= bg_texture->height << 5) {
                     shift[1] -= 1.0f;
                 }
                 /* Original game: x is tested against -(width << 5) above, but y against +(height << 5) here
                  * (MAT3 front.c tests tc[1] <= -1.0f): nearly every vertex votes +1, so the y votes rarely add up
                  * to the -4 or +4 that wraps the background vertically. Kept as retail. */
-                if (list->pts[i].y <= bg_texture->height << 5) {
+                if (list->verts[i].tc[1] <= bg_texture->height << 5) {
                     shift[1] += 1.0f;
                 }
             }
@@ -86,11 +73,11 @@ void updateBG(void) {
             } else {
                 shift[1] = 0;
             }
-            for (i = 0; i < list->count; i++) {
-                list->pts[i].x += shift[0];
-                list->pts[i].y += shift[1];
-                gBackRects[gNumWindows - 1].slot[slot].xs[i] = list->pts[i].x;
-                gBackRects[gNumWindows - 1].slot[slot].ys[i] = list->pts[i].y;
+            for (i = 0; i < list->nverts; i++) {
+                list->verts[i].tc[0] += shift[0];
+                list->verts[i].tc[1] += shift[1];
+                gBackRects[gNumWindows - 1].slot[slot].xs[i] = list->verts[i].tc[0];
+                gBackRects[gNumWindows - 1].slot[slot].ys[i] = list->verts[i].tc[1];
             }
             offsetsValid[gNumWindows - 1] = 1;
         }

@@ -38,9 +38,6 @@ typedef struct tModelData {
     s8 drone_type;          /* 1996: 1 a drone, 2 a human (MAT3 DRONE_TYPE_AI, DRONE_TYPE_HUMAN) */
     u8 pad7CD[2056 - 1997];
 } tModelData;
-/* A scene polygon (PolyInstanceList, MAT3 tPoly): four vertices. */
-typedef struct Vertex20 {f32 x,y,z;s16 s,t;u32 color;} Vertex20;
-typedef struct tPoly {s16 count;u16 flags,parameter,unknown;Vertex20 verts[4];} tPoly;
 
 /* A unit square in the xy plane: the shape of the arrows, skid marks and other one-polygon effects. */
 f32 gDummyVtx[4][3] = { { 1.0f, 1.0f, 0.0f }, { -1.0f, 1.0f, 0.0f }, { -1.0f, -1.0f, 0.0f }, { 1.0f, -1.0f, 0.0f } };

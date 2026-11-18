@@ -398,6 +398,5 @@ void vs_setWidth(s16 *width);
 s8 vs_validOption(s32 item);
 void zcfree(void *ptr);
 void zfree_locked(void *ptr);
-void ZOID_ShowPoly_bg(struct Poly *poly);
 
 #endif /* GAME_SYSTEM_H */

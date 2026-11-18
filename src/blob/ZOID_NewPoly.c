@@ -4,9 +4,6 @@
  * shadows and arrows, the skid marks. A free one has no vertices; gNumPolyInsts is one past the last in use. */
 #include "game/game.h"
 
-/* A flat polygon (MAT3 tPoly, 88 bytes): what this file sets. */
-typedef struct tPoly { s16 nverts; u16 flags, texidx; unsigned char rest[82]; } tPoly;
-
 /* A new polygon of `nverts` vertices (up to 4) at xyz[nverts][3], coloured *color (bytes red, green, blue, alpha;
  * NULL leaves the colour) with `flags` (POLY_*); if `useTidx` it is textured with texture handle `texidx`
  * (POLY_TEXTURED). ZOID_UpdatePoly fills the vertices.

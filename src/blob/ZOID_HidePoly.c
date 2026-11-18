@@ -2,6 +2,6 @@
 #include "game/game.h"
 
 /* Hide polygon `poly` (POLY_HIDDEN) without freeing it. */
-void ZOID_HidePoly(PolyInstance *poly) {
+void ZOID_HidePoly(tPoly *poly) {
     poly->flags |= POLY_HIDDEN;
 }

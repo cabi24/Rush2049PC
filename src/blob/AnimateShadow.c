@@ -7,13 +7,6 @@ extern f32 fabsf(f32);
 #pragma intrinsic(fabsf)
 
 
-/* A polygon of the scene (PolyInstanceList). */
-typedef struct Poly {
-    /* 0x00 */ s16 active;
-    /* 0x02 */ u16 flags;
-    /* 0x04 */ u8 pad[0x54];
-} Poly;
-
 /* The car record (tCarData, N64 layout: docs/port/CARS.md 2), the fields AnimateShadow reads. */
 typedef struct tCarData {
     /* 0x000 */ u8 pad0[0x74];
