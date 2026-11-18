@@ -12,7 +12,7 @@ documentation and n64brew.
 | File | Role |
 |---|---|
 | `gfx_api.c` | `pc_gfx_*` (port/include/pc_port.h), settings |
-| `gfx_rsp.c` | list walk, addresses, matrices, vertices, lights, fog, texgen, clipping, culling, triangles |
+| `gfx_rsp.c` | the walk of the command records, matrices, vertices, lights, fog, texgen, clipping, culling, triangles |
 | `gfx_rdp.c` | other modes, colors, images, scissor, TMEM loads, texture decode and cache, rectangles, draw state, batching |
 | `gfx_combine.c` | combiner and blender to GLSL |
 | `gfx_gl.c` | OpenGL backend: loader, render targets, depth buffers, shader cache, draws, present, readback |
@@ -27,35 +27,124 @@ documentation and n64brew.
 | `gfx_hud.c` | the race HUD at the screen's edges in widescreen: 2D queued, grouped and moved ("The HUD at the screen's edges" below) |
 | `gfx_view.c` | one view of the split screen alone, across the frame (`net.view = own`): the view filter, its zoom and taller frustum, fills and 2D sorted by view ("One view of the split screen" below) |
 | `gfx_detail.c` | `video.draw_distance`'s depth range (the far plane moved out, the near plane kept) and `video.fog` far and off ([DETAIL.md](DETAIL.md) 3) |
-| `gfx_gbi.h`, `gfx_internal.h` | the renderer's opcode definitions, shared state |
-| `tests/` | `gfx_test` and its own GBI encoders (`test_gbi.h`); `gfx_ui_test` (the overlay's drawing); `gfx_interp_test` (frames between); `gfx_size_test` (gfx_size.c with made-up sizes) |
+| `gfx_gbi.h`, `gfx_internal.h` | the values the renderer reads in the records (modes, formats, geometry bits), shared state |
+| `tests/` | `gfx_test` and its own encoders of the command records (`test_gbi.h`); `gfx_ui_test` (the overlay's drawing); `gfx_interp_test` (frames between); `gfx_size_test` (gfx_size.c with made-up sizes) |
 
 Every external symbol except the `pc_gfx_*` API is `pcgfx`/`pcgfx_*`. The game has its own `gfx_*` functions
 (`StartGraphics`, `gfx_lock`), and the renderer links into the same executable.
 
-## Command formats and addresses
+## The command records
 
-- **Every list is the PC's form**: `PcGfxWords { uint32_t w0; uintptr_t w1; }` (the game's `Gfx`), 16 bytes per
-  command. The game builds its own lists so; the files' lists (a model's levels of detail, a texture's load list),
-  8-byte big-endian commands with 32-bit offsets in the ROM, are built again in this form by the WAD converter when
-  the file loads (`port/assets/wad.c`, [NATIVE.md](NATIVE.md) step 10): command for command, w0 the file's, w1 a host
-  pointer in the commands that carry an address (VTX, G_DL, G_RDPHALF_1 before G_BRANCH_Z, MTX, MOVEMEM, SETxIMG)
-  and the value in the rest. Until then the renderer read the ROM's lists in their N64 form, told apart by a
-  big-endian range at every list it entered.
-- **Address values** (w1, segment bases, `pc_gfx_present`'s argument; `pcgfx_resolve`, port/gfx/gfx_rsp.c):
+Added 2026-11-18 (wave 4, agent E). A display list is an array of **command records** (`Gfx`,
+[port/include/pc_gfx_list.h](../../port/include/pc_gfx_list.h)): 16 bytes each, the command's op (`GfxOp`) in the first
+byte, its operands as named fields after it, and a pointer, where the command names a list, vertices, a matrix, a
+viewport, a light or an image, in the last 8 bytes. The game builds its lists so, the WAD converter builds the files'
+lists so, and the renderer reads them and nothing else. Until then every list held the N64's F3DEX2 and RDP commands
+(an opcode and bit-packed fields in two 32-bit words, the second widened to a pointer's size), which the renderer
+decoded as the RSP and RDP would.
 
-| Value | Meaning | Host address |
+**The form.** One record a command, with these ops (`GFX_OP_*`, the union member that holds its fields):
+
+| Records | Fields | The N64's command |
 |---|---|---|
-| 0x0S000000 + off (below 0x10000000), segment S has a base | segmented | `base[S] + off` |
-| 0 | null | none (the command is skipped) |
-| anything else | host pointer | as is |
+| `CALL_LIST`, `BRANCH_LIST`, `END_LIST` | `list.list` | G_DL (push or not), G_ENDDL |
+| `CULL_LIST` | `cull.first`, `.last`: vertex slots | G_CULLDL |
+| `BRANCH_Z` | `branch_z.vertex`, `.z` (16.16 screen depth), `.list` | G_RDPHALF_1 + G_BRANCH_Z |
+| `SECTION` | `section.bit`, `.end` | a model's level-of-detail marker (G_SPNOOP, byte 1 set) |
+| `VERTICES` | `vertices.count`, `.first`, `.vertices` | G_VTX |
+| `MODIFY_VERTEX` | `modify_vertex.what`, `.vertex`, `.value` | G_MODIFYVTX |
+| `TRIANGLE`, `TRIANGLES` | `triangles.v[3]`, `[6]`: vertex slots | G_TRI1; G_TRI2 and G_QUAD |
+| `TEXTURE` | `texture.scale_s`, `.scale_t` (0.16), `.level`, `.tile`, `.on` | G_TEXTURE |
+| `GEOMETRY_MODE` | `geometry_mode.keep`, `.set` | G_GEOMETRYMODE |
+| `MATRIX`, `FORCE_MATRIX` | `matrix.projection`, `.load`, `.push`, `.matrix` | G_MTX, G_MOVEMEM's matrix |
+| `POP_MATRIX`, `INSERT_MATRIX` | `pop_matrix.count`; `insert_matrix.offset`, `.value` | G_POPMTX, G_MOVEWORD's matrix |
+| `VIEWPORT`, `LIGHT` | `viewport.viewport`; `light.slot` (0, 1 the look-at; 2 on the lights), `.light` | G_MOVEMEM's viewport, light |
+| `NUM_LIGHTS`, `LIGHT_COLOR`, `FOG`, `PERSP_NORMALIZE` | `num_lights.count`; `light_color.*`; `fog.multiplier`, `.offset`; `persp_normalize.scale` | G_MOVEWORD's |
+| `OTHER_MODE_HIGH`, `_LOW`, `OTHER_MODES` | `other_mode.shift`, `.length`, `.bits`; `other_modes.high`, `.low` | G_SETOTHERMODE_H/L, G_RDPSETOTHERMODE |
+| `COMBINE` | `combine.cycle[2]`: each `rgb_a`..`rgb_d`, `alpha_a`..`alpha_d` | G_SETCOMBINE |
+| `FILL_COLOR`, `FOG_COLOR`, `BLEND_COLOR`, `PRIM_COLOR`, `ENV_COLOR`, `PRIM_DEPTH` | `fill_color.pattern`; `color.r`..`a`, `.min_level`, `.lod_fraction`; `prim_depth.z`, `.dz` | the colour commands, G_SETPRIMDEPTH |
+| `SCISSOR` | `scissor.ulx`..`lry` (10.2), `.mode` | G_SETSCISSOR |
+| `COLOR_IMAGE`, `DEPTH_IMAGE`, `TEXTURE_IMAGE` | `image.format`, `.size`, `.width`, `.image` | G_SETCIMG, G_SETZIMG, G_SETTIMG |
+| `SET_TILE`, `TILE_SIZE`, `LOAD_TILE`, `LOAD_BLOCK`, `LOAD_TLUT` | `set_tile.*`; `tile_rect.tile`, `.uls`..`.lrt` (10.2); `load_block.*`; `load_tlut.first`, `.row`, `.last` | G_SETTILE, G_SETTILESIZE, G_LOADTILE, G_LOADBLOCK, G_LOADTLUT |
+| `FILL_RECTANGLE`, `TEXTURE_RECTANGLE` + `RECTANGLE_TEXTURE` | `rectangle.ulx`..`lry` (10.2), `.tile`, `.flip`; then `rectangle_texture.s`, `.t` (s10.5), `.dsdx`, `.dtdy` (s5.10) | G_FILLRECT; G_TEXRECT(FLIP) and its two halves |
+| `NOOP` | | G_NOOP, the RDP's syncs, the halves folded into the records above, the key and conversion commands |
 
-- The segment table holds host bases (`uintptr_t`). A base set by MOVEWORD G_MW_SEGMENT goes through the same rule.
-  The table resets at every task, as the microcode's DMEM does. The game sets none but segment 0 (to 0), so every
-  address it gives is a host pointer. Until [NATIVE.md](NATIVE.md) step 12 a value below 4 GB was an N64 address: K0
-  and K1 (0x80000000-0xBFFFFFFF) the RDRAM window, where the heap was (`pc_n64_ptr`), and a value below 0x80000000
-  with no segment base physical (`pc_n64_ptr(0x80000000 | (v & 0xFFFFFF))`). A host pointer below 256 MiB would be
-  read as a segment's only where that segment has a base, which the game never gives one.
+- **Values keep the RDP's and the microcode's units**: quarter pixels for the screen, quarter texels for a tile,
+  10.5 and 5.10 for a rectangle's texture coordinates, the fields of the other-mode words in place (a render mode is
+  `c0 | c1` in the low word), the combiner's selectors by the RDP's numbers. The renderer works in those units as it
+  always did, so it draws what it drew: what changed is how a command reaches it, not what it does. A value the
+  N64's field cut is cut the same way when a record is made (`GBI_FIELD`, the RDP's width), so a value past it draws
+  as it did. The combiner's 16 selectors are the record's one use of bitfields (`GfxCombineCycle`): 16 bytes hold no
+  17th, and a selector takes the width the RDP gives it.
+- **No segments.** Every pointer is the host's. The segment table, its G_MOVEWORD, `pcgfx_resolve` and
+  `pc_n64_map.h`'s segment masks went: the game set none but segment 0 to 0, and the files' lists hold the converter's
+  pointers since [NATIVE.md](NATIVE.md) step 10.
+- **One record a command**, two for a textured rectangle, whose texture coordinates follow it (the N64 needs three
+  commands). The game's macros write one record each, so its fixed-size lists (the track map's: 5 records a section
+  and 7) keep their lengths.
+
+**The game's macros** ([include/game/gbi.h](../../include/game/gbi.h)) keep libultra's names and arguments
+(`gSPVertex`, `gDPSetTile`, `gDPLoadTextureBlock` ...). Each writes the record of the command it names at `pkt`, which
+the call steps on, through a builder (`gbi_vertices`, `gbi_set_tile` ...) that names the fields. Before, 14 game files
+each carried their own copies of the macros (157 macro uses, over a local `Gfx` view type in most), and several wrote
+the commands' words by hand (the track map's lists, `BlitFinish`, `BlitZDist`, the culled branch's patch in
+`Traverse`); they use the shared macros now, and the culled branch writes `list.list`. The combiner's raw words became
+named modes (`G_CC_DECALRGBA`, `G_CC_MODULATERGBA_PRIM`; the game's own `G_CC_DECALRGB_LERPA_ENV`,
+`G_CC_SHADE_PRIMA` ...), the render modes' the SDK's (`G_RM_XLU_SURF`, `G_RM_FOG_SHADE_A`, `G_RM_ZB_XLU_SURF | Z_UPD`
+...; the same words, objsame `same`), the m2c'd prim depth and colour words named commands (`videoscr.c`). The pipeline syncs write
+no-op records, which keep the lists' lengths; `gSPSegment` went.
+
+**The N64's form** is read in one place, `pc_gfx_from_n64` ([port/assets/gfx_n64.c](../../port/assets/gfx_n64.c),
+[pc_gfx_n64.h](../../port/include/pc_gfx_n64.h)): a command (with the commands beside it) into its record. Two
+callers meet the N64's form:
+
+- **The WAD converter** (`port/assets/wad.c`) builds a record for each command a walk of the file reaches, in the
+  file's order (one record a command, so a list's place in the file maps to its record), and sets the record's pointer
+  where the N64's relocation made the word an address (as before: the native vertices, a list's record, a copy of a
+  matrix or viewport, a place in the file). The two-command forms fold: a G_BRANCH_Z holds the list its G_RDPHALF_1
+  names (the half's record is a no-op), and a texture rectangle's G_RDPHALF_1 is its `RECTANGLE_TEXTURE` (the
+  G_RDPHALF_2 a no-op). `rush2049pc_assetcheck`'s replay (`wad_lists_check.h`) checks every record against
+  `pc_gfx_from_n64` of the file's command, and its pointer against the N64's relocation as before.
+- **The cartridge's two set-up lists**, `rsp_init_dl` and `rdp_init_dl`, are game data in the N64's form (`GfxWords`:
+  the loader lays them out as before). `StartGraphics` reads them into records the first time a frame starts, and the
+  frame's list calls those.
+
+**The walkers** read records: `prepare_model_dl` (a `SECTION` whose bit the race doesn't keep becomes a
+`BRANCH_LIST` to its `end`; a `BRANCH_Z` goes on at its `list`), `display_list_traverse` (calls, branches and
+`BRANCH_Z` by their lists), `flip_triangle_winding` (swaps a triangle's second and third slot),
+`displaylist_get_texture_image` and `_set_texture_image` (`image.image` of the first `TEXTURE_IMAGE`),
+`displaylist_set_tile_size` (`tile_rect.uls`..`lrt` of each `TILE_SIZE`, cut to 12 bits).
+
+**What the renderer dropped**: the decoding of every command (its handlers read named fields); the segments
+(`pcgfx_resolve`); the halves' latches (a G_TEXRECT's coordinates, a G_BRANCH_Z's list); `gfx_gbi.h`'s opcodes. It
+keeps the RDP's own state as the RDP has it: the other modes' two words, the tiles and texture memory, and the
+combiner as its 16 selectors (`GfxCombine`, in the shader key in place of the two packed words).
+
+**Mods' textures keep their names.** A texture's identity is computed from the texels the tile reads in texture
+memory, its format and size, and the palette ([TEXTURES.md](TEXTURES.md) "A texture's identity"); the loads that fill
+texture memory carry the same values as records, so the identities, the dump's names and every pack's files are the
+same (`gfx.tex.*`, `mods_texture`).
+
+**The proof** (Rocky, x86-64, GCC 14; the reference is d224beab's builds). Stage 1, the renderer reading records it
+decoded from the N64's words at the walk (the decoder that became `pc_gfx_from_n64`), and stage 2, the records
+everywhere, each against the reference's Debug build: 64 of 64 synthetic paths the same (`synth_compare.py --same
+--shots --data-moved`, stage 2 with `--audio` too), screenshots and sound byte for byte. objsame, Debug and
+RelWithDebInfo: stage 1 changes no game unit; stage 2 the 22 that build or walk lists and no other; naming the render
+modes after it, none. The gfx tests (which build records with their own encoders, `tests/test_gbi.h`), the
+converter's (`assets_wad`, `assets_wad_game`, `assets_mods`), the front end's and the mods' pass. The gate on the
+final tree (`pconly_gate.sh --base` the reference `--skip realtime --data-moved`): the build, 64 of 64 paths the same
+with `--shots --audio`, ctest 570 of 572 (`assets_pools` read the frame list's end as the N64's words, and
+`render_values` wanted StartGraphics' call of `pc_gfx_list_from_n64` listed: both fixed, and passing). RelWithDebInfo
+against the reference's (`--same --shots --audio --data-moved`): 64 of 64 on the synthetic cartridge (`raceend12`'s own
+two runs varied in the exit's last sound bytes once, and were the same alone) and 64 of 64 on the audible one; ctest
+572 of 572 (`assets_rom` skipped: no ROM); the realtime-labelled tests 61 of 61. ASan + UBSan (GCC's objects on clang
+21's runtime): CI's ASan ctest set, 399 of 399, and the two synthetic paths it skips, with no report.
+
+## Addresses and byte order
+
+- **Addresses**: a record's pointer is a host pointer, or NULL (the command is skipped). Until [NATIVE.md](NATIVE.md)
+  step 12 a value below 4 GB was an N64 address (the RDRAM window, where the heap was), and until this wave a list
+  could name a segment's offset (0x0S000000 + off, the microcode's segment table); the game never set a base.
 - **Vertices** are always the host's byte order: the game's, and a model's, which the WAD converter swaps when the file
   loads. A model's are registered as model data (`pc_mem_register_model_data`, `port/ultra/memory.c`): data that stays
   put while its file is loaded, which the high frame rate's recorder asks about ("High frame rate" below).
@@ -75,23 +164,21 @@ Every external symbol except the `pc_gfx_*` API is `pcgfx`/`pcgfx_*`. The game h
 ## RSP
 
 - **Matrices.** A 32-deep modelview stack and one projection, with MP = MV × P (row vectors), recomputed on change.
-  - G_MTX handles push/load/mul and projection.
-  - G_POPMTX pops n (it never goes below the base).
-  - G_MW_MATRIX (insert into MP) and G_MV_MATRIX (force MP) are implemented.
-- **Viewport.** MOVEMEM G_MV_VIEWPORT: x/y in 10.2, z in 0..0x3FF. Screen y = trans − y/w × scale (the RSP's
-  flip).
+  - `MATRIX` handles push/load/mul and projection.
+  - `POP_MATRIX` pops n (it never goes below the base).
+  - `INSERT_MATRIX` (a word into MP) and `FORCE_MATRIX` (MP itself) are implemented.
+- **Viewport.** `VIEWPORT`: x/y in 10.2, z in 0..0x3FF. Screen y = trans − y/w × scale (the RSP's flip).
 - **Vertices.**
-  - G_VTX takes v0 and n from the F3DEX2 encoding into the 32-entry buffer.
-  - G_MODIFYVTX changes RGBA, ST, XYSCREEN (the viewport is inverted, w kept) or ZSCREEN.
-  - Texture coordinates are scaled by G_TEXTURE when the vertex loads, as the microcode does.
+  - `VERTICES` loads count vertices into slots first.. of the 32-entry buffer (a load of none does nothing).
+  - `MODIFY_VERTEX` changes RGBA, ST, XYSCREEN (the viewport is inverted, w kept) or ZSCREEN.
+  - Texture coordinates are scaled by `TEXTURE`'s scale when the vertex loads, as the microcode does.
 - **Lighting** (G_LIGHTING).
   - Color = ambient + Σ col × max(0, n·l). The directional lights and the lookat are taken into model space through
     the modelview, then normalized.
-  - The ambient light is entry NUMLIGHT, which matches gSPSetLights*.
-  - Lights come from MOVEMEM G_MV_LIGHT (offset/24 − 2; offsets 0 and 24 are lookat X and Y) and MOVEWORD
-    G_MW_LIGHTCOL.
+  - The ambient light is entry `NUM_LIGHTS`' count, which matches gSPSetLights*.
+  - Lights come from `LIGHT` (slot − 2; slots 0 and 1 are lookat X and Y) and `LIGHT_COLOR`.
 - **Texgen.** s = (n·lookatX + 1)/4 × scale_s; t the same with lookatY. The linear variant uses acos.
-- **Fog** (G_FOG). The shade alpha becomes clamp(z/w × fm + fo, 0, 255) from G_MW_FOG. With `video.fog` far or off,
+- **Fog** (G_FOG). The shade alpha becomes clamp(z/w × fm + fo, 0, 255) from `FOG`'s multiplier and offset. With `video.fog` far or off,
   or `video.draw_distance` far or max, as [DETAIL.md](DETAIL.md) 3 says (`gfx_detail.c`).
 - **Clipping.** The NoN microcode has no near plane. As on the RSP, a triangle with a vertex outside the guard band
   (|x| ≤ 2w, |y| ≤ 2w; x as the view sees it in widescreen) is clipped to the guard band, on the CPU, before the
@@ -121,18 +208,16 @@ Every external symbol except the `pc_gfx_*` API is `pcgfx`/`pcgfx_*`. The game h
 - **Culling** uses the winding in N64 screen space after clipping (front = counterclockwise on screen). The game's
   mirrored modelview (x = −1) and mirrored viewports therefore flip it, as on the RSP. GL face culling stays off.
 - **Display-list control.**
-  - G_DL push/branch, with an 18-deep stack.
-  - G_ENDDL.
-  - G_CULLDL: every vertex outside the same screen edge (or all behind the eye) ends the list like ENDDL.
-  - G_BRANCH_Z: screen z (16.16) ≤ w1 branches to RDPHALF_1.
-  - G_SPNOOP (0xE0) is a no-op whatever its bytes, which covers the game's unrewritten LOD markers.
-  - G_LOAD_UCODE is ignored with a warning.
+  - `CALL_LIST` and `BRANCH_LIST`, with an 18-deep stack; `END_LIST`.
+  - `CULL_LIST`: every vertex outside the same screen edge (or all behind the eye) ends the list like `END_LIST`.
+  - `BRANCH_Z`: screen z (16.16) ≤ its z goes on at its list.
+  - `SECTION` (a level-of-detail marker the race keeps) and `NOOP` do nothing; a file's G_LOAD_UCODE is a `NOOP`.
   - A task stops after 4M commands, which guards against list loops.
 - **Flat shading** uses the first vertex (F3DEX2). Triangles are batched per draw state.
 
 ## RDP
 
-- **Other modes.** SETOTHERMODE_H/L (F3DEX2 shift/len encoding) and RDPSETOTHERMODE.
+- **Other modes.** `OTHER_MODE_HIGH`/`_LOW` (a field: shift, length, its bits in place) and `OTHER_MODES`.
 - **Colors.** prim (with min level and LOD fraction), env, blend, fog, fill.
 - **Images.** SETCIMG, SETZIMG, SETTIMG. SETSCISSOR (its interlace mode is ignored). SETPRIMDEPTH.
 - **TMEM.** 4 KB, filled the hardware's way:
@@ -282,7 +367,7 @@ Every external symbol except the `pc_gfx_*` API is `pcgfx`/`pcgfx_*`. The game h
 | `RUSH_GFX_HEIGHT=rows` | frame rows to show (default: the largest scissor bottom) |
 | `RUSH_GFX_VERBOSE=1/2/3` | renderer and per-task counts / generated shaders; with a high frame rate, the pairing's lines ("High frame rate" below) |
 | `RUSH_GFX_TIMES=1\|2\|3` | at exit, the time of graphics tasks, frames drawn between two and frames shown: 1 the CPU's, 2 with the GPU's (glFinish around each part), 3 the CPU's alone from an idle GPU (glFinish before each part) and the GPU's from timer queries (`GL_TIME_ELAPSED`: desktop GL 3.3, `ARB_timer_query`, `EXT_disjoint_timer_query`; not on the Pi's V3D), with the draws and vertices per task and per frame between ("What it costs" below) |
-| `RUSH_GFX_TRACE=N` | every command of the Nth graphics task (w0, w1, and the depth of the list it is in) |
+| `RUSH_GFX_TRACE=N` | every command of the Nth graphics task (its op, its record's 16 bytes, and the depth of the list it is in) |
 | `RUSH_GFX_TEXTURES=original\|upscaled\|pack` | the textures ([TEXTURES.md](TEXTURES.md)); with `RUSH_GFX_TEXTURE_PACK=DIR` (the pack), `RUSH_GFX_TEXTURE_DUMP=DIR` (every texture drawn, as PNG), `RUSH_GFX_TEXTURE_CACHE=DIR` (the upscaled textures kept on disk; empty: none), `RUSH_GFX_UPSCALE=2\|4` (the factor, instead of the internal scale's), `RUSH_GFX_UPSCALE_2D=1` (2D upscaled too), `RUSH_GFX_TEXTURE_SYNC=1` (upscale and load at once, on the game's thread: tests and screenshots) |
 | `RUSH_GFX_DUMP=DIR[:FIRST[:COUNT]]` | the color image of each graphics task from the FIRST (1-based) on, COUNT of them (100), as `DIR/task-NNNNN.png` at the internal scale: every frame the game draws, where a screenshot takes one. `tools/port/frame_spikes.py DIR` lists the frames that differ from both neighbours far more than those from each other (a polygon lost for a frame), which is how the road lost under the camera was found (BRINGUP.md 14) |
 | `LIBGL_ALWAYS_SOFTWARE=1` | Mesa llvmpipe |
@@ -886,10 +971,9 @@ by w in double for every triangle that uses it; computing that once a vertex at 
 
 ## What the game code must do
 
-- **Wide `Gfx`.** `Gfx` is `{ u32 w0; uintptr_t w1; }` (16 bytes) on `TARGET_PC`.
-  - Every pointer stored in w1 must be the full pointer: macros, raw `words.w1 =` writes, and the 32-bit pointer
-    store that patches the inline CULLDL branch (particle_context.c:1116).
-  - List arithmetic must count in `Gfx` units, never in bytes or `<< 3`.
+- **Records, through the macros.** A list is `Gfx` records ("The command records"), written by include/game/gbi.h's
+  macros (or its `gbi_*` builders, as `prepare_model_dl` does), never by hand. A record's pointer is the full host
+  pointer (the culled branch's patch in `Traverse` writes `list.list`). List arithmetic counts in records.
 - **No masked addresses.** A pointer must never be masked (`& 0xFFFFFF`, `| 0x80000000`): since
   [NATIVE.md](NATIVE.md) step 12 nothing the game draws is in an RDRAM window, where a masked address stayed an N64
   address.
@@ -903,17 +987,18 @@ by w in double for every triangle that uses it; computing that once a vertex at 
   - A `memcpy` of big-endian ROM fields into a native `Vtx` leaves them big-endian. particle_context.c:1372 copies tc
     and colors from `poly` this way, so it needs a swap if `poly` comes from ROM data.
   - Lights written as raw words need the byte layout `col[3], pad, colc[3], pad, dir[3], pad`.
-- **The files' lists.** The WAD converter builds them, and the vertices they load, in the PC's form
+- **The files' lists.** The WAD converter builds them as records, and the vertices they load, in the PC's form
   ([NATIVE.md](NATIVE.md) step 10; [ASSETS.md](ASSETS.md) 3.2), and the matrices and viewports they load (step
-  14); texels and TLUTs stay in the file, in its texel memory (IMAG). The game's
-  walkers over the lists read and write `Gfx` and `Vtx` as they are: `prepare_model_dl` (the race's LOD markers),
+  14); texels and TLUTs stay in the file, in its texel memory (IMAG). The game's walkers over the lists read and
+  write the records' fields and `Vtx` as they are: `prepare_model_dl` (the race's LOD markers),
   `display_list_traverse`, the mirror winding flip (`flip_triangle_winding`), the vertex flag pass
   (`mirror_vertex_texcoords`) and the texture animation's `displaylist_*` helpers.
 
 ## The game's commands and modes, and their status
 
 From a source survey (2026-10-26). "Code" = built by game C. "ROM" = only in the files' lists (the WAD converter's
-since NATIVE.md step 10), as seen through the game's walkers. **T** = covered by `gfx_test`.
+since NATIVE.md step 10), as seen through the game's walkers. **T** = covered by `gfx_test`. Op is the N64's opcode:
+since wave 4 each reaches the renderer as its record ("The command records").
 
 | Op | Command | Game | Status |
 |---|---|---|---|
@@ -1008,8 +1093,9 @@ build/gfx/gfx_test texrect --png /tmp/out
 - **Textures.** `gfx_tex_test` (`gfx.tex.*`): the PNG reader, texture identities, a pack's round trip, wrap and
   mirror seams at 2x, LOD levels at 2x, 6.75 and 2.25, cut-out edges, the worker and the disk cache
   ([TEXTURES.md](TEXTURES.md) "Tests").
-- **How the test works.** `gfx_test` builds display lists with its own encoders (`tests/test_gbi.h`, written from
-  the SDK formats and not from the renderer's decoder). It renders them headless and checks pixels against values
+- **How the test works.** `gfx_test` builds display lists with its own encoders (`tests/test_gbi.h`: the SDK's macros'
+  names, each writing the records with the values the SDK's formats give its command; the N64's words until wave 4).
+  It renders them headless and checks pixels against values
   worked out from the N64 rules. It provides its own `pc_mem_is_texel_memory` and `pc_mem_is_model_data`, and keeps its data
   in host buffers (until [NATIVE.md](NATIVE.md) step 12 an 8 MB RDRAM array behind its own `pc_n64_ptr`).
 - **Cases.** 27, one CTest each:
@@ -1027,7 +1113,7 @@ build/gfx/gfx_test texrect --png /tmp/out
 | `twocycle` | a TEXEL0/TEXEL1 lerp, then a lerp toward env by the primitive LOD fraction |
 | `lod` | G_TL_LOD with four mip levels (level 1 striped a texel wide, to check its coordinates), point sampled, quads with their corners on whole N64 pixels (a projection exact in fixed point) at steps of 0.5-16 texels an N64 pixel: the first level magnified, level 1 and 2 exactly, halfway between levels, the last level from its power on, 3 across and 0.5 down and the other way round (each axis at its own scale); without G_TL_LOD, tile 0. Every internal pixel inside a quad against the N64's levels and fraction for its step and the texels at its own centre (those within 1/16 texel of a stripe's side left out) |
 | `dualtile` | CI8 read as CI4 |
-| `filetexels` | the frame list calling a list in a host buffer through a host segment (a kept LOD marker, a matrix, the buffer's texels in texel memory, vertices), and a list in a second buffer by its pointer (a matrix, vertices by pointer and through a segment set from that list); a texture by its pointer in the frame list. Since [NATIVE.md](NATIVE.md) step 10 every list is the PC's form (until then `belist`, with N64-form lists); until step 14, `bedata`, with big-endian matrices in big-endian ranges |
+| `filetexels` | the frame list calling a list in a host buffer (a kept level-of-detail marker, a matrix, the buffer's texels in texel memory, vertices), and a list in a second buffer (a matrix, vertices in two places); a texture by its pointer in the frame list. Until wave 4 the first list was called through a segment, and the second set one (records have no segments); since [NATIVE.md](NATIVE.md) step 10 every list is the PC's form (until then `belist`, with N64-form lists); until step 14, `bedata`, with big-endian matrices in big-endian ranges |
 | `matrix` | push/mul/pop |
 | `cull` | front/back, mirrored modelview, CULLDL |
 | `branchz` | BRANCH_Z |

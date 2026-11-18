@@ -12,29 +12,11 @@
 
 #include "gfx_internal.h"
 
-typedef struct {
-    int a, b, c, d;       /* color */
-    int aa, ab, ac, ad;   /* alpha */
-} Cycle;
+typedef GfxCombine Cycle;
 
 static void decode(const GfxShaderKey *k, Cycle cyc[2]) {
-    uint32_t w0 = k->cc_w0, w1 = k->cc_w1;
-    cyc[0].a = (w0 >> 20) & 0xF;
-    cyc[0].c = (w0 >> 15) & 0x1F;
-    cyc[0].aa = (w0 >> 12) & 7;
-    cyc[0].ac = (w0 >> 9) & 7;
-    cyc[1].a = (w0 >> 5) & 0xF;
-    cyc[1].c = w0 & 0x1F;
-    cyc[0].b = (w1 >> 28) & 0xF;
-    cyc[1].b = (w1 >> 24) & 0xF;
-    cyc[1].aa = (w1 >> 21) & 7;
-    cyc[1].ac = (w1 >> 18) & 7;
-    cyc[0].d = (w1 >> 15) & 7;
-    cyc[0].ab = (w1 >> 12) & 7;
-    cyc[0].ad = (w1 >> 9) & 7;
-    cyc[1].d = (w1 >> 6) & 7;
-    cyc[1].ab = (w1 >> 3) & 7;
-    cyc[1].ad = w1 & 7;
+    cyc[0] = k->combine[0];
+    cyc[1] = k->combine[1];
 }
 
 /* Which cycles run: 1-cycle uses cycle index 1 only. */

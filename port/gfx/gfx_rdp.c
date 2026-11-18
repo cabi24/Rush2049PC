@@ -111,9 +111,10 @@ static unsigned bpp_x2(unsigned siz) {   /* bytes per texel, times two */
     return 1u << siz;
 }
 
-static void load_block(uint32_t w0, uint32_t w1) {
-    const GfxTile *tile = &pcgfx.tiles[(w1 >> 24) & 7];
-    unsigned uls = (w0 >> 12) & 0xFFF, ult = w0 & 0xFFF, lrs = (w1 >> 12) & 0xFFF, dxt = w1 & 0xFFF;
+/* GFX_OP_LOAD_BLOCK: a run of texels into the tile's place in texture memory. */
+static void load_block(const Gfx *c) {
+    const GfxTile *tile = &pcgfx.tiles[c->load_block.tile & 7];
+    unsigned uls = c->load_block.uls, ult = c->load_block.ult, lrs = c->load_block.lrs, dxt = c->load_block.dxt;
     unsigned siz = pcgfx.timg.siz, texels, dst = tile->tmem * 8u, i;
     const uint8_t *src;
     int be;
@@ -160,10 +161,11 @@ static void load_block(uint32_t w0, uint32_t w1) {
     pcgfx.tex_dirty = pcgfx.state_dirty = 1;
 }
 
-static void load_tile(uint32_t w0, uint32_t w1) {
-    const GfxTile *tile = &pcgfx.tiles[(w1 >> 24) & 7];
-    unsigned sl = ((w0 >> 12) & 0xFFF) >> 2, tl = (w0 & 0xFFF) >> 2;
-    unsigned sh = ((w1 >> 12) & 0xFFF) >> 2, th = (w1 & 0xFFF) >> 2;
+/* GFX_OP_LOAD_TILE: a rectangle of the texture image, row by row, into the tile's place in texture memory. */
+static void load_tile(const Gfx *c) {
+    const GfxTile *tile = &pcgfx.tiles[c->tile_rect.tile & 7];
+    unsigned sl = c->tile_rect.uls >> 2, tl = c->tile_rect.ult >> 2;
+    unsigned sh = c->tile_rect.lrs >> 2, th = c->tile_rect.lrt >> 2;
     unsigned siz = pcgfx.timg.siz, line = tile->line * 8u, dst = tile->tmem * 8u, r, i, w, h;
     int be;
     if (pcgfx.timg.addr == NULL || sh < sl || th < tl)
@@ -195,9 +197,9 @@ static void load_tile(uint32_t w0, uint32_t w1) {
 }
 
 /* Each palette entry is stored four times, 8 bytes apart per entry, as the hardware's four TLUT banks. */
-static void load_tlut(uint32_t w0, uint32_t w1) {
-    const GfxTile *tile = &pcgfx.tiles[(w1 >> 24) & 7];
-    unsigned sl = ((w0 >> 12) & 0xFFF) >> 2, tl = (w0 & 0xFFF) >> 2, sh = ((w1 >> 12) & 0xFFF) >> 2;
+static void load_tlut(const Gfx *c) {
+    const GfxTile *tile = &pcgfx.tiles[c->load_tlut.tile & 7];
+    unsigned sl = c->load_tlut.first, tl = c->load_tlut.row, sh = c->load_tlut.last;
     unsigned dst = tile->tmem * 8u, i, k, n;
     const uint8_t *src;
     int be;
@@ -897,8 +899,7 @@ static void build_state(GfxDrawState *st, int rect_tile, int wide) {
 
     memset(st, 0, sizeof(*st));
     memset(&key, 0, sizeof(key));
-    key.cc_w0 = pcgfx.cc_w0 & 0x00FFFFFF;
-    key.cc_w1 = pcgfx.cc_w1;
+    memcpy(key.combine, pcgfx.combine, sizeof(key.combine));
     key.blender = (uint16_t)(oml >> 16);
     key.mode = cyc == G_CYC_1CYCLE ? GFX_MODE_1CYC : cyc == G_CYC_2CYCLE ? GFX_MODE_2CYC
              : cyc == G_CYC_COPY ? GFX_MODE_COPY : GFX_MODE_FILL;
@@ -909,7 +910,7 @@ static void build_state(GfxDrawState *st, int rect_tile, int wide) {
     if (oml & ALPHA_CVG_SEL) key.flags |= GFX_KF_ALPHA_CVG_SEL;
     if (oml & CVG_X_ALPHA) key.flags |= GFX_KF_CVG_X_ALPHA;
     if (key.mode != GFX_MODE_1CYC && key.mode != GFX_MODE_2CYC) {   /* only these use the combiner/blender */
-        key.cc_w0 = key.cc_w1 = 0;
+        memset(key.combine, 0, sizeof(key.combine));
         key.blender = 0;
         key.flags = 0;
     }
@@ -1240,11 +1241,11 @@ static void draw_rect(float x0, float y0, float x1, float y1, int tile, float s,
     pcgfx_emit(tri, 6);
 }
 
-void pcgfx_texrect(uint32_t w0, uint32_t w1, uint32_t half1, uint32_t half2, int flip) {
-    unsigned lrx = (w0 >> 12) & 0xFFF, lry = w0 & 0xFFF, ulx = (w1 >> 12) & 0xFFF, uly = w1 & 0xFFF;
-    int tile = (w1 >> 24) & 7;
-    float s = (int16_t)(half1 >> 16) / 32.0f, t = (int16_t)(half1 & 0xFFFF) / 32.0f;
-    float dsdx = (int16_t)(half2 >> 16) / 1024.0f, dtdy = (int16_t)(half2 & 0xFFFF) / 1024.0f;
+void pcgfx_texrect(const Gfx *rect, const Gfx *tex) {
+    unsigned lrx = rect->rectangle.lrx, lry = rect->rectangle.lry, ulx = rect->rectangle.ulx, uly = rect->rectangle.uly;
+    int tile = rect->rectangle.tile & 7, flip = rect->rectangle.flip != 0;
+    float s = tex->rectangle_texture.s / 32.0f, t = tex->rectangle_texture.t / 32.0f;
+    float dsdx = tex->rectangle_texture.dsdx / 1024.0f, dtdy = tex->rectangle_texture.dtdy / 1024.0f;
     unsigned cyc = cycle_type();
     if (cyc == G_CYC_FILL)
         return;
@@ -1258,8 +1259,8 @@ void pcgfx_texrect(uint32_t w0, uint32_t w1, uint32_t half1, uint32_t half2, int
     draw_rect(ulx / 4.0f, uly / 4.0f, lrx / 4.0f, lry / 4.0f, tile, s, t, dsdx, dtdy, flip);
 }
 
-static void fill_rect(uint32_t w0, uint32_t w1) {
-    unsigned lrx = (w0 >> 12) & 0xFFF, lry = w0 & 0xFFF, ulx = (w1 >> 12) & 0xFFF, uly = w1 & 0xFFF;
+static void fill_rect(const Gfx *c) {
+    unsigned lrx = c->rectangle.lrx, lry = c->rectangle.lry, ulx = c->rectangle.ulx, uly = c->rectangle.uly;
     unsigned cyc = cycle_type();
     if (cyc == G_CYC_FILL || cyc == G_CYC_COPY) {
         int32_t r[4];
@@ -1312,16 +1313,17 @@ static void fill_rect(uint32_t w0, uint32_t w1) {
 
 /* ---------------------------------------------------------------- RDP commands */
 
-static void set_othermode(uint32_t *word, uint32_t w0, uint32_t w1) {
-    uint32_t len = (w0 & 0xFF) + 1, shift = 32 - ((w0 >> 8) & 0xFF) - len;
+/* GFX_OP_OTHER_MODE_HIGH, _LOW: the field's bits, in place. */
+static void set_othermode(uint32_t *word, const Gfx *c) {
+    uint32_t len = c->other_mode.length, shift = c->other_mode.shift;
     uint32_t mask = (len >= 32 ? 0xFFFFFFFFu : ((1u << len) - 1)) << shift;
-    *word = (*word & ~mask) | (w1 & mask);
+    *word = (*word & ~mask) | (c->other_mode.bits & mask);
 }
 
 void pcgfx_rdp_reset(void) {
     pcgfx.om_h = 0;
     pcgfx.om_l = 0;
-    pcgfx.cc_w0 = pcgfx.cc_w1 = 0;
+    memset(pcgfx.combine, 0, sizeof(pcgfx.combine));
     pcgfx.sc_ulx = pcgfx.sc_uly = 0;
     pcgfx.sc_lrx = 320 << 2;
     pcgfx.sc_lry = 240 << 2;
@@ -1334,128 +1336,131 @@ void pcgfx_rdp_reset(void) {
     s_tex_gen = pcgfx_tex_generation();   /* the settings at init: no needless drop of the cache at the first frame */
 }
 
-void pcgfx_rdp_command(uint32_t op, uint32_t w0, uintptr_t w1p) {
-    uint32_t w1 = (uint32_t)w1p;
+void pcgfx_rdp_command(const Gfx *c) {
     GfxTile *tl;
-    switch (op) {
-    case G_SETOTHERMODE_L:
-        set_othermode(&pcgfx.om_l, w0, w1);
+    switch (c->op) {
+    case GFX_OP_OTHER_MODE_LOW:
+        set_othermode(&pcgfx.om_l, c);
         pcgfx.state_dirty = 1;
         break;
-    case G_SETOTHERMODE_H:
-        set_othermode(&pcgfx.om_h, w0, w1);
+    case GFX_OP_OTHER_MODE_HIGH:
+        set_othermode(&pcgfx.om_h, c);
         pcgfx.state_dirty = pcgfx.tex_dirty = 1;
         break;
-    case G_RDPSETOTHERMODE:
-        pcgfx.om_h = w0 & 0x00FFFFFF;
-        pcgfx.om_l = w1;
+    case GFX_OP_OTHER_MODES:
+        pcgfx.om_h = c->other_modes.high;
+        pcgfx.om_l = c->other_modes.low;
         pcgfx.state_dirty = pcgfx.tex_dirty = 1;
         break;
-    case G_RDPLOADSYNC:
-    case G_RDPPIPESYNC:
-    case G_RDPTILESYNC:
-    case G_RDPFULLSYNC:
-    case G_SETKEYGB:
-    case G_SETKEYR:
-    case G_SETCONVERT:
-        break;
-    case G_SETSCISSOR:
-        pcgfx.sc_ulx = (w0 >> 12) & 0xFFF;
-        pcgfx.sc_uly = w0 & 0xFFF;
-        pcgfx.sc_lrx = (w1 >> 12) & 0xFFF;
-        pcgfx.sc_lry = w1 & 0xFFF;
+    case GFX_OP_SCISSOR:   /* its interlace mode is ignored */
+        pcgfx.sc_ulx = c->scissor.ulx;
+        pcgfx.sc_uly = c->scissor.uly;
+        pcgfx.sc_lrx = c->scissor.lrx;
+        pcgfx.sc_lry = c->scissor.lry;
         pcgfx.state_dirty = 1;
         break;
-    case G_SETPRIMDEPTH:
-        pcgfx.prim_z = (uint16_t)(w1 >> 16);
-        pcgfx.prim_dz = (uint16_t)w1;
+    case GFX_OP_PRIM_DEPTH:
+        pcgfx.prim_z = c->prim_depth.z;
+        pcgfx.prim_dz = c->prim_depth.dz;
         break;
-    case G_LOADTLUT:
-        load_tlut(w0, w1);
+    case GFX_OP_LOAD_TLUT:
+        load_tlut(c);
         break;
-    case G_SETTILESIZE:
-        tl = &pcgfx.tiles[(w1 >> 24) & 7];
-        tl->uls = (w0 >> 12) & 0xFFF;
-        tl->ult = w0 & 0xFFF;
-        tl->lrs = (w1 >> 12) & 0xFFF;
-        tl->lrt = w1 & 0xFFF;
+    case GFX_OP_TILE_SIZE:
+        tl = &pcgfx.tiles[c->tile_rect.tile & 7];
+        tl->uls = c->tile_rect.uls;
+        tl->ult = c->tile_rect.ult;
+        tl->lrs = c->tile_rect.lrs;
+        tl->lrt = c->tile_rect.lrt;
         pcgfx.tex_dirty = pcgfx.state_dirty = 1;
         break;
-    case G_LOADBLOCK:
-        load_block(w0, w1);
+    case GFX_OP_LOAD_BLOCK:
+        load_block(c);
         break;
-    case G_LOADTILE:
-        tl = &pcgfx.tiles[(w1 >> 24) & 7];
-        tl->uls = (w0 >> 12) & 0xFFF;   /* a load also sets the tile's size */
-        tl->ult = w0 & 0xFFF;
-        tl->lrs = (w1 >> 12) & 0xFFF;
-        tl->lrt = w1 & 0xFFF;
-        load_tile(w0, w1);
+    case GFX_OP_LOAD_TILE:
+        tl = &pcgfx.tiles[c->tile_rect.tile & 7];
+        tl->uls = c->tile_rect.uls;   /* a load also sets the tile's size */
+        tl->ult = c->tile_rect.ult;
+        tl->lrs = c->tile_rect.lrs;
+        tl->lrt = c->tile_rect.lrt;
+        load_tile(c);
         break;
-    case G_SETTILE:
-        tl = &pcgfx.tiles[(w1 >> 24) & 7];
-        tl->fmt = (w0 >> 21) & 7;
-        tl->siz = (w0 >> 19) & 3;
-        tl->line = (w0 >> 9) & 0x1FF;
-        tl->tmem = w0 & 0x1FF;
-        tl->palette = (w1 >> 20) & 0xF;
-        tl->cmt = (w1 >> 18) & 3;
-        tl->maskt = (w1 >> 14) & 0xF;
-        tl->shiftt = (w1 >> 10) & 0xF;
-        tl->cms = (w1 >> 8) & 3;
-        tl->masks = (w1 >> 4) & 0xF;
-        tl->shifts = w1 & 0xF;
+    case GFX_OP_SET_TILE:
+        tl = &pcgfx.tiles[c->set_tile.tile & 7];
+        tl->fmt = c->set_tile.format;
+        tl->siz = c->set_tile.size;
+        tl->line = c->set_tile.line;
+        tl->tmem = c->set_tile.tmem;
+        tl->palette = c->set_tile.palette;
+        tl->cmt = c->set_tile.cmt;
+        tl->maskt = c->set_tile.maskt;
+        tl->shiftt = c->set_tile.shiftt;
+        tl->cms = c->set_tile.cms;
+        tl->masks = c->set_tile.masks;
+        tl->shifts = c->set_tile.shifts;
         pcgfx.tex_dirty = pcgfx.state_dirty = 1;
         break;
-    case G_FILLRECT:
-        fill_rect(w0, w1);
+    case GFX_OP_FILL_RECTANGLE:
+        fill_rect(c);
         break;
-    case G_SETFILLCOLOR:
-        pcgfx.fill_color = w1;
+    case GFX_OP_FILL_COLOR:
+        pcgfx.fill_color = c->fill_color.pattern;
         pcgfx.state_dirty = 1;
         break;
-    case G_SETFOGCOLOR:
-    case G_SETBLENDCOLOR:
-    case G_SETPRIMCOLOR:
-    case G_SETENVCOLOR: {
-        uint8_t *c = op == G_SETFOGCOLOR ? pcgfx.fog : op == G_SETBLENDCOLOR ? pcgfx.blend
-                   : op == G_SETPRIMCOLOR ? pcgfx.prim : pcgfx.env;
-        c[0] = w1 >> 24;
-        c[1] = w1 >> 16;
-        c[2] = w1 >> 8;
-        c[3] = w1;
-        if (op == G_SETPRIMCOLOR) {
-            pcgfx.prim_min_level = (w0 >> 8) & 0x1F;
-            pcgfx.prim_lod = w0 & 0xFF;
+    case GFX_OP_FOG_COLOR:
+    case GFX_OP_BLEND_COLOR:
+    case GFX_OP_PRIM_COLOR:
+    case GFX_OP_ENV_COLOR: {
+        uint8_t *col = c->op == GFX_OP_FOG_COLOR ? pcgfx.fog : c->op == GFX_OP_BLEND_COLOR ? pcgfx.blend
+                     : c->op == GFX_OP_PRIM_COLOR ? pcgfx.prim : pcgfx.env;
+        col[0] = c->color.r;
+        col[1] = c->color.g;
+        col[2] = c->color.b;
+        col[3] = c->color.a;
+        if (c->op == GFX_OP_PRIM_COLOR) {
+            pcgfx.prim_min_level = c->color.min_level;
+            pcgfx.prim_lod = c->color.lod_fraction;
         }
         pcgfx.state_dirty = 1;
         break;
     }
-    case G_SETCOMBINE:
-        pcgfx.cc_w0 = w0;
-        pcgfx.cc_w1 = w1;
+    case GFX_OP_COMBINE: {
+        int i;
+        for (i = 0; i < 2; i++) {
+            const GfxCombineCycle *cy = &c->combine.cycle[i];
+            GfxCombine *k = &pcgfx.combine[i];
+            k->a = cy->rgb_a;
+            k->b = cy->rgb_b;
+            k->c = cy->rgb_c;
+            k->d = cy->rgb_d;
+            k->aa = cy->alpha_a;
+            k->ab = cy->alpha_b;
+            k->ac = cy->alpha_c;
+            k->ad = cy->alpha_d;
+        }
         pcgfx.state_dirty = 1;
         break;
-    case G_SETTIMG:
-        pcgfx.timg.addr = pcgfx_resolve(w1p);
-        pcgfx.timg.fmt = (w0 >> 21) & 7;
-        pcgfx.timg.siz = (w0 >> 19) & 3;
-        pcgfx.timg.width = (uint16_t)((w0 & 0xFFF) + 1);
+    }
+    case GFX_OP_TEXTURE_IMAGE:
+        pcgfx.timg.addr = c->image.image;
+        pcgfx.timg.fmt = c->image.format;
+        pcgfx.timg.siz = c->image.size;
+        pcgfx.timg.width = c->image.width;
         break;
-    case G_SETZIMG:
+    case GFX_OP_DEPTH_IMAGE:
         if (pcgfx_hud_pending())   /* the HUD's queued 2D goes where it was drawn (gfx_hud.c) */
             pcgfx_hud_resolve();
-        pcgfx.zimg = pcgfx_resolve(w1p);
+        pcgfx.zimg = c->image.image;
         pcgfx.zimg_width = pcgfx.cimg.width;
         pcgfx.state_dirty = 1;
         break;
-    case G_SETCIMG: {
-        const uint8_t *a = pcgfx_resolve(w1p);
+    case GFX_OP_COLOR_IMAGE: {
+        const uint8_t *a = c->image.image;
         if (pcgfx_hud_pending())   /* the HUD's queued 2D goes where it was drawn (gfx_hud.c) */
             pcgfx_hud_resolve();
-        pcgfx.cimg.fmt = (w0 >> 21) & 7;
-        pcgfx.cimg.siz = (w0 >> 19) & 3;
-        pcgfx.cimg.width = (uint16_t)((w0 & 0xFFF) + 1);
+        pcgfx.cimg.fmt = c->image.format;
+        pcgfx.cimg.siz = c->image.size;
+        pcgfx.cimg.width = c->image.width;
         pcgfx.cimg.addr = a;
         if (a != pcgfx.zimg) {   /* the z buffer as color image clears the frame's depth: keep its geometry */
             pcgfx.wide_ox = wide_offset(pcgfx.cimg.width);

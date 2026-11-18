@@ -33,14 +33,7 @@ typedef volatile s16 vs16;
 typedef volatile s32 vs32;
 typedef volatile s64 vs64;
 
-/* N64 Graphics types (from libultra) */
-typedef union {
-    struct {
-        u32 w0;
-        u32 w1;
-    } words;
-    u64 force_structure_alignment;
-} Gfx;
+/* N64 Graphics types (from libultra; Gfx, a display list's command, is the port's: pc_gfx_list.h) */
 typedef u32 Mtx[4][4];
 
 /* Arcade-style type definitions */

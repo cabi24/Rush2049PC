@@ -51,7 +51,7 @@ static int s_fail, s_checks;
     } while (0)
 
 static uint16_t s_fb[320 * 240];
-static PcGfxWords s_list[64];
+static Gfx s_list[64];
 
 /* A 320 x 240 frame of one 5551 color, presented. */
 static void show_frame(uint16_t color) {

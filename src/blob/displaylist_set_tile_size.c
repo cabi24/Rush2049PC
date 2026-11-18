@@ -1,23 +1,21 @@
 /* displaylist_set_tile_size.c: change the tile rectangle a texture's load display list sets.
  *
- * TextureAnimation's texture scrolls move a texture by rewriting the corner of its G_SETTILESIZE commands. */
+ * TextureAnimation's texture scrolls move a texture by rewriting the corner of its tile size records. */
 #include "game/game.h"
 
-/* In every G_SETTILESIZE of the display list `commands` up to its G_ENDDL, set the tile's corners: uls and ult the
- * upper left (bits 12-23 and 0-11 of the first word), lrs and lrt the lower right (of the second word), in the
- * RDP's quarter texels; a negative value leaves its field as it is. The first tile's size (lrs + 4, lrt + 4: its
- * width and height in quarter texels) is the reference: for each later, smaller tile (the smaller levels of a
- * mipmap) uls and ult are halved as its size is. Each field is read again after the one before it is written, as on
- * the N64. */
+/* In every tile size record (GFX_OP_TILE_SIZE) of the display list `commands` up to its end, set the tile's corners:
+ * uls and ult the upper left, lrs and lrt the lower right, in the RDP's quarter texels; a negative value leaves its
+ * field as it is. The first tile's size (lrs + 4, lrt + 4: its width and height in quarter texels) is the reference:
+ * for each later, smaller tile (the smaller levels of a mipmap) uls and ult are halved as its size is. Each corner is
+ * cut to the RDP's 12 bits, as the N64's command held it (a scroll stays below 4096 quarter texels; past it the N64's
+ * word would have spilled into the field beside it). */
 void displaylist_set_tile_size(Gfx *commands, s32 uls, s32 ult, s32 lrs, s32 lrt) {
     s32 width = -1, height = -1, size;
-    u8 opcode;
 
     for (;; commands++) {
-        opcode = commands->words.w0 >> 24;
-        if (opcode == G_SETTILESIZE) {
+        if (commands->op == GFX_OP_TILE_SIZE) {
             if (uls >= 0) {
-                size = (((u32)commands->words.w1 & 0x00fff000) >> 12) + 4;
+                size = commands->tile_rect.lrs + 4;
                 if (width < 0) {
                     width = size;
                 } else {
@@ -26,10 +24,10 @@ void displaylist_set_tile_size(Gfx *commands, s32 uls, s32 ult, s32 lrs, s32 lrt
                         uls >>= 1;
                     }
                 }
-                commands->words.w0 = (commands->words.w0 & 0xff000fff) | (uls << 12);
+                commands->tile_rect.uls = GBI_FIELD(uls, 12);
             }
             if (ult >= 0) {
-                size = ((u32)commands->words.w1 & 0xfff) + 4;
+                size = commands->tile_rect.lrt + 4;
                 if (height < 0) {
                     height = size;
                 } else {
@@ -38,15 +36,15 @@ void displaylist_set_tile_size(Gfx *commands, s32 uls, s32 ult, s32 lrs, s32 lrt
                         ult >>= 1;
                     }
                 }
-                commands->words.w0 = (commands->words.w0 & 0xfffff000) | ult;
+                commands->tile_rect.ult = GBI_FIELD(ult, 12);
             }
             if (lrs >= 0) {
-                commands->words.w1 = ((u32)commands->words.w1 & 0xff000fff) | (lrs << 12);
+                commands->tile_rect.lrs = GBI_FIELD(lrs, 12);
             }
             if (lrt >= 0) {
-                commands->words.w1 = ((u32)commands->words.w1 & 0xfffff000) | lrt;
+                commands->tile_rect.lrt = GBI_FIELD(lrt, 12);
             }
-        } else if (opcode == G_ENDDL) {
+        } else if (commands->op == GFX_OP_END_LIST) {
             break;
         }
     }

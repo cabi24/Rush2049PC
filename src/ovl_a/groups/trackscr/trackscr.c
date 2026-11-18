@@ -5,7 +5,6 @@
  * and are kept in the first player's profile. A or Start goes on to the car select screen, B back to the mode (or
  * circuit) screen. */
 #include "game/game.h"
-#define Gfx GfxView   /* this file's own Gfx: include/game's Gfx is another type */
 
 
 #define RACE_OPTIONS_FIRST 21           /* gOptions[21..40]: the race options, kept per profile */
@@ -42,69 +41,19 @@ extern void *memcpy(void *,const void *,u32);
 extern f32 fabsf(f32);
 #pragma intrinsic (fabsf)
 
-
-
-typedef union { Gwords words; long long int force_structure_alignment; } Gfx;
-#define _SHIFTL(v, s, w) ((u32)(((u32)(v) & ((0x01 << (w)) - 1)) << (s)))
-#define gSPTexture(pkt, s, t, level, tile, on) \
-{ \
-    Gfx *_g = (Gfx *)(pkt); \
-    _g->words.w0 = (_SHIFTL(0xD7, 24, 8) | _SHIFTL(0, 16, 8) | _SHIFTL((level), 11, 3) | _SHIFTL((tile), 8, 3) | _SHIFTL((on), 1, 7)); \
-    _g->words.w1 = (_SHIFTL((s), 16, 16) | _SHIFTL((t), 0, 16)); \
-}
-#define gDPNoParam(pkt, cmd) \
-{ \
-    Gfx *_g = (Gfx *)(pkt); \
-    _g->words.w0 = _SHIFTL(cmd, 24, 8); \
-    _g->words.w1 = 0; \
-}
-#define gDPPipeSync(pkt) gDPNoParam(pkt, 0xE7)
-#define gSPEndDisplayList(pkt) gDPNoParam(pkt, 0xDF)
-#define gSPSetOtherMode(pkt, cmd, sft, len, data) \
-{ \
-    Gfx *_g = (Gfx *)(pkt); \
-    _g->words.w0 = (_SHIFTL(cmd, 24, 8) | _SHIFTL(32 - (sft) - (len), 8, 8) | _SHIFTL((len) - 1, 0, 8)); \
-    _g->words.w1 = (u32)(data); \
-}
-#define gDPSetRenderMode(pkt, c0, c1) gSPSetOtherMode(pkt, 0xE2, 3, 29, (c0) | (c1))
-#define gDPSetCombine(pkt, muxs0, muxs1) \
-{ \
-    Gfx *_g = (Gfx *)(pkt); \
-    _g->words.w0 = _SHIFTL(0xFC, 24, 8) | _SHIFTL(muxs0, 0, 24); \
-    _g->words.w1 = (u32)(muxs1); \
-}
-#define gSPVertex(pkt, v, n, v0) \
-{ \
-    Gfx *_g = (Gfx *)(pkt); \
-    _g->words.w0 = _SHIFTL(0x01, 24, 8) | _SHIFTL((n), 12, 8) | _SHIFTL((v0) + (n), 1, 7); \
-    _g->words.w1 = (uintptr_t)(v); \
-}
-#define __gsSP1Triangle_w1(v0, v1, v2) (_SHIFTL((v0) * 2, 16, 8) | _SHIFTL((v1) * 2, 8, 8) | _SHIFTL((v2) * 2, 0, 8))
-#define gSP2Triangles(pkt, v00, v01, v02, flag0, v10, v11, v12, flag1) \
-{ \
-    Gfx *_g = (Gfx *)(pkt); \
-    _g->words.w0 = (_SHIFTL(0x06, 24, 8) | __gsSP1Triangle_w1(v00, v01, v02)); \
-    _g->words.w1 = __gsSP1Triangle_w1(v10, v11, v12); \
-}
-
 /* The fog layer's texture tile (MAT3 BlowFog's static fogTileSize, anon_uls_ult_8). */
 typedef struct TileSize {u16 uls,ult,lrs,lrt;} TileSize;
 
 
 
-typedef struct DisplayCommand {u32 w0,w1;} DisplayCommand;
 
-/* PC: track-map display lists in host Gfx, 16 bytes a command: 5 per map section plus 7. */
-#define MAP_DL_SECTION_BYTES 80
-#define MAP_DL_FIXED_BYTES 112
-#define DISPLAY_WORDS(p,a,b) do {DisplayCommand *command=(p)++; command->w0=(a);command->w1=(b);} while(0)
-#define DISPLAY_TEXTURE(p,on) DISPLAY_WORDS(p,0xD7000000u|((on)<<1),0xFFFFFFFFu)
-#define DISPLAY_VERTEX(p,v,n,first) DISPLAY_WORDS(p,0x01000000u|((n)<<12)|(((first)+(n))<<1),(u32)(v))
-#define DISPLAY_TRIANGLES(p,a,b,c,d,e,f) DISPLAY_WORDS(p,0x06000000u|((a)*2<<16)|((b)*2<<8)|((c)*2),((d)*2<<16)|((e)*2<<8)|((f)*2))
+/* A track map's display list: 5 records a map section (its vertices and four pairs of triangles), and 7 more: the
+ * texture off, a sync, the render and combine modes; the last section's second vertex load; the texture on, the end. */
+#define MAP_DL_SECTION_BYTES (5 * sizeof(Gfx))
+#define MAP_DL_FIXED_BYTES (7 * sizeof(Gfx))
 
 extern f32 sqrtf(f32);
 #pragma intrinsic (sqrtf)
-#define GFX(p,a,b) do { Gfx *_g = (p)++; _g->words.w0 = (a); _g->words.w1 = (b); } while (0)
 
 /* The screen's frame. After a race with a screen to skip to it passes straight on to the car screen. The first frame
  * sets it up; the carousel moves (showTrackSelect). A profile's pak pulled sends everyone back to the player screen,
@@ -653,8 +602,8 @@ void buildTrackMap(void)
                 || (gRace != kCircuit && gOptions[28])) {
                 gSPTexture(gfx++, 0xFFFF, 0xFFFF, 0, 0, 0);
                 gDPPipeSync(gfx++);
-                gDPSetRenderMode(gfx++, 0xC8112230, 0);
-                gDPSetCombine(gfx++, 0xFFFFFF, 0xFFFE7C38);
+                gDPSetRenderMode(gfx++, G_RM_FOG_SHADE_A, G_RM_ZB_OPA_SURF2);
+                gDPSetCombineMode(gfx++, G_CC_SHADE_OPAQUE, G_CC_PASS2);
                 for (i = 0, vertex = 0; i < kNumMapSects; i++, vertex += 4) {
                     if (i + 1 == kNumMapSects) {
                         gSPVertex(gfx++, &((Vtx_t *)map_vertex_blocks[MAP_LOD_SELECTED])[vertex], 4, 0);
@@ -797,11 +746,10 @@ void buildRaceTrackMaps(void)
             dlSize = kNumMapSects * MAP_DL_SECTION_BYTES + MAP_DL_FIXED_BYTES;
             map_display_list_blocks[gTrackNum] = AllocateMemoryHeap(0, dlSize + 7);
             mapObj[gTrackNum].displayList = (void *)(dl = (Gfx *)(((uintptr_t)map_display_list_blocks[gTrackNum] + 7) & ~7));
-            dl[0].words.w0 = 0xD7000000; dl[0].words.w1 = 0xFFFFFFFF;
-            dl[1].words.w0 = 0xE7000000; dl[1].words.w1 = 0;
-            dl[2].words.w0 = 0xE200001C; dl[2].words.w1 = 0xC8112230;
-            dl[3].words.w0 = 0xFCFFFFFF; dl[3].words.w1 = 0xFFFE7C38;
-            dl += 4;
+            gSPTexture(dl++, 0xFFFF, 0xFFFF, 0, 0, 0);
+            gDPPipeSync(dl++);
+            gDPSetRenderMode(dl++, G_RM_FOG_SHADE_A, G_RM_ZB_OPA_SURF2);
+            gDPSetCombineMode(dl++, G_CC_SHADE_OPAQUE, G_CC_PASS2);
             for (pointIdx = 0; pointIdx < kNumMapSects; pointIdx++) {
                 if (pointIdx > 0) prevPt = (gResPath.numPts * (pointIdx - 1)) / kNumMapSects; else prevPt = -1;
                 currStartPt = gResPath.numPts * pointIdx / kNumMapSects;
@@ -882,19 +830,19 @@ void buildRaceTrackMaps(void)
                     vtx->cn[3] = race_map_vertex_color.c[3];
                     vtx++;
                 }
-                if (pointIdx == kNumMapSects - 1) {
-                    GFX(dl, 0x01004008, (uintptr_t)((Vtx_t *)map_vertex_blocks[gTrackNum] + pointIdx * 4));
-                    GFX(dl, 0x01004010, (uintptr_t)map_vertex_blocks[gTrackNum]);
+                if (pointIdx == kNumMapSects - 1) {   /* the last section closes the loop: back to the first's */
+                    gSPVertex(dl++, (Vtx_t *)map_vertex_blocks[gTrackNum] + pointIdx * 4, 4, 0);
+                    gSPVertex(dl++, map_vertex_blocks[gTrackNum], 4, 4);
                 } else {
-                    GFX(dl, 0x01008010, (uintptr_t)((Vtx_t *)map_vertex_blocks[gTrackNum] + pointIdx * 4));
+                    gSPVertex(dl++, (Vtx_t *)map_vertex_blocks[gTrackNum] + pointIdx * 4, 8, 0);
                 }
-                GFX(dl, 0x06000802, 0x000A0208);
-                GFX(dl, 0x06020A04, 0x000C040A);
-                GFX(dl, 0x06040C06, 0x000E060C);
-                GFX(dl, 0x06060E00, 0x0008000E);
+                gSP2Triangles(dl++, 0, 4, 1, 0, 5, 1, 4, 0);
+                gSP2Triangles(dl++, 1, 5, 2, 0, 6, 2, 5, 0);
+                gSP2Triangles(dl++, 2, 6, 3, 0, 7, 3, 6, 0);
+                gSP2Triangles(dl++, 3, 7, 0, 0, 4, 0, 7, 0);
             }
-            GFX(dl, 0xD7000002, 0xFFFFFFFF);
-            GFX(dl, 0xDF000000, 0);
+            gSPTexture(dl++, 0xFFFF, 0xFFFF, 0, 0, 1);
+            gSPEndDisplayList(dl++);
             mapObj[gTrackNum].flags = 0;
             mapObj[gTrackNum].texidx = 0;
             mapObj[gTrackNum].lodRad = 0.0f;

@@ -187,15 +187,9 @@ union tAudioMsg;
 
 /* ---- ultra: libultra and the RSP microcode: the N64 OS interface port/ultra implements */
 
-typedef struct Gwords { /* 0x10 bytes */
-    u32 w0;       /* 0x0 */
-    uintptr_t w1; /* 0x8 */
-} Gwords;
-
-typedef union Gfx { /* 0x10 bytes */
-    Gwords words;
-    s64 force_structure_alignment;
-} Gfx;
+/* Display lists: Gfx, a command's record, and GfxWords, a command in the N64's form, as the cartridge's two set-up
+ * lists hold them (rsp_init_dl, rdp_init_dl), are the port's (pc_prelude.h brings port/include/pc_gfx_list.h and
+ * pc_gfx_n64.h). */
 
 typedef struct OSContStatus { /* 0x4 bytes */
     u16 type;  /* 0x0 */

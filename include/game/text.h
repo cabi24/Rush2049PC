@@ -70,16 +70,18 @@ enum {
 /* Data */
 extern u64 gspF3DEX2_NoN_fifoTextStart[EXTENT(626)];
 extern u64 gspF3DEX2_NoN_fifoDataStart[EXTENT(132)];
-extern Gfx rdp_init_dl[EXTENT(17)];
-/* rsp_init_dl: the RSP's set-up list StartGraphics calls first in every frame. Its 11 commands are the gap to
- * gWaveSizes; the list ends at its G_ENDDL before that. On the retail cartridge the words from +0x38 on say where
- * frame_command_buffer_a, rsp_dram_stack, rsp_yield_buffer, rdp_fifo_buffer and rdp_fifo_buffer_end (an RSP task's
- * buffers) were on the N64, and nothing on the PC reads them: no N64 code names that place (the images' symbol tables
- * have no symbol there), the renderer stops at the G_ENDDL (were it to read on, their first byte is no F3DEX2 command,
- * which it counts as unknown and never follows), and the frame's graphics task takes its buffers by name (EndGraphics),
- * the scheduler and the audio task from their own records. So they stay the numbers the loader converted, which point
- * at nothing on the PC since the arenas became blocks of host memory (docs/port/NATIVE.md step 5). */
-extern Gfx rsp_init_dl[EXTENT(11)];
+/* rdp_init_dl, rsp_init_dl: the RDP's and the RSP's set-up lists, in the N64's form (F3DEX2 commands: a file format,
+ * the cartridge's), which StartGraphics reads into records once and every frame's list calls. */
+extern GfxWords rdp_init_dl[EXTENT(17)];
+/* rsp_init_dl's 11 commands are the gap to gWaveSizes; the list ends before that. On the retail
+ * cartridge the words from +0x38 on say where frame_command_buffer_a, rsp_dram_stack, rsp_yield_buffer,
+ * rdp_fifo_buffer and rdp_fifo_buffer_end (an RSP task's buffers) were on the N64, and nothing on the PC reads them:
+ * no N64 code names that place (the images' symbol tables have no symbol there), the renderer stops at the list's end
+ * (their records, past it, are no-ops: their first byte is no F3DEX2 command), and the frame's graphics task takes its
+ * buffers by name (EndGraphics), the scheduler and the audio task from their own records. So they stay the numbers the
+ * loader converted, which point at nothing on the PC since the arenas became blocks of host memory (docs/port/NATIVE.md
+ * step 5). */
+extern GfxWords rsp_init_dl[EXTENT(11)];
 extern u64 rsp_dram_stack[EXTENT(128)];
 extern u64 rsp_yield_buffer[EXTENT(384)];
 extern u64 rdp_fifo_buffer[EXTENT(4096)];

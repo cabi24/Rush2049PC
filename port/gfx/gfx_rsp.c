@@ -1,7 +1,7 @@
-/* port/gfx/gfx_rsp.c: the RSP half of the F3DEX2 interpreter. Walks display lists (the PC's form: the game's, and
- * the files' that port/assets/wad.c builds when they load), keeps the matrix stack, vertex buffer, lights, fog and
- * segments, transforms and lights vertices on the CPU, and turns triangles into clipped, culled GL vertices. RDP
- * commands go to gfx_rdp.c. */
+/* port/gfx/gfx_rsp.c: the geometry half of the renderer (the work the N64's RSP did). Walks display lists (records,
+ * port/include/pc_gfx_list.h: the game's, and the files' that port/assets/wad.c builds when they load), keeps the
+ * matrix stack, vertex buffer, lights and fog, transforms and lights vertices on the CPU, and turns triangles into
+ * clipped, culled GL vertices. The RDP's commands go to gfx_rdp.c. */
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
@@ -55,20 +55,6 @@ static uint32_t host32(const uint8_t *p) {
     uint32_t v;
     memcpy(&v, p, 4);
     return v;
-}
-
-/* Addresses (docs/port/GFX.md "Command formats and addresses"). Every address a list holds is a host pointer: the
- * game's lists', and the files' lists that port/assets/wad.c builds when they load (docs/port/NATIVE.md steps 10, 12).
- * The microcode's segments stay: a G_MOVEWORD sets a segment's base (a host pointer), and an address below
- * N64_SEGMENT_SPAN whose bits 24-27 name a segment with a base is that segment's base plus its low 24 bits. The game
- * sets only segment 0, to 0 (StartGraphics), so in its lists every address is the pointer it is. */
-const uint8_t *pcgfx_resolve(uintptr_t a) {
-    if (a < N64_SEGMENT_SPAN) {
-        uintptr_t base = pcgfx.seg[(a & N64_SEGMENT_ID_MASK) >> 24];
-        if (base != 0)
-            return (const uint8_t *)(base + (a & N64_SEGMENT_OFFSET_MASK));
-    }
-    return (const uint8_t *)a;
 }
 
 /* ---------------------------------------------------------------- matrices */
@@ -349,40 +335,42 @@ static float screen_z(const GfxVtx *v) {
     return pcgfx.vp_trans[2] + v->z / w * pcgfx.vp_scale[2];
 }
 
-static void modify_vertex(uint32_t w0, uint32_t w1) {
-    unsigned idx = (w0 & 0xFFFF) >> 1;
-    GfxVtx *v;
+/* GFX_OP_MODIFY_VERTEX: one attribute of a loaded vertex. */
+static void modify_vertex(const Gfx *c) {
+    unsigned idx = c->modify_vertex.vertex, what = c->modify_vertex.what;
+    uint32_t v = c->modify_vertex.value;
+    GfxVtx *vx;
     if (idx >= 32)
         return;
-    v = &pcgfx.vtx[idx];
-    switch ((w0 >> 16) & 0xFF) {
+    vx = &pcgfx.vtx[idx];
+    switch (what) {
     case G_MWO_POINT_RGBA:
-        v->r = (w1 >> 24) / 255.0f;
-        v->g = ((w1 >> 16) & 0xFF) / 255.0f;
-        v->b = ((w1 >> 8) & 0xFF) / 255.0f;
-        v->a = (w1 & 0xFF) / 255.0f;
+        vx->r = (v >> 24) / 255.0f;
+        vx->g = ((v >> 16) & 0xFF) / 255.0f;
+        vx->b = ((v >> 8) & 0xFF) / 255.0f;
+        vx->a = (v & 0xFF) / 255.0f;
         break;
     case G_MWO_POINT_ST:
-        v->s = (int16_t)(w1 >> 16);
-        v->t = (int16_t)(w1 & 0xFFFF);
+        vx->s = (int16_t)(v >> 16);
+        vx->t = (int16_t)(v & 0xFFFF);
         break;
     case G_MWO_POINT_XYSCREEN: {   /* screen position in 10.2: invert the viewport, keep w */
-        float sx = (int16_t)(w1 >> 16) / 4.0f, sy = (int16_t)(w1 & 0xFFFF) / 4.0f, xs, ys;
+        float sx = (int16_t)(v >> 16) / 4.0f, sy = (int16_t)(v & 0xFFFF) / 4.0f, xs, ys;
         if (pcgfx.vp_scale[0] != 0.0f)
-            v->x = (sx - pcgfx.vp_trans[0]) / pcgfx.vp_scale[0] * v->w;
+            vx->x = (sx - pcgfx.vp_trans[0]) / pcgfx.vp_scale[0] * vx->w;
         if (pcgfx.vp_scale[1] != 0.0f)
-            v->y = -(sy - pcgfx.vp_trans[1]) / pcgfx.vp_scale[1] * v->w;
+            vx->y = -(sy - pcgfx.vp_trans[1]) / pcgfx.vp_scale[1] * vx->w;
         pcgfx_view_scales(&xs, &ys);
-        v->clip = pcgfx_outcode(v, xs, ys);
+        vx->clip = pcgfx_outcode(vx, xs, ys);
         break;
     }
     case G_MWO_POINT_ZSCREEN:
         if (pcgfx.vp_scale[2] != 0.0f)
-            v->z = ((float)w1 / 65536.0f - pcgfx.vp_trans[2]) / pcgfx.vp_scale[2] * v->w;
+            vx->z = ((float)v / 65536.0f - pcgfx.vp_trans[2]) / pcgfx.vp_scale[2] * vx->w;
         break;
     }
     if (pcgfx_rec != NULL)
-        pcgfx_rec_modify(idx, ((w0 >> 16) & 0xFF) == G_MWO_POINT_XYSCREEN || ((w0 >> 16) & 0xFF) == G_MWO_POINT_ZSCREEN);
+        pcgfx_rec_modify(idx, what == G_MWO_POINT_XYSCREEN || what == G_MWO_POINT_ZSCREEN);
 }
 
 /* ---------------------------------------------------------------- triangles */
@@ -693,28 +681,9 @@ static void triangle(unsigned i0, unsigned i1, unsigned i2) {
         pcgfx_rec_tri(i0, i1, i2, &c, st);
 }
 
-static void tri_word(uint32_t w) {
-    triangle(((w >> 16) & 0xFF) >> 1, ((w >> 8) & 0xFF) >> 1, (w & 0xFF) >> 1);
-}
-
-/* ---------------------------------------------------------------- display list walk */
-
-/* A display list position: every list is the PC's form (PcGfxWords, 16 bytes a command), the game's own and the
- * files' (built by port/assets/wad.c when the file loads: docs/port/NATIVE.md step 10). */
-typedef const PcGfxWords *GfxDlPtr;
-
-static void fetch(GfxDlPtr *d, uint32_t *w0, uintptr_t *w1) {
-    *w0 = (*d)->w0;
-    *w1 = (*d)->w1;
-    (*d)++;
-}
-
-static GfxDlPtr dl_at(uintptr_t addr) {
-    return (GfxDlPtr)(const void *)pcgfx_resolve(addr);
-}
+/* ---------------------------------------------------------------- the geometry's commands */
 
 void pcgfx_rsp_reset(void) {
-    int i;
     mtx_ident(pcgfx.mv[0]);
     pcgfx.mv_top = 0;
     mtx_ident(pcgfx.proj);
@@ -730,8 +699,6 @@ void pcgfx_rsp_reset(void) {
     pcgfx.fog_off = 0;
     pcgfx.tex_on = 0;
     pcgfx.tex_scale_s = pcgfx.tex_scale_t = 0xFFFF;
-    for (i = 0; i < 16; i++)
-        pcgfx.seg[i] = 0;
     /* A full-screen viewport until the list sets one. */
     pcgfx.vp_scale[0] = 160.0f;
     pcgfx.vp_scale[1] = 120.0f;
@@ -747,93 +714,9 @@ void pcgfx_rsp_reset(void) {
     pcgfx_detail_projection(pcgfx.proj);
 }
 
-static void moveword(uint32_t w0, uintptr_t w1) {
-    uint32_t off = w0 & 0xFFFF, v = (uint32_t)w1;
-    switch ((w0 >> 16) & 0xFF) {
-    case G_MW_NUMLIGHT:
-        pcgfx.num_lights = (int)(v / 24);
-        if (pcgfx.num_lights > GFX_MAX_LIGHTS)
-            pcgfx.num_lights = GFX_MAX_LIGHTS;
-        pcgfx.lights_dirty = 1;
-        break;
-    case G_MW_SEGMENT:
-        pcgfx.seg[(off >> 2) & 0xF] = w1;   /* a host pointer (0: none) */
-        break;
-    case G_MW_FOG:
-        pcgfx.fog_mul = (int16_t)(v >> 16);
-        pcgfx.fog_off = (int16_t)(v & 0xFFFF);
-        break;
-    case G_MW_LIGHTCOL: {
-        unsigned n = off / 0x18;
-        GfxLight *l;
-        if (n > GFX_MAX_LIGHTS)
-            break;
-        l = &pcgfx.lights[n];
-        if (off % 0x18 == 0) {
-            l->col[0] = v >> 24;
-            l->col[1] = v >> 16;
-            l->col[2] = v >> 8;
-        } else {
-            l->colc[0] = v >> 24;
-            l->colc[1] = v >> 16;
-            l->colc[2] = v >> 8;
-        }
-        break;
-    }
-    case G_MW_MATRIX:
-        mp_insert(off, v);
-        pcgfx.xf_gen++;
-        pcgfx.mp_forced = 1;
-        pcgfx.dz_dirty = 1;   /* no depth map under a forced MP (gfx_detail.c), as G_MV_MATRIX */
-        break;
-    default:   /* G_MW_CLIP, G_MW_PERSPNORM, G_MW_FORCEMTX: nothing to emulate */
-        break;
-    }
-}
-
-static void movemem(uint32_t w0, uintptr_t w1) {
-    const uint8_t *p = pcgfx_resolve(w1);
-    unsigned ofs = ((w0 >> 8) & 0xFF) * 8;
-    if (p == NULL)
-        return;
-    switch (w0 & 0xFF) {
-    case G_MV_VIEWPORT:
-        pcgfx.vp_scale[0] = (int16_t)host16(p + 0) / 4.0f;
-        pcgfx.vp_scale[1] = (int16_t)host16(p + 2) / 4.0f;
-        pcgfx.vp_scale[2] = (int16_t)host16(p + 4);
-        pcgfx.vp_trans[0] = (int16_t)host16(p + 8) / 4.0f;
-        pcgfx.vp_trans[1] = (int16_t)host16(p + 10) / 4.0f;
-        pcgfx.vp_trans[2] = (int16_t)host16(p + 12);
-        pcgfx.vp_ord++;
-        pcgfx.dz_dirty = 1;
-        if (pcgfx_rec != NULL)
-            pcgfx_rec_viewport();
-        break;
-    case G_MV_LIGHT: {
-        unsigned n = ofs / 24;   /* 0, 1: lookat x, y; 2..: lights */
-        if (n < 2)
-            light_read(p, &pcgfx.lookat[n]);
-        else if (n - 2 <= GFX_MAX_LIGHTS)
-            light_read(p, &pcgfx.lights[n - 2]);
-        pcgfx.lights_dirty = 1;
-        break;
-    }
-    case G_MV_MATRIX:   /* gSPForceMatrix: load MP directly */
-        mtx_read(p, pcgfx.mp);
-        pcgfx.persp = is_persp(pcgfx.mp);
-        pcgfx.mp_dirty = 0;
-        pcgfx.dz_dirty = 1;
-        pcgfx.xf_gen++;
-        pcgfx.mp_forced = 1;
-        break;
-    default:
-        break;
-    }
-}
-
-static void matrix(uint32_t w0, uintptr_t w1) {
-    const uint8_t *p = pcgfx_resolve(w1);
-    uint32_t params = (w0 & 0xFF) ^ G_MTX_PUSH;
+/* GFX_OP_MATRIX: the projection or the modelview, loaded or multiplied in, the modelview pushed first. */
+static void matrix(const Gfx *c) {
+    const uint8_t *p = c->matrix.matrix;
     float m[4][4];
     if (p == NULL)
         return;
@@ -842,19 +725,19 @@ static void matrix(uint32_t w0, uintptr_t w1) {
     if (pcgfx.mp_forced)   /* the depth map was off for a forced MP (gfx_detail.c) */
         pcgfx.dz_dirty = 1;
     pcgfx.mp_forced = 0;
-    if (params & G_MTX_PROJECTION) {
-        if (params & G_MTX_LOAD) {
+    if (c->matrix.projection) {
+        if (c->matrix.load) {
             memcpy(pcgfx.proj, m, sizeof(m));
             pcgfx.view_ord++;
         } else
             mtx_mul(pcgfx.proj, m, pcgfx.proj);
         pcgfx_detail_projection(pcgfx.proj);
     } else {
-        if ((params & G_MTX_PUSH) && pcgfx.mv_top + 1 < GFX_MTX_STACK) {
+        if (c->matrix.push && pcgfx.mv_top + 1 < GFX_MTX_STACK) {
             memcpy(pcgfx.mv[pcgfx.mv_top + 1], pcgfx.mv[pcgfx.mv_top], sizeof(m));
             pcgfx.mv_top++;
         }
-        if (params & G_MTX_LOAD)
+        if (c->matrix.load)
             memcpy(pcgfx.mv[pcgfx.mv_top], m, sizeof(m));
         else
             mtx_mul(pcgfx.mv[pcgfx.mv_top], m, pcgfx.mv[pcgfx.mv_top]);
@@ -863,9 +746,65 @@ static void matrix(uint32_t w0, uintptr_t w1) {
     pcgfx.mp_dirty = 1;
 }
 
-/* G_CULLDL: true when every vertex in [v0, v1] is outside the same screen edge. */
-static int cull_dl(uint32_t w0, uint32_t w1) {
-    unsigned v0 = (w0 & 0xFFFF) >> 1, v1 = (w1 & 0xFFFF) >> 1, i;
+/* GFX_OP_FORCE_MATRIX (gSPForceMatrix): MP loaded directly. */
+static void force_matrix(const Gfx *c) {
+    const uint8_t *p = c->matrix.matrix;
+    if (p == NULL)
+        return;
+    mtx_read(p, pcgfx.mp);
+    pcgfx.persp = is_persp(pcgfx.mp);
+    pcgfx.mp_dirty = 0;
+    pcgfx.dz_dirty = 1;
+    pcgfx.xf_gen++;
+    pcgfx.mp_forced = 1;
+}
+
+/* GFX_OP_VIEWPORT: x and y in 10.2, z in 0..0x3FF. */
+static void viewport(const Gfx *c) {
+    const uint8_t *p = c->viewport.viewport;
+    if (p == NULL)
+        return;
+    pcgfx.vp_scale[0] = (int16_t)host16(p + 0) / 4.0f;
+    pcgfx.vp_scale[1] = (int16_t)host16(p + 2) / 4.0f;
+    pcgfx.vp_scale[2] = (int16_t)host16(p + 4);
+    pcgfx.vp_trans[0] = (int16_t)host16(p + 8) / 4.0f;
+    pcgfx.vp_trans[1] = (int16_t)host16(p + 10) / 4.0f;
+    pcgfx.vp_trans[2] = (int16_t)host16(p + 12);
+    pcgfx.vp_ord++;
+    pcgfx.dz_dirty = 1;
+    if (pcgfx_rec != NULL)
+        pcgfx_rec_viewport();
+}
+
+/* GFX_OP_LIGHT: slots 0 and 1 the look-at directions, then the lights (the ambient one after the last). */
+static void light(const Gfx *c) {
+    const uint8_t *p = c->light.light;
+    unsigned n = c->light.slot;
+    if (p == NULL)
+        return;
+    if (n < 2)
+        light_read(p, &pcgfx.lookat[n]);
+    else if (n - 2 <= GFX_MAX_LIGHTS)
+        light_read(p, &pcgfx.lights[n - 2]);
+    pcgfx.lights_dirty = 1;
+}
+
+/* GFX_OP_LIGHT_COLOR: a light's colour, or its copy. */
+static void light_color(const Gfx *c) {
+    GfxLight *l;
+    uint8_t *col;
+    if (c->light_color.light > GFX_MAX_LIGHTS)
+        return;
+    l = &pcgfx.lights[c->light_color.light];
+    col = c->light_color.second ? l->colc : l->col;
+    col[0] = c->light_color.r;
+    col[1] = c->light_color.g;
+    col[2] = c->light_color.b;
+}
+
+/* GFX_OP_CULL_LIST: true when every vertex in first..last is outside the same screen edge. */
+static int cull_list(const Gfx *c) {
+    unsigned v0 = c->cull.first, v1 = c->cull.last, i;
     uint8_t all = 0x0F;
     if (v1 >= 32)
         v1 = 31;
@@ -874,148 +813,155 @@ static int cull_dl(uint32_t w0, uint32_t w1) {
     return all != 0;
 }
 
+/* A command that is no list's control: the geometry's state and drawing here, the RDP's in gfx_rdp.c. */
+static void run_command(const Gfx *c) {
+    switch (c->op) {
+    case GFX_OP_NOOP:
+    case GFX_OP_SECTION:            /* a level-of-detail marker the race keeps: nothing to draw */
+    case GFX_OP_PERSP_NORMALIZE:    /* the microcode's fixed point; floats need none */
+    case GFX_OP_RECTANGLE_TEXTURE:  /* alone: its rectangle took it, or there is none */
+        break;
+    case GFX_OP_VERTICES:
+        if (c->vertices.vertices != NULL && c->vertices.count > 0)
+            load_vertices(c->vertices.vertices, c->vertices.first, c->vertices.count);
+        break;
+    case GFX_OP_MODIFY_VERTEX:
+        modify_vertex(c);
+        break;
+    case GFX_OP_TRIANGLE:
+        triangle(c->triangles.v[0], c->triangles.v[1], c->triangles.v[2]);
+        break;
+    case GFX_OP_TRIANGLES:
+        triangle(c->triangles.v[0], c->triangles.v[1], c->triangles.v[2]);
+        triangle(c->triangles.v[3], c->triangles.v[4], c->triangles.v[5]);
+        break;
+    case GFX_OP_TEXTURE:
+        pcgfx.tex_scale_s = c->texture.scale_s;
+        pcgfx.tex_scale_t = c->texture.scale_t;
+        pcgfx.tex_level = c->texture.level;
+        pcgfx.tex_tile = c->texture.tile;
+        pcgfx.tex_on = c->texture.on != 0;
+        pcgfx.tex_dirty = pcgfx.state_dirty = 1;
+        break;
+    case GFX_OP_POP_MATRIX: {
+        int n = (int)c->pop_matrix.count;
+        pcgfx.mv_top = pcgfx.mv_top > n ? pcgfx.mv_top - n : 0;
+        pcgfx.mp_dirty = pcgfx.lights_dirty = 1;
+        pcgfx.xf_gen++;
+        if (pcgfx.mp_forced)   /* the depth map was off for a forced MP (gfx_detail.c), as in matrix() */
+            pcgfx.dz_dirty = 1;
+        pcgfx.mp_forced = 0;
+        break;
+    }
+    case GFX_OP_GEOMETRY_MODE:
+        pcgfx.geom = (pcgfx.geom & c->geometry_mode.keep) | c->geometry_mode.set;
+        pcgfx.state_dirty = 1;
+        break;
+    case GFX_OP_MATRIX:
+        matrix(c);
+        break;
+    case GFX_OP_FORCE_MATRIX:
+        force_matrix(c);
+        break;
+    case GFX_OP_INSERT_MATRIX:
+        mp_insert(c->insert_matrix.offset, c->insert_matrix.value);
+        pcgfx.xf_gen++;
+        pcgfx.mp_forced = 1;
+        pcgfx.dz_dirty = 1;   /* no depth map under a forced MP (gfx_detail.c), as GFX_OP_FORCE_MATRIX */
+        break;
+    case GFX_OP_VIEWPORT:
+        viewport(c);
+        break;
+    case GFX_OP_LIGHT:
+        light(c);
+        break;
+    case GFX_OP_NUM_LIGHTS:
+        pcgfx.num_lights = (int)c->num_lights.count;
+        if (pcgfx.num_lights > GFX_MAX_LIGHTS)
+            pcgfx.num_lights = GFX_MAX_LIGHTS;
+        pcgfx.lights_dirty = 1;
+        break;
+    case GFX_OP_LIGHT_COLOR:
+        light_color(c);
+        break;
+    case GFX_OP_FOG:
+        pcgfx.fog_mul = c->fog.multiplier;
+        pcgfx.fog_off = c->fog.offset;
+        break;
+    default:
+        if (c->op < GFX_OP_COUNT)
+            pcgfx_rdp_command(c);
+        else
+            pcgfx.stat_unknown++;
+        break;
+    }
+}
+
+/* ---------------------------------------------------------------- display list walk */
+
+/* RUSH_GFX_TRACE: a command, with the depth of the list it is in: its op and its 16 bytes. */
+static void trace_command(int depth, const Gfx *c) {
+    const uint8_t *b = (const uint8_t *)c;
+    int i;
+    fprintf(stderr, "gfx: trace %2d op %2u", depth, (unsigned)c->op);
+    for (i = 0; i < (int)sizeof(*c); i++)
+        fprintf(stderr, i % 4 == 0 ? " %02X" : "%02X", b[i]);
+    fputc('\n', stderr);
+}
+
+/* Runs one graphics task: the list at dl and the lists it calls, a record at a time, to its end. */
 void pcgfx_run_list(const void *dl) {
-    GfxDlPtr stack[GFX_DL_STACK];
-    GfxDlPtr cur;
+    const Gfx *stack[GFX_DL_STACK];
+    const Gfx *cur, *c;
     int sp = 0;
     uint32_t budget = 1u << 22;
-    static int warned_ucode;
 
     static int task;
     int trace = pcgfx_cfg.trace_task != 0 && ++task == pcgfx_cfg.trace_task;
 
     pcgfx_rsp_reset();
-    cur = (GfxDlPtr)dl;
+    cur = (const Gfx *)dl;
     while (cur != NULL && budget-- > 0) {
-        uint32_t w0, op;
-        uintptr_t w1;
-        fetch(&cur, &w0, &w1);
-        op = w0 >> 24;
+        c = cur++;
         pcgfx.stat_cmds++;
-        if (trace)   /* RUSH_GFX_TRACE: the task's commands, with the depth of the list they are in */
-            fprintf(stderr, "gfx: trace %2d %08X %08lX\n", sp, (unsigned)w0, (unsigned long)w1);
-        switch (op) {
-        case G_NOOP:
-        case G_SPNOOP:
-        case G_DMA_IO:
-        case G_SPECIAL_1:
-        case G_SPECIAL_2:
-        case G_SPECIAL_3:
-            break;
-        case G_VTX: {
-            unsigned n = (w0 >> 12) & 0xFF, end = (w0 >> 1) & 0x7F;
-            const uint8_t *p = pcgfx_resolve(w1);
-            if (p != NULL && n <= end)
-                load_vertices(p, (int)(end - n), (int)n);
-            break;
-        }
-        case G_MODIFYVTX:
-            modify_vertex(w0, (uint32_t)w1);
-            break;
-        case G_CULLDL:
-            if (!cull_dl(w0, (uint32_t)w1))
+        if (trace)
+            trace_command(sp, c);
+        switch (c->op) {
+        case GFX_OP_CULL_LIST:
+            if (!cull_list(c))
                 break;
             /* fall through - a culled list ends here */
-        case G_ENDDL:
-            if (sp == 0)
-                cur = NULL;
-            else
-                cur = stack[--sp];
+        case GFX_OP_END_LIST:
+            cur = sp == 0 ? NULL : stack[--sp];
             break;
-        case G_BRANCH_Z: {
-            unsigned idx = (w0 & 0xFFF) >> 1;
-            if (idx < 32 && screen_z(&pcgfx.vtx[idx]) * 65536.0f <= (float)(int32_t)(uint32_t)w1) {
-                GfxDlPtr t = dl_at(pcgfx.half1);
-                if (t != NULL)
-                    cur = t;
-            }
-            break;
-        }
-        case G_TRI1:
-            tri_word(w0);
-            break;
-        case G_TRI2:
-        case G_QUAD:
-            tri_word(w0);
-            tri_word((uint32_t)w1);
-            break;
-        case G_TEXTURE:
-            pcgfx.tex_scale_s = (uint16_t)(w1 >> 16);
-            pcgfx.tex_scale_t = (uint16_t)(w1 & 0xFFFF);
-            pcgfx.tex_level = (w0 >> 11) & 7;
-            pcgfx.tex_tile = (w0 >> 8) & 7;
-            pcgfx.tex_on = ((w0 >> 1) & 0x7F) != 0;
-            pcgfx.tex_dirty = pcgfx.state_dirty = 1;
-            break;
-        case G_POPMTX: {
-            int n = (int)((uint32_t)w1 / 64);
-            pcgfx.mv_top = pcgfx.mv_top > n ? pcgfx.mv_top - n : 0;
-            pcgfx.mp_dirty = pcgfx.lights_dirty = 1;
-            pcgfx.xf_gen++;
-            if (pcgfx.mp_forced)   /* the depth map was off for a forced MP (gfx_detail.c), as in matrix() */
-                pcgfx.dz_dirty = 1;
-            pcgfx.mp_forced = 0;
-            break;
-        }
-        case G_GEOMETRYMODE:
-            pcgfx.geom = (pcgfx.geom & (w0 & 0x00FFFFFF)) | (uint32_t)w1;
-            pcgfx.state_dirty = 1;
-            break;
-        case G_MTX:
-            matrix(w0, w1);
-            break;
-        case G_MOVEWORD:
-            moveword(w0, w1);
-            break;
-        case G_MOVEMEM:
-            movemem(w0, w1);
-            break;
-        case G_LOAD_UCODE:
-            if (!warned_ucode++)
-                fprintf(stderr, "gfx: G_LOAD_UCODE ignored (F3DEX2 only)\n");
-            break;
-        case G_DL: {
-            GfxDlPtr t = dl_at(w1);
-            if (t == NULL)
+        case GFX_OP_CALL_LIST:
+        case GFX_OP_BRANCH_LIST:
+            if (c->list.list == NULL)
                 break;
-            if (((w0 >> 16) & 0xFF) == 0) {   /* G_DL_PUSH */
+            if (c->op == GFX_OP_CALL_LIST) {
                 if (sp >= GFX_DL_STACK)
                     break;   /* the RSP would overrun its stack; drop the call */
                 stack[sp++] = cur;
             }
-            cur = t;
+            cur = c->list.list;
+            break;
+        case GFX_OP_BRANCH_Z: {
+            unsigned idx = c->branch_z.vertex;
+            if (idx < 32 && screen_z(&pcgfx.vtx[idx]) * 65536.0f <= (float)c->branch_z.z && c->branch_z.list != NULL)
+                cur = c->branch_z.list;
             break;
         }
-        case G_RDPHALF_1:
-            pcgfx.half1 = w1;
-            break;
-        case G_RDPHALF_2:
-            pcgfx.half2 = (uint32_t)w1;
-            break;
-        case G_TEXRECT:
-        case G_TEXRECTFLIP: {
-            /* F3DEX2 sends the rectangle's second half in the next two commands (RDPHALF_1, RDPHALF_2). */
-            uint32_t h1 = (uint32_t)pcgfx.half1, h2 = pcgfx.half2, a0;
-            uintptr_t a1;
-            GfxDlPtr peek = cur;
-            fetch(&peek, &a0, &a1);
-            if ((a0 >> 24) == G_RDPHALF_1) {
-                h1 = (uint32_t)a1;
-                cur = peek;
-                fetch(&peek, &a0, &a1);
-                if ((a0 >> 24) == G_RDPHALF_2) {
-                    h2 = (uint32_t)a1;
-                    cur = peek;
-                }
-            }
-            pcgfx_texrect(w0, (uint32_t)w1, h1, h2, op == G_TEXRECTFLIP);
+        case GFX_OP_TEXTURE_RECTANGLE: {
+            /* its texture coordinates are the next record's */
+            static const Gfx none = {.rectangle_texture = {.op = GFX_OP_RECTANGLE_TEXTURE}};
+            const Gfx *tex = &none;
+            if (cur->op == GFX_OP_RECTANGLE_TEXTURE)
+                tex = cur++;
+            pcgfx_texrect(c, tex);
             break;
         }
         default:
-            if (op >= 0xE2)
-                pcgfx_rdp_command(op, w0, w1);
-            else
-                pcgfx.stat_unknown++;
+            run_command(c);
             break;
         }
     }

@@ -7,12 +7,12 @@
  * and the RCP's reading of a relocated word: the RDRAM at its 24 bits. Then each list is walked from its record (a
  * level of detail's, a listed texture's) in both, command for command, as far as any walk goes (to G_ENDDL, into the
  * lists G_DL, G_RDPHALF_1 before G_BRANCH_Z and a walked LOD marker name):
- *   - w0 is the file's;
+ *   - the record is the file's command as pc_gfx_from_n64 reads it (port/assets/gfx_n64.c), but for its pointer;
  *   - a command the RCP reads an address from points where the N64's relocated word did: a list there, the same
- *     command the walk of the file comes to; a VTX's vertices, the file's in the host's byte order; a MTX's matrix,
- *     and a MOVEMEM's matrix or viewport, a copy of the file's in the host's byte order (16 words, 8 s16); anything
- *     else, the file's byte there; and NULL where the N64's word pointed outside the file;
- *   - every other w1 is the file's word;
+ *     command the walk of the file comes to (a G_BRANCH_Z's record holds the list its G_RDPHALF_1 named); a VTX's
+ *     vertices, the file's in the host's byte order; a MTX's matrix, and a MOVEMEM's matrix or viewport, a copy of the
+ *     file's in the host's byte order (16 words, 8 s16); a light or an image, the file's byte there; and NULL where
+ *     the N64's word pointed outside the file;
  *   - a command of the file the walks reach twice is one native command.
  * Stdlib only; no N64 address leaves this file. */
 #ifndef WAD_LISTS_CHECK_H
@@ -24,6 +24,7 @@
 #include <string.h>
 
 #include "pc_game_types.h"
+#include "pc_gfx_n64.h"
 #include "pc_port.h"
 
 #define WLC_PHYS 0x400000u              /* the made-up RDRAM address of the copy: 4 MiB in, so a word relocated twice
@@ -51,8 +52,8 @@ typedef struct {
     uint8_t *n64;               /* the copy, relocated */
     size_t size;
     uint8_t *marker;            /* a LOD marker prepare_model_dl's walk came to */
-    const PcGfxWords **native;  /* the native command each of the file's commands the check came to is */
-    struct { uint32_t off; const PcGfxWords *nat; } *todo;
+    const Gfx **native;  /* the native command each of the file's commands the check came to is */
+    struct { uint32_t off; const Gfx *nat; } *todo;
     size_t ntodo, room;
     unsigned bad;
     const char *what;
@@ -74,7 +75,7 @@ static uint32_t wlc_target(const WlcCheck *c, uint32_t word)
     return phys >= WLC_PHYS && phys - WLC_PHYS < c->size ? phys - WLC_PHYS : ~0u;
 }
 
-static void wlc_push(WlcCheck *c, uint32_t off, const PcGfxWords *nat)
+static void wlc_push(WlcCheck *c, uint32_t off, const Gfx *nat)
 {
     if (c->ntodo == c->room) {
         c->room = c->room ? 2 * c->room : 64;
@@ -130,12 +131,70 @@ static void wlc_relocate(WlcCheck *c, const struct pc_wad_records *wr, int64_t t
     (void)wr;
 }
 
+/* The record's pointer, where its op has one (NULL else), and the record with p in its place. */
+static void *wlc_pointer(const Gfx *g)
+{
+    switch (g->op) {
+    case GFX_OP_VERTICES: return g->vertices.vertices;
+    case GFX_OP_CALL_LIST:
+    case GFX_OP_BRANCH_LIST: return g->list.list;
+    case GFX_OP_SECTION: return g->section.end;
+    case GFX_OP_BRANCH_Z: return g->branch_z.list;
+    case GFX_OP_MATRIX:
+    case GFX_OP_FORCE_MATRIX: return g->matrix.matrix;
+    case GFX_OP_VIEWPORT: return g->viewport.viewport;
+    case GFX_OP_LIGHT: return g->light.light;
+    case GFX_OP_TEXTURE_IMAGE:
+    case GFX_OP_DEPTH_IMAGE:
+    case GFX_OP_COLOR_IMAGE: return g->image.image;
+    default: return NULL;
+    }
+}
+
+static void wlc_set_pointer(Gfx *g, void *p)
+{
+    switch (g->op) {
+    case GFX_OP_VERTICES: g->vertices.vertices = p; break;
+    case GFX_OP_CALL_LIST:
+    case GFX_OP_BRANCH_LIST: g->list.list = p; break;
+    case GFX_OP_SECTION: g->section.end = p; break;
+    case GFX_OP_BRANCH_Z: g->branch_z.list = p; break;
+    case GFX_OP_MATRIX:
+    case GFX_OP_FORCE_MATRIX: g->matrix.matrix = p; break;
+    case GFX_OP_VIEWPORT: g->viewport.viewport = p; break;
+    case GFX_OP_LIGHT: g->light.light = p; break;
+    case GFX_OP_TEXTURE_IMAGE:
+    case GFX_OP_DEPTH_IMAGE:
+    case GFX_OP_COLOR_IMAGE: g->image.image = p; break;
+    default: break;
+    }
+}
+
+/* The command at off in the cartridge's bytes (w1 the file's word, before any relocation). */
+static GfxWords wlc_words(const WlcCheck *c, uint32_t off)
+{
+    GfxWords w = {wlc_be32(c->orig + off), wlc_be32(c->orig + off + 4)};
+    return w;
+}
+
+/* A list the record names, which the N64's word `to` (a file offset, ~0u outside it) named: none where that was no
+ * command's place in the file (outside it, or not 8-aligned); else the walk goes on there too. */
+static void wlc_list(WlcCheck *c, uint32_t off, uint32_t to, uint32_t word, const Gfx *list)
+{
+    if ((to == ~0u || (to & 7)) && list != NULL)
+        wlc_bad(c, off, "the N64's list was no place in the file (0x%X), the native one's is", word);
+    else if (to != ~0u && !(to & 7) && list == NULL)
+        wlc_bad(c, off, "no list, the N64's at 0x%X", to);
+    else if (to != ~0u && !(to & 7))
+        wlc_push(c, to, list);
+}
+
 /* Walks the lists from the todo list in the copy and in the native lists together. */
 static void wlc_walk(WlcCheck *c)
 {
     while (c->ntodo) {
         uint32_t off = c->todo[--c->ntodo].off;
-        const PcGfxWords *nat = c->todo[c->ntodo].nat;
+        const Gfx *nat = c->todo[c->ntodo].nat;
         if (nat == NULL) {
             wlc_bad(c, off, "a list the file has (at 0x%X) has none", off);
             continue;
@@ -150,23 +209,36 @@ static void wlc_walk(WlcCheck *c)
             }
             c->native[off / 8] = nat;
             uint32_t w0 = wlc_be32(c->n64 + off), w1 = wlc_be32(c->n64 + off + 4), raw = wlc_be32(c->orig + off + 4);
-            unsigned op = w0 >> 24, next = off + 16 <= c->size ? c->n64[off + 8] : 0;
+            unsigned op = w0 >> 24, prev = off >= 8 ? c->n64[off - 8] : 0;
             uint32_t t = wlc_target(c, w1);
-            if (nat->w0 != w0)
-                wlc_bad(c, off, "w0 0x%08X is not the file's", nat->w0);
-            if (op == 0xDE || (op == 0xE1 && next == 0x04) || (op == 0xE0 && (w0 >> 16 & 0xFF) == 1 && c->marker[off / 8])) {
-                /* a list (a marker's: where its section ends, the file's offset as it is); none where the N64's word
-                 * named no command's place in the file (outside it, or not 8-aligned) */
+            void *p = wlc_pointer(nat);
+            GfxWords before = {0, 0}, here = wlc_words(c, off), after = {0, 0};
+            Gfx want;
+
+            /* The record: the file's command read into one (its neighbours beside it), its pointer checked below. */
+            if (off >= 8)
+                before = wlc_words(c, off - 8);
+            if (off + 16 <= c->size)
+                after = wlc_words(c, off + 8);
+            pc_gfx_from_n64(&want, off >= 8 ? &before : NULL, &here, off + 16 <= c->size ? &after : NULL);
+            wlc_set_pointer(&want, p);
+            if (memcmp(&want, nat, sizeof want) != 0)
+                wlc_bad(c, off, "the record (op %u) is not the file's command", nat->op);
+
+            if (op == 0xDE || (op == 0xE0 && (w0 >> 16 & 0xFF) == 1 && c->marker[off / 8])) {
+                /* a list (a marker's: where its section ends, the file's offset as it is) */
                 uint32_t to = op == 0xE0 ? ((raw & 0xFFFFFFu) < c->size ? raw & 0xFFFFFFu : ~0u) : t;
-                if ((to == ~0u || (to & 7)) && nat->w1 != 0)
-                    wlc_bad(c, off, "the N64's list was no place in the file (0x%X), the native one's is", w1);
-                else if (to != ~0u && !(to & 7) && nat->w1 == 0)
-                    wlc_bad(c, off, "no list, the N64's at 0x%X", to);
-                else if (to != ~0u && !(to & 7))
-                    wlc_push(c, to, (const PcGfxWords *)nat->w1);
+                wlc_list(c, off, to, w1, p);
+            } else if (op == 0x04) {
+                /* a G_BRANCH_Z: the list its G_RDPHALF_1 named (that half's record is a no-op) */
+                uint32_t half = prev == 0xE1 ? wlc_be32(c->n64 + off - 4) : 0;
+                if (prev == 0xE1)
+                    wlc_list(c, off, wlc_target(c, half), half, p);
+                else if (p != NULL)
+                    wlc_bad(c, off, "a G_BRANCH_Z without its G_RDPHALF_1 names a list (0x%X)", 0);
             } else if (op == 0x01) {
                 uint32_t count = w0 >> 12 & 0xFF;
-                const uint8_t *v = (const uint8_t *)nat->w1;
+                const uint8_t *v = p;
                 if (t == ~0u || (uint64_t)t + 16ull * count > c->size) {
                     if (t == ~0u && v != NULL)
                         wlc_bad(c, off, "VTX: the N64's vertices were outside the file (0x%X), the native ones aren't", w1);
@@ -175,10 +247,10 @@ static void wlc_walk(WlcCheck *c)
                 else
                     for (uint32_t k = 0; k < 16 * count; k += 2) {
                         const uint8_t *f = c->orig + t + k;
-                        uint16_t want = (k & 15) < 12 ? (uint16_t)(f[0] << 8 | f[1]) : 0, have;
+                        uint16_t want16 = (k & 15) < 12 ? (uint16_t)(f[0] << 8 | f[1]) : 0, have;
                         memcpy(&have, v + k, 2);
                         /* x, y, z, flag, s, t in the host's byte order; the colour's bytes as they are */
-                        if ((k & 15) < 12 ? have != want : memcmp(v + k, f, 2) != 0) {
+                        if ((k & 15) < 12 ? have != want16 : memcmp(v + k, f, 2) != 0) {
                             wlc_bad(c, off, "VTX: its vertex bytes at +0x%X are not the file's", k);
                             break;
                         }
@@ -186,27 +258,27 @@ static void wlc_walk(WlcCheck *c)
             } else if (op == 0xDA || (op == 0xDC && ((w0 & 0xFF) == 8 || (w0 & 0xFF) == 14))) {
                 /* a matrix (16 words) or a viewport (8 s16), copied in the host's byte order */
                 unsigned unit = op == 0xDC && (w0 & 0xFF) == 8 ? 2 : 4, len = unit == 2 ? 16 : 64;
-                const uint8_t *m = (const uint8_t *)nat->w1;
+                const uint8_t *m = p;
                 if (t == ~0u ? m != NULL : m == NULL)
                     wlc_bad(c, off, "its copy is not where the N64's word pointed (0x%X)", t);
                 for (unsigned k = 0; m && t != ~0u && k < len && t + k + unit <= c->size; k += unit) {
                     const uint8_t *f = c->orig + t + k;
-                    uint32_t want = unit == 2 ? (uint32_t)(f[0] << 8 | f[1]) : wlc_be32(f), have = 0;
+                    uint32_t want32 = unit == 2 ? (uint32_t)(f[0] << 8 | f[1]) : wlc_be32(f), have = 0;
                     uint16_t h16;
                     if (unit == 2)
                         memcpy(&h16, m + k, 2), have = h16;
                     else
                         memcpy(&have, m + k, 4);
-                    if (have != want) {
+                    if (have != want32) {
                         wlc_bad(c, off, "its copy's bytes at +0x%X are not the file's", k);
                         break;
                     }
                 }
-            } else if (op == 0xDC || op == 0xDD || (op == 0xE1 && next == 0xDD) || op >= 0xFD) {
-                if (t == ~0u ? nat->w1 != 0 : nat->w1 != (uintptr_t)(c->file + t))
+            } else if ((op == 0xDC && (w0 & 0xFF) == 10) || op >= 0xFD) {
+                /* a light, an image: the file's place the N64's word pointed at */
+                if (t == ~0u ? p != NULL : p != (const void *)(c->file + t))
                     wlc_bad(c, off, "its address is not where the N64's word pointed (0x%X)", t);
-            } else if (nat->w1 != (uintptr_t)raw)
-                wlc_bad(c, off, "w1 is not the file's 0x%08X", raw);
+            }
             if (op == 0xDF)
                 break;
             off += 8;
@@ -214,7 +286,6 @@ static void wlc_walk(WlcCheck *c)
         }
     }
 }
-
 /* The check of the WAD file in its heap block (size bytes; orig: its bytes as the cartridge has them, before the
  * converter, or file itself when the converter changed nothing the check reads: it swaps only the paths' points)
  * whose records are wr. Returns the mismatches (each of the first ten said, what naming the file). */
@@ -256,7 +327,7 @@ static unsigned wad_lists_check(const uint8_t *file, const uint8_t *orig, size_t
             uint32_t dl = wlc_be32(r + 0x18 + 0x10 * k + 8);
             if (dl < size && !(dl & 7)) {
                 levels[nlevels++] = dl;
-                wlc_push(&c, dl, (const PcGfxWords *)(const void *)wr->models[i].lod[k].displayList);
+                wlc_push(&c, dl, (const Gfx *)(const void *)wr->models[i].lod[k].displayList);
             }
         }
     }
@@ -265,7 +336,7 @@ static unsigned wad_lists_check(const uint8_t *file, const uint8_t *orig, size_t
         const uint8_t *r = orig + txhd + 0x24 * (size_t)i;
         uint32_t list = (uint32_t)imag + wlc_be32(r + 0x18);
         if (!(wlc_be32(r + 0x1C) & 0x08000000u) && list < size && !(list & 7))
-            wlc_push(&c, list, (const PcGfxWords *)wr->textures[i].texBase);
+            wlc_push(&c, list, (const Gfx *)wr->textures[i].texBase);
     }
     wlc_walk(&c);
     free(levels);

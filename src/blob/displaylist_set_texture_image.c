@@ -3,16 +3,13 @@
  * TextureAnimation's flipbooks swap a texture's image this way (displaylist_get_texture_image reads it). */
 #include "game/game.h"
 
-/* Makes `image` the image of the first G_SETTIMG of the display list dl, if it has one before its G_ENDDL. */
+/* Makes `image` the image of the display list dl's first texture image record, if it has one before its end. */
 void displaylist_set_texture_image(Gfx *dl, void *image) {
-    u8 op;
-
     for (;; dl++) {
-        op = dl->words.w0 >> 24;
-        if (op == G_SETTIMG) {
-            dl->words.w1 = (uintptr_t)image;
+        if (dl->op == GFX_OP_TEXTURE_IMAGE) {
+            dl->image.image = image;
             return;
-        } else if (op == G_ENDDL) {
+        } else if (dl->op == GFX_OP_END_LIST) {
             return;
         }
     }

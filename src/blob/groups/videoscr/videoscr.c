@@ -2,36 +2,6 @@
  * flat menu or beside the 3D buttons, the grey ramp and colour bars that help to set them, and the test and
  * confirm panes of a refresh-rate change. */
 #include "game/game.h"
-#define Gfx GfxView   /* this file's own Gfx: include/game's Gfx is another type */
-
-typedef union { Gwords words; long long int force_structure_alignment; } Gfx;
-
-#define _SHIFTL(v, s, w) ((u32)(((u32)(v) & ((0x01 << (w)) - 1)) << (s)))
-#define gDPNoParam(pkt, cmd) \
-{ \
-    Gfx *_g = (Gfx *)(pkt); \
-    _g->words.w0 = _SHIFTL(cmd, 24, 8); \
-    _g->words.w1 = 0; \
-}
-#define gDPPipeSync(pkt) gDPNoParam(pkt, 0xE7)
-#define gDPWords(pkt, a, b) \
-{ \
-    Gfx *_g = (Gfx *)(pkt); \
-    _g->words.w0 = (a); \
-    _g->words.w1 = (b); \
-}
-#define gDPSetPrimColor(pkt, m, l, r, g, b, a) \
-{ \
-    Gfx *_g = (Gfx *)(pkt); \
-    _g->words.w0 = (_SHIFTL(0xFA, 24, 8) | _SHIFTL(m, 8, 8) | _SHIFTL(l, 0, 8)); \
-    _g->words.w1 = (_SHIFTL(r, 24, 8) | _SHIFTL(g, 16, 8) | _SHIFTL(b, 8, 8) | _SHIFTL(a, 0, 8)); \
-}
-#define gDPFillRectangle(pkt, ulx, uly, lrx, lry) \
-{ \
-    Gfx *_g = (Gfx *)(pkt); \
-    _g->words.w0 = (_SHIFTL(0xF6, 24, 8) | _SHIFTL((lrx), 14, 10) | _SHIFTL((lry), 2, 10)); \
-    _g->words.w1 = (_SHIFTL((ulx), 14, 10) | _SHIFTL((uly), 2, 10)); \
-}
 
 #define TEXT_VIDEO_OPTIONS 41     /* gText.tab[]: the video screen's options */
 
@@ -62,8 +32,8 @@ void vs_drawColorBars(void)
     s32 i;
 
     gDPPipeSync(blit_dl++);
-    gDPWords(blit_dl++, 0xFCFFFFFF, 0xFFFDF6FB);
-    gDPWords(blit_dl++, 0xEE000000, 0x00100000);
+    gDPSetCombineMode(blit_dl++, G_CC_PRIMITIVE, G_CC_PRIMITIVE);
+    gDPSetPrimDepth(blit_dl++, 0x10, 0);
     gDPSetPrimColor(blit_dl++, 0, 0, 255, 255, 255, 255);
     gDPFillRectangle(blit_dl++, 24, 140, 32, 160);
     x = 32;
@@ -80,7 +50,7 @@ void vs_drawColorBars(void)
     gDPFillRectangle(blit_dl++, 24, 180, 56, 200);
     x = 56;
     for (i = 0; i < 3; i++) {
-        gDPWords(blit_dl++, 0xFA000000, (0xFF000000 >> (i * 8)) | 0xFF);
+        gDPSetPrimColor(blit_dl++, 0, 0, i == 0 ? 255 : 0, i == 1 ? 255 : 0, i == 2 ? 255 : 0, 255);   /* red, green, blue */
         gDPFillRectangle(blit_dl++, x, 160, x + 48, 200);
         x += 48;
         gDPSetPrimColor(blit_dl++, 0, 0, 255, 255, 255, 255);

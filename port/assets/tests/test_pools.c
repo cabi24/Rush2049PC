@@ -137,10 +137,8 @@ static void test_frame(void)
     /* A frame well inside both: its list gets the text, the full sync and the end, after the 10 commands. */
     CHECK(end_frame(10, 3) == 0);
     CHECK(frame_dl == g_frame + PC_GLIST_OFFSET + 13 * 16 && g_sent == frame_records[1]);
-    uint32_t w0[3];
-    for (int k = 0; k < 3; k++)
-        memcpy(&w0[k], g_frame + PC_GLIST_OFFSET + (10 + k) * 16, 4);
-    CHECK(w0[0] == 0xDE000000u && w0[1] == 0xE9000000u && w0[2] == 0xDF000000u);
+    const Gfx *end = (const Gfx *)(g_frame + PC_GLIST_OFFSET) + 10;   /* the call, the full sync (a no-op), the end */
+    CHECK(end[0].op == GFX_OP_CALL_LIST && end[1].op == GFX_OP_NOOP && end[2].op == GFX_OP_END_LIST);
     /* Exactly full, both: nothing said (the SDK's check is glistp > &glist[GLIST_LEN]). */
     CHECK(end_frame(PC_GLIST_LEN - 3, PC_FRAME_MATRICES) == 0);
     /* One command past the list's end. */

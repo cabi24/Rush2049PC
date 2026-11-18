@@ -95,7 +95,7 @@ union in the layout was checked against the game's reads (`endian_check.py`'s ac
 copied (into locals, scene nodes, the car records, by value) or tested for equality, and no code shifts them,
 compares them with a constant or stores a word constant into them. So none is read both ways. (Ten colours more,
 declared as words until [NATIVE.md](NATIVE.md) step 14 and swapped back by the game's `PC_RGBA`, are `tRGBA` since:
-[ENDIAN.md](ENDIAN.md) 3.2.) The other unions keep their layout: `Vtx` (`{ Vtx_t v; long long }`: s16s and the `cn` bytes), `Gfx`,
+[ENDIAN.md](ENDIAN.md) 3.2.) The other unions keep their layout: `Vtx` (`{ Vtx_t v; long long }`: s16s and the `cn` bytes),
 `MenuSlot` (whose byte member is shorter than it), and the BSS ones (`__OSInodeUnit` is copied as bytes now too, but
 BSS is zeroed). Loaded as bytes now, listed in `data_layout.txt` ("Unions copied as bytes"):
 

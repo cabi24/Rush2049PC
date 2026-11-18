@@ -15,7 +15,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "pc_n64_map.h"   /* the cartridge's bus addresses, a display list's segments */
+#include "pc_n64_map.h"   /* the cartridge's bus addresses */
 
 #ifdef __cplusplus
 extern "C" {
@@ -125,13 +125,9 @@ void pc_wave_released(int wave, void *buf);
 
 /* ---------------------------------------------------------------- graphics (port/gfx), host main thread */
 
-/* Display-list command words on the PC: Gfx (and Acmd) keep w0 as 32 bits and widen w1 to hold a host
- * pointer. 16 bytes per command. Every list is in this form: the game's own, and the files', which the WAD converter
- * builds when the file loads (port/assets/wad.c, docs/port/NATIVE.md step 10). */
-typedef struct {
-    uint32_t w0;
-    uintptr_t w1;
-} PcGfxWords;
+/* Display lists are arrays of command records (Gfx, pc_gfx_list.h): the game's own, and the files', which the WAD
+ * converter builds when the file loads (port/assets/wad.c; docs/port/GFX.md "The command records"). */
+#include "pc_gfx_list.h"
 
 int pc_gfx_init(int headless, int window_width, int window_height);   /* 0 on success */
 void pc_gfx_run_dl(const void *dl);          /* one graphics task: OSTask.t.data_ptr */

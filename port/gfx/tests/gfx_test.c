@@ -76,7 +76,7 @@ int pc_mem_is_model_data(const void *p) {
 #define FB_H 240
 
 static uint16_t s_fb[FB_W * FB_H], s_zb[FB_W * FB_H];
-static PcGfxWords s_list[16384], s_sub[4096];
+static Gfx s_list[16384], s_sub[4096];
 static uint8_t *s_px;
 static int s_px_w, s_px_h, s_fail, s_window, s_window_readback = 1;
 static int s_n64_w, s_n64_h;          /* the target in N64 pixels (s_px_w x s_px_h internal ones) */
@@ -787,13 +787,13 @@ static void case_detail(void) {
         cc_shade();
         quad_at(&s_v[8], 800.0f, 5, 30, -20, 20, 255, 255, 0);
         if (level != 1)
-            gDma2p(0xDC, (uintptr_t)&persp, 64, 14, 0);   /* gSPForceMatrix: MP = the projection (modelview 1) */
+            gsSPForceMatrix((uintptr_t)&persp);   /* MP = the projection (modelview 1) */
         gsSPVertex((uintptr_t)&s_v[8], 4, 0);
         gsSP2Triangles(0, 1, 2, 0, 2, 3);
         if (level == 0)
             gsSPPopMatrixN(1);
         else if (level == 1)
-            gMoveWd(0x00, 0x18, 0);   /* G_MW_MATRIX: MP's row 3 x and y integer halves, 0 as they are */
+            gsSPInsertMatrix(0x18, 0);   /* MP's row 3 x and y integer halves, 0 as they are */
         else
             gsSPMatrix((uintptr_t)&s_ident, G_MTX_MODELVIEW | G_MTX_LOAD | G_MTX_NOPUSH);
         quad_at(&s_v[0], 1500.0f, -30, -5, -20, 20, 0, 255, 0);
@@ -1091,14 +1091,11 @@ static void case_dualtile(void) {
 }
 
 /* A file's texels in texel memory (high byte first, as the N64's RDP reads them: docs/port/NATIVE.md 19) beside
- * native lists, vertices and matrices, and every address kind (GFX.md "Command formats and addresses"). Every list is
- * the PC's form, the files' too (docs/port/NATIVE.md step 10), and so are vertices and matrices, wherever they lie;
- * every address is a host pointer, or a segment's offset (docs/port/NATIVE.md 17):
- *   the frame's list --G_DL 0x06000000 (segment 6 = a host pointer)--> a list in a host buffer whose texels are texel
- *     memory: a LOD marker the race kept (a no-op), a matrix, the texture image and vertices through segment 6;
- *     then G_DL to the second buffer's list by its pointer
- *   the list in the second buffer (its texels texel memory too, as a file in the game's heap): a matrix and vertices
- *     by their pointers, a segment base set from this list (a pointer), vertices through that segment
+ * records, vertices and matrices in host buffers, each named by its pointer (GFX.md "Addresses and byte order"):
+ *   the frame's list calls a list in a host buffer whose texels are texel memory: a level-of-detail marker the race
+ *     kept (a no-op), a matrix, the texture image and vertices; then it calls the second buffer's list
+ *   the list in the second buffer (its texels texel memory too, as a file in the game's heap): a matrix and vertices,
+ *     then more vertices in another place
  *   the frame's list again: a texture by its pointer (a game-built list pointing at a heap texture) */
 static _Alignas(16) uint8_t s_asset[8192], s_ram[0x4000];
 
@@ -1146,39 +1143,37 @@ static void case_filetexels(void) {
     pc_mem_register_texels(ram + R_TEX, 8 * 8 * 2);
 
     /* The list in the second buffer, reached by its pointer */
-    gp = (PcGfxWords *)(void *)(ram + R_DL);
+    gp = (Gfx *)(void *)(ram + R_DL);
     gsSPMatrix((uintptr_t)(ram + R_MTX), G_MTX_MODELVIEW | G_MTX_LOAD | G_MTX_NOPUSH);
     gsDPSetPrimColor(0, 0, 0, 255, 0, 255);
     cc_prim();
     gsSPVertex((uintptr_t)(ram + R_VTX), 3, 0);
     gsSP1Triangle(0, 1, 2);
-    gsSPSegment(7, (uintptr_t)(ram + R_SEG7));                                     /* a base set from this list */
     gsDPSetPrimColor(0, 0, 255, 0, 255, 255);
-    gsSPVertex(0x07000000u, 3, 0);                                                 /* segmented */
+    gsSPVertex((uintptr_t)(ram + R_SEG7), 3, 0);
     gsSP1Triangle(0, 1, 2);
     gsSPEndDisplayList();
 
-    /* The list in a host buffer, reached through segment 6 */
-    gp = (PcGfxWords *)(void *)(s_asset + DL);
-    gsSPNoOp(0x010003);   /* a LOD marker the race kept: a no-op */
-    gsSPMatrix(0x06000000u + MTX, G_MTX_MODELVIEW | G_MTX_LOAD | G_MTX_PUSH);
+    /* The list in a host buffer, which the frame's list calls */
+    gp = (Gfx *)(void *)(s_asset + DL);
+    gsSPSection(3, 0);   /* a level-of-detail marker the race kept: a no-op */
+    gsSPMatrix((uintptr_t)(s_asset + MTX), G_MTX_MODELVIEW | G_MTX_LOAD | G_MTX_PUSH);
     gsSPTexture(0xFFFF, 0xFFFF, 0, 0, 1);
-    gsDPSetTextureImage(G_IM_FMT_RGBA, G_IM_SIZ_16b, 1, 0x06000000u + TEX);
+    gsDPSetTextureImage(G_IM_FMT_RGBA, G_IM_SIZ_16b, 1, (uintptr_t)(s_asset + TEX));
     gsDPSetTile(G_IM_FMT_RGBA, G_IM_SIZ_16b, 0, 0, G_TX_LOADTILE, 0, 0, 0, 0, 0, 0, 0);
     gsDPLoadSync();
     gsDPLoadBlock(G_TX_LOADTILE, 0, 0, 32 * 32 - 1, calc_dxt(32, 2));
     gsDPSetTile(G_IM_FMT_RGBA, G_IM_SIZ_16b, 8, 0, 0, 0, G_TX_CLAMP, 5, 0, G_TX_CLAMP, 5, 0);
     gsDPSetTileSize(0, 0, 0, 31 << 2, 31 << 2);
     cc_decalrgba();
-    gsSPVertex(0x06000000u + VTX, 4, 0);
+    gsSPVertex((uintptr_t)(s_asset + VTX), 4, 0);
     gsSPQuadrangle(0, 1, 3, 2);
     gsSPPopMatrixN(1);
     gsSPDisplayList((uintptr_t)(ram + R_DL));
     gsSPEndDisplayList();
 
     frame_begin(0, 0, 0);
-    gsSPSegment(6, (uintptr_t)s_asset);   /* a host pointer */
-    gsSPDisplayList(0x06000000u + DL);
+    gsSPDisplayList((uintptr_t)(s_asset + DL));
     load_texture_block((uintptr_t)(ram + R_TEX), G_IM_FMT_RGBA, G_IM_SIZ_16b, 8, 8, 0, 0, G_TX_CLAMP, G_TX_CLAMP, 0,
                        0);
     cc_decalrgba();
@@ -1189,10 +1184,10 @@ static void case_filetexels(void) {
     frame_end();
     pc_mem_unregister_texels(s_asset + TEX);
     pc_mem_unregister_texels(ram + R_TEX);
-    check("seg 6: quad of a file's texels, left (red)", 115, 25, 255, 0, 0, 2);
-    check("seg 6: quad of a file's texels, right (yellow)", 135, 25, 255, 255, 0, 2);
+    check("a called list: quad of a file's texels, left (red)", 115, 25, 255, 0, 0, 2);
+    check("a called list: quad of a file's texels, right (yellow)", 135, 25, 255, 255, 0, 2);
     check("a called list, its matrix, vertices by pointer", 15, 115, 0, 255, 0, 2);
-    check("segment set from a called list", 65, 115, 255, 0, 255, 2);
+    check("a called list's vertices in another place", 65, 115, 255, 0, 255, 2);
     check("nothing at the origin", 25, 25, 0, 0, 0, 0);
     check("the frame's list, a texture by pointer", 204, 54, 0, 255, 255, 2);
     check("the frame's list after the calls", 205, 15, 0, 0, 255, 2);
@@ -1235,7 +1230,7 @@ static void case_matrix(void) {
 static void case_cull(void) {
     static Mtx mirror;
     float f[4][4];
-    PcGfxWords *save;
+    Gfx *save;
     static Vtx box[2][8];
     int i;
     /* visually counterclockwise (front) at x 10.., clockwise (back) at x 60.. */
@@ -1275,7 +1270,7 @@ static void case_cull(void) {
     /* G_CULLDL: a sub-list whose bounding box is off screen ends early; one on screen draws */
     for (i = 0; i < 2; i++) {
         int bx = i == 0 ? -500 : 200, j;
-        PcGfxWords *sub = s_sub + i * 64;
+        Gfx *sub = s_sub + i * 64;
         for (j = 0; j < 8; j++)
             vtx(&box[i][j], bx + (j & 1) * 40, 150 + ((j >> 1) & 1) * 40, (j & 4) ? 10 : -10, 0, 0, 0, 0, 0, 255);
         save = gp;
@@ -1305,7 +1300,7 @@ static void case_cull(void) {
 /* G_BRANCH_Z on a vertex's screen depth. It branches (no return), so each test runs in a called list, as the
  * game's model lists do: the target's ENDDL returns to the caller. */
 static void case_branchz(void) {
-    PcGfxWords *save;
+    Gfx *save;
     int i;
     static Vtx ref[2];
     vtx(&ref[0], 0, 0, 500, 0, 0, 0, 0, 0, 255);    /* near: screen z ~ 255 */
@@ -1313,7 +1308,7 @@ static void case_branchz(void) {
     frame_begin(0, 0, 0);
     cc_shade();
     for (i = 0; i < 2; i++) {
-        PcGfxWords *target = s_sub + i * 128, *wrap = s_sub + i * 128 + 64;
+        Gfx *target = s_sub + i * 128, *wrap = s_sub + i * 128 + 64;
         vtx(&s_v[i * 3 + 0], 10 + i * 100, 10, 0, 0, 0, 0, 255, 0, 255);
         vtx(&s_v[i * 3 + 1], 10 + i * 100, 40, 0, 0, 0, 0, 255, 0, 255);
         vtx(&s_v[i * 3 + 2], 40 + i * 100, 10, 0, 0, 0, 0, 255, 0, 255);

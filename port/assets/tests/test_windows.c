@@ -14,6 +14,7 @@
 #include <stddef.h>
 #include <string.h>
 
+#include "pc_gfx_list.h"
 #include "support.h"
 
 /* set_fog's Descriptor72, the layout every PC view of a window has. */
@@ -42,7 +43,6 @@ float fog_viewable_distance[4][4];
 typedef struct { int16_t x, z, radius, near_clip, far_clip, fog; } Region;
 Region *trackFog[4];
 volatile int8_t frame_record_index;
-typedef struct { uint32_t w0; uintptr_t w1; } Gfx;
 Gfx *frame_dl;
 
 static uint16_t g_fill;
@@ -152,7 +152,8 @@ static void test_frame_clear(void)
     frame_dl = dl;
     frame_record_index = 1;
     ClearScreen(0x1234);
-    CHECK(frame_dl == dl + 5 && dl[1].w1 == (uintptr_t)buf1 && dl[2].w1 == 0x12341234u);   /* the image: a pointer */
+    CHECK(frame_dl == dl + 5 && dl[1].op == GFX_OP_COLOR_IMAGE && dl[1].image.image == buf1 &&
+          dl[2].op == GFX_OP_FILL_COLOR && dl[2].fill_color.pattern == 0x12341234u);   /* the image: a pointer */
 }
 
 int main(void)

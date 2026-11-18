@@ -39,11 +39,11 @@ typedef struct tTextureSwap {
 /* One frame of the track's (gTrackNum) texture animations, none in the attract demo without the Expansion Pak.
  * Each palette animation whose period is up starts the next and does its step (the PALANIM_* states; the light
  * cycles set their own periods, and the colours they write are RGBA5551). The scrolls move start by offset per
- * retrace, wrapped at end, and write it (in quarter texels: >> 2) into the texture's SETTILESIZE command (s for
+ * retrace, wrapped at end, and write it (in quarter texels: >> 2) into the texture's tile size records (s for
  * PALANIM_SCROLL_S, t for PALANIM_SCROLL_T). Each flipbook whose time is up steps idx (wrapping, in the direction
- * fd) and makes the texture of frame startnum show frame idx's image: in texBase itself or in the SETTIMG command of
- * its load display list. Without the Expansion Pak the first six tracks leave out the flipbooks of the shared
- * frames, as InitTextureAnimation does. */
+ * fd) and makes the texture of frame startnum show frame idx's image: in texBase itself or in the texture image
+ * record of its load display list. Without the Expansion Pak the first six tracks leave out the flipbooks of the
+ * shared frames, as InitTextureAnimation does. */
 void TextureAnimation(void)
 {
     tPaletteAnim *plist;
