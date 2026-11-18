@@ -22,7 +22,7 @@ void pause_TitlePane(void)
     } else if(gPauseState==kPauseRumbleScreen) {
         width=0;
     } else {
-        TB_Sprintf(text,pause_title_name_format,(*gPlayers_save[playerInPause].profile)->name,gText.taba[gText.tab[56]]);
+        TB_Sprintf(text,pause_title_name_format,(*gPlayers[playerInPause].save)->name,gText.taba[gText.tab[56]]);
         width=HAL_GetTextWidth(str,-1);
     }
     x=pause_titlePos[0];

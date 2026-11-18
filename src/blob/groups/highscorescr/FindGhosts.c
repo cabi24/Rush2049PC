@@ -19,7 +19,7 @@ void FindGhosts(s32 pak)
     Ghost **node;
     Ghost *ghost;
 
-    player = *gPlayers_save[0].profile;
+    player = *gPlayers[0].save;
     ghosth = &gPakGhosts[pak];
     *ghosth = 0;
     if (gControllerData[pak].attached == 0) {

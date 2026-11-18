@@ -170,7 +170,6 @@ extern OSMesg text_lock_msg[EXTENT(1)];
 extern Gfx *frame_dl;
 extern OSMesgQueue si_lock_queue;
 extern u8 *frame_dl_start;
-extern PlayerTail gPlayers_save[EXTENT(3)];
 extern s32 retraces_since_frame;
 extern OSMesg si_lock_msg;
 /* gOPPFuncs: declared by its files (src/blob/groups/hal_time/group.c: defines it) */

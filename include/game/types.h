@@ -636,13 +636,6 @@ typedef struct PcSched { /* 0x2C0 bytes */
     struct OSScTask_s *curRDPTask;   /* 0x2B8 */
 } PcSched;
 
-/* An input record (gPlayers, 80 bytes) from its profile handle on (MAT3 tPadState.profile, at +0x48): what
- * gPlayers_save, a label at gPlayers + 0x48, reads per player. */
-typedef struct PlayerTail { /* 0x50 bytes */
-    struct tProfile **profile; /* 0x0 the player's profile (a handle) */
-    u8 pad[72];                /* 0x8 the next player's record up to its profile */
-} PlayerTail;
-
 typedef struct __attribute__((packed)) RecordFields { /* 0xC bytes */
     u16 id;                         /* 0x0 */
     u16 count;                      /* 0x2 */

@@ -61,7 +61,7 @@ s32 animBattlePoints(void *callback_context)
                     x = wrongWayPos[gNumWindows - 1][event->column].x;
                     y = wrongWayPos[gNumWindows - 1][event->column].y;
                     TB_Sprintf(text, gText.single[POINT_WON_FORMAT],
-                                 (*gPlayers_save[event->row].profile)->name);
+                                 (*gPlayers[event->row].save)->name);
                     if (gNumPlayers >= 3) {
                         HAL_SetFont(11);
                         TB_SetTextColor(kTB_BlackText);
