@@ -1,22 +1,6 @@
 /* SetCircuitCode: a circuit continued from its code (MAT3 circuit.c). */
 #include "game/game.h"
 
-/* A player's circuit in progress (MAT3 tCircuit), in their profile's save data at 0x6F4. No pointers: the same
- * layout on both. */
-struct tCircuit {
-    u32 checksum;       /* 0x00 */
-    u8 active;          /* 0x04 */
-    u8 death;           /* 0x05 the death death: out of the circuit after a crash */
-    u8 temp;            /* 0x06 entered by a circuit code: the points so far are gTempCircuitPoints' */
-    u8 difficulty;      /* 0x07 */
-    s8 type;            /* 0x08 kCircuitBeginner ... kCircuitExtreme */
-    s8 track;           /* 0x09 the races driven */
-    u8 pad0A[2];
-    u32 seed;           /* 0x0C the circuit's random seed (its tracks, its drones) */
-    f32 totalTime;      /* 0x10 */
-    u8 ranks[54];       /* 0x14 each car's place in each race, 3 bits a race, 9 bytes a car (MAT3 [6][9]) */
-};
-
 /* A player's profile (SaveSlot, host layout: pc_prelude.h), its save data, and its input record (gPlayers). */
 typedef struct Resource { u8 *data; } Resource;
 typedef struct Object { void *next; void *prev; void *fileh; u8 pad0_C[0x2C - 0xC]; Resource *resource; } Object;
@@ -36,9 +20,9 @@ s32 SetCircuitCode(u8 *input)
     u32 total_weights, total_values;
     u32 ranks[6];
     s32 i, j;
-    struct tCircuit *circuit;
+    tCircuit *circuit;
 
-    circuit = (struct tCircuit *)(gPlayers[gCircuitPlayer].handle->object->resource->data + 1780);
+    circuit = &((tSaveData *)gPlayers[gCircuitPlayer].handle->object->resource->data)->circuit;
     NewPassword(86, 14);
     if (!SetPasswordString(input)) return 0;
     GetPasswordElement(&type, 3);

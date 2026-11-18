@@ -16,7 +16,7 @@ void SetOptions(void)
 {
     s32 i, setting;
     s8 configuration_mode;
-    const CircuitTrackSlot *options;
+    const tCircuitTrack *options;
     Player *player;
     if (!(gGameState & GS_DEMO)) {
         for (i = 0; i < gNumPlayers; i++) {

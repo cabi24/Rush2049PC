@@ -244,7 +244,6 @@ struct internal_state;
 struct tAudioSequence;
 struct pathtyp;
 struct tBasicTargetPath;
-struct tCircuit;
 struct tCarData;
 struct tFxSequence;     /* the sound manager's records: game/audiomgr.h defines them */
 struct tMemoryChunk;
@@ -1596,21 +1595,24 @@ typedef struct tCarSettings { /* 0x10 bytes */
     s8 settings[12];   /* 0x4 the checksum covers all 12 (SavePlayerCarSetting) */
 } tCarSettings;
 
-/* The circuit in progress (MAT3 tCircuit; circuitscr.c has its own view of that name). */
-typedef struct tCircuitRecord { /* 0x4C bytes */
+/* A profile's circuit in progress (MAT3 tCircuit), tSaveData.circuit: part of the profile's file, so its layout is the
+ * file's (the offsets below are the record's, at 0x6F4 in the file). NewCircuit starts one, ContinueCircuit builds
+ * its races and drones from it, UpdateCircuit records each race, and a circuit code (GetCircuitCode, SetCircuitCode)
+ * holds all of it but the ranks. The checksum covers the 72 bytes after it (CheckAndRepairPlayer). */
+typedef struct tCircuit { /* 0x4C bytes */
     u32 checksum;      /* 0x0 */
-    u8 active;         /* 0x4 */
-    u8 death;          /* 0x5 */
-    u8 temp;           /* 0x6 */
-    u8 difficulty;     /* 0x7 */
-    s8 type;           /* 0x8 the circuit (circuitStats' index) */
-    s8 track;          /* 0x9 */
-    u8 padA[2];        /* 0xA */
-    u32 seed;          /* 0xC */
-    f32 totalTime;     /* 0x10 */
-    u8 ranks[6][9];    /* 0x14 */
-    u8 pad4A[2];       /* 0x4A */
-} tCircuitRecord;
+    u8 active;         /* 0x4 a circuit is under way */
+    u8 death;          /* 0x5 the death option: out of the circuit after a crash */
+    u8 temp;           /* 0x6 entered by a circuit code: the points of the races before it are gTempCircuitPoints' */
+    u8 difficulty;     /* 0x7 the drones' skill, raised after good races in an extreme circuit */
+    s8 type;           /* 0x8 the circuit: 0 beginner to 3 extreme (circuitStats' index) */
+    s8 track;          /* 0x9 the races driven */
+    u8 unusedA[2];     /* 0xA zero */
+    u32 seed;          /* 0xC the random seed its races and drones are drawn from */
+    f32 totalTime;     /* 0x10 the time of its races so far */
+    u8 ranks[6][9];    /* 0x14 each car's place in each race, 3 bits a race (24 races in a car's 9 bytes) */
+    u8 unused4A[2];    /* 0x4A zero */
+} tCircuit;
 
 /* A profile's file on the pak (MAT3 save.c's tSaveData, the N64's revision 16 of it: controls 10 bytes, then rumble
  * and the race type), 2064 bytes. A file format: its layout is the pak file's, byte for byte. */
@@ -1636,7 +1638,7 @@ typedef struct tSaveData { /* 0x810 bytes */
     tBattleStats battleStats[8];          /* 0x60C */
     tObstacleStats obstacleStats[1];      /* 0x66C */
     tCircuitStats circuitStats[4];        /* 0x684 */
-    tCircuitRecord circuit;               /* 0x6F4 the circuit in progress */
+    tCircuit circuit;                     /* 0x6F4 the circuit in progress */
     tCarSettings carSettings[13];         /* 0x740 */
 } tSaveData;
 
@@ -2190,14 +2192,14 @@ typedef struct Battle {
     f32 yaw;
 } Battle;
 
-/* A race of a circuit (MAT3 tCircuitTrack, gCircuitTracks[]: the arena holds them all; ContinueCircuit). */
-typedef struct CircuitTrackSlot { /* 0x5 bytes */
-    u8 trackNum; /* 0x0 */
-    u8 backward; /* 0x1 */
-    u8 mirror;   /* 0x2 */
-    u8 fog;      /* 0x3 0 none to 3 thick */
-    u8 wind;     /* 0x4 */
-} CircuitTrackSlot;
+/* A race of a circuit (MAT3 tCircuitTrack), gCircuitTracks[]: ContinueCircuit draws them from the circuit's seed. */
+typedef struct tCircuitTrack {
+    u8 trackNum;   /* the track */
+    u8 backward;   /* driven backward */
+    u8 mirror;     /* mirrored */
+    u8 fog;        /* 0 none to 3 thick */
+    u8 wind;       /* 0 none to 4 */
+} tCircuitTrack;
 
 typedef struct GhostFile { /* 0x40 bytes */
     void *ll;                    /* 0x0 */

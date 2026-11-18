@@ -4,14 +4,6 @@
  * frame; circuitscr_animText draws its text. */
 #include "game/game.h"
 
-/* The circuit in progress (MAT3 tCircuit), part of the profile's save data. Only the fields this file reads. */
-typedef struct tCircuit {
-    u8 pad0[4];             /* 0x0 checksum */
-    u8 active;              /* 0x4 a circuit is under way */
-    u8 pad5[3];             /* 0x5 death, temp, difficulty */
-    s8 type;                /* 0x8 kCircuitBeginner ... kCircuitExtreme */
-    s8 track;               /* 0x9 the races run */
-} tCircuit;
 /* A profile's save data (MAT3 tSaveData): the circuit at 0x6F4 (MAT3 0x6F8: the N64's records are 4 bytes earlier). */
 typedef struct SaveData { u8 records[0x6F4]; tCircuit circuit; } SaveData;
 
