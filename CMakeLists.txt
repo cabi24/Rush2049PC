@@ -1281,9 +1281,10 @@ else()
 endif()
 add_test(NAME endian_check COMMAND ${Python3_EXECUTABLE} ${PORT_TOOLS}/endian_check.py --build ${CMAKE_BINARY_DIR}
     ${ENDIAN_CHECK_ARGS})
-# The audio manager's records (docs/port/SYNTH.md): every live view of an fx tag (N64 0x44 bytes), a sequence
-# (0x3C), an emitter (0x2C) and the command table has the host layout of audiomgr_thread.c's views, read from the
-# DWARF of the game's objects (tools/port/view_check.py; ELF objects only).
+# The audio manager's records (include/game/audiomgr.h, docs/port/RECORDS.md 4.4): the files that read an fx tag
+# (N64 0x44 bytes), a sequence (0x3C) or an emitter (0x2C) see the header's one declaration, whose N64 layout (the
+# data generator's, from DWARF) must keep the N64 size (tools/port/view_check.py; ELF objects only). The messages
+# (pc_snd_msgs, tAudioMsg) are a union, which audiomgr.h asserts at the pool's 32-byte element.
 if(NOT WIN32)
     set(SOUND_FX_VIEWS
         src/blob/groups/save/AudioInit.c src/blob/groups/audio_emitters/group.c
@@ -1304,36 +1305,20 @@ if(NOT WIN32)
     string(REPLACE ";" "," SOUND_EMITTER_VIEWS "${SOUND_EMITTER_VIEWS}")
     set(VIEW_CHECK ${Python3_EXECUTABLE} ${PORT_TOOLS}/view_check.py --build ${CMAKE_BINARY_DIR})
     add_test(NAME views_sound_fxtag COMMAND ${VIEW_CHECK} --n64-size 0x44 --in ${SOUND_FX_VIEWS}
-        --tag tFxSequence,Node68,Voice,Entity,Effect,FxTag,Node,Record,ResEntry)
+        --tag tFxSequence)
     add_test(NAME views_sound_sequence COMMAND ${VIEW_CHECK} --n64-size 0x3C --in ${SOUND_SEQ_VIEWS}
-        --tag anon_ll_id_3c,Sequence,Chan,RecA,Event,Node16)
+        --tag tAudioSequence)
     add_test(NAME views_sound_emitter COMMAND ${VIEW_CHECK} --n64-size 0x2C --in ${SOUND_EMITTER_VIEWS}
-        --tag Cam,CamSlot,Owner,RecB,Source)
-    # The commands (N64 audiomgr_gCmds) are PC data now (pc_snd_msgs, docs/port/DECOUPLE.md 9), which each reader casts
-    # to its own view, so the views are the live readers' record types (the three the symbol's declarations were).
-    add_test(NAME views_sound_commands COMMAND ${VIEW_CHECK} --n64-size 0x20 --tag ShutdownMsg,Slot24,Slot18
-        --in src/blob/groups/heap_release/AudioShutdown.c,src/blob/groups/save/AudioInit.c,src/blob/groups/abort_game/GetCmd.c)
+        --tag tSfxEmitter)
     # The road collision's views of the car's model record (pc_models): the tires' road nodes at MAT3's +0x3A0 and the
     # moving surface at +0x648 are host pointers (docs/port/CARS.md 4).
     add_test(NAME views_model_road COMMAND ${VIEW_CHECK} --n64-size 0x808 --tag VCar,EUCar,tModelData
         --in src/blob/groups/stree_collide/CollideCarBody.c,src/blob/groups/stree_tiresurf/TireSurf.c,src/blob/groups/update_game_data/update_game_data.c)
-    # MusyX's synth voice (pc_mx_voice): every view in the library's five files has the head of host pointers
-    # (src/rom/sound/musyx.h's SynthVoiceHead) and every field after it at its N64 offset past the head's growth, as
-    # macros.c's whole view has them (N64 0x1A0 bytes and the PC's tail, docs/port/MUSYX_DATA.md 8.3).
-    set(MUSYX_VOICE_VIEWS
-        VoiceState,MacroState,MacroStateWait,MacroStateReturn,MacroStateSplitKey,MacroStateSplitVelocity
-        MacroStateSplitModulation,MacroStateSplitRandom,MacroStateGosub,MacroStateTrapKeyOff,MacroStateUntrapKeyOff
-        MacroStateLoop,MacroStatePlayMacro,MacroStateSendKeyOff,MacroStateAddAge,MacroStateSetAge,MacroStateSetAgeSpeed
-        MacroStateSetAgeByVelocity,MacroStateAddPriority,MacroStateSendFlag,MacroStateSetPitchWheelRange
-        MacroStateSetNote,MacroStateAddNote,MacroStateLastNote,MacroStateStartSample,MacroStateStopSample
-        MacroStateKeyOff,MacroStateVibrato,MacroStateSetupLfo,MacroStateSetPitch,MacroStateSetAdsr
-        MacroStatePitchSweep,SynthVoicePanView,MacroStateScaleVolume,MacroStateStartEnvelope,MacroStateEnvelope
-        MacroStateTrackPitchWheel,MacroStateSetReverbSend,MacroStatePortamento,SynthVoiceVariablesView
-        MacroStateCompare,SynthVoiceMacroView,MacroStateStart,MacroStateSelectVolume,RampState,SynthVoiceLegatoView
-        VoicePrefix,SynthVoice,SynthVoicePriorityView,SynthVoiceAllocView,VoiceControls)
-    string(REPLACE ";" "," MUSYX_VOICE_VIEWS "${MUSYX_VOICE_VIEWS}")
-    add_test(NAME views_musyx_voice COMMAND ${VIEW_CHECK} --n64-size 0x1A4 --tag ${MUSYX_VOICE_VIEWS}
-        --ref SynthVoiceMacroView@src/rom/sound/macros.c
+    # MusyX's synth voice (pc_mx_voice): the library's five files read it as src/rom/sound/musyx.h's SynthVoice, whose
+    # head is host pointers (SynthVoiceHead) and whose N64 layout (the data generator's, from DWARF) keeps every later
+    # field at its N64 offset and the N64's 0x1A0 bytes, with the PC's 4-byte tail (docs/port/MUSYX_DATA.md 8.3).
+    add_test(NAME views_musyx_voice COMMAND ${VIEW_CHECK} --n64-size 0x1A4 --tag SynthVoice
+        --ref SynthVoice@src/rom/sound/macros.c
         --in src/rom/sound/macros.c,src/rom/sound/synth.c,src/rom/sound/voices.c,src/rom/sound/controllers.c,src/rom/sound/api.c)
 endif()
 # tools/port/layout_check.py (docs/port/LAYOUT.md): the layout check on its synthetic cases (it reads the same GIMPLE,

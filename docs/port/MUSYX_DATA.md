@@ -248,15 +248,17 @@ The order comes from the call signatures, not from the ROM's table.
   functions. `CallbackWords` (`api.c`) copies 8 pointers. `SpeechServiceHooks` (`streams.c`) has six
   pointer slots before `allocate` and `release`, and gen_data now places `sound_service_wait_task` … `sound_service_free` at 8-byte steps
   in `sound_services`'s own storage (`data_symbols.txt`).
-- `musyx_set_retrace_callback` takes `intptr_t` (it stores into the pointer-sized `musyx_retrace_callback`, which `audio_retrace_thread_entry` calls
-  each retrace), and `musyx_cart_address` takes and returns a u32 (since [NATIVE.md](NATIVE.md) step 9: a ROM offset
-  in, a cartridge address out). `musyx_start_dma_list` takes `intptr_t` for the list and the done queue.
+- `musyx_set_retrace_callback` takes the callback (`void (*)(void)`) and stores it in `musyx_retrace_callback`
+  (audio.h), which `audio_retrace_thread_entry` calls each retrace; `musyx_cart_address` takes and returns a u32 (since
+  [NATIVE.md](NATIVE.md) step 9: a ROM offset in, a cartridge address out). `musyx_start_dma_list` takes the list
+  (`SampleDmaRequest *`) and the done queue (`OSMesgQueue *`).
   `musyx_alloc` and `musyx_free` deal in heap blocks, as pointers since NATIVE.md step 6.
-- The DMA request list: `musyx_start_dma_list`'s `CallSlot` and `sample_dma_next`'s `DmaList` now have one layout
-  {u16 × 4; requests; done queue} (24 bytes; `sample_dma_thread_entry` reads the done queue at `DMA_DONE_OFF`). It has
-  PC storage of its own, `pc_sample_dma_list` (defined in `sample_dma_next.c`): at 0x80153F10 there are 16 bytes before
-  `gPathWave` (the path data pointer), and gen_data places both inside `gGameCar`'s storage. The entries
-  (`SoundDmaEntryCodebook`, `SoundDmaEntrySamples`, `DmaReq`) are 16 bytes on LP64, and `sound_hw_alloc_dma` allocates the
+- The DMA request list in progress is audio.h's `SampleDmaList` {active, count, next; the requests; the done queue}
+  (24 bytes; since wave 4 one declaration for `musyx_start_dma_list`, `sample_dma_next` and `sample_dma_thread_entry`,
+  [RECORDS.md](RECORDS.md) 4.4). It has PC storage of its own, `pc_sample_dma_list` (defined in `sample_dma_next.c`):
+  at 0x80153F10 there are 16 bytes before `gPathWave` (the path data pointer). The entries are
+  include/game/soundlib.h's `SampleDmaRequest` {length, source, destination} (the library's hardware layer and
+  dma_queue.c write them, the sample DMA thread reads them), 16 bytes on LP64, and `sound_hw_alloc_dma` allocates the
   list with `DMA_ENTRY_SIZE` = 16.
 - Blank cartridge: the table is ROM data, so `--no-rom` fills it with the eight functions above (`port/main.c`,
   `musyx_services`). With a ROM, `rush2049pc: MusyX service N is ... in the ROM's table, not ...` reports a slot
@@ -289,16 +291,17 @@ indexes the slots from a `uintptr_t`.
 
 ### 8.3 The voices
 
-Since [NATIVE.md](NATIVE.md) step 9 (section 14 there): every view of a voice in `macros.c`, `synth.c`, `voices.c`,
-`api.c` and `controllers.c` (56) begins with `src/rom/sound/musyx.h`'s `SynthVoiceHead`, where the N64 had its first
-0x24 bytes: `addr`, `curAddr`, `retAddr`, `retCurAddr`, `trapAddr` and `trapCurAddr` are `MacroCommand` pointers into
-the pool, `node` the handle node (one of `pc_mx_nodes`), `next` and `previous` the chain's voice ids. The head is
-0x40 bytes, so every later field lies 0x1C past the N64 offset its name ends in, and a voice is 0x1C0 bytes
-(`PC_MX_VOICE_SIZE`: the N64's 0x1A0, the growth, and 4 bytes that keep the next voice's pointers 8-aligned; the full
-views end with `tail[SYNTH_VOICE_TAIL]`). The voice's storage is PC data (`pc_mx_voice`, decoupled). ctest
-`views_musyx_voice` (`view_check.py`) checks every view's fields against `macros.c`'s whole view, and
-`assets_musyx`, `assets_mxvoices` read the head by its host offsets. The one raw offset left in the files
-(`sound_synth_get_tick_rate`'s byte 0x4B) reads its view's field.
+Since wave 4 ([RECORDS.md](RECORDS.md) 4.4) a voice is one record, `src/rom/sound/musyx.h`'s `SynthVoice`, which
+the five files read (`sound_synth_voices`, `pc_mx_voice` seen as voices); until then each function read it through a
+view of its own (56 of them, the fields named after their N64 offsets: `flags24`, `id60`, ...). Its head
+(`SynthVoiceHead`, since [NATIVE.md](NATIVE.md) step 9, section 14 there) is where the N64 had its first 0x24 bytes:
+`addr`, `curAddr`, `retAddr`, `retCurAddr`, `trapAddr` and `trapCurAddr` are `MacroCommand` pointers into the pool,
+`node` the handle node (one of `pc_mx_nodes`), `next` and `previous` the chain's voice ids. The head is 0x40 bytes, so
+every later field lies 0x1C past its N64 offset, and a voice is 0x1C0 bytes (`PC_MX_VOICE_SIZE`: the N64's 0x1A0, the
+growth, and 4 bytes that keep the next voice's pointers 8-aligned). The record is packed, as the views were, so GCC
+makes the same code of it. The voice's storage is PC data (`pc_mx_voice`, decoupled). ctest `views_musyx_voice`
+(`view_check.py`) holds its N64 layout at 0x1A0 bytes, and `assets_musyx`, `assets_mxvoices` read the head by its host
+offsets.
 
 Before step 9, `sound_synth_voices` (32 voices of 0x1A0 bytes) was reached through about 90 views, almost all of
 them byte arrays and fields at N64 offsets (and raw offsets such as `(u8 *)state + 0xC4` and `+ 0x168`), and the

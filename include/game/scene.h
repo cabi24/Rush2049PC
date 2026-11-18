@@ -173,7 +173,6 @@ extern f32 gGlobalCameraFacingScale;
 extern OSIoMesg sample_dma_io;
 extern ArbEntry ZoidWinInfo[EXTENT(4)];
 extern s8 gSplitScreen;
-/* pc_sample_dma_list: declared by its files (src/blob/groups/sample_dma_next/sample_dma_next.c: defines it) */
 
 /* Functions */
 s32 anim_show_on_high_score(void *blit);

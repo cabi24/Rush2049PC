@@ -710,9 +710,8 @@ int pc_mx_voices(void);
 void pc_snd_setup(unsigned char *voices, unsigned char *sfx, int *emitters);
 
 /* The library's per-voice storage, 32 entries in the boot segment's BSS on the N64 (docs/port/DECOUPLE.md 9), each
- * indexed by a voice's number (the low byte of its id): its state (PC_MX_VOICE_SIZE bytes: the N64's 0x1A0 with a
- * head of host pointers, src/rom/sound/musyx.h's SynthVoiceHead, which macros.c's and the other units' views
- * begin with, MUSYX_DATA.md 8.3), its handle node (voices.c's HandleNode: two host pointers, the key and the voice
+ * indexed by a voice's number (the low byte of its id): its state (PC_MX_VOICE_SIZE bytes: src/rom/sound/musyx.h's
+ * SynthVoice, the N64's 0x1A0 with a head of host pointers, MUSYX_DATA.md 8.3), its handle node (voices.c's HandleNode: two host pointers, the key and the voice
  * id, packed), its links in the priority lists and in the free list ({u8 previous, next; u16}, 255 for none), an
  * effect voice's 134 MIDI controllers (an effect voice is its own channel in set 255, controllers.c), its two
  * per-channel bytes there (sound_midi_set_last_key, sound_midi_set_portamento_state) and its legato owner (macros.c's

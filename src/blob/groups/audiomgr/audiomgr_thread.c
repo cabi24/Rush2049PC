@@ -4,74 +4,12 @@
  * the 3D mix (ProcessEmitters), the sequences, the priorities (which effect tags get a voice) and the sound
  * system's own service. AudioInit (save/AudioInit.c) makes the thread. */
 #include "game/game.h"
+#include "game/audiomgr.h"
 #define OSMesgQueue OSMesgQueueView   /* this file's own OSMesgQueue: include/game's OSMesgQueue is another type */
 
 typedef struct OSMesgQueue { s32 pad[6]; } OSMesgQueue;
 typedef struct OSScClient { struct OSScClient *next; OSMesgQueue *msgQ; } OSScClient;
 typedef struct OSSched OSSched;
-
-typedef struct tDLList { char handle; char dbl; int numElements; void *head; void *tail; } tDLList;
-
-typedef struct tBSTE { void *left; void *right; } tBSTE;
-
-typedef struct tFxSequence {
-    tDLLE ll;
-    tDLList *list;
-    unsigned int id;
-    int state;
-    int type;
-    signed char paused;
-    signed char loop;
-    unsigned char numCmds;
-    unsigned char priority;
-    int wpriority;
-    float startTime;
-    float vol;
-    float lrpan;
-    float fbpan;
-    float pitch;
-    int fxid;
-    int subId;
-    unsigned int sysId;
-    void *data;
-} tFxSequence;
-
-typedef struct anon_te_tag_c { tBSTE te; tFxSequence *tag; } anon_te_tag_c;
-
-typedef struct anon_ll_id_3c {
-    tDLLE ll;
-    unsigned int id;
-    signed char free;
-    signed char active;
-    signed char stop;
-    float startTime;
-    float timeout;
-    unsigned char next;
-    int ids[4];
-    int subId;
-    int replace;
-    unsigned char priority;
-    int sndTag;
-} anon_ll_id_3c;
-
-typedef struct { signed short type; char cmd; signed char used; } anon_type_cmd_4;
-typedef struct { anon_type_cmd_4 hdr; int song; signed char loop; } anon_hdr_song_c;
-typedef struct { anon_type_cmd_4 hdr; int replace; float vol; float lrpan; float fbpan; tFxSequence *tag; } anon_hdr_replace_18;
-typedef struct { anon_type_cmd_4 hdr; tFxSequence *tag; } anon_hdr_tag_8;
-typedef struct { anon_type_cmd_4 hdr; float vol; float lrpan; float fbpan; float pitch; tFxSequence *tag; } anon_hdr_vol_18;
-typedef struct { anon_type_cmd_4 hdr; float vol; float time; signed char music; signed char sfx; } anon_hdr_vol_10;
-typedef struct { anon_type_cmd_4 hdr; signed char mono; } anon_hdr_mono_6;
-typedef union tAudioMsg {
-    anon_type_cmd_4 hdr;
-    anon_hdr_song_c playSong;
-    anon_hdr_replace_18 playEffect;
-    anon_hdr_tag_8 startEffect;
-    anon_hdr_vol_18 changeEffect;
-    anon_hdr_tag_8 intEffect;
-    anon_hdr_tag_8 stopEffect;
-    anon_hdr_vol_10 setMasterVol;
-    anon_hdr_mono_6 mono;
-} tAudioMsg;
 
 /* PC: the priority pass's command lists and the messages they hold are PC data, PC_SND_MSG_SLOTS long
  * (pc_game_types.h, docs/port/DECOUPLE.md 9, AUDIO.md 10.4): a pass sends at most a message each, and the manager's
@@ -111,7 +49,7 @@ static void walk_fx_tag_tree(tOrderedList *tree, void (*WalkFunc)(void *, int))
 /* Puts tag in the priority tree (gSortedFxTagTree, ordered by OrderFx) through the next free sorted-tag node. */
 static void _InsertSorted(tFxSequence *tag)
 {
-    anon_te_tag_c *stag;
+    tSortedFxTag *stag;
     stag = &gSortedFxTags[gSortedFxTagTree.numElements];
     stag->tag = tag;
     InsertBSTE(&gSortedFxTagTree, stag);
@@ -155,7 +93,7 @@ static void _ProcessPriorities(void)
             _InsertSorted(tag);
         }
     }
-    gNumFxPlaying = gPlayingFxTags.numElements;
+    gNumFxPlaying = gPlayingFxTags.count;
     gNumFxPending = gNumFxInterrupted = 0;
     for (tag = gInterruptedFxTags.head; tag; tag = next) {
         next = tag->ll.next;
@@ -343,7 +281,7 @@ void audio_manager_thread_entry(void *arg)
                 FreeFxTag(cmd->stopEffect.tag);
                 break;
             case kAudioCmdStopAllEffects:
-                { anon_ll_id_3c *s; for (s = gActiveSequences.head; s; s = s->ll.next) s->stop = 1; }
+                { tAudioSequence *s; for (s = gActiveSequences.head; s; s = s->ll.next) s->stop = 1; }
                 AudioStopAllEffects();
                 for (tag = gPlayingFxTags.head; tag; tag = next) {
                     next = tag->ll.next;

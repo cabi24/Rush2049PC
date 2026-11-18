@@ -29,7 +29,6 @@ struct Car;
 struct CarA;
 struct CarB;
 struct CarE;
-struct Chan;
 struct CollisionObject;
 struct CollisionReckon;
 struct Command;
@@ -39,7 +38,6 @@ struct Defense;
 struct Descriptor;
 struct Descriptor72;
 struct Dims;
-struct DmaReq;
 struct Dynamic;
 struct EUCar;
 struct Effect;
@@ -48,7 +46,6 @@ struct EngineState;
 struct Entity;
 struct Entry;
 struct GsmState;
-struct GsmStream;
 struct H12;
 struct Header;
 struct Header88;
@@ -63,57 +60,6 @@ struct List;
 struct ListHead;
 struct LookAt;
 struct MacroCommand;
-struct MacroCommandAddAge;
-struct MacroCommandKeyOff;
-struct MacroCommandSelectVolume;
-struct MacroCommandSendFlag;
-struct MacroCommandSetAge;
-struct MacroCommandSetAgeByVelocity;
-struct MacroCommandSetAgeSpeed;
-struct MacroCommandSetPitch;
-struct MacroCommandSetPitchWheelRange;
-struct MacroCommandSetReverbSend;
-struct MacroCommandSetupLfo;
-struct MacroCommandTrackPitchWheel;
-struct MacroCommandUntrapKeyOff;
-struct MacroInput;
-struct MacroState;
-struct MacroStateAddAge;
-struct MacroStateAddNote;
-struct MacroStateAddPriority;
-struct MacroStateCompare;
-struct MacroStateEnvelope;
-struct MacroStateGosub;
-struct MacroStateKeyOff;
-struct MacroStateLastNote;
-struct MacroStateLoop;
-struct MacroStatePitchSweep;
-struct MacroStatePlayMacro;
-struct MacroStatePortamento;
-struct MacroStateReturn;
-struct MacroStateScaleVolume;
-struct MacroStateSelectVolume;
-struct MacroStateSendFlag;
-struct MacroStateSendKeyOff;
-struct MacroStateSetAdsr;
-struct MacroStateSetAge;
-struct MacroStateSetAgeByVelocity;
-struct MacroStateSetAgeSpeed;
-struct MacroStateSetNote;
-struct MacroStateSetPitch;
-struct MacroStateSetPitchWheelRange;
-struct MacroStateSetReverbSend;
-struct MacroStateSetupLfo;
-struct MacroStateSplitKey;
-struct MacroStateSplitModulation;
-struct MacroStateSplitRandom;
-struct MacroStateSplitVelocity;
-struct MacroStateStartSample;
-struct MacroStateStopSample;
-struct MacroStateTrackPitchWheel;
-struct MacroStateTrapKeyOff;
-struct MacroStateUntrapKeyOff;
-struct MacroStateVibrato;
 struct MapRecord;
 struct MenuNode;
 struct MessageQueue;
@@ -153,7 +99,6 @@ struct PointList;
 struct Poly;
 struct Pool;
 struct QNode;
-struct RampState;
 struct Rec32;
 struct RecB;
 struct Reckon;
@@ -190,10 +135,8 @@ struct Sprite;
 struct State;
 struct StateNode;
 struct Surface;
-struct SynthVoiceMacroView;
-struct SynthVoicePanView;
-struct SynthVoicePriorityView;
-struct SynthVoiceVariablesView;
+struct SynthInputMix;
+struct SynthVoice;
 struct Table;
 struct TexRect;
 struct TexTile;
@@ -208,9 +151,6 @@ struct VehicleModel;
 struct View;
 struct Visual;
 struct Voice;
-struct VoiceControls;
-struct VoicePrefix;
-struct VoiceState;
 struct WheelSlot;
 struct X;
 struct XForm;
@@ -220,7 +160,6 @@ struct __OSThreadprofile_s;
 struct _tBlit_2;
 struct _tSusp;
 struct anon_kerns_value_c;
-struct anon_te_tag_c;
 struct internal_state;
 struct tAudioSequence;
 struct pathtyp;
@@ -238,6 +177,7 @@ struct tPoly;
 struct tPaletteDef;
 struct tPlayerProfile;
 struct tSfxCmd;
+struct tSortedFxTag;
 struct tSfxEmitter;
 struct tSfxListener;
 struct tSfxVoice;
@@ -785,11 +725,11 @@ typedef struct static_tree_desc_s { /* 0x20 bytes */
 /* ---- audio: the sound manager, effects, music and the MusyX sound library
  *
  * The MusyX library's records here (ChannelState the volume faders, LargeNode and SmallNode the 3D emitter lists,
- * SequenceContext and SequenceNode the song slots and their notes, SpeechStream, the registries' storage) only lay
- * out the library's data for the data loader: no game file reads their fields. The library's own definitions, with
- * the fields named by what the code does, are in src/rom/sound and include/sequence_context.h,
- * include/sound_hw_voice.h, include/sound_sample_record.h (docs/code/audio.md). The sound manager's records are in
- * game/audiomgr.h. */
+ * SequenceContext and SequenceNode the song slots and their notes, the registries' storage) only lay out the
+ * library's data for the data loader: no game file reads their fields. The library's own definitions, with the fields
+ * named by what the code does, are in src/rom/sound and include/sequence_context.h, include/sound_hw_voice.h,
+ * include/sound_sample_record.h (docs/code/audio.md). The records the library and the game share (its services, the
+ * DMA list's entries, the speech streams) are game/soundlib.h's, the sound manager's game/audiomgr.h's. */
 
 typedef struct AudioConfiguration { /* 0x208 bytes */
     u32 frequency;     /* 0x0 */
@@ -816,14 +756,6 @@ typedef struct EmitGroup { /* 0x18 bytes */
     struct LargeNode *large; /* 0x8 */
     struct SmallNode *small; /* 0x10 */
 } EmitGroup;
-
-typedef struct FxTagList { /* 0x18 bytes */
-    char handle;     /* 0x0 */
-    char dbl;        /* 0x1 */
-    s32 numElements; /* 0x4 */
-    void *head;      /* 0x8 */
-    void *tail;      /* 0x10 */
-} FxTagList;
 
 typedef struct Impact120 { /* 0x78 bytes */
     Impact24 point[5]; /* 0x0 */
@@ -916,63 +848,6 @@ typedef struct SmallNode { /* 0x18 bytes */
     struct StateNode *object; /* 0x10 */
 } SmallNode;
 
-/* The game's services to the sound library (audio_driver_services, sound_set_services; src/rom/sound/sound_services.h
- * declares the same record for the library's C). */
-typedef struct SoundServices { /* 0x40 bytes */
-    void (*submit_task)(OSTask *task);                       /* 0x0 */
-    void (*wait_task)(void);                                 /* 0x8 */
-    void (*add_callback)(void (*callback)(void));            /* 0x10 */
-    void (*remove_callback)(void (*callback)(void));         /* 0x18 */
-    void (*start_dma)(void *dst, u16 size, void *src);       /* 0x20 */
-    u32 (*translate_address)(u32 address);                   /* 0x28 */
-    void *(*allocate)(u32 size, u32 mode);                   /* 0x30 */
-    void (*release)(void *allocation);                       /* 0x38 */
-} SoundServices;
-
-typedef struct SpeechStream { /* 0x1268 bytes */
-    u8 gsm_history[358];                                         /* 0x0 */
-    u16 gsm_last_lag;                                            /* 0x166 */
-    u8 gsm_rest[40];                                             /* 0x168 */
-    void (*read_input)(void *, void *, u32, struct OSMesgQueue_s *); /* 0x190 */
-    void *input;                                                 /* 0x198 */
-    void *output;                                                /* 0x1A0 */
-    u32 capacity;                                                /* 0x1A8 */
-    u8 input_ring[4096];                                         /* 0x1AC */
-    u16 remaining_blocks;                                        /* 0x11AC */
-    u16 header_low;                                              /* 0x11AE */
-    u32 remaining_input;                                         /* 0x11B0 */
-    s32 remaining;                                               /* 0x11B4 */
-    OSMesgQueue queue;                                           /* 0x11B8 */
-    OSMesg message;                                              /* 0x11E0 */
-    u32 bit_position;                                            /* 0x11E8 */
-    u32 consumed_input;                                          /* 0x11EC */
-    u32 received;                                                /* 0x11F0 */
-    u32 consumed;                                                /* 0x11F4 */
-    u32 available;                                               /* 0x11F8 */
-    s8 pending;                                                  /* 0x11FC */
-    s8 state;                                                    /* 0x11FD */
-    s8 budget;                                                   /* 0x11FE */
-    u8 pad11FF;                                                  /* 0x11FF */
-    OSMesgQueue request_queue;                                   /* 0x1200 */
-    OSMesg request_messages[2];                                  /* 0x1228 */
-    volatile u8 busy;                                            /* 0x1238 */
-    u8 volume;                                                   /* 0x1239 */
-    u8 pan;                                                      /* 0x123A */
-    u8 span;                                                     /* 0x123B */
-    u8 priority;                                                 /* 0x123C */
-    u8 pad123D[3];                                               /* 0x123D */
-    u32 rate;                                                    /* 0x1240 */
-    s32 handle;                                                  /* 0x1244 */
-    s16 *buffer;                                                 /* 0x1248 */
-    u32 buffer_count;                                            /* 0x1250 */
-    u8 stop_countdown;                                           /* 0x1254 */
-    u8 aux;                                                      /* 0x1255 */
-    u8 pad1256[2];                                               /* 0x1256 */
-    u32 processed;                                               /* 0x1258 */
-    f32 duration;                                                /* 0x125C */
-    u32 token;                                                   /* 0x1260 */
-} SpeechStream;
-
 /* A car's sound (MAT3's, unnamed; 0x14 bytes): its fx tag handle and the values last sent to it, so that a change
  * is sent only when a value moves (SetSoundVP). InitSoundState empties it: sound -1, the values -2 (none). */
 typedef struct tSoundState { /* 0x14 bytes */
@@ -989,12 +864,6 @@ typedef struct tRoadNoises { /* 0x3C bytes */
     tSoundState water; /* 0x14 */
     tSoundState pave;  /* 0x28 */
 } tRoadNoises;
-
-typedef struct TransferRequest { /* 0x18 bytes */
-    void *destination; /* 0x0 */
-    void *source;      /* 0x8 */
-    u32 size;          /* 0x10 */
-} TransferRequest;
 
 typedef struct Vector { /* 0xC bytes */
     f32 x; /* 0x0 */
@@ -1036,15 +905,6 @@ typedef struct ArbEntry { /* 0x50 bytes */
     void *s;     /* 0x8 its scissor rectangle (scissor0 ...) */
     u8 rest[64]; /* 0x10 */
 } ArbEntry;
-
-typedef struct DmaList { /* 0x18 bytes */
-    u16 pad0;                   /* 0x0 */
-    u16 count;                  /* 0x2 */
-    u16 next;                   /* 0x4 */
-    u16 pad6;                   /* 0x6 */
-    struct DmaReq *reqs;        /* 0x8 */
-    struct OSMesgQueue_s *done; /* 0x10 */
-} DmaList;
 
 /* A flipbook frame of texture animation (MAT3 tTextureBase): the texture's name, the texture once found, the image
  * to show (its texBase, or the address its display list loads). */

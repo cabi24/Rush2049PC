@@ -468,7 +468,7 @@ typedef struct { uint32_t identifier; uint16_t duration; uint8_t unknown006[2]; 
     uint8_t unknown019[3]; uint32_t first, second; uint16_t value; uint8_t flags; uint8_t unknown027; } Request;
 int32_t musyx_start_dma_list(intptr_t list, int32_t count, intptr_t done);
 int32_t sample_dma_next(void);
-/* The request list's header, in its own storage on the PC (sample_dma_next.c's DmaList). */
+/* The request list's header, in its own storage on the PC (include/game/audio.h's SampleDmaList). */
 extern struct { uint16_t pad0, count, next, pad6; void *reqs; void *done; } pc_sample_dma_list;
 
 /* include/sound_sample_record.h's SoundSampleInfo, which sound_find_sample fills and sound_hw_set_voice_sample reads: a

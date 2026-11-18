@@ -1332,31 +1332,27 @@ REFERENCE = [
     (r"src/blob/groups/targets/group\.c$", "tMiniModelData",
      "the bounding box models gBBoxModelStructs (a heap block): N64 layout, the box a row of BBoxCollInfo "
      "(POINTERS.md 10.2)"),
-    (r"src/blob/groups/audiomgr/audiomgr_thread\.c$", "tFxSequence",
-     "the audio manager's FX tags, MAT3 audiomgr.c's tFxSequence: InsertLLE's two links are pointers"),
-    (r"src/blob/groups/save/AudioInit\.c$", "Voice",
-     "the FX tag pool gFxTags that AudioInit allocates: the tags", r"audiomgr/audiomgr_thread\.c$",
-     "tFxSequence"),
-    (r"src/blob/groups/audiomgr/audiomgr_thread\.c$", "anon_ll_id_3c",
-     "the audio manager's sequence tags, MAT3 audiomgr.c's: InsertLLE's two links are pointers"),
-    (r"src/blob/groups/audiomgr/audiomgr_thread\.c$", "anon_te_tag_c",
-     "the sorted-tag tree's nodes, MAT3 audiomgr.c's: left, right and the tag, pointers"),
-    (r"src/blob/groups/save/AudioInit\.c$", "Chan",
-     "the sequence tag pool gSequences that AudioInit allocates", r"audiomgr/audiomgr_thread\.c$",
-     "anon_ll_id_3c"),
-    (r"src/blob/groups/audiomgr/ProcessEmitters\.c$", "Source",
-     "the 3D-sound sources (an FX tag's data): InsertLLE's two links are pointers"),
-    (r"src/blob/groups/audiomgr_emitters/group\.c$", "CamSlot", "an FX tag's data, a 3D-sound source",
-     r"src/blob/groups/audiomgr/ProcessEmitters\.c$", "Source"),
+    (r".", "tFxSequence",
+     "the audio manager's FX tags (include/game/audiomgr.h, MAT3 audiomgr.c's tFxSequence): InsertLLE's two links "
+     "are pointers"),
+    (r".", "tAudioSequence",
+     "the audio manager's sequence tags (include/game/audiomgr.h, MAT3 audiomgr.c's anon_ll_id_3c): InsertLLE's two "
+     "links are pointers"),
+    (r".", "tSortedFxTag",
+     "the sorted-tag tree's nodes (include/game/audiomgr.h, MAT3 audiomgr.c's anon_te_tag_c): left, right and the "
+     "tag, pointers"),
+    (r".", "tSfxEmitter",
+     "the 3D-sound sources, an FX tag's data (include/game/audiomgr.h, MAT3 tSfxEmitter): InsertLLE's two links are "
+     "pointers"),
     (r"src/blob/NewMultiBlit\.c$", "tBlit", "a blit: include/game's tBlit, the one declaration (RECORDS.md 3.3)"),
     (r".", "tBlit", "a blit: include/game's tBlit (RECORDS.md 3.3)", r"src/blob/NewMultiBlit\.c$", "tBlit"),
 ]
 # Symbols whose reference is not gen_data's choice, because the chosen declaration is one of the views in question:
 # symbol -> (unit regex, view name, why).
 SYMBOL_REFERENCE = {
-    "pc_snd_msgs": (r"src/blob/groups/audiomgr/audiomgr_thread\.c$", "tAudioMsg",
-                    "the audio manager's messages (N64 audiomgr_gCmds), MAT3 audiomgr.c's tAudioMsg (the PC declaration's "
-                    "pc_snd_msg is no view the game writes through)"),
+    "pc_snd_msgs": (r".", "tAudioMsg",
+                    "the audio manager's messages (N64 audiomgr_gCmds), MAT3 audiomgr.c's tAudioMsg (include/game/"
+                    "audiomgr.h; the PC declaration's pc_snd_msg is no view the game writes through)"),
 }
 # Findings read and judged: (unit regex, regex on the function, view, field, access text or storage, why). A finding
 # whose accesses all match one rule (or one side's, for an 8-byte and 4-byte pair) is listed as reviewed.
@@ -1368,9 +1364,6 @@ REVIEWED = [
     (r"src/blob/audio_retrace_thread_entry\.c$|src/rom/scheduler\.c$", r"^(Sched|PcSched)$",
      "by design: audio_retrace_thread_entry's Sched is a PC view of the native scheduler (scheduler.c's PcSched), padded "
      "in host bytes to curRSPTask (ULTRA.md); both reach host +0x2B0"),
-    (r"src/blob/groups/audiomgr/ProcessEmitters\.c$", r"^Effect$",
-     "by design: ProcessEmitters's Effect is a PC view of the FX tag padded in host bytes; each access is the "
-     "tag's field"),
     (r"src/rom/sound/sequencer\.c$", r"^(Seq_|SequenceContext)",
      "by design: sequencer.c's PC views of a sequence slot are padded in host bytes (SEQ_PC_OFF, "
      "include/sequence_context.h), so each access is the slot's field whatever N64 position the padding gives"),
@@ -1390,8 +1383,8 @@ REVIEWED = [
     (r"src/rom/", r"__osSiDmaBuffer|OSPifRam",
      "by design: libultra builds the PIF commands byte by byte in its word buffer, as the SI emulation reads it"),
     (r"src/blob/NewEmitter\.c$", r"^NewEmitter$",
-     "by design: the 3D-sound source's active byte; ProcessEmitters.c's Source names it and the queued byte as a "
-     "u32 flags word that no code reads whole"),
+     "by design: the 3D-sound source's free byte (tSfxEmitter.free, include/game/audiomgr.h), the first byte "
+     "after its links"),
     (r"src/blob/game_memcmp\.c$", r"^game_memcmp$",
      "by design: game_memcmp compares bytes (memcmp); its callers pass typed pointers"),
     (r"src/blob/groups/interrupt_fx_tag/InterruptFxTag\.c$|ProcessSequences\.c$|src/blob/RemoveLLE\.c$",

@@ -184,9 +184,9 @@ static void test_grow_waves(void)
 extern void (*audio_driver_services[8])(void);
 extern void musyx_submit_audio_task(void *task);                              /* 0: submit the audio task */
 extern void musyx_wait_audio_task(void);                                /* 1: wait for it */
-extern int32_t musyx_set_retrace_callback(intptr_t callback);                    /* 2: set the retrace callback */
+extern int32_t musyx_set_retrace_callback(void (*callback)(void));              /* 2: set the retrace callback */
 extern void musyx_clear_retrace_callback(int32_t unused);                          /* 3: clear it */
-extern int32_t musyx_start_dma_list(intptr_t list, int32_t count, intptr_t done);  /* 4: DMA list */
+extern int32_t musyx_start_dma_list(void *list, int32_t count, void *done);       /* 4: DMA list */
 extern uint32_t musyx_cart_address(uint32_t offset);                     /* 5: cartridge address */
 extern void *musyx_alloc(int32_t size, int32_t mode);       /* 6: allocate */
 extern void musyx_free(void *ptr);                         /* 7: free */

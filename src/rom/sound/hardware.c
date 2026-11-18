@@ -76,7 +76,7 @@ enum { ENVELOPE_ATTACK, ENVELOPE_DECAY, ENVELOPE_SUSTAIN, ENVELOPE_RELEASE };
 #define DELAY_STATE_N64_BYTES 72
 #define AUDIO_UCODE_TEXT_BYTES 4096
 
-/* sizeof(SoundDmaEntryCodebook): 12 bytes on the N64, where the destination is a 32-bit pointer */
+/* sizeof(SampleDmaRequest), a DMA list entry: 12 bytes on the N64, where the destination is a 32-bit pointer */
 #define DMA_ENTRY_SIZE 16U
 
 /* ---- Types */
@@ -94,9 +94,7 @@ typedef struct AudioNode { struct AudioNode *next; struct AudioNode *previous; u
 typedef struct AudioCacheNode { struct AudioCacheNode *next; struct AudioCacheNode *previous; unsigned int address; unsigned int sample_base; unsigned int loaded; unsigned char *buffer; } AudioCacheNode;
 
 /* A DMA list entry, as the codebook and the sample fetches write them (the game's DMA service reads the list) */
-typedef struct SoundDmaEntryCodebook { int length; unsigned int source; unsigned char *destination; } SoundDmaEntryCodebook;
-typedef char pc_dma_entry_check[sizeof(SoundDmaEntryCodebook) == DMA_ENTRY_SIZE ? 1 : -1];
-typedef struct SoundDmaEntrySamples { int length; unsigned int source; unsigned char *destination; } SoundDmaEntrySamples;
+typedef char pc_dma_entry_check[sizeof(SampleDmaRequest) == DMA_ENTRY_SIZE ? 1 : -1];   /* game/soundlib.h */
 
 /* One segment of a voice's input for a subframe, in memory: one range, or two when it spans two cache blocks */
 typedef struct SfdSampleRange { unsigned char *first; unsigned char *second; short first_length; short second_length; } SfdSampleRange;
@@ -182,7 +180,7 @@ extern float sound_dma_margin_half_rate;
 extern float sound_sample_cache_factor;
 extern unsigned short sound_dma_capacity;
 extern unsigned int sound_sample_cache_size;
-extern void *sound_dma_list;
+extern SampleDmaRequest *sound_dma_list;
 extern unsigned char sound_dma_queue[];
 extern OSMesg sound_dma_message;
 extern volatile unsigned char sound_dma_busy;
@@ -768,9 +766,9 @@ unsigned char *sound_hw_fetch_codebook(unsigned int source)
     }
     node->countdown = CODEBOOK_KEEP_FRAMES;
     node->source = source;
-    ((SoundDmaEntryCodebook *)sound_dma_list)[sound_dma_list_count].source = source;
-    ((SoundDmaEntryCodebook *)sound_dma_list)[sound_dma_list_count].length = ADPCM_CODEBOOK_BYTES;
-    ((SoundDmaEntryCodebook *)sound_dma_list)[sound_dma_list_count].destination = node->buffer;
+    sound_dma_list[sound_dma_list_count].source = source;
+    sound_dma_list[sound_dma_list_count].length = ADPCM_CODEBOOK_BYTES;
+    sound_dma_list[sound_dma_list_count].destination = node->buffer;
     sound_dma_list_count++;
     return node->buffer;
 }
@@ -871,9 +869,9 @@ void sound_hw_fetch_sample_range(SfdSampleRange *fetch, unsigned int addr, unsig
             } else {
                 size = (addr + length - node->address - node->loaded + 0xFF) & ~0xFF;
             }
-            ((SoundDmaEntrySamples *)sound_dma_list)[sound_dma_list_count].source = node->address + node->loaded;
-            ((SoundDmaEntrySamples *)sound_dma_list)[sound_dma_list_count].length = size;
-            ((SoundDmaEntrySamples *)sound_dma_list)[sound_dma_list_count].destination = node->buffer + node->loaded;
+            sound_dma_list[sound_dma_list_count].source = node->address + node->loaded;
+            sound_dma_list[sound_dma_list_count].length = size;
+            sound_dma_list[sound_dma_list_count].destination = node->buffer + node->loaded;
             sound_dma_list_count++;
             node->loaded += size;
         }
@@ -922,9 +920,9 @@ void sound_hw_fetch_sample_range(SfdSampleRange *fetch, unsigned int addr, unsig
             if (length + offset > SAMPLE_BLOCK_BYTES) {
                 node->loaded = SAMPLE_BLOCK_BYTES;
                 addr = addr - offset + SAMPLE_BLOCK_BYTES;
-                ((SoundDmaEntrySamples *)sound_dma_list)[sound_dma_list_count].source = node->address;
-                ((SoundDmaEntrySamples *)sound_dma_list)[sound_dma_list_count].length = SAMPLE_BLOCK_BYTES;
-                ((SoundDmaEntrySamples *)sound_dma_list)[sound_dma_list_count].destination = node->buffer;
+                sound_dma_list[sound_dma_list_count].source = node->address;
+                sound_dma_list[sound_dma_list_count].length = SAMPLE_BLOCK_BYTES;
+                sound_dma_list[sound_dma_list_count].destination = node->buffer;
                 sound_dma_list_count++;
                 pointers[range_count] = node->buffer + offset;
                 starts[range_count] = node->address + offset;
@@ -933,9 +931,9 @@ void sound_hw_fetch_sample_range(SfdSampleRange *fetch, unsigned int addr, unsig
                 range_count++;
             } else {
                 node->loaded = (length + offset + 0xFF) & ~0xFF;
-                ((SoundDmaEntrySamples *)sound_dma_list)[sound_dma_list_count].source = node->address;
-                ((SoundDmaEntrySamples *)sound_dma_list)[sound_dma_list_count].length = node->loaded;
-                ((SoundDmaEntrySamples *)sound_dma_list)[sound_dma_list_count].destination = node->buffer;
+                sound_dma_list[sound_dma_list_count].source = node->address;
+                sound_dma_list[sound_dma_list_count].length = node->loaded;
+                sound_dma_list[sound_dma_list_count].destination = node->buffer;
                 sound_dma_list_count++;
                 pointers[range_count] = node->buffer + offset;
                 starts[range_count] = node->address + offset;

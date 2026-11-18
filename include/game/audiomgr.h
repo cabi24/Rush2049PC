@@ -11,9 +11,8 @@
  * links, and every field after them later than in MAT3's (GameCube) and the N64's 32-bit layout. Field names are
  * MAT3's (decomp/include/rush/rush_types.h); the comments give the PC offsets.
  *
- * Not in game.h: the sound manager thread's file (src/blob/groups/audiomgr/audiomgr_thread.c) and its neighbours
- * still define their own copies of tFxSequence and tAudioMsg; once they include this header instead, these types
- * can move into types.h. Include it after game/game.h. */
+ * This is the one declaration of each record: the files that read them (the sound manager's, the sound server's,
+ * the game's few posters of a message) include this header after game/game.h. */
 #ifndef GAME_AUDIOMGR_H
 #define GAME_AUDIOMGR_H
 
@@ -70,8 +69,9 @@ typedef struct tFxSequence {
     void *data;         /* 0x50: the emitter (kFxEmitter) or the sequence (kFxSequence) */
 } tFxSequence;
 
-/* A node of the priority pass's tree (MAT3's, unnamed): two tree links (tBSTE), then the tag. */
-typedef struct anon_te_tag_c {
+/* A node of the priority pass's tree (MAT3's, unnamed: anon_te_tag_c): two tree links (MAT3 tBSTE), then the tag.
+ * gSortedFxTags holds one for each fx tag; the pass puts the tags it ranks in gSortedFxTagTree through them. */
+typedef struct tSortedFxTag {
     void *left;         /* 0x0 */
     void *right;        /* 0x8 */
     tFxSequence *tag;   /* 0x10 */
@@ -103,8 +103,9 @@ typedef struct tSfxListener {
     f32 up[3];          /* 0x38 */
 } tSfxListener;
 
-/* A timed sequence of up to four effects played one after another (MAT3's, unnamed; 0x48 bytes on the PC):
- * AudPlaySequence's; ProcessSequences starts the next when the last has ended. */
+/* A timed sequence of up to four effects played one after another (MAT3's, unnamed: anon_ll_id_3c; 0x48 bytes on
+ * the PC): AudPlaySequence's; ProcessSequences starts the next when the last has ended. AudioInit allocates six
+ * (gSequences); NewSequence takes one, FreeSequence gives it back. */
 typedef struct tAudioSequence {
     tDLLE ll;           /* 0x0: on gFreeSequences or gActiveSequences */
     u32 id;             /* 0x10: the handle: (generation << gTagShift) | index */
@@ -125,7 +126,7 @@ typedef struct tAudioSequence {
  * (pc_snd_msgs on the PC), the poster fills it and sends it on audio_command_queue, the thread runs it
  * (ProcessCommand) and gives it back (used = 0). */
 typedef struct tAudioMsgHeader {
-    s16 type;           /* 0x0: -1 (GetCmd) */
+    s16 type;           /* 0x0: -1 (GetCmd); a scheduler's retrace message has OS_SC_RETRACE_MSG here */
     u8 cmd;             /* 0x2: kAudioCmd* (audio.h) */
     s8 used;            /* 0x3: taken from the pool */
 } tAudioMsgHeader;
@@ -149,6 +150,7 @@ typedef union tAudioMsg {
     struct { tAudioMsgHeader hdr; f32 vol, time; s8 music, sfx; } setMasterVol;                 /* time in seconds */
     struct { tAudioMsgHeader hdr; s8 mono; } mono;
 } tAudioMsg;
+_Static_assert(sizeof(tAudioMsg) == 32, "a message is an element of the pool pc_snd_msgs (pc_game_types.h)");
 
 /* An effect instance of the sound server (MAT3 tSfxVoice without its PS2 and GameCube fields; 0x18 bytes). Its
  * handle (index) is (generation << 8) | its index in gSfxInstances. */
@@ -159,11 +161,11 @@ typedef struct tSfxVoice {
     s8 stopped;         /* 0x3: the voice has been keyed off */
     s8 stopAll;         /* 0x4: AudioStopAllEffects marked it */
     s8 fail;            /* 0x5: a command for it failed this pass: its later commands wait for the next */
-    u8 pad6[2];
+    u8 unused1[2];
     u32 index;          /* 0x8: the handle, 0 when free */
     s32 soundId;        /* 0xC: the effect (the MusyX sfx id is its low half) */
     s32 sound;          /* 0x10: the MusyX voice handle (sound_start_sfx), -1 for none */
-    s32 unused14;       /* 0x14 */
+    s32 unused2;        /* 0x14 */
 } tSfxVoice;
 
 /* A sound server command (MAT3 tSfxCmd, 0x30 bytes on the PC), on gCmdQ until AudioSfxServer carries it out. */

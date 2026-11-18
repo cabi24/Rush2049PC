@@ -9,6 +9,7 @@
  * MusyX-side code with no MAT3 counterpart. The game never starts the speech module (nothing calls speech_init),
  * so on the PC only port/ultra/tests (test_gsm, which compiles this file) runs it. */
 #include "../rom_tu.h"
+#include "game/soundlib.h"   /* SpeechStream */
 
 #define GSM_FRAME_SAMPLES 160                     /* 20 ms at 8 kHz: four subframes of 40 */
 #define GSM_FRAME_BYTES (GSM_FRAME_SAMPLES * 2)   /* one frame of 16-bit output */
@@ -19,9 +20,6 @@
  * this frame and the last, j says which is this frame's. repeat and silence are the stream form's run counters. */
 typedef struct GsmState { short dp0[180]; short LARpp[2][8]; short j; short repeat; short silence; unsigned char unknown18E[2]; } GsmState;
 
-/* PC: the stream (decode.c's SpeechStream) has host pointers after the decoder state, so the
- * input ring and the bit position are where its native layout puts them */
-typedef struct GsmStream { GsmState gsm; void *callback; unsigned char *input; void *output; unsigned int capacity; unsigned int input_ring[GSM_RING_WORDS]; unsigned short remaining_blocks; unsigned short header_low; unsigned int remaining_input; int remaining; OSMesgQueue queue; OSMesg message; int bit_position; } GsmStream;
 
 /* The kernels (port/ultra/gsm.c) */
 extern void gsm_rpe_decode(short, short, short *, short *);
@@ -117,7 +115,7 @@ int gsm_decode_frame(GsmState *s, unsigned char *c, short *target)
  * bit position past what it read. Between runs of frames the bank codes a run: a 1 bit, then a 4-bit count of
  * silent frames less one, or a 0 bit, then a 7-bit count of coded frames less one. A silent frame is zeroes and
  * reads no bits. The coded frame's fields are those of gsm_decode_frame, LSB first. Returns 0. */
-int gsm_decode_stream_frame(GsmStream *stream, short *out)
+int gsm_decode_stream_frame(SpeechStream *stream, short *out)
 {
     short LARc[8], Nc[4], Mc[4], bc[4], xmaxc[4], xmc[13 * 4];
     int j;
@@ -127,8 +125,8 @@ int gsm_decode_stream_frame(GsmStream *stream, short *out)
     GsmState *S;
     unsigned int *ring;
 
-    S = &stream->gsm;
-    ring = stream->input_ring;
+    S = (GsmState *) stream;   /* the stream's first 400 bytes are the decoder's state (SpeechStream.gsm_*) */
+    ring = stream->input_ring.words;
     pos = stream->bit_position;
     word = ring[(pos >> 5) & (GSM_RING_WORDS - 1)] >> (pos & 31);
     left = 32 - (pos & 31);

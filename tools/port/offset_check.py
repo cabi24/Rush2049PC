@@ -53,21 +53,20 @@ ROOT = ec.ROOT
 # A function's parameter that only the ROM's tables (or an indirect call the flow does not follow) give a record:
 # (function regex, parameter (-1: what it returns), (unit regex, view name) of the record's PC layout, why).
 ROLES = [
-    # The players' pending packets (AudAddListener's Packet, the pool AudInit3D builds): each player record
-    # keeps its packet as a 32-bit window address (gPlayers[i] +0x44, the OBJECT and NODE macros), so nothing
-    # typed reaches the two functions that take it back (docs/port/QA.md 5).
-    (r"^AudRemoveListener$", 0, (r"src/blob/AudAddListener\.c$", "Packet"),
-     "StopListeners's pending packet: OBJECT(gPlayers[i].object), a window address made a pointer"),
+    # The players' listeners (include/game/audiomgr.h's tSfxListener, the pool AudInit3D builds): each player
+    # record keeps its listener as its number in gListeners (docs/code/audio.md 5), so nothing typed reaches the two
+    # functions that take it back (docs/port/QA.md 5).
+    (r"^AudRemoveListener$", 0, (r"src/blob/AudAddListener\.c$", "tSfxListener"),
+     "StopListeners's listener: the player record's number of it in gListeners"),
     # what AudAddListener returns (k = -1): the flow follows it through the player record's slot to AudUpdateListener
-    # (UpdateListeners's NODE), whose only view of it (`Node`, no pointers) would otherwise make it an N64 record
-    (r"^AudAddListener$", -1, (r"src/blob/AudAddListener\.c$", "Packet"),
-     "the packet AudAddListener allocates and posts (its Packet)"),
+    (r"^AudAddListener$", -1, (r"src/blob/AudAddListener\.c$", "tSfxListener"),
+     "the listener AudAddListener takes and fills (tSfxListener)"),
 ]
 # Findings read and judged: (unit regex, regex on the function or the storage, why).
 REVIEWED = [
     (r"src/blob/NewEmitter\.c$", r"^NewEmitter$",
-     "by design: _GetSource clears the 3D-sound source's active byte at EMITTER_ACTIVE (PC +0x10), which "
-     "ProcessEmitters.c's Source names as the first byte of a u32 flags word no code reads whole (LAYOUT.md 7)"),
+     "by design: _NewEmitter clears the 3D-sound source's free byte (tSfxEmitter.free, PC +0x10, the first byte "
+     "after its links: include/game/audiomgr.h; LAYOUT.md 7)"),
     (r"src/blob/NewListener\.c$", r"^NewListener$",
      "unreachable: no C calls NewListener, no asm references it, no C takes its address, and no table of "
      "the ROM's data holds it (the loader's conversions, LAYOUT.md 9.3)"),

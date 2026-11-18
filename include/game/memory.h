@@ -76,7 +76,7 @@ struct Heap *FindHeap(void *ptr);
 s32 FindWaveInstance(s32 waveNum);
 s32 FindWaveInstanceInternal(s32 waveNum, s8 handle);
 void flush_pending(struct z_stream_s *strm);
-void FreeSequence(struct SequenceHead *sequence);
+void FreeSequence(struct tAudioSequence *sequence);
 void FreeStatLLE(tStatList *list, void *element);
 s8 *game_strncpy(s8 *dest, u8 *src, u32 count);
 void gen_bitlen(struct internal_state *s, struct tree_desc_s *desc);

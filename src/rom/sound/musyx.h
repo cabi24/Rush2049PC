@@ -1,9 +1,10 @@
-/* src/rom/sound/musyx.h: the MusyX sound library's constants its files share: a voice's flags and ids, the MIDI
- * controllers, the volume group faders. MusyX is the N64's sound library (no MAT3 counterpart; docs/code/audio.md). */
+/* src/rom/sound/musyx.h: what the MusyX sound library's files share: a voice's flags and ids, the MIDI controllers,
+ * the volume group faders, and the synth voice (SynthVoice), the one record its files read a voice as. MusyX is the
+ * N64's sound library (no MAT3 counterpart; docs/code/audio.md). */
 #ifndef MUSYX_H
 #define MUSYX_H
 
-/* A voice's control flags (its state's +0x24: flags24, cFlags24). Bits 0 and 2 belong to the macros. */
+/* A voice's control flags (SynthVoice.flags). Bits 0 and 2 belong to the macros. */
 #define VOICE_HW_BUSY_AT_START    0x00000001U /* the hardware voice was still playing when the macro started: break it off */
 #define VOICE_STARTING            0x00000002U /* the macro was just started: its first run sets the voice up */
 #define VOICE_WAIT_KEY_OFF        0x00000004U /* the current WAIT ends at key off */
@@ -58,8 +59,8 @@
 #define CTRL_SPAN            131 /* front-back pan (surround) */
 #define CTRL_DOPPLER         132
 #define CTRL_DOPPLER_LOW     133
-#define CTRL_LFO1            160 /* not stored: the voice's first LFO (+0x170) */
-#define CTRL_LFO2            161 /* not stored: the voice's second LFO (+0x17C) */
+#define CTRL_LFO1            160 /* not stored: the voice's first LFO (SynthVoice.lfo[0]) */
+#define CTRL_LFO2            161 /* not stored: the voice's second LFO (lfo[1]) */
 
 /* The volume group faders (sound_volume_faders, 32 of them). A fader's type: 0 a song track's group (sound_seq_start),
  * 1 the effects' default group (31), 2 a song's studio group (sound_seq_set_studio_group), 3 an effects' group
@@ -73,15 +74,14 @@
 #define SFX_DEFAULT_VOLUME_GROUP 31 /* the volume group an effect has until sound_set_sfx_volume_group */
 
 /* ---- The synth voice (sound_synth_voices[i], pc_mx_voice on the PC: pc_game_types.h)
- * Each file reads a voice through views of its own (macros.c has the whole map). Every view starts with the voice's
- * head, the same in all of them: where its macro is (the steps in the pool, wave 7), where a GOSUB returns to and a
- * key off jumps to, the voices chained behind one handle, and the handle's node. On the N64 the head was nine words,
- * +0x00 to +0x23; on the PC its seven pointers are host pointers, so it is 0x40 bytes and every later field lies
- * SYNTH_VOICE_GROWTH bytes past the N64 offset its name ends in (flags24 is the N64's +0x24, the PC's +0x40). A
- * voice is SYNTH_VOICE_SIZE bytes: the N64's 0x1A0, the head's growth, and a tail that keeps the next voice's
- * pointers aligned. */
+ * A sound plays on one or more synth voices, each running a SoundMacro (macros.c): the synth's tick (synth.c) runs
+ * the macro, then turns what its steps set into the hardware voice's pitch and volume (hardware.c). The library's
+ * files all read a voice as this one record. */
 typedef struct MacroCommand { u32 word[2]; } MacroCommand;   /* a macro's step: opcode and parameters (macros.c) */
 struct HandleNode;                                              /* a handle's node (voices.c) */
+
+/* The voice's head: where its macro is (the steps in the pool, wave 7), where a GOSUB returns to and a key off jumps
+ * to, the voices chained behind one handle, and the handle's node. */
 typedef struct SynthVoiceHead {
     MacroCommand *addr;          /* the macro's first step; NULL: no macro runs */
     MacroCommand *curAddr;       /* the next step to run */
@@ -93,11 +93,122 @@ typedef struct SynthVoiceHead {
     MacroCommand *trapAddr;      /* TRAP_KEY_OFF: the macro a key off jumps to (NULL: none) */
     MacroCommand *trapCurAddr;   /* and its step */
 } SynthVoiceHead;
-#define SYNTH_VOICE_N64_HEAD  0x24                                      /* the head's bytes on the N64 */
-#define SYNTH_VOICE_N64_SIZE  0x1A0
-#define SYNTH_VOICE_GROWTH    (sizeof(SynthVoiceHead) - SYNTH_VOICE_N64_HEAD)
-#define SYNTH_VOICE_SIZE      PC_MX_VOICE_SIZE                          /* 0x1C0 */
-#define SYNTH_VOICE_TAIL      (SYNTH_VOICE_SIZE - SYNTH_VOICE_N64_SIZE - SYNTH_VOICE_GROWTH)
-_Static_assert(SYNTH_VOICE_TAIL > 0 && SYNTH_VOICE_SIZE % 8 == 0, "the voice holds the head and stays aligned");
+
+/* A voice's controller inputs (SynthVoice.inputs), in this order: the synth reads each as a mix of up to four
+ * sources (controllers.c), and the macros' SELECT_* steps set them (macros.c). */
+enum SynthInput {
+    SYNTH_INPUT_VOLUME, SYNTH_INPUT_PAN, SYNTH_INPUT_SPAN, SYNTH_INPUT_PITCH_BEND, SYNTH_INPUT_DOPPLER,
+    SYNTH_INPUT_MODULATION, SYNTH_INPUT_PEDAL, SYNTH_INPUT_PORTAMENTO, SYNTH_INPUT_REVERB, SYNTH_INPUT_COUNT
+};
+/* The voice's records below are packed (alignment 1): the library's code was written against packed views of the
+ * voice, and GCC makes other instructions for the same fields of a naturally aligned record. Every field is at its
+ * natural alignment all the same, so packing moves none. */
+#pragma pack(1)
+
+/* One source of an input: a controller (sound_macro_map_controller's numbering, or an LFO), how it combines with the
+ * sources before it (controllers.c's ControlCombine) and its scale (8.8 fixed point, read signed). */
+typedef struct SynthInputSource {
+    u8 controller;
+    u8 combine;
+    u16 scale;
+} SynthInputSource;
+typedef struct SynthInputMix {
+    SynthInputSource source[4];
+    u8 count;                    /* sources in use; 0: the input's default */
+    u8 unused;
+} SynthInputMix;
+
+/* One of a voice's two LFOs (SETUP_LFO): its clock and period in ticks, and its value now (a sine,
+ * -0x7FFF..0x7FFF). */
+typedef struct SynthLfo {
+    u32 time;
+    u32 period;                  /* 0: off */
+    s16 value;
+    s16 lastValue;               /* not read */
+} SynthLfo;
+
+/* The voice. Volumes and pans are 16.16, 0x7F0000 the loudest or rightmost; notes are MIDI keys. On the N64 the head
+ * was nine words and the voice 0x1A0 bytes; on the PC the head's pointers are host pointers, so every field after it
+ * lies 0x1C bytes later than on the N64, and the voice is SYNTH_VOICE_SIZE bytes (0x1C0: the tail keeps the next
+ * voice's head 8-byte aligned). */
+typedef struct SynthVoice {
+    SynthVoiceHead head;
+    u32 flags;                   /* VOICE_* above */
+    u32 age;                     /* the voice-stealing age (15 bits of fraction): falls by ageSpeed each tick */
+    u16 ageSpeed;
+    u8 priority;                 /* the allocation priority (voices.c's lists) */
+    u8 track;                    /* the song track whose volume applies (sound_track_volumes), 255: none */
+    u32 volume;                  /* 0..0x7F0000 */
+    u32 orgVolume;               /* the volume it started with (SCALE_VOLUME's base) */
+    u32 panning;
+    s32 panDelta;                /* a PANNING sweep's step */
+    s32 sweepOff[2];             /* the two pitch sweeps' offsets, 16.16 */
+    u8 sweepNum[2];              /* and their steps per cycle */
+    u8 channel;                  /* the MIDI channel, NO_CHANNEL for an effect */
+    u8 set;                      /* whose controllers it reads: a song player, or VOICE_OWN_SET (an effect's own) */
+    u8 fxFlag;                   /* an effect voice (the key's bit 7 at start) */
+    u8 unused1;
+    u16 orgNote;                 /* the key it started on */
+    u16 curNote;                 /* the note now */
+    u8 setupVol;                 /* what sound_macro_start stores and the macro's first run applies: */
+    u8 setupPan;
+    u8 setupChannel;
+    u8 setupSet;
+    u8 setupTrack;
+    u8 unused2;
+    u32 sampleAddress;           /* the sample playing: its cartridge address (written, never read) */
+    u32 sampleInfo;              /* its root key (bits 31..24) and rate in Hz (23..0) */
+    u32 id;                      /* (macro << 16) | (key << 8) | the voice's index; VOICE_NONE when free */
+    u16 macroId;                 /* the macro it runs */
+    u8 unused3[2];
+    u16 loop;                    /* the LOOP step's counter */
+    u8 pbLowerKeyRange;          /* the pitch wheel's range down and up, in semitones */
+    u8 pbUpperKeyRange;
+    u32 vibCurTime;              /* vibrato: its clock, period and offset now, */
+    u32 vibPeriod;
+    s32 vibCurOffset;
+    u8 vibKeyRange;              /* and its depth in keys and cents */
+    u8 vibCentRange;
+    u8 unused4[2];
+    s32 sweepAdd[2];             /* the pitch sweeps' steps */
+    s32 envDelta;                /* the volume envelope's step (ENVELOPE, FADE_IN) and target */
+    u32 envTarget;
+    u32 portTime;                /* portamento: time gone, of portDuration */
+    u32 portDuration;
+    u32 portCurrent;             /* the pitch it has reached, 16.16 */
+    u8 portType;                 /* 1: glide only on the voice's first update */
+    u8 revVolScale;              /* the reverb send's scale (128: 1) and offset */
+    u8 revVolOffset;
+    u8 unused5;
+    u32 wait;                    /* when the current WAIT ends (0: not waiting; MACRO_WAIT_FOREVER, macros.c) */
+    u32 waitTime;                /* when the last wait ended: tick waits count from it */
+    u32 time;                    /* the voice's clock */
+    u32 panTime;                 /* the PANNING sweep's time left and end */
+    u32 panTarget;
+    u8 sweepCnt[2];              /* the pitch sweeps' step counters */
+    u8 unused6[2];
+    u32 envTime;                 /* the envelope's time left */
+    u16 pbLast;                  /* the last pitch-wheel value (0x2000: centre) */
+    u16 allocId;                 /* the allocation id (sound_alloc_voice) */
+    u8 unused7;
+    u8 blocked;                  /* set while the voice starts a child: not to be stolen or updated */
+    u8 vGroup;                   /* the volume group (sound_volume_faders) now and as started */
+    u8 setupVGroup;
+    s8 curDetune;                /* cents */
+    u8 lastNote;                 /* the channel's previous key (LAST_NOTE, the portamento's start) */
+    u16 curOutputVolume;
+    SynthInputMix inputs[SYNTH_INPUT_COUNT];   /* the controller mixes of SYNTH_INPUT_* */
+    u8 unused8[2];
+    SynthLfo lfo[2];
+    s16 localVars[16];           /* the macro's variables (the globals are sound_global_variables) */
+    u8 unused9[4];              /* the PC's tail */
+} SynthVoice;
+#pragma pack()
+#define SYNTH_VOICE_SIZE PC_MX_VOICE_SIZE   /* 0x1C0 */
+_Static_assert(sizeof(SynthVoice) == SYNTH_VOICE_SIZE && SYNTH_VOICE_SIZE % 8 == 0,
+               "a voice is pc_mx_voice's element, and the next voice's head stays aligned");
+/* The voices: the PC's per-voice storage pc_mx_voice (pc_game_types.h, PC_MX_VOICE_SLOTS long, no N64 address:
+ * docs/port/DECOUPLE.md 9) as voices. */
+#define sound_synth_voices (*(SynthVoice (*)[PC_MX_VOICE_SLOTS])pc_mx_voice)
 
 #endif /* MUSYX_H */

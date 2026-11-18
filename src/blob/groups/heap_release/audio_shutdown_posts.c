@@ -1,14 +1,10 @@
 /* Two messages to the sound manager's thread for the sound system's shutdown (AudioShutdown): stop the song, stop
  * every effect (the audio manager's command types 1 and 7, audiomgr_thread.c). */
 #include "game/game.h"
+#include "game/audiomgr.h"
 #define OSMesgQueue OSMesgQueueView   /* this file's own OSMesgQueue: include/game's OSMesgQueue is another type */
 
-typedef struct ShutdownMsg { s16 id; s8 type, used; u8 payload[20]; } ShutdownMsg;
 typedef struct OSMesgQueue OSMesgQueue;
-
-/* PC: the sound manager's messages are PC data, PC_SND_MSG_SLOTS long, with no N64 address (pc_game_types.h,
- * docs/port/DECOUPLE.md 9, AUDIO.md 10.4); PC_SND_MSG_LOOP(128) is the run's count: 128 at original. */
-#define audiomgr_gCmds (*(volatile ShutdownMsg (*)[PC_SND_MSG_SLOTS])pc_snd_msgs)
 
 s32 osSendMesg(OSMesgQueue *mq, OSMesg msg, s32 flags);
 
@@ -22,24 +18,24 @@ s32 osSendMesg(OSMesgQueue *mq, OSMesg msg, s32 flags);
 /* Posts "stop the song" to the sound manager: a free message from the pool (under the audio lock), its command
  * set, then sent to the manager's queue. */
 void post_stop_song(void) {
-    ShutdownMsg *msg;
-    ShutdownMsg *cmd;
+    tAudioMsg *msg;
+    tAudioMsg *cmd;
 
     audio_lock();
     cmd = GetCmd(); PC_CMD_OR_WAIT(cmd)
     msg = cmd;
-    cmd->type = kAudioCmdKillSong; audio_unlock();
+    cmd->hdr.cmd = kAudioCmdKillSong; audio_unlock();
     osSendMesg((OSMesgQueue *) &audio_command_queue,msg,1);
 }
 
 /* Posts "stop every effect" to the sound manager, as post_stop_song. */
 void post_stop_all_effects(void) {
-    ShutdownMsg *msg;
-    ShutdownMsg *cmd;
+    tAudioMsg *msg;
+    tAudioMsg *cmd;
 
     audio_lock();
     cmd = GetCmd(); PC_CMD_OR_WAIT(cmd)
     msg = cmd;
-    cmd->type = kAudioCmdStopAllEffects; audio_unlock();
+    cmd->hdr.cmd = kAudioCmdStopAllEffects; audio_unlock();
     osSendMesg((OSMesgQueue *) &audio_command_queue,msg,1);
 }

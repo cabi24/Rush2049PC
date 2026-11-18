@@ -77,8 +77,9 @@ subframe descriptors for the RSP's MusyX microcode. [boot.md](boot.md) 3 has its
 
 The sound manager's own records are in `include/game/audiomgr.h` (`tFxSequence`, `tAudioMsg`, `tSfxEmitter`,
 `tSfxListener`, `tAudioSequence`, `tSortedFxTag`, `tSfxVoice`, `tSfxCmd`, the state, type and command enums), in the
-PC's layout and with MAT3's field names. It is not in game.h because audiomgr_thread.c (the system area) still defines
-its own copies of `tFxSequence` and `tAudioMsg`; when it includes the header instead, the header can join types.h.
+PC's layout and with MAT3's field names: the one declaration of each, which every file that reads them includes
+(since wave 4, [RECORDS.md](../port/RECORDS.md) 4.4; until then a dozen files had views of their own). The sample DMA
+list (`SampleDmaList`, `pc_sample_dma_list`) and the sound groups' table entries (`SoundGroupEntry`) are audio.h's.
 The car sounds' records (`tSoundState`, `tRoadNoises`, `Definition32` the engine layers, `Impact24` the bump peaks)
 are in types.h; the menu sounds' ids (`SND_MENU_*`) in audio.h, the buttons they answer (`BUTTON_*`) in input.h.
 
@@ -138,7 +139,7 @@ sent (`SetSoundVP`).
 | Data | What |
 |---|---|
 | `gFxTags`, `gNumFxTags`, `gTagShift`, `gTagMask`, `gNextFxId` | the fx tags and their handles' fields (AudioInit sizes them: `max(min(2 gMaxSfx, 64), gMaxSfx + emitters)`) |
-| `gFreeFxTags`, `gInterruptedFxTags`, `gPlayingFxTags` | the tags' lists (`AudioList`; `gPlayingFxTags` is `FxTagList`, the same header with MAT3's field names) |
+| `gFreeFxTags`, `gInterruptedFxTags`, `gPlayingFxTags` | the tags' lists (`AudioList`, MAT3's tDLList) |
 | `pc_snd_msgs` (N64 `audiomgr_gCmds`), `audio_command_queue`, `audio_lock_queue` | the message pool, the thread's queue, the lock |
 | `gEmitters`, `gListeners`, `gSequences` and their free and active lists | the 3D sources, listeners and sequences (heap blocks) |
 | `gSortedFxTags`, `gSortedFxTagTree`, `pc_snd_start_cmds`, `pc_snd_stop_cmds` | the priority pass's tree and its start and stop messages |
@@ -160,12 +161,11 @@ sent (`SetSoundVP`).
   number of the cartridge's bus.
 - **The model record** (`tModelData`, 0x808 bytes on the N64, 0x830 on the PC) is read by the car sounds' views, which
   declare its host pointers ([CARS.md](../port/CARS.md) 4).
-- **MusyX's voices** keep the N64's layout after their head, read through 56 per-function views in macros.c,
-  synth.c, voices.c, api.c and controllers.c, each beginning with musyx.h's `SynthVoiceHead` (the macro pointers and
-  the handle node as host pointers, the chain's voice ids) and naming its other fields by their N64 offsets (0x1C
-  further on, on the PC: ctest `views_musyx_voice` holds them together). One shared `SynthVoice` type would replace
-  the views (macros.c's byte map is its spec); the voice flags, the controller numbers and the faders are
-  src/rom/sound/musyx.h's (the hardware voice's own states are hardware.c's `HW_VOICE_*`).
+- **MusyX's voices** keep the N64's layout after their head: one record, src/rom/sound/musyx.h's `SynthVoice`
+  (its head `SynthVoiceHead` holds the macro pointers and the handle node as host pointers, the chain's voice ids), its
+  controller inputs `SynthInputMix` and its LFOs `SynthLfo`, with the voice flags, the controller numbers and the
+  faders beside it (the hardware voice's own states are hardware.c's `HW_VOICE_*`). Until wave 4 the five files read
+  it through 56 per-function views ([RECORDS.md](../port/RECORDS.md) 4.4).
 - **MusyX's data** (project, pool, sample directory) stays in the N64's layout, byte-swapped in place; the
   registries hold pointers into it; samples and codebooks are addressed by 32-bit cartridge addresses, the DMA
   list's sources too; the cache bookkeeping counts the N64's record sizes (12-byte DMA entries, 0x50-byte SFD

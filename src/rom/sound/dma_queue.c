@@ -8,13 +8,11 @@
  * Still N64-shaped: the sources are 32-bit cartridge addresses, which the speech code carries in pointers. */
 #include "../rom_tu.h"
 #include "musyx.h"
+#include "game/soundlib.h"   /* TransferRequest, a queued read: where to, from where in the cartridge, how many bytes
+                                (rounded up to 16); SampleDmaRequest, an entry of the DMA list */
 
-/* A queued read: where to, from where in the cartridge, how many bytes (rounded up to 16) */
-typedef struct TransferRequest { void *destination; void *source; unsigned int size; } TransferRequest;
-
-/* PC: the list's entries are hardware.c's SoundDmaEntryCodebook, 16 bytes (DMA_ENTRY_SIZE): the source is a 32-bit
- * cartridge address and the destination a host pointer (docs/port/MUSYX_DATA.md, docs/port/LAYOUT.md 5). */
-typedef struct SoundDmaEntry { int length; unsigned int source; unsigned char *destination; } SoundDmaEntry;
+/* PC: a list entry's source is a 32-bit cartridge address, which the queue carries in a pointer
+ * (docs/port/MUSYX_DATA.md, docs/port/LAYOUT.md 5). */
 #define DMA_SOURCE(x) ((unsigned int) (uintptr_t) (x))
 
 #define MAX_REQUESTS 4                 /* reads queued for one frame */
@@ -24,7 +22,7 @@ extern TransferRequest sound_dma_requests[];
 extern volatile unsigned char sound_dma_request_count;
 extern unsigned char sound_dma_waiting;
 extern unsigned char sound_dma_done_queue[];
-extern void *sound_dma_list;
+extern SampleDmaRequest *sound_dma_list;
 extern unsigned short sound_dma_list_count;
 extern int osSendMesg(OSMesgQueue *, void *, int);
 extern void osCreateMesgQueue(OSMesgQueue *, OSMesg *, int);
@@ -49,9 +47,9 @@ void sound_dma_flush_requests(void)
     }
     if (sound_dma_request_count != 0) {
         for (i = 0; i < sound_dma_request_count; i++) {
-            ((SoundDmaEntry *)sound_dma_list)[sound_dma_list_count].source = DMA_SOURCE(sound_dma_requests[i].source);
-            ((SoundDmaEntry *)sound_dma_list)[sound_dma_list_count].length = sound_dma_requests[i].size;
-            ((SoundDmaEntry *)sound_dma_list)[sound_dma_list_count].destination = sound_dma_requests[i].destination;
+            sound_dma_list[sound_dma_list_count].source = DMA_SOURCE(sound_dma_requests[i].source);
+            sound_dma_list[sound_dma_list_count].length = sound_dma_requests[i].size;
+            sound_dma_list[sound_dma_list_count].destination = sound_dma_requests[i].destination;
             sound_dma_list_count++;
         }
         sound_dma_request_count = 0;
