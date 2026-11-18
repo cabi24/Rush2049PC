@@ -157,6 +157,30 @@ Units not `same` under objsame (each passes the synthetic gate; none changes wha
 | pak_set_error_func.c | yes | no | the conversion of its `s32` to the callback: `cltq` where the `intptr_t` view sign-extended with `movslq` (nothing calls it) |
 | hud_text_anims/animResults.c | no | yes | -O2's instruction scheduling: the same instructions, in another order |
 
+The runs (Rocky, against `~/rush2049pc/w4-ref`, d224beab's builds; the machine shared by thirteen agents):
+
+- `synth_compare.py --same --shots --audio --data-moved`, Debug against the reference's Debug, the paths that reach
+  this code: `profile`, `ghost`, `ghost_off`, `ghost_prompt`, `pak`, `pak4p`, `circuit`, `circuit12`, `battle2p`,
+  `battlequit`, `race`, `raceend`, `stunt`, `screens`, `cheats_unlock`, `pause`, `rumble2p`, `menu`, `solo`, `drive`:
+  20 of 20 `same`.
+- The `.mpk` files the pak paths write ([SAVES.md](SAVES.md) 10.2's method): `pak`, `pak4p` (three paks) byte for byte
+  the reference's; `profile` and `ghost` the reference's but for the directory entries' status and reserved bytes,
+  which osPfsAllocateFile leaves as its stack had them and which differ between two runs of the reference too.
+- The ASan+UBSan build (GCC 14's objects, Clang 21's runtime), 28 paths each in a data folder of its own (the 20 above,
+  and `race2p`, `race3p`, `race4p`, `raceend12`, `cheats`, `cheats_hidden`, `cheats_menu`, `language`): no ASan,
+  LSan or UBSan report, after CheckForEgg's step went back to
+  the egg's words (UBSan's bounds check stopped `cheats_unlock` on `levels[20]` before). Its save tests
+  (`assets_save`, `assets_input`, `assets_carshud`, `assets_casts`, `assets_pak`, `assets_carscr`, `assets_heap`,
+  `ultra_pakstore`, `ultra_pakwrite`, `app_saves`, `ghost_tool`): 11 of 11.
+- ctest, Debug: the tests of the data, the layouts and the saves (`assets_*`, `pc_data_*`, `pc_reach_test`,
+  `ultra_selftest_fast`, `ultra_pakwrite`, `ultra_pakstore`, `app_saves`, `ghost_tool`, `layout_check`,
+  `offset_check`, `index_check`, `endian_check`, `views_*`, `objsame_tool`, `names_check`, `one_spelling`,
+  `window_census`, `n64_guard*`): 76 of 76. `gen_data.py --check` OK in Debug, RelWithDebInfo and the ASan build.
+- Queued behind the other agents' runs under `~/rush2049pc/.w4-heavy.lock` when this was written, their logs to come in
+  `~/rush2049pc/w4-c2/build/scratch/heavy/` (`heavy2.log` says where they are): the gate (`pconly_gate.sh --skip
+  realtime --data-moved`), RelWithDebInfo against the reference on both cartridges, the ASan sweep of every path on
+  both and CI's ASan ctest set; and outside the lock (`light.log`) ctest of RelWithDebInfo and the realtime tests.
+
 Numbers (src/ and nonmatching/, the 73 files this changed): local struct and union declarations 176 to 90, tags
 declared in more than one file 30 (109 declarations) to 17 (58), VIEW lines 62 to 19, pad arrays 149 to 129 (most
 of those left are the players' and cars' records, C1's and B1's). Over the whole game: 891 local declarations to
