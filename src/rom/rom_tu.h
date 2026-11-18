@@ -16,9 +16,6 @@ extern s32 zmmax;
 /* : gCountdownEnd and gLastFrameCounter are lib_1050_sdk.c.bss definitions (timer.c declares them itself):
  * an extern here gives them early cfe block numbers, and IDO 5.3 sorts .bss by block number mod 256. */
 extern volatile s32 scheduler_retrace_count; /* : interrupt-updated; UpdateFrameTimer's load order needs volatile */
-extern s32 __osPiInitialized;
-extern OSMesgQueue __osPiMesgQueue;
-extern void *__osPiMesg;
 extern s32 __osSiInitialized;
 /* The SI names have historical swapped attribution; these match current source. */
 extern OSMesgQueue __osSiMesg;
@@ -27,9 +24,6 @@ extern u8 __osContLastCmd;
 /* __osViContext and OSPifRam __osSiDmaBuffer already exist in m2c_types.h.
  * zmregion and zmused already exist in rom_tu.h.
  * No new struct/type definitions are needed. */
-
-/* PI read wrapper uses the currently identified target signature. */
-extern s32 __osPiRawReadIo(u32, u32 *);
 
 /* Additional libultra context for verified static. */
 /* Existing OSTask, OSContStatus, OSContPad, __OSViContext, OSPifRam types suffice.
@@ -104,9 +98,6 @@ extern OSThread *__osPopThread(OSThread **);
  * __osRunningThread and __osEnqueueThread already declared.
  * Blocked O0 boot leads need extern s32 gTimerPaused, but don't promote them
  * into the locked O2 0x1050 TU until a supported flags/isolation route exists. */
-
-/* SI raw I/O helpers retain the historical PI device-busy symbol. */
-extern s32 __osPiDeviceBusy(void);
 
 /* Verified static C6 SDK context; historical names retain retail linkage. */
 extern s32 __osCheckId(OSPfs *);
@@ -185,7 +176,6 @@ extern s32 __osContPifBuf;
 extern OSMesgQueue __osContQueryMsgQ;
 extern OSMesg __osContQueryMesg;
 extern u8 __osSiChannelMask;
-extern s32 osPiGetCmdQueue(void); /* accepted pointer-valued s32 body */
 extern s32 osContInit(OSMesgQueue *, u8 *, OSContStatus *);
 extern s32 __osPfsGetNextPage(OSPfs *, u8 *, __OSInode *, __OSInodeUnit *);
 #define CONT_BLOCK_DETECT 0x400
@@ -271,18 +261,14 @@ extern void __osViSwapContext(void);
 extern u32 __osTimerCounter;
 extern u32 osGetCount(void);
 
-/* Verified PFS allocation/checker and EPi DMA context, . */
+/* Verified PFS allocation/checker context. */
 extern s32 osPfsReadWriteFile(OSPfs *, s32, u8, int, int, u8 *);
 extern s32 __osPfsDeclearPage(OSPfs *, __OSInode *, int, int *, u8, int *, int *);
-extern s32 __osEPiRawStartDma(OSPiHandle *, s32, u32, void *, u32);
-extern OSPiHandle *__osPiDevList[2];
 /* The checker's page walks (pfschecker.c), called before their definitions. */
 extern s32 __osPfsCheckPages(OSPfs *pfs, __OSInodeCache *cache);
 extern s32 __osPfsPageCheck(OSPfs *pfs, __OSInodeUnit fpage, __OSInodeCache *cache);
 /* The serial interface's access queue, made on first use (pfsgetstatus.c). */
 extern void __osSiCreateAccessQueue(void);
-/* A word of the cartridge's bus (port/ultra/pi.c). */
-extern s32 osPiReadIo(u32 devAddr, u32 *data);
 /* The C library's, as the boot segment has them (the build renames them n64_*: port/ultra/n64mem.c, libc/string.c). */
 extern int bcmp(const void *a, const void *b, u32 n);
 extern void *memcpy(void *dst, const void *src, u32 n);

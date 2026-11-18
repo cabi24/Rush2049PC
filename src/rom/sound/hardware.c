@@ -12,8 +12,8 @@
  * On the PC the microcode is not run: port/audio interprets the SFDs (docs/port/AUDIO.md has their layout), and the
  * AI, the RSP task and the cartridge DMA under this code are port/ultra's. The records here are in host layout; an SFD
  * grows past 32 voice records when more voices are asked for ([audio] voices, pc_sfd_layout). A voice's sample is in
- * the cartridge, named by its 32-bit cartridge address (the caches are keyed by those), or in RAM (a stream's buffer),
- * named by its pointer (include/sound_sample_record.h). The audio task reads the same memory the CPU writes: the
+ * the cartridge, named by its ROM offset (the caches are keyed by those), or in RAM (a stream's buffer), named by its
+ * pointer (include/sound_sample_record.h). The audio task reads the same memory the CPU writes: the
  * N64's cache writebacks and invalidations around the DMA list, the SFDs and the caches have nothing to do here. */
 #include "../rom_tu.h"
 #include "musyx.h"
@@ -84,7 +84,7 @@ typedef struct SoundDelayConfig { unsigned short duration; unsigned short tap_de
 typedef struct SoundDelayState { void *buffer; unsigned int length; unsigned short tap_count; unsigned short feedback; unsigned int tap_delays[8]; unsigned short tap_gains[8]; unsigned int unused3C; short filter[4]; } SoundDelayState;
 #define DELAY_STATE_SIZE sizeof(SoundDelayState)   /* 72 bytes on the N64; buffer is a host pointer */
 
-/* A codebook cache entry: 256 bytes of buffer, the cartridge address it holds, frames left before it may be reused */
+/* A codebook cache entry: 256 bytes of buffer, the ROM offset of the codebook it holds, frames left before it may be reused */
 typedef struct AudioNode { struct AudioNode *next; struct AudioNode *previous; unsigned char *buffer; unsigned int source; unsigned short countdown; unsigned short pad12; } AudioNode;
 /* A sample cache block: 0x600 bytes of buffer holding a sample's bytes from address on; loaded of them have
  * arrived. sample_base (the sample's first byte) says whose block it is. */
@@ -218,7 +218,7 @@ extern AudioCacheNode *sound_hw_take_sample_block(unsigned int sample_base);
 extern void sound_hw_advance_envelope(SoundHwVoice *audio, unsigned short samples, unsigned char *active);
 extern void sound_hw_advance_voice_position(SoundHwVoice *audio, unsigned short samples);
 extern unsigned char *sound_hw_fetch_codebook(unsigned int source);
-extern void sound_hw_fetch_sample_range(SfdSampleRange *fetch, unsigned int addr, unsigned int length, unsigned int sample_base);
+extern void sound_hw_fetch_sample_range(SfdSampleRange *fetch, unsigned int start, unsigned int length, unsigned int sample_base);
 extern void sound_hw_build_voice_command(SoundHwVoice *, unsigned short, unsigned char);
 extern void sound_seq_tick(void);
 extern void sound_synth_tick(void);
@@ -829,12 +829,12 @@ AudioCacheNode *sound_hw_take_sample_block(unsigned int sample_base)
     return node;
 }
 
-/* Finds the cartridge bytes [addr, addr + length) of the sample starting at sample_base in the sample cache, and
- * says where they will be in fetch: one range, or two (in address order) when they span two blocks. Blocks of the
- * sample that overlap the range are used (topping up a partly loaded one, and moved to the LRU tail); the rest is
- * fetched into new blocks, aligned to 0x600 from the sample's start, by entries added to this frame's DMA list
- * (partial loads round up to 256 bytes). */
-void sound_hw_fetch_sample_range(SfdSampleRange *fetch, unsigned int addr, unsigned int length, unsigned int sample_base)
+/* Finds the cartridge bytes [start, start + length) (ROM offsets) of the sample starting at sample_base in the sample
+ * cache, and says where they will be in fetch: one range, or two (in the cartridge's order) when they span two blocks.
+ * Blocks of the sample that overlap the range are used (topping up a partly loaded one, and moved to the LRU tail);
+ * the rest is fetched into new blocks, aligned to 0x600 from the sample's start, by entries added to this frame's DMA
+ * list (partial loads round up to 256 bytes). */
+void sound_hw_fetch_sample_range(SfdSampleRange *fetch, unsigned int start, unsigned int length, unsigned int sample_base)
 {
     unsigned int size;
     AudioCacheNode *previous;
@@ -847,19 +847,19 @@ void sound_hw_fetch_sample_range(SfdSampleRange *fetch, unsigned int addr, unsig
     unsigned int end;
     unsigned int low;
 
-    end = addr + length;
-    low = addr - SAMPLE_BLOCK_BYTES;
+    end = start + length;
+    low = start - SAMPLE_BLOCK_BYTES;
     range_count = 0;
     for (node = sound_sample_lru_tail; node != NULL; node = previous) {
         previous = node->previous;
         if (sample_base != node->sample_base || node->address >= end || low >= node->address) {
             continue;
         }
-        if (node->loaded != SAMPLE_BLOCK_BYTES && node->address + node->loaded < addr + length) {
-            if (addr + length >= node->address + SAMPLE_BLOCK_BYTES) {
+        if (node->loaded != SAMPLE_BLOCK_BYTES && node->address + node->loaded < start + length) {
+            if (start + length >= node->address + SAMPLE_BLOCK_BYTES) {
                 size = SAMPLE_BLOCK_BYTES - node->loaded;
             } else {
-                size = (addr + length - node->address - node->loaded + 0xFF) & ~0xFF;
+                size = (start + length - node->address - node->loaded + 0xFF) & ~0xFF;
             }
             ((SoundDmaEntrySamples *)sound_dma_list)[sound_dma_list_count].source = node->address + node->loaded;
             ((SoundDmaEntrySamples *)sound_dma_list)[sound_dma_list_count].length = size;
@@ -881,22 +881,22 @@ void sound_hw_fetch_sample_range(SfdSampleRange *fetch, unsigned int addr, unsig
             node->next = NULL;
             sound_sample_lru_tail = node;
         }
-        if (addr < node->address) {
+        if (start < node->address) {
             pointers[range_count] = node->buffer;
             starts[range_count] = node->address;
-            lengths[range_count] = length - node->address + addr;
+            lengths[range_count] = length - node->address + start;
             length -= lengths[range_count];
             range_count++;
-        } else if (node->address + node->loaded < addr + length) {
-            pointers[range_count] = node->buffer + addr - node->address;
-            starts[range_count] = addr;
-            lengths[range_count] = node->address + node->loaded - addr;
+        } else if (node->address + node->loaded < start + length) {
+            pointers[range_count] = node->buffer + start - node->address;
+            starts[range_count] = start;
+            lengths[range_count] = node->address + node->loaded - start;
             length -= lengths[range_count];
             range_count++;
-            addr = node->address + node->loaded;
+            start = node->address + node->loaded;
         } else {
-            pointers[range_count] = node->buffer + addr - node->address;
-            starts[range_count] = addr;
+            pointers[range_count] = node->buffer + start - node->address;
+            starts[range_count] = start;
             lengths[range_count] = length;
             length = 0;
             range_count++;
@@ -904,14 +904,14 @@ void sound_hw_fetch_sample_range(SfdSampleRange *fetch, unsigned int addr, unsig
         }
     }
     if (length != 0) {
-        offset = (addr - sample_base) % SAMPLE_BLOCK_BYTES;
+        offset = (start - sample_base) % SAMPLE_BLOCK_BYTES;
         do {
             node = sound_hw_take_sample_block(sample_base);
             node->sample_base = sample_base;
-            node->address = addr - offset;
+            node->address = start - offset;
             if (length + offset > SAMPLE_BLOCK_BYTES) {
                 node->loaded = SAMPLE_BLOCK_BYTES;
-                addr = addr - offset + SAMPLE_BLOCK_BYTES;
+                start = start - offset + SAMPLE_BLOCK_BYTES;
                 ((SoundDmaEntrySamples *)sound_dma_list)[sound_dma_list_count].source = node->address;
                 ((SoundDmaEntrySamples *)sound_dma_list)[sound_dma_list_count].length = SAMPLE_BLOCK_BYTES;
                 ((SoundDmaEntrySamples *)sound_dma_list)[sound_dma_list_count].destination = node->buffer;
@@ -1557,7 +1557,7 @@ int sound_hw_is_busy(void)
 
 /* Gives voice index a new sample (sample: where it is, start offset, length and loop in samples, format), resetting
  * the voice; with reset, also an envelope that is full at once (no attack or decay, sustain 1.0, a 20 ms release). A
- * sample after its loop keeps a tail of 10 samples or more. A sample in the cartridge (a cartridge address) is
+ * sample after its loop keeps a tail of 10 samples or more. A sample in the cartridge (a ROM offset) is
  * fetched through the caches; one in RAM (a stream's buffer) is read where it is. */
 void sound_hw_set_voice_sample(unsigned int index, SoundSampleInfo *sample, unsigned char reset)
 {
@@ -1710,28 +1710,22 @@ void sound_hw_flush_stream_wrap(short *buffer, unsigned int samples)
     buffer[samples + 3] = buffer[3];
 }
 
-/* The cartridge's bus: the PI reads the ROM at CART_BUS_BASE + its offset (0xB0000000 up, 256 MiB). */
-#define CART_BUS_BASE 0xB0000000U
-#define CART_BUS_SIZE 0x10000000U
+/* The cartridge's places are ROM offsets, all below 256 MiB (the ROM, then the mods' region past it: port/ultra's
+ * PC_ROM_MODS_BASE); the PC's memory is never there. */
+#define CART_SPAN 0x10000000U
 
-/* Where samples are in the cartridge, as a cartridge address: a cartridge address as it is, an offset in the ROM
- * through the game's service (musyx_cart_address). The N64's library also took a sample bank in RAM (a K0 address,
- * as it was); a sample directory's records keep 32 bits, so on the PC the samples are the cartridge's. */
+/* Where samples are in the cartridge, from the place the game gives (the sample bank's ROM offset), through the game's
+ * service (musyx_cart_address: the ROM offset itself). A sample directory's records keep it in 32 bits. */
 unsigned int sound_hw_cart_address(unsigned int samples)
 {
-    if (samples - CART_BUS_BASE >= CART_BUS_SIZE) {
-        samples = sound_services.translate_address(samples);
-    }
-    return samples;
+    return sound_services.translate_address(samples);
 }
 
-/* Whether an address names a place in the cartridge, a ROM offset or a cartridge address, rather than RAM (the
- * speech bank, streams.c). The cartridge's two ranges are below 0x10000000 and from CART_BUS_BASE; RAM on the PC is
- * host memory, which is never there (docs/port/MUSYX_DATA.md 4). */
+/* Whether an address names a place in the cartridge, a ROM offset, rather than memory (the speech bank, streams.c,
+ * which the speech code carries in a pointer: docs/port/MUSYX_DATA.md 4). */
 int sound_hw_is_cartridge(const void *address)
 {
-    uintptr_t a = (uintptr_t)address;
-    return a < CART_BUS_SIZE || a - CART_BUS_BASE < CART_BUS_SIZE;
+    return (uintptr_t)address < CART_SPAN;
 }
 
 /* (A hook for setting sample memory up: nothing to do on this hardware.) */

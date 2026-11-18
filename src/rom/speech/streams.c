@@ -7,8 +7,8 @@
  * sound_stream_start) once the PCM ring is primed, and frees the stream once it has played out or was stopped.
  * The streams have their own lock (speech_lock), apart from the library's. MusyX-side code with no MAT3
  * counterpart; the game never calls speech_init, so none of this runs (the module is linked in, unused).
- * N64-shaped: the bank is read by cartridge DMA, and speech_set_bank tells a cartridge address from a RAM one by
- * its top bits. */
+ * The bank is read from the cartridge by the library's DMA queue (dma_queue.c), and speech_set_bank tells a place in
+ * the cartridge, a ROM offset, from a pointer by its size (sound_hw_is_cartridge). */
 #include "../rom_tu.h"
 #include "../sound/sound_services.h"
 
@@ -429,10 +429,10 @@ float speech_get_position(unsigned int token, float *duration)
     return 0.0f;
 }
 
-/* Selects the speech bank. A bank in the cartridge (source a ROM offset or a cartridge address: sound_hw_is_cartridge)
+/* Selects the speech bank. A bank in the cartridge (source a ROM offset: sound_hw_is_cartridge)
  * has its count and offset table read into allocated memory by DMA, its entries' data following them; a bank in RAM
- * is used where it is, with its entries' data at `data` (in the cartridge). The speech code carries the cartridge
- * addresses it reads from in pointers (dma_queue.c). Frees the previous table if it was allocated here. Returns 1, or
+ * is used where it is, with its entries' data at `data` (in the cartridge). The speech code carries the ROM offsets
+ * it reads from in pointers (dma_queue.c). Frees the previous table if it was allocated here. Returns 1, or
  * 0 when the module is not initialized or out of memory. */
 int speech_set_bank(void *source, void *data)
 {

@@ -243,7 +243,7 @@ void sound_unregister_layers(u16 *ids)
     }
 }
 
-/* Registers the sample directory records (once: their base is the samples' cartridge address, sound_hw_cart_address
+/* Registers the sample directory records (once: their base is the samples' ROM offset, sound_hw_cart_address
  * of samples), then each sample of the id list. */
 void sound_register_samples(u16 *ids, unsigned int samples, SampleRecord *records)
 {
@@ -284,7 +284,7 @@ void sound_unregister_sfx_table(unsigned short id)
 }
 
 /* MusyX's sndPushGroup: finds group id in the project (groups) and registers its macros, samples (samples: where the
- * samples are in the cartridge, a ROM offset or a cartridge address; records: the sample directory), tables, keymaps
+ * samples are in the cartridge, a ROM offset; records: the sample directory), tables, keymaps
  * and layers from the pool (resources), and an effect group's effect table. Returns 1, or 0 if the library is not
  * started, SOUND_MAX_GROUPS groups are pushed, or the project has no such group. */
 int sound_push_group(u8 *groups, u16 id, unsigned int samples, SampleRecord *records, ResourceOffsets *resources)

@@ -10,7 +10,7 @@ typedef struct SoundServices {
     void (*add_callback)(void (*callback)(void));            /* call callback every retrace */
     void (*remove_callback)(void (*callback)(void));         /* ... no longer */
     void (*start_dma)(void *dst, unsigned short size, void *src);   /* a sample DMA from the cartridge */
-    unsigned int (*translate_address)(unsigned int address);  /* a sample's cartridge address */
+    unsigned int (*translate_address)(unsigned int address);  /* a place in the cartridge: its ROM offset */
     void *(*allocate)(unsigned int size, unsigned int mode);  /* memory from the game's heap */
     void (*release)(void *allocation);                       /* ... back */
 } SoundServices;

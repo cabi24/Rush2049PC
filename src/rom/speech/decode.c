@@ -31,7 +31,7 @@ typedef struct SpeechStream {
     unsigned short gsm_last_lag;                /* 0x166: GsmState's nrp, the last valid long-term lag */
     unsigned char gsm_rest[40];                 /* 0x168: GsmState: LARpp, j, the repeat and silence counts */
     void (*read_input)(void *source, void *destination, unsigned int size, OSMesgQueue *done); /* 0x190 */
-    unsigned char *input;                       /* 0x198: the entry's compressed data (cartridge address) */
+    unsigned char *input;                       /* 0x198: the entry's compressed data (a ROM offset) */
     void *output;                               /* 0x1A0: the PCM ring (the stream's buffer) */
     unsigned int capacity;                      /* 0x1A8: its length in samples */
     unsigned int input_ring[1024];              /* 0x1AC: compressed input, read a block at a time */

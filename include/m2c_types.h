@@ -142,29 +142,6 @@ extern void __scExec(OSSched *sc, OSScTask *rspTask, OSScTask *rdpTask);
 extern void osViSwapBuffer(void *mode);
 extern void video_apply_pending_mode(void);
 
-/* --- Inflate double-buffers + full PI DMA request (libultra osPiStartDma:
- * mb, priority, direction, devAddr, dramAddr, size, mq). */
-extern u8 unzip_input_a[0x1000];
-extern u8 unzip_input_b[0x1000];
-extern s32 osPiStartDma(OSIoMesg *mb, s32 priority, s32 direction,
-                              u32 devAddr, void *dramAddr, u32 size,
-                              OSMesgQueue *mq);
-
-/* --- PI manager (symbol_addrs.us.txt: osPiInit/__osPiGetAccess/
- * __osPiRelAccess/__osPiMgrState, standard libultra signatures). */
-typedef struct {
-    s32 flag;   /* 0x00 */
-    u8 pad04[0x8 - 0x4];
-    s32 unk8;   /* 0x08 */
-    u8 pad0C[0x1C - 0xC];
-} __OSPiMgrState;
-
-extern __OSPiMgrState __osPiMgrState;
-extern void __osPiCreateAccessQueue(void);
-extern void __osPiGetAccess(void);
-extern void __osPiRelAccess(void);
-extern u32 osRomBase;
-
 /* --- RCP/timer/scheduler internals confirmed against ultralib
  * (os_internal_reg.h, os_internal_rsp.h). */
 extern void __osSetCompare(u32 compare);

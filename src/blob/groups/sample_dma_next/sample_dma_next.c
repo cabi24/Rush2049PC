@@ -1,17 +1,15 @@
-/* sample_dma_next/sample_dma_next.c: start the next DMA of the sound library's sample list (N64 only).
+/* sample_dma_next/sample_dma_next.c: start the next read of the sound library's sample list.
  *
- * The MusyX sound library streams samples from the cartridge by lists of DMA requests: musyx_start_dma_list fills
- * the list (sample_dma_list) and starts its first request, the sample DMA thread (sample_dma_thread_entry) starts
- * the next each time one completes and signals the list's done queue after the last. */
+ * The MusyX sound library streams samples from the cartridge by lists of reads: musyx_start_dma_list fills the list
+ * (sample_dma_list) and starts its first request, the sample DMA thread (sample_dma_thread_entry) starts the next each
+ * time one completes and signals the list's done queue after the last. */
 #include "game/game.h"
 #define DmaList DmaListView   /* this file's own DmaList: include/game's DmaList is another type */
-#define OSIoMesg OSIoMesgView   /* this file's own OSIoMesg: include/game's OSIoMesg is another type */
 #define OSMesgQueue OSMesgQueueView   /* this file's own OSMesgQueue: include/game's OSMesgQueue is another type */
 
 typedef struct OSMesgQueue OSMesgQueue;
-typedef struct OSIoMesg OSIoMesg;
 
-/* One request: size bytes from the cartridge address devAddr to vAddr. */
+/* One request: size bytes from ROM offset devAddr to vAddr. */
 typedef struct DmaReq {
     u32 size;
     u32 devAddr;
@@ -34,7 +32,6 @@ typedef struct {
 DmaList pc_sample_dma_list;
 
 extern DmaList sample_dma_list;
-s32 osPiStartDma(OSIoMesg *mb, s32 priority, s32 direction, u32 devAddr, void *vAddr, u32 nbytes, OSMesgQueue *mq);
 
 /* Start the list's next request (a cartridge read, its completion to sample_dma_pi_queue) and return 1, or 0 when
  * every request has been started. */
@@ -42,9 +39,8 @@ s32 sample_dma_next(void)
 {
     if (sample_dma_list.next < sample_dma_list.count) {
         sample_dma_list.next++;
-        osPiStartDma(&sample_dma_io, 1, 0, sample_dma_list.reqs[sample_dma_list.next - 1].devAddr,
-                          sample_dma_list.reqs[sample_dma_list.next - 1].vAddr, sample_dma_list.reqs[sample_dma_list.next - 1].size,
-                          &sample_dma_pi_queue);
+        pc_cart_read(sample_dma_list.reqs[sample_dma_list.next - 1].devAddr, sample_dma_list.reqs[sample_dma_list.next - 1].vAddr,
+                     sample_dma_list.reqs[sample_dma_list.next - 1].size, &sample_dma_pi_queue);
         return 1;
     }
     return 0;

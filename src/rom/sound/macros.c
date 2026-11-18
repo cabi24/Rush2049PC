@@ -36,7 +36,7 @@
  *   +0x4E orgNote, +0x50 curNote     the key it started on; the note now
  *   +0x52..+0x56 setupVol, setupPan, setupChannel, setupSet, setupTrack: what sound_macro_start stores and the first
  *                                    run applies
- *   +0x58 sampleAddress, +0x5C sampleInfo  the sample playing: its cartridge address (written, not read); its root
+ *   +0x58 sampleAddress, +0x5C sampleInfo  the sample playing: its ROM offset (written, not read); its root
  *                                    key (bits 31..24) and rate (23..0)
  *   +0x60 id                         (macro << 16) | (key << 8) | voice index
  *   +0x64 macroId, +0x68 loop        the macro's id; the LOOP counter

@@ -10,7 +10,7 @@ typedef struct DmaListView {
     s16 count;              /* 0x02 its requests */
     s16 next;               /* 0x04 the next request sample_dma_next starts */
     s16 pad6;
-    intptr_t reqs;          /* 0x08 the requests (size, cartridge address, buffer) */
+    intptr_t reqs;          /* 0x08 the requests (size, ROM offset, buffer) */
     intptr_t done;          /* 0x10 the queue signalled when they are done */
 } DmaListView;
 #define sample_dma_list pc_sample_dma_list

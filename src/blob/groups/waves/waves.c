@@ -3,13 +3,9 @@
  * records (built beside the file by its converter, port/assets/wad.c) go into gRomObjDefPtrs, gTexDefPtrs and
  * gPalDefPtrs, and its display lists are relocated (waves/group.c has the waves). */
 #include "game/game.h"
-#define OSIoMesg OSIoMesgView   /* this file's own OSIoMesg: include/game's OSIoMesg is another type */
-#define OSIoMesgHdr OSIoMesgHdrView   /* this file's own OSIoMesgHdr: include/game's OSIoMesgHdr is another type */
 #define OSMesgQueue OSMesgQueueView   /* this file's own OSMesgQueue: include/game's OSMesgQueue is another type */
 
 typedef struct OSMesgQueue { void *mtqueue; void *fullqueue; s32 validCount; s32 first; s32 msgCount; OSMesg *msg; } OSMesgQueue;
-typedef struct OSIoMesgHdr { u16 type; u8 pri; u8 status; OSMesgQueue *retQueue; } OSIoMesgHdr;
-typedef struct OSIoMesg { OSIoMesgHdr hdr; void *dramAddr; u32 devAddr; u32 size; void *piHandle; } OSIoMesg;
 
 /* A handle wave's ptr is a heap master slot (a handle): its block is the address the slot holds. */
 #define HANDLE_BLOCK(h) (*(u8 **)(h))
@@ -23,7 +19,6 @@ typedef struct OSIoMesg { OSIoMesgHdr hdr; void *dramAddr; u32 devAddr; u32 size
 #define DL_KEEP_FORWARD 8           /* the track run the usual way */
 #define DL_KEEP_BACKWARD 0x10       /* the track run backwards */
 
-s32 osPiStartDma(OSIoMesg *mb, s32 priority, s32 direction, u32 devAddr, void *vAddr, u32 nbytes, OSMesgQueue *mq);
 s32 osRecvMesg(OSMesgQueue *mq, OSMesg *msg, s32 flags);
 
 /* Sets up wave instance idx once its file is in (MAT3 _SetupWaveModel): for a model WAD, points the instance's
@@ -99,11 +94,9 @@ void SetupWaveModel(s32 idx, s32 first) {
  * re-setup after a heap move (first = 0) converts nothing. */
 #define SetupWaveModel(slot, first) ((first) ? pc_wave_loaded(gWaveInstance[slot].wave, gWaveInstance[slot].handle ? HANDLE_BLOCK(gWaveInstance[slot].ptr) : gWaveInstance[slot].ptr, gWaveInstance[slot].size) : (void)0, SetupWaveModel(slot, first))
 
-/* Reads size bytes at cartridge offset rom into dst by PI DMA, and waits for it. */
+/* Reads size bytes at ROM offset rom into dst, and waits for the read's message. */
 void wave_rom_read(u8 *dst, s32 rom, s32 size) {
-    OSIoMesg mb;
-
-    osPiStartDma(&mb, 0, 0, rom, dst, size, &rom_dma_queue);
+    pc_cart_read(rom, dst, size, &rom_dma_queue);
     osRecvMesg(&rom_dma_queue, NULL, 1);
 }
 

@@ -5,7 +5,7 @@
  * frame hook sound_hw_service_frame calls after it starts a new list. A blocking read then waits for the frame after
  * that, when the list has completed. MusyX is the N64's sound library: no MAT3 counterpart.
  *
- * Still N64-shaped: the sources are 32-bit cartridge addresses, which the speech code carries in pointers. */
+ * The sources are ROM offsets, which the speech code carries in pointers. */
 #include "../rom_tu.h"
 #include "musyx.h"
 
@@ -13,7 +13,7 @@
 typedef struct TransferRequest { void *destination; void *source; unsigned int size; } TransferRequest;
 
 /* PC: the list's entries are hardware.c's SoundDmaEntryCodebook, 16 bytes (DMA_ENTRY_SIZE): the source is a 32-bit
- * cartridge address and the destination a host pointer (docs/port/MUSYX_DATA.md, docs/port/LAYOUT.md 5). */
+ * ROM offset and the destination a host pointer (docs/port/MUSYX_DATA.md, docs/port/LAYOUT.md 5). */
 typedef struct SoundDmaEntry { int length; unsigned int source; unsigned char *destination; } SoundDmaEntry;
 #define DMA_SOURCE(x) ((unsigned int) (uintptr_t) (x))
 
@@ -76,7 +76,7 @@ void sound_dma_remove_queue(void)
     sound_dma_flush_hook = 0;
 }
 
-/* Reads size bytes from cartridge address source to destination and waits until they have arrived (about two
+/* Reads size bytes from ROM offset source to destination and waits until they have arrived (about two
  * frames). A read the full queue has no room for is dropped, without waiting. */
 void sound_dma_read_blocking(void *destination, void *source, unsigned int size)
 {
@@ -97,7 +97,7 @@ void sound_dma_read_blocking(void *destination, void *source, unsigned int size)
     }
 }
 
-/* Queues a read of size bytes from cartridge address source to destination and returns at once: the data is there
+/* Queues a read of size bytes from ROM offset source to destination and returns at once: the data is there
  * once the next frame's DMA list has run. A read the full queue has no room for is dropped. */
 void sound_dma_read_async(void *destination, void *source, unsigned int size)
 {

@@ -46,6 +46,7 @@
 #define GUARD_LO 0x80000000u                 /* KSEG0's first address */
 #define GUARD_HI 0xC0000000u                 /* KSEG2's: KSEG1 ends here */
 #define GUARD_KSEG1 0xA0000000u              /* KSEG1's first address */
+#define GUARD_CART 0xB0000000u               /* the cartridge's first byte through KSEG1 (libultra's osRomBase) */
 #define GUARD_TRAP 0x40000000u               /* the low 32 bits of the heap's mapping in the guard */
 /* The heap's block keeps the N64 heap's place modulo HEAP_ALIGN (pc_mem_map_heap). */
 #define HEAP_ALIGN 0x10000u
@@ -98,7 +99,7 @@ int pc_mem_fault_note(uintptr_t a, char *buf, size_t n)
         return 0;
     if (a >= GUARD_LO && a < GUARD_HI) {
         uint32_t v = (uint32_t)a;
-        const char *what = v >= N64_CART_KSEG1 ? "the cartridge through KSEG1"
+        const char *what = v >= GUARD_CART ? "the cartridge through KSEG1"
                          : v >= GUARD_KSEG1 ? "KSEG1: the RCP's registers, or RDRAM uncached" : "KSEG0: RDRAM";
         if (pc_data_describe_loaded && v < GUARD_KSEG1) {   /* the game's datum the N64 had there, if any */
             pc_data_describe_loaded(v, name, sizeof name);

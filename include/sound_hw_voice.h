@@ -31,7 +31,7 @@ typedef struct SoundHwVoice {
     unsigned char *data;                  /* 0x2C: a sample in RAM (a stream's buffer): its first byte (ADPCM: its
                                            * 0x100-byte codebook, then the blocks) */
     unsigned int cart_address;            /* (the PC's) a sample in the cartridge (VOICE_FLAG_CARTRIDGE): its
-                                           * cartridge address; the N64 kept it in data */
+                                           * ROM offset; the N64 kept it in data */
     unsigned int length;                  /* 0x30: in samples */
     unsigned int loop_start;              /* 0x34 */
     unsigned int loop_length;             /* 0x38: 0 for a sample that does not loop */

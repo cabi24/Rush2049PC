@@ -383,7 +383,7 @@ void sound_remove_delay_effect(void)
 }
 
 /* Installs the platform's eight service hooks (sound_services: submit and wait for the audio task, set and clear the
- * retrace callback, DMA, the cartridge address, allocate, free): the library calls nothing of the OS itself. */
+ * retrace callback, DMA, a place in the cartridge, allocate, free): the library calls nothing of the OS itself. */
 void sound_set_services(const SoundServices *services)
 {
     sound_services = *services;

@@ -7,7 +7,7 @@
  * MBOX_FindPalette_WORK and their slot test (ModelActive), and the texture animation: its set-up
  * (InitTextureAnimation) and per-frame update (TextureAnimation) with the load-list helpers
  * displaylist_get_texture_image, displaylist_set_texture_image and displaylist_set_tile_size. This file stands in for
- * the rest: the wave and animation tables and a PI DMA from a synthetic cartridge. The WAD's heap blocks are ordinary
+ * the rest: the wave and animation tables and the cartridge's read (pc_cart_read) from a synthetic cartridge. The WAD's heap blocks are ordinary
  * host memory: the lists hold host pointers, and nothing needs the RDRAM window (docs/port/NATIVE.md step 10). */
 #include <stdlib.h>
 #include <string.h>
@@ -44,11 +44,10 @@ static uint8_t g_rom[0x2000];
 #define ROM_WAD 0x1000
 
 int32_t osRecvMesg(void *mq, void **msg, int32_t flags) { (void)mq, (void)msg, (void)flags; return 0; }
-int32_t osPiStartDma(void *mb, int32_t pri, int32_t dir, uint32_t dev, void *dram, uint32_t size, void *mq)
+void pc_cart_read(uint32_t rom_offset, void *dst, uint32_t size, void *done)
 {
-    (void)mb, (void)pri, (void)dir, (void)mq;
-    memcpy(dram, g_rom + dev, size);   /* the cartridge's bytes as they are, as port/ultra/pi.c copies them */
-    return 0;
+    (void)done;
+    memcpy(dst, g_rom + rom_offset, size);   /* the cartridge's bytes as they are, as port/ultra/pi.c copies them */
 }
 void lzss_decompress(int32_t src, void *dst) { (void)src, (void)dst; abort(); }
 void inflate_decompress(int32_t src, void *dst, int32_t flag) { (void)src, (void)dst, (void)flag; abort(); }

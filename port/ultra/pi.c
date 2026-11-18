@@ -1,21 +1,19 @@
-/* port/ultra/pi.c: the cartridge: ROM loading, PI DMA and the boot segment's decompressors
- * (docs/port/ULTRA.md).
+/* port/ultra/pi.c: the cartridge: loading the ROM, the game's reads of it and the boot segment's decompressors
+ * (docs/port/ULTRA.md 3 and 11).
  *
  * The ROM is read whole, byte-swapped to big-endian (.z64) order if it is a .v64 or .n64 dump, and checked
- * against the US SHA-1 (romcheck.c says what a file is when it isn't that ROM). PI DMA has no manager thread:
- * osPiStartDma copies at once and sends the completion message, so the caller's osRecvMesg returns as soon as it
- * runs. What it copies is the cartridge's bytes as they are; the file converters (port/assets) make the files
- * native, and the WAD converter and the sound library mark what stays in the cartridge's formats (texel and sample
- * memory, pc_port.h). The game passes ROM offsets as devAddr (libultra adds osRomBase); cartridge bus
- * addresses (N64_CART_PHYS and up, or through KSEG1) are accepted too.
+ * against the US SHA-1 (romcheck.c says what a file is when it isn't that ROM). The game reads it by ROM offset:
+ * pc_cart_read copies at once and sends the completion message the game waits for, so the reader's osRecvMesg
+ * returns as soon as it runs. What it copies is the cartridge's bytes as they are; the file converters (port/assets)
+ * make the files native, and the WAD converter and the sound library mark what stays in the cartridge's formats
+ * (texel and sample memory, pc_port.h).
  *
- * unzipdata_from_rom, unzipdata and lzss_decode were hand-written assembly over the PI. Natively: the game
- * image's inflate (main_thread_entry, ROM 0xB0CB10) does nothing, since that code and data are linked in; the two
- * runtime images' streams (ROM 0xB5C534, 0xB6FEC4) become pc_data_overlay_load; any other stream (sound
- * banks, ghosts) is inflated with zlib from the ROM image or from memory.
+ * unzipdata_from_rom, unzipdata and lzss_decode were hand-written assembly over the N64's cartridge DMA. Natively a
+ * stream (a wave, a ghost) is inflated with zlib, or unpacked, from the ROM image or from memory.
  *
  * The mods (docs/port/MODS.md) are a second region of the cartridge at PC_ROM_MODS_BASE (pc_rom_set_mods): their files
- * are read from there by the PI DMA and the decompressors, as the ROM's are from the ROM; without mods it is empty. */
+ * are read from there by pc_cart_read and the decompressors, as the ROM's are from the ROM; without mods it is
+ * empty. */
 #define _GNU_SOURCE
 #include <errno.h>
 #include <stdio.h>
@@ -26,19 +24,12 @@
 
 #include "ultra.h"
 
-#define GAME_IMAGE_ROM 0xB0CB10u
-#define GAME_IMAGE_SIZE 647072u
-#define OVERLAY_A_ROM 0xB5C534u
-#define OVERLAY_A_SIZE 194128u
-#define OVERLAY_B_ROM 0xB6FEC4u
-#define OVERLAY_B_SIZE 43888u
 /* What an inflate may write when its destination is outside the game heap's block (inside, the block's end:
  * pc_heap_room, at any game.memory): 8 MiB, the N64's whole RDRAM. */
 #define INFLATE_MAX (8u << 20)
 
 static uint8_t *g_rom;
 static size_t g_rom_size;
-static void *g_pi_cmd_queue;
 
 const uint8_t *pc_rom_bytes(void) { return g_rom; }
 size_t pc_rom_size(void) { return g_rom_size; }
@@ -129,12 +120,6 @@ int pc_rom_blank(void)
     return 0;
 }
 
-static uint32_t rom_offset(uint32_t dev)
-{
-    uint32_t phys = N64_TO_PHYS(dev);
-    return phys >= N64_CART_PHYS && phys < N64_PIF_ROM_PHYS ? phys - N64_CART_PHYS : dev;
-}
-
 /* ---------------------------------------------------------------- the mods' region (docs/port/MODS.md) */
 
 static const uint8_t *g_mods;
@@ -178,83 +163,19 @@ int pc_rom_copy(uint32_t off, void *dst, uint32_t size)
     return 0;
 }
 
-uint32_t pc_rom_word(uint32_t off)
+/* ---------------------------------------------------------------- the game's reads */
+
+void pc_cart_read(uint32_t rom_offset, void *dst, uint32_t size, void *done)
 {
-    if (!g_rom || off > g_rom_size - 4)
-        return 0;
-    const uint8_t *p = g_rom + off;
-    return (uint32_t)p[0] << 24 | (uint32_t)p[1] << 16 | (uint32_t)p[2] << 8 | p[3];
-}
-
-/* ---------------------------------------------------------------- PI */
-
-void osCreatePiManager(int32_t pri, void *cmd_queue, OSMesg *cmd_buf, int32_t cmd_count)
-{
-    extern void osCreateMesgQueue(void *mq, OSMesg *msg, int32_t count);
-    (void)pri;
-    g_pi_cmd_queue = cmd_queue;
-    osCreateMesgQueue(cmd_queue, cmd_buf, cmd_count);
-}
-
-void *osPiGetCmdQueue(void) { return g_pi_cmd_queue; }
-void *__osPiGetCmdQueue(void) { return g_pi_cmd_queue; }
-int32_t __osPiDeviceBusy(void) { return 0; }
-
-static void dma_read(uint32_t dev, void *dst, uint32_t size)
-{
-    uint32_t off = rom_offset(dev);
-    if (pc_rom_copy(off, dst, size) != 0)
-        pc_log("PI DMA past the ROM: offset 0x%X, %u bytes (zero-filled)", off, size);
+    if (pc_rom_copy(rom_offset, dst, size) != 0)
+        pc_log("cartridge read past the ROM: offset 0x%X, %u bytes (zero-filled)", rom_offset, size);
     if (pc_verbose > 2)
-        pc_log("PI DMA ROM 0x%06X -> %p, %u bytes (%s)", off, dst, size, pc_os_thread_name());
-}
-
-int32_t osPiStartDma(void *mb, int32_t pri, int32_t direction, uint32_t dev, void *dram, uint32_t size, void *mq)
-{
-    (void)pri;
-    if (direction == OS_READ)
-        dma_read(dev, dram, size);
-    else
-        pc_log("PI DMA write to the cartridge ignored: 0x%X, %u bytes", dev, size);
-    if (mq && pc_os_post(mq, mb) < 0)
-        pc_log("PI DMA completion dropped: queue %p full", mq);
-    return 0;
-}
-
-int32_t osPiReadIo(uint32_t dev, uint32_t *data)
-{
-    *data = pc_rom_word(rom_offset(dev));
-    return 0;
-}
-
-int32_t osPiRawReadIo(uint32_t dev, uint32_t *data) { return osPiReadIo(dev, data); }
-
-/* Libultra's extended-handle raw calls. Nothing calls them once the PI manager is replaced; the handle's
- * base address is the cartridge's. */
-int32_t osEPiRawReadIo(void *handle, uint32_t dev, uint32_t *data)
-{
-    (void)handle;
-    return osPiReadIo(dev, data);
-}
-
-int32_t osEPiRawWriteIo(void *handle, uint32_t dev, uint32_t data)
-{
-    (void)handle, (void)dev, (void)data;
-    return 0;
-}
-
-int32_t osEPiRawStartDma(void *handle, int32_t direction, uint32_t dev, void *dram, uint32_t size)
-{
-    (void)handle;
-    if (direction == OS_READ)
-        dma_read(dev, dram, size);
-    return 0;
+        pc_log("cartridge read: ROM 0x%06X -> %p, %u bytes (%s)", rom_offset, dst, size, pc_os_thread_name());
+    if (done && pc_os_post(done, NULL) < 0)
+        pc_log("cartridge read: its completion dropped, queue %p full", done);
 }
 
 /* ---------------------------------------------------------------- decompressors */
-
-/* main_thread_entry passes this symbol's address as the game image's ROM offset (0xB0CB10 on the N64). */
-uint8_t gRomCompressedData[16];
 
 /* Inflates a raw DEFLATE stream into dst, as far as the stream goes: the game's callers give no size (on the N64 the
  * stream ended where the file did). The output's room is what is left of the game heap from dst (pc_heap_room: the
@@ -278,19 +199,9 @@ static int32_t inflate_buffer(const uint8_t *src, size_t avail, void *dst, const
     return n;
 }
 
-int32_t unzipdata_from_rom(uintptr_t src, void *dst, int32_t heap_window)
+int32_t unzipdata_from_rom(uint32_t off, void *dst, int32_t heap_window)
 {
-    (void)heap_window;   /* the N64 code took its 12 KB window from the game heap or a fixed place in RDRAM */
-    if (src == (uintptr_t)gRomCompressedData || src == GAME_IMAGE_ROM)
-        return GAME_IMAGE_SIZE;   /* the game image is linked in; port/data filled its data */
-    if (src == OVERLAY_A_ROM || src == OVERLAY_B_ROM) {
-        int ov = src == OVERLAY_A_ROM ? PC_OVERLAY_A : PC_OVERLAY_B;
-        if (pc_verbose)
-            pc_log("runtime image %c load (%s)", ov == PC_OVERLAY_A ? 'A' : 'B', pc_os_thread_name());
-        pc_data_overlay_load(ov);
-        return ov == PC_OVERLAY_A ? OVERLAY_A_SIZE : OVERLAY_B_SIZE;
-    }
-    uint32_t off = rom_offset((uint32_t)src);
+    (void)heap_window;   /* where the N64's code took its 12 KB of input buffers from: none needed natively */
     size_t avail;
     const uint8_t *m = mods_at(off, &avail);
     if (!m && (!g_rom || off >= g_rom_size)) {
@@ -309,9 +220,8 @@ int32_t unzipdata(const void *src, int32_t size, void *dst)
 
 /* The boot LZSS: a flag byte, low bit first; 1 = a literal, 0 = a two-byte copy of (b0 & 0x0F) + 2 bytes from
  * ((b0 & 0xF0) << 4 | b1) back; offset 0 with length nibble 0 ends the stream. Returns the output size. */
-int32_t lzss_decode(uintptr_t src, void *dst)
+int32_t lzss_decode(uint32_t off, void *dst)
 {
-    uint32_t off = rom_offset((uint32_t)src);
     size_t avail;
     const uint8_t *m = mods_at(off, &avail);
     if (!m && (!g_rom || off >= g_rom_size)) {
