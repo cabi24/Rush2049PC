@@ -25,20 +25,6 @@ typedef struct Poly {
     /* 0x04 */ u8 pad[0x54];
 } Poly;
 
-/* The car record (tCarData, N64 layout: docs/port/CARS.md 2), the fields AnimateShadow reads. */
-typedef struct tCarData {
-    /* 0x000 */ u8 pad0[0x74];
-    /* 0x074 */ f32 dr_tirepos[4][3];   /* each tire's dead-reckoned position, feet */
-    /* 0x0A4 */ u8 padA4[0xE8 - 0xA4];
-    /* 0x0E8 */ u32 appearance;
-    /* 0x0EC */ u8 padEC[0x110 - 0xEC]; struct pc_visual visuals[21]; u8 pad308[0x35C - 0x308];
-    /* 0x35C */ s8 camera;              /* the window that follows the car, -1 none */
-    /* 0x35D */ s8 view;                /* that window's view */
-    /* 0x35E */ s8 saveview;
-    /* 0x35F */ s8 carMine;             /* shown as a mine (the car mines cheat) */
-    /* 0x360 */ u8 pad360[0x380 - 0x360]; void *player; u8 pad384[0x3B8 - 0x384];
-} tCarData;
-
 /* The model record (tModelData, docs/port/CARS.md 4), the fields AnimateShadow reads. */
 typedef struct tModelData {
     /* 0x000 */ _tCar *car;

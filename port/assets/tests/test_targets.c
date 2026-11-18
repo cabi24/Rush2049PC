@@ -24,6 +24,8 @@
 #include <string.h>
 
 #include "pc_prelude.h"
+#define GAME_RECORDS_ONLY   /* include/game's records alone: this file stands in for the game's data */
+#include "game/cars.h"
 #include "support.h"
 
 /* ---------------------------------------------------------------- the PC layouts */
@@ -92,7 +94,7 @@ void *gTargetGroups;                    /* the collision quadtree (a track recor
 void *stree_surf;                    /* the road polygons */
 void *gEnvList;
 uint8_t ObjInstanceList[600 * 0x68];      /* the scene nodes (host layout: the model id at +0x18) */
-struct pc_car pc_cars[PC_CAR_SLOTS];   /* the car records (pc_game_types.h), which data.c defines */
+tCarData pc_cars[PC_CAR_SLOTS];   /* the car records (pc_game_types.h), which data.c defines */
 #define CAR(i) ((uint8_t *)&pc_cars[i])
 
 /* ---------------------------------------------------------------- what the code under test calls */

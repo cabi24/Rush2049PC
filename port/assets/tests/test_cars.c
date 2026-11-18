@@ -26,6 +26,8 @@
 #include <string.h>
 
 #include "pc_prelude.h"
+#define GAME_RECORDS_ONLY   /* include/game's records alone: this file stands in for the game's data */
+#include "game/cars.h"
 #include "support.h"
 
 /* ---------------------------------------------------------------- the PC layouts */
@@ -53,7 +55,7 @@ struct car {
 
 /* ---------------------------------------------------------------- the game's data the code under test uses */
 
-struct pc_car pc_cars[PC_CAR_SLOTS];      /* gGameCar, the car records (pc_game_types.h), which data.c defines */
+tCarData pc_cars[PC_CAR_SLOTS];      /* gGameCar, the car records (pc_game_types.h), which data.c defines */
 #define CARS ((struct car *)pc_cars)       /* in this file's view */
 
 struct pc_model pc_models[PC_MODEL_SLOTS];    /* model[], the model records (pc_game_types.h), which data.c defines */

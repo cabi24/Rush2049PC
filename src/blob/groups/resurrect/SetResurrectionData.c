@@ -21,8 +21,6 @@ typedef struct tDronePath {
 /* The drone's path state in the car record (MAT3 tPathPoint, tCarData.mpctl; struct pc_car_nav), the fields used
  * here: the point on the drone path and the path. */
 typedef struct tPathPoint { u8 pad[0x24]; s16 idx; s16 newIdx; s16 path; } tPathPoint;
-/* The car record (tCarData, N64 layout: docs/port/CARS.md 2), the field used here. */
-typedef struct tCarData { u8 pad[0x110 - 0x0]; struct pc_visual visuals[21]; u8 pad_308[0x314 - 0x308]; tPathPoint mpctl; u8 rest[0x380 - 0x33E]; void *input; u8 rest_384[0x3B8 - 0x384]; } tCarData;
 
 /* Drone path `p`, through a pointer to the array's first element: the shape the code compiled from */
 #define DRONE_PATH(p) (((tDronePath *)gDronePaths)[p])

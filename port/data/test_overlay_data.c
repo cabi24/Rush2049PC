@@ -12,7 +12,9 @@
  * The game writes them; a load of the other image leaves them alone; a load of their image puts them back, as the
  * N64's load does. The program stands in for everything else weapons.c references. */
 #include "pc_data.h"
-#include "../include/pc_game_types.h"
+#include "../include/pc_prelude.h"
+#define GAME_RECORDS_ONLY   /* include/game's records alone: this file stands in for the game's data */
+#include "game/cars.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -27,7 +29,7 @@ __attribute__((aligned(16))) uint8_t gCarParts[6 * 0x40];      /* CarParts[] */
 uint16_t gObjList[224];                                         /* the object definitions: the weapons' at 216..223 */
 struct pc_model pc_models[PC_MODEL_SLOTS];     /* model[] (pc_game_types.h) */
 __attribute__((aligned(16))) uint8_t gTexDefPtrs[64 * 16];       /* TexDefSet[] */
-struct pc_car pc_cars[PC_CAR_SLOTS];                           /* the car records (pc_game_types.h) */
+tCarData pc_cars[PC_CAR_SLOTS];                           /* the car records (pc_game_types.h) */
 uint16_t gRipTextures[5];
 int32_t gWfxObjList[7];
 

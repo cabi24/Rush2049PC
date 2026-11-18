@@ -41,7 +41,7 @@ void AnimateCoin(struct pc_visual *v, s16 op)
     CoinData *coin;
     f32 spin[3];
     s32 number, i, foundByAll;
-    struct pc_car *car;
+    tCarData *car;
     tRGBA goldGlow, silverGlow;
     f32 *angV;
 

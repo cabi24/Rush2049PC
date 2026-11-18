@@ -1,9 +1,6 @@
 /* fix_camera_in_space: a camera fixed at a point of the track, watching the car (MAT3 camera.c). */
 #include "game/game.h"
 
-/* The car record (MAT3 tCarData; the PC's pc_car, host layout): its camera. */
-struct tCarData { u8 pad0[0x110]; struct pc_visual visuals[21]; u8 pad308[0x35C - 0x308]; s8 camera; };
-
 /* Car `car`'s track camera (view 6). `mode` 0 fixes the camera at `pos`, 1 there too but zooming in on the car as
  * it goes away; else (2) it points from where it was fixed at the car, now at `pos` (its orientation into `uvs`:
  * point_at_car), a zooming one kept 20 feet off and closing in by fixed_cam_zoom_rate a foot past 50. */

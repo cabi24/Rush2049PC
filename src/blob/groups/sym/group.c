@@ -74,15 +74,6 @@ typedef struct tModelData {
     /* 0x7D0 */ s16 rpm;
 } tModelData;
 
-/* The car record (tCarData), the fields ModelControls reads. */
-typedef struct tCarData {
-    /* 0x000 */ u8 pad000[0xEF];
-    /* 0x0EF */ s8 place_locked;            /* the car has finished */
-    /* 0x0F0 */ u8 pad0F0[0x110 - 0xF0]; struct pc_visual visuals[21]; u8 pad308[0x359 - 0x308];
-    /* 0x359 */ s8 dead;
-    /* 0x35A */ u8 pad35A[0x380 - 0x35A]; void *player; u8 pad384[0x3B8 - 0x384];
-} tCarData;
-
 /* Model m's controls for this step (MAT3 _ModelControls): the step and its inverse, the steering angle (the wheel
  * times the steering gain), the clutch and the throttle from mainin. A car that has finished gets no throttle; at the
  * end of the race (or finished) it brakes at 0.7 with the clutch pressed, coasting (gCoastFlag) at 0.33; else the

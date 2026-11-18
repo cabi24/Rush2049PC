@@ -71,40 +71,6 @@ typedef struct tModelData {
     /* 0x7F8 */ f32 skidIntensity[4];      /* each skid direction's intensity, 0..1 (also the skid sounds') */
 } tModelData; /* 0x808 */
 
-/* The car record (tCarData, N64 layout: docs/port/CARS.md 2), the fields set here. */
-typedef struct tCarData {
-    /* 0x000 */ s32 modelIteration;
-    /* 0x004 */ f32 modelTime;
-    /* 0x008 */ f32 dr_pos[3];
-    /* 0x014 */ f32 dr_vel[3];
-    /* 0x020 */ f32 dr_acc[3];
-    /* 0x02C */ f32 dr_uvs[3][3];
-    /* 0x050 */ f32 dr_car_uvs[3][3];
-    /* 0x074 */ f32 dr_tirepos[4][3];
-    /* 0x0A4 */ f32 v[3];
-    /* 0x0B0 */ f32 tireR[4][3];
-    /* 0x0E0 */ f32 pitch;
-    /* 0x0E4 */ f32 roll;
-    /* 0x0E8 */ u32 appearance;
-    /* 0x0EC */ s8 data_valid;
-    /* 0x0ED */ u8 pad0ED[0xF8 - 0xED];
-    /* 0x0F8 */ s16 rwmph;
-    /* 0x0FA */ u8 pad0FA[0x110 - 0xFA]; struct pc_visual visuals[21];
-    /* 0x308 */ s8 collidable;
-    /* 0x309 */ s8 solid;
-    /* 0x30C */ f32 collide_time;
-    /* 0x310 */ s8 collide_count;
-    /* 0x311 */ s8 collide_state;
-    /* 0x312 */ u8 pad312[0x344 - 0x312];
-    /* 0x344 */ u16 sound_flags[4];
-    /* 0x34C */ u8 pad34C[0x359 - 0x34C];
-    /* 0x359 */ s8 dead;
-    /* 0x35A */ s8 in_tunnel;
-    /* 0x35B */ u8 pad35B[0x368 - 0x35B];
-    /* 0x368 */ f32 stuntW[3];
-    /* 0x374 */ u8 pad374[0x380 - 0x374]; void *input; u8 pad374_384[0x3B8 - 0x384];
-} tCarData; /* 0x3B8 */
-
 /* A suspension's lean (MAT3 _tSusp, carSuspensions): from each tire force total the lean starts at (min), the
  * force over which it grows (range) and the most it leans (angle), forwards, backwards and sideways. */
 typedef struct _tSusp {

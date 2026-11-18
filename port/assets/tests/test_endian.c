@@ -11,7 +11,9 @@
  */
 #include <string.h>
 
-#include "pc_game_types.h"
+#include "pc_prelude.h"
+#define GAME_RECORDS_ONLY   /* include/game's records alone: this file stands in for the game's data */
+#include "game/cars.h"
 #include "support.h"
 
 /* particle_knot's Node: the layout every PC view of the scene-node table has (docs/port/POINTERS.md 9.2). */
@@ -57,7 +59,7 @@ uint8_t gNumModels = 1;
 int16_t gNumPlayers;                                           /* no players: the coin is released at once */
 char coin_glow_object_name[] = "COIN_GLOWG1", gold_coin_object_name[] = "GOLDCOIN", silver_coin_object_name[] = "SILVERCOIN";
 float unitmatrix[4][3];
-struct pc_car pc_cars[PC_CAR_SLOTS];            /* the car records (pc_game_types.h) */
+tCarData pc_cars[PC_CAR_SLOTS];            /* the car records (pc_game_types.h) */
 volatile float gFrameSeconds;
 int32_t gTargetList;
 

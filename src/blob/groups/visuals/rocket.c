@@ -18,36 +18,6 @@ typedef struct tUVMatrix {
     /* 0x24 */ f32 pos[3];
 } tUVMatrix;
 
-/* The car record (tCarData, N64 layout: docs/port/CARS.md 2), the fields these functions use. */
-typedef struct tCarData {
-    /* 0x000 */ u8 pad0[0xE8];
-    /* 0x0E8 */ u32 appearance;
-    /* 0x0EC */ u8 padEC[0xF8 - 0xEC];
-    /* 0x0F8 */ s16 rwmph;          /* the speed, mph x 4, negative backwards */
-    /* 0x0FA */ u8 padFA[0x110 - 0xFA]; struct pc_visual visuals[21]; u8 pad308[0x344 - 0x308];
-    /* 0x344 */ u16 sound_flags[4]; /* each tire's road polygon's sound flags: bits 11-15 a colour of the track's */
-    /* 0x34C */ u32 IRclr;          /* the colour the car's frame takes (tRGBA) */
-    /* 0x350 */ u32 prevIRclr;
-    /* 0x354 */ u8 pad354[4];
-    /* 0x358 */ u8 pad358[2];
-    /* 0x35A */ s8 in_tunnel;       /* the sheen fades out in a tunnel */
-    /* 0x35B */ u8 pad35B;
-    /* 0x35C */ s8 camera;          /* the window that follows this car, -1 none */
-    /* 0x35D */ s8 view;            /* that window's view: 1 shows the hood, 2 and up the whole car */
-    /* 0x35E */ u8 pad35E;
-    /* 0x35F */ s8 carMine;         /* the car screen's "car mines" cheat shows the car as a mine */
-    /* 0x360 */ u32 sheenAlpha;
-    /* 0x364 */ u8 pad364[0x374 - 0x364];
-    /* 0x374 */ f32 roktScale[3];   /* the rocket car's three flames' lengths */
-    /* 0x380 */ void *player;       /* the car's input record, a host pointer */
-    /* 0x384 */ s8 weapon_type;     /* battle.weapon.type */
-    /* 0x385 */ u8 pad385[0x38C - 0x385];
-    /* 0x38C */ u32 defense_active; /* battle.defense.active: bit 0 the car is fading (invisibility) */
-    /* 0x390 */ u8 pad390[0x3A1 - 0x390];
-    /* 0x3A1 */ u8 fadeAlpha;       /* battle.fadeAlpha */
-    /* 0x3A2 */ u8 pad3A2[0x3B8 - 0x3A2];
-} tCarData;
-
 /* The model record (tModelData, docs/port/CARS.md 4), the fields these functions read. */
 typedef struct tModelData {
     /* 0x000 */ _tCar *car;
@@ -178,8 +148,8 @@ void AnimateFrame(tVisual *v, s16 op)
 
     nextclr = GetCarsIRColor(car, m);
     clr.w = nextclr.w;
-    car->prevIRclr = car->IRclr;
-    car->IRclr = clr.w;
+    car->prevIRclr.rgba = car->IRclr.rgba;
+    car->IRclr.rgba = clr.w;
     sclr1.w = SheenColors[gTrackNum][0].rgba;
     sclr2.w = SheenColors[gTrackNum][1].rgba;
 
@@ -200,10 +170,10 @@ void AnimateFrame(tVisual *v, s16 op)
     sclr2.b[3] = car->sheenAlpha;
     if (gRace == kGhost && slot > 0) {
         clr.b[3] = 0x80;
-    } else if (gRace == kBattle && (car->defense_active & 1)) {
-        clr.b[3] = car->fadeAlpha;
-        sclr1.b[3] = car->fadeAlpha;
-        sclr2.b[3] = car->fadeAlpha;
+    } else if (gRace == kBattle && (car->battle.defense.active & 1)) {
+        clr.b[3] = car->battle.fadeAlpha;
+        sclr1.b[3] = car->battle.fadeAlpha;
+        sclr2.b[3] = car->battle.fadeAlpha;
     } else {
         clr.b[3] = 0xFF;
     }
@@ -314,8 +284,8 @@ void AnimateRocketFlame(s16 slot, int hulk)
     MBOX_ShowObject(gCarParts[slot].extraparts[1],0,15);
     MBOX_ShowObject(gCarParts[slot].extraparts[2],0,15);
     if(gRace==kGhost && slot>0) clr.b[3]=128;
-    else if(gRace==kBattle && (car->defense_active&1))
-        clr.b[3]=car->fadeAlpha;
+    else if(gRace==kBattle && (car->battle.defense.active&1))
+        clr.b[3]=car->battle.fadeAlpha;
     ZOID_SetColor(gCarParts[slot].extraparts[0], &clr);
     ZOID_SetColor(gCarParts[slot].extraparts[1], &clr);
     ZOID_SetColor(gCarParts[slot].extraparts[2], &clr);
@@ -342,7 +312,7 @@ void AnimateRocketFlame(s16 slot, int hulk)
     flames[2]->pos[1]=pos[1];
     flames[2]->pos[2]=pos[2];
     b=0;
-    if(gRace==kBattle && car->weapon_type==3) {
+    if(gRace==kBattle && car->battle.weapon.type==3) {
         b=1;
         car->roktScale[0]=0.1f;
         car->roktScale[1]=0.1f;

@@ -50,6 +50,9 @@
 
 #include "pc_data.h"
 #include "pc_game_types.h"
+#include "pc_prelude.h"
+#define GAME_RECORDS_ONLY   /* include/game's records alone: the cars' records, which this file reads */
+#include "game/cars.h"
 #include "pc_lockstep.h"
 #include "ultra.h"
 

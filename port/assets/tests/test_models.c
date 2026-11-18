@@ -21,6 +21,8 @@
 #include <string.h>
 
 #include "pc_prelude.h"
+#define GAME_RECORDS_ONLY   /* include/game's records alone: this file stands in for the game's data */
+#include "game/cars.h"
 #include "support.h"
 
 #define ALIAS(name, base, off) __asm__(".globl " #name "\n.set " #name ", " #base " + " #off)
@@ -41,7 +43,7 @@ float gRetraceTime = 1.0f / 60, gModelTime;
 int8_t gNumActiveCars, gNoCarCollisions, gRumble;
 uint16_t modelrun;   /* volatile u16 in the game (physics.h) */
 struct { uint16_t count; void *points; } gResPath;          /* the track's path graph (path.c's Route) */
-struct pc_car pc_cars[PC_CAR_SLOTS];   /* the car records (pc_game_types.h), PC layout */
+tCarData pc_cars[PC_CAR_SLOTS];   /* the car records (pc_game_types.h), PC layout */
 
 /* What the code under test calls: each records what it was given. */
 static const void *g_seen[64];

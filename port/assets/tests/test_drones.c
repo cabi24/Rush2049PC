@@ -23,13 +23,15 @@
 #include <string.h>
 
 #include "pc_prelude.h"
+#define GAME_RECORDS_ONLY   /* include/game's records alone: this file stands in for the game's data */
+#include "game/cars.h"
 #include "support.h"
 
 /* ---------------------------------------------------------------- the game's data the code under test uses */
 
 struct pc_link pc_links[PC_LINK_SLOTS];
 struct pc_model pc_models[PC_MODEL_SLOTS];
-struct pc_car pc_cars[PC_CAR_SLOTS];
+tCarData pc_cars[PC_CAR_SLOTS];
 short pc_drones[PC_MAX_LINKS], pc_our_drones[PC_MAX_LINKS];
 float pc_mp_steer[PC_MAX_LINKS], pc_mp_brake[PC_MAX_LINKS], pc_mp_gas[PC_MAX_LINKS];
 float pc_mp_dir[PC_MAX_LINKS][3], pc_mp_save_dir[PC_MAX_LINKS][3];
@@ -372,7 +374,7 @@ static void test_sched_retire(void)
     for (int i = 0; i < 16; i++)
         CHECK(seen[i] == (i >= 5 && i < 15));
     /* A human (slot 0, with an input record) is done: the next round uses the one-human row of 10 drones. */
-    pc_cars[0].input = input;
+    pc_cars[0].player = (struct tPadState *)input;
     pc_cars[0].dead = 1;
     UpdateModel(0);
     CHECK(new_sched_to_use == 10 && num_our_drones == 10);

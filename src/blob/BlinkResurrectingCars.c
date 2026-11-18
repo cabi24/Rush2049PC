@@ -5,22 +5,6 @@
  * frames and shown for one, the hidden phase getting shorter as the time since the respawn grows. */
 #include "game/game.h"
 
-/* The car record (tCarData, N64 layout: docs/port/CARS.md 2), the fields BlinkResurrectingCars uses. */
-typedef struct tCarData
-{
-  u8 pad000[0xEC];
-  s8 data_valid;                                /* +0x0EC the record holds a car this race */
-  u8 pad0ED[0x110 - 0xED]; struct pc_visual visuals[21];
-  s8 collidable;                                /* +0x308 */
-  s8 solid;                                     /* +0x309 solid again since the last respawn */
-  u8 pad30A[0x30C - 0x30A];
-  f32 collide_time;                             /* +0x30C the model time it stopped being solid (the respawn) */
-  s8 collide_count;                             /* +0x310 frames left in this blink phase */
-  s8 collide_state;                             /* +0x311 the blink phase: odd shown, even hidden */
-  u8 pad312[0x359 - 0x312];
-  s8 dead;                                      /* +0x359 CAR_ABORTED, CAR_ALIVE, CAR_DYING, CAR_DEAD */
-} tCarData;
-
 /* The model record (tModelData), the fields BlinkResurrectingCars uses. */
 typedef struct tModelData
 {

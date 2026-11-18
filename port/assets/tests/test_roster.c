@@ -24,6 +24,8 @@
 #include <string.h>
 
 #include "pc_prelude.h"
+#define GAME_RECORDS_ONLY   /* include/game's records alone: this file stands in for the game's data */
+#include "game/cars.h"
 #include "support.h"
 
 #define ALIAS(name, base, off) __asm__(".globl " #name "\n.set " #name ", " #base " + " #off)
@@ -52,7 +54,7 @@ float collsize[13][4];
 struct { int16_t f0, first, f4, f6, count; } gCheckpoints;
 void *gCarModels;
 struct pc_model pc_models[PC_MODEL_SLOTS];    /* the model records (pc_game_types.h) */
-struct pc_car pc_cars[PC_CAR_SLOTS];   /* the car records (pc_game_types.h), PC layout */
+tCarData pc_cars[PC_CAR_SLOTS];   /* the car records (pc_game_types.h), PC layout */
 
 #define MODEL16(i, off) (*(int16_t *)((uint8_t *)&pc_models[i] + MODEL_OFS(off)))   /* at MAT3's offset */
 #define MODEL8(i, off) (*(int8_t *)((uint8_t *)&pc_models[i] + MODEL_OFS(off)))

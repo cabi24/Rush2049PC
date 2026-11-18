@@ -1,5 +1,5 @@
-/* port/assets/tests/test_carrecs.c: the car records (MAT3 gGameCar, gGameCar: pc_cars, struct pc_car,
- * port/include/pc_game_types.h) through the game's own readers and writers, with more records declared than the
+/* port/assets/tests/test_carrecs.c: the car records (MAT3 gGameCar: pc_cars, tCarData, include/game/cars.h)
+ * through the game's own readers and writers, with more records declared than the
  * game walks (docs/port/DECOUPLE.md 4). This test and its game objects are built with PC_MAX_LINKS 16
  * (CMakeLists.txt), so the storage has 16 records where the game build has 12 and the N64 6. Every record starts as
  * a sentinel: the code must write and read the fields at their PC offsets (CAR_OFS of the N64 ones), step 0x468
@@ -25,11 +25,13 @@
 #include <string.h>
 
 #include "pc_prelude.h"
+#define GAME_RECORDS_ONLY   /* include/game's records alone: this file stands in for the game's data */
+#include "game/cars.h"
 #include "support.h"
 
 /* ---------------------------------------------------------------- the game's data the code under test uses */
 
-struct pc_car pc_cars[PC_CAR_SLOTS];        /* data.c defines it in the game */
+tCarData pc_cars[PC_CAR_SLOTS];        /* data.c defines it in the game */
 struct pc_model pc_models[PC_MODEL_SLOTS];  /* the model records (pc_game_types.h) */
 struct pc_link pc_links[PC_LINK_SLOTS];     /* the race roster */
 #define SENTINEL 0xEE
@@ -121,19 +123,31 @@ static int only(int i, const int *ranges, int n)
 static void test_layout(void)
 {
     CHECK(PC_CAR_SLOTS == 16 && PC_MAX_LINKS == 16 && PC_N64_CAR_SLOTS == 6);   /* this test's build */
-    CHECK(sizeof(struct pc_car) == PC_CAR_SIZE && sizeof pc_cars == 16 * PC_CAR_SIZE);
-#define AT(f, n) (offsetof(struct pc_car, f) == CAR_OFS(n))
-    CHECK(AT(pos, 0x008) && AT(uvs, 0x02C) && AT(uvs50, 0x050) && AT(wheel_pos, 0x074) && AT(flags, 0x0E8));
-    CHECK(AT(place, 0x0EE) && AT(place_locked, 0x0EF) && AT(score, 0x0F0) && AT(node, 0x0F4) && AT(mph, 0x0F8));
-    CHECK(AT(distance, 0x100) && AT(mileage, 0x108) && AT(visuals, 0x110) && AT(nav, 0x314));
-    CHECK(AT(fwd_progress, 0x340) && AT(ir_color, 0x34C) && AT(prev_ir_color, 0x350) && AT(weight_index, 0x356));
-    CHECK(AT(crash_state, 0x358) && AT(dead, 0x359) && AT(in_tunnel, 0x35A) && AT(slot, 0x35B) && AT(camera, 0x35C));
-    CHECK(AT(sheen_alpha, 0x360) && AT(stray_angle, 0x364) && AT(input, 0x380) && AT(weapon_type, 0x384));
-    CHECK(AT(ammo_count, 0x385) && AT(health, 0x386) && AT(defense_active, 0x38C) && AT(shoot, 0x3A0));
-    CHECK(AT(fade_state, 0x3A2) && AT(points, 0x3A3) && AT(reloading_time, 0x3AC) && AT(battle_pitch, 0x3B0));
-    CHECK(AT(battle_yaw, 0x3B4));
+    CHECK(sizeof(tCarData) == PC_CAR_SIZE && sizeof pc_cars == 16 * PC_CAR_SIZE);
+    /* Every field where the N64's record had it, by CAR_OFS (the same fields in the same order, the visuals and the
+     * input pointer wider): the copies the game's files kept before one declaration had these N64 offsets. */
+#define AT(f, n) (offsetof(tCarData, f) == CAR_OFS(n))
+    CHECK(AT(modelIteration, 0x000) && AT(modelTime, 0x004) && AT(dr_pos, 0x008) && AT(dr_vel, 0x014));
+    CHECK(AT(dr_acc, 0x020) && AT(dr_uvs, 0x02C) && AT(dr_car_uvs, 0x050) && AT(dr_tirepos, 0x074) && AT(v, 0x0A4));
+    CHECK(AT(tireR, 0x0B0) && AT(pitch, 0x0E0) && AT(roll, 0x0E4) && AT(appearance, 0x0E8) && AT(data_valid, 0x0EC));
+    CHECK(AT(restart, 0x0ED) && AT(place, 0x0EE) && AT(place_locked, 0x0EF) && AT(score, 0x0F0) && AT(objnum, 0x0F4));
+    CHECK(AT(rwmph, 0x0F8) && AT(lastResPath, 0x0FA) && AT(lastResIdx, 0x0FC) && AT(resIdx, 0x0FE));
+    CHECK(AT(distance, 0x100) && AT(last_distance, 0x104) && AT(mileage, 0x108) && AT(crashtime, 0x10C));
+    CHECK(AT(visuals, 0x110) && AT(collidable, 0x308) && AT(solid, 0x309) && AT(collide_time, 0x30C));
+    CHECK(AT(collide_count, 0x310) && AT(collide_state, 0x311) && AT(mpctl, 0x314) && AT(fwd_progress_t, 0x340));
+    CHECK(AT(sound_flags, 0x344) && AT(IRclr, 0x34C) && AT(prevIRclr, 0x350) && AT(last_mpath, 0x354));
+    CHECK(AT(weight_index, 0x356) && AT(crash_state, 0x358) && AT(dead, 0x359) && AT(in_tunnel, 0x35A));
+    CHECK(AT(slot, 0x35B) && AT(camera, 0x35C) && AT(view, 0x35D) && AT(saveview, 0x35E) && AT(carMine, 0x35F));
+    CHECK(AT(sheenAlpha, 0x360) && AT(strayAngle, 0x364) && AT(stuntW, 0x368) && AT(roktScale, 0x374));
+    CHECK(AT(player, 0x380) && AT(battle.weapon.type, 0x384) && AT(battle.weapon.ammoCnt, 0x385));
+    CHECK(AT(battle.health, 0x386) && AT(battle.damageThisFrame, 0x388) && AT(battle.defense.active, 0x38C));
+    CHECK(AT(battle.defense.invsTime, 0x390) && AT(battle.defense.shldTime, 0x394));
+    CHECK(AT(battle.defense.shldScale, 0x398) && AT(battle.defense.shldPitch, 0x39C) && AT(battle.shoot, 0x3A0));
+    CHECK(AT(battle.fadeAlpha, 0x3A1) && AT(battle.fadeState, 0x3A2) && AT(battle.Points, 0x3A3));
+    CHECK(AT(battle.loaded, 0x3A4) && AT(battle.fadeTime, 0x3A8) && AT(battle.reloadingTime, 0x3AC));
+    CHECK(AT(battle.pitch, 0x3B0) && AT(battle.yaw, 0x3B4) && offsetof(tCarData, scenes) == PC_CAR_SIZE - 4);
 #undef AT
-    CHECK(offsetof(struct pc_car, visuals[20]) == CAR_OFS(0x110 + 20 * 0x18) && sizeof(struct pc_visual) == 0x28);
+    CHECK(offsetof(tCarData, visuals[20]) == CAR_OFS(0x110 + 20 * 0x18) && sizeof(struct pc_visual) == 0x28);
     CHECK(offsetof(struct pc_visual, data) == VIS_OFS(0xC) && offsetof(struct pc_visual, timeStamp) == VIS_OFS(0x10));
     CHECK(offsetof(struct pc_visual, func) == VIS_OFS(0x14) && PC_CAR_SIZE == 0x510);
     CHECK(PC_CAR(3) == (void *)((uint8_t *)pc_cars + 3 * 0x510) && PC_CARS == (void *)pc_cars);

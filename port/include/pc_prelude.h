@@ -46,8 +46,8 @@ unsigned int pc_n64_identity(const void *p);
 void pc_os_spin_yield(const char *site);
 void pc_os_idle(void);
 
-/* A visual (tVisual: N64 0x18 bytes, PC 0x28), struct pc_visual, is declared with the car record in
- * pc_game_types.h (included at the end), for views of the car record that pad over the car's 21 visuals. */
+/* A visual (tVisual: N64 0x18 bytes, PC 0x28), struct pc_visual, is declared in pc_game_types.h (included at the
+ * end); the car record (tCarData, include/game/cars.h) holds 21 of them. */
 
 /* NewMultiBlit's descriptor (NewMultiBlit; MultiBlit, arcade LIB/blit.h): N64 36 bytes, PC 48, its texture name and
  * animation function being pointers. A file whose declaration of such a table has no layout (s32, u8[]) declares it
@@ -60,11 +60,12 @@ struct pc_multiblit {
     unsigned int animid;
 };
 
-/* The car record (gGameCar, 6 cars) is 0x510 bytes on the PC, 0x3B8 on the N64: its 21 visuals are 0x28 bytes (struct
- * pc_visual: next, the data word and func pointer-sized) from +0x110 to N64 +0x308, and its input record pointer at
- * N64 +0x380 is 8 bytes. CAR_OFS(n) is the PC offset of N64 offset n, which may run into the next cars (CAR_OFS(0x3B8)
- * is the PC stride). Code that reaches cars by raw offsets goes through it. Inside a visual the N64's next (+0) stays
- * at +0, index, objnum and slot (+4..+0xA) and data (+0xC) move 4 bytes on, timeStamp (+0x10) 8 and func (+0x14) 0xC. */
+/* The car record (tCarData, include/game/cars.h) is 0x510 bytes on the PC, 0x3B8 on the N64: its 21 visuals are 0x28
+ * bytes (struct pc_visual: next, the data word and func pointer-sized) from +0x110 to N64 +0x308, and its input
+ * record pointer at N64 +0x380 is 8 bytes. CAR_OFS(n) is the PC offset of N64 offset n, which may run into the next
+ * cars (CAR_OFS(0x3B8) is the PC stride): the asset tests check the record's fields against the N64's offsets with
+ * it, and reach a field by the N64 offset its test names. Inside a visual the N64's next (+0) stays at +0, index,
+ * objnum and slot (+4..+0xA) and data (+0xC) move 4 bytes on, timeStamp (+0x10) 8 and func (+0x14) 0xC. */
 #define PC_CAR_SIZE 0x510
 #define PC_VIS_REL(o) ((o) < 4 ? (o) : (o) < 0x10 ? (o) + 4 : (o) < 0x14 ? (o) + 8 : (o) + 0xC)
 #define PC_CAR_REL(r) ((r) < 0x110 ? (r) : (r) < 0x308 ? 0x110 + ((r) - 0x110) / 0x18 * 0x28 \

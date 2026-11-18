@@ -4,8 +4,6 @@
 /* A car visual (tVisual) on the PC: 0x28 bytes, next, data and func pointer-sized (struct pc_visual, docs/port/CARS.md
  * 3). */
 typedef struct tVisual { struct tVisual *next; s16 index, objnum, slot; uintptr_t data; f32 timeStamp; void (*func)(struct tVisual *v, s16 op); } tVisual;
-/* The car record (tCarData, N64 layout: docs/port/CARS.md 2), the fields UpdateVisuals reads. */
-typedef struct tCarData { u8 pad0[0xE8]; u32 appearance; u8 pad0EC[0x110 - 0xEC]; tVisual visuals[21]; u8 pad308[0x380 - 0x308]; void *player; u8 pad384[0x3B8 - 0x384]; } tCarData;
 
 /* Once a frame for car `slot`: judge whether the frame rate is good enough for the costly effects (gGoodFrameRate:
  * the last frame took under 36 ms at 50 Hz, 45 ms in split screen, else 30 ms; frame_cycle_count is in CPU counts,
@@ -15,7 +13,7 @@ typedef struct tCarData { u8 pad0[0xE8]; u32 appearance; u8 pad0EC[0x110 - 0xEC]
 void UpdateVisuals(s16 slot)
 {
     tCarData *car = PC_CAR(slot);
-    tVisual *v = &car->visuals[0];
+    tVisual *v = (tVisual *) &car->visuals[0];   /* wave 4: tVisual */
     s16 i;
     f32 usec;
 

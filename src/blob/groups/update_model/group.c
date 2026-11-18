@@ -14,22 +14,6 @@ float sqrtf(float);
 /* The players' input records (tPadState: the car each drives, its controller, its profile). */
 extern tPadState gPlayers[];
 
-/* The car record (tCarData, N64 layout: docs/port/CARS.md 2), the fields used here. */
-typedef struct tCarData {
-    u8 pad00[0xEF];
-    s8 place_locked;            /* 0x0EF finished */
-    u8 padF0[0x110 - 0xF0]; struct pc_visual visuals[21]; u8 padF0_308[0x30C - 0x308];
-    f32 collide_time;           /* 0x30C the model time it stopped being solid */
-    u8 pad310[0x358 - 0x310];
-    s8 crash_state;             /* 0x358 CRASH_NONE, CRASH_WRECKED, CRASH_RESPAWN */
-    s8 dead;                    /* 0x359 CAR_ABORTED, CAR_ALIVE, CAR_DYING, CAR_DEAD */
-    u8 pad35A[0x380 - 0x35A];
-    tPadState *player;          /* 0x380 the car's input record, a host pointer; NULL for a drone */
-    u8 pad384[0x388 - 0x384];
-    s16 damageThisFrame;        /* 0x388 battle.damageThisFrame */
-    u8 pad38A[0x3B8 - 0x38A];
-} tCarData;
-
 /* The model record (tModelData, docs/port/CARS.md 4), the fields used here. (Its tag is ModelRecord because
  * include/game/system.h declares update_model with that name.) */
 typedef struct ModelRecord {
@@ -247,8 +231,8 @@ void UpdateModel(s32 slot) {
                     if ((s8) car->crash_state == CRASH_WRECKED) {
                         work += 100000;
                     } else {
-                        work += (car->damageThisFrame * 100000) / 800;
-                        car->damageThisFrame = 0;
+                        work += (car->battle.damageThisFrame * 100000) / 800;
+                        car->battle.damageThisFrame = 0;
                     }
                 }
                 step_force = RUMBLE_STEPS;

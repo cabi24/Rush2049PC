@@ -102,6 +102,120 @@
 #define STREAK_DONE          0x1000     /* its shot is gone: free it, its ribbon fades out over 0.2 s */
 #define STREAK_STARTED       0x2000     /* the ribbon has its first edge */
 
+/* Records */
+
+/* A car's defence in battle (MAT3 tCarData.battle.defense): its invisibility and its shield. UpdateDefense (shots.c)
+ * counts the times down and grows, spins and shrinks the shield. */
+typedef struct tCarDefense {
+    u32 active;                 /* the defences on: 1 invisible, 2 the shield, 4 no damage from hits */
+    f32 invsTime;               /* the invisibility's seconds left */
+    f32 shldTime;               /* the shield's seconds to its next step (it grows, holds 30 s, then shrinks) */
+    f32 shldScale;              /* the shield's size now, up to gShieldSizes[body] */
+    f32 shldPitch;              /* the shield's spin: its pitch, turned a little each frame */
+} tCarDefense;
+
+/* A car's weapon (MAT3 tCarData.battle.weapon). */
+typedef struct tCarWeapon {
+    s8 type;                    /* the weapon carried (WEAPON_NONE 8) */
+    s8 ammoCnt;                 /* its ammunition, shown when not negative */
+} tCarWeapon;
+
+/* A car's battle state (MAT3 tCarData.battle): its weapon, health and defence, its fade while it turns invisible,
+ * and its gun's aim. */
+typedef struct tCarBattle {
+    tCarWeapon weapon;
+    s16 health;                 /* 800 full */
+    s16 damageThisFrame;        /* the damage taken this frame, which the model step turns into a push */
+    tCarDefense defense;
+    s8 shoot;                   /* frames of the gun's flash left (6 a shot) */
+    u8 fadeAlpha;               /* the car's alpha while it is invisible or fading */
+    s8 fadeState;               /* 0 seen, 1 fading out, 2 fading in (hit), 3 invisible */
+    s8 Points;                  /* battle points, or what is left of them (FindWinner ranks by it) */
+    s32 loaded;                 /* a carried mine: 1 made, 2 carried, 0 none */
+    f32 fadeTime;               /* the fade's seconds left */
+    f32 reloadingTime;          /* seconds until the weapon may fire again */
+    f32 pitch;                  /* the gun's aim: up and down (ElevateGun) */
+    f32 yaw;                    /* and sideways */
+} tCarBattle;
+
+/* A car as the race shows and follows it (MAT3 tCarData, the cars' records gGameCar; pc_cars on the PC): one per car
+ * slot. update_game_data copies it from the car's model record (tModelData, the physics) once a frame: the dead-
+ * reckoned position and orientation the cameras, the effects and the HUD read, the appearance bits the visuals draw,
+ * the wheels and the speed. It also holds the car's 21 visuals, its place and finish, its drone path state, its
+ * window and camera view, and its battle state. The race clears the records at its start (init_cars). */
+typedef struct tCarData {
+    s32 modelIteration;         /* the model step the record was copied at */
+    f32 modelTime;              /* and that step's time, seconds */
+    f32 dr_pos[3];              /* the position, dead-reckoned from the model: what the cameras and effects follow */
+    f32 dr_vel[3];              /* the velocity, feet a second */
+    f32 dr_acc[3];              /* the acceleration */
+    f32 dr_uvs[3][3];           /* the orientation: its rows the car's axes, x (sideways), y (up), z (forwards) */
+    f32 dr_car_uvs[3][3];       /* the body's orientation as drawn: dr_uvs with its pitch and roll */
+    f32 dr_tirepos[4][3];       /* each tire's place in the world (the skid marks, the smoke) */
+    f32 v[3];                   /* the velocity in the car's own frame (the tire smoke) */
+    f32 tireR[4][3];            /* each tire's place in the car's frame (its descriptor's) */
+    f32 pitch;                  /* the body's lean forwards and back, smoothed from the tire forces */
+    f32 roll;                   /* and sideways */
+    u32 appearance;             /* APPEAR_*: the effects the car shows (the model's appearance, copied) */
+    s8 data_valid;              /* the record holds a frame's data (cleared at the race start) */
+    s8 restart;                 /* 1 a respawn was asked for, -1 the crash's wait */
+    s8 place;                   /* the race place, 0 the first */
+    s8 place_locked;            /* 1 once it has finished: its place stays */
+    f32 score;                  /* the finish time or score CarReportsGameOver ranks by */
+    s32 objnum;                 /* the body's scene object (a handle whose low half is the object), -1 none */
+    s16 rwmph;                  /* the speed shown, mph x 4 */
+    s16 lastResPath;            /* the respawn path it was on last, -1 none (GetResPt) */
+    s16 lastResIdx;             /* the point on that path */
+    s16 resIdx;                 /* the respawn path's point it is at */
+    f32 distance;               /* the distance along the track (the race order) */
+    f32 last_distance;          /* the distance a frame before */
+    f32 mileage;                /* the distance driven (InitCPTime zeroes it at the start) */
+    f32 crashtime;              /* the model time it crashed (the wreck's wait to respawn) */
+    struct pc_visual visuals[CAR_VISUALS];   /* the car's visuals, VIS_* (MAT3's 22 less the headlights) */
+                                /* wave 4: tVisual */
+    s8 collidable;              /* other cars collide with it */
+    s8 solid;                   /* it can be hit (it blinks, not solid, after a respawn) */
+    f32 collide_time;           /* the model time it stopped being solid */
+    s8 collide_count;
+    s8 collide_state;           /* -1 at the start; bit 0 solid again */
+    struct pc_car_nav mpctl;    /* the drone's path state (maxpath) */
+                                /* wave 4: tPathPoint */
+    f32 fwd_progress_t;         /* the model time it stopped making progress, 0 while it does (the stuck check) */
+    u16 sound_flags[4];         /* each tire's surface sound flags; bit 8 a tunnel */
+    tRGBA IRclr;                /* its IR colour (battle: its tint while invisible and its missile's colour) */
+                                /* wave 4: tRGBA */
+    tRGBA prevIRclr;            /* the one before (the sheen fades between them) */
+                                /* wave 4: tRGBA */
+    s16 last_mpath;             /* the drone path it was on last */
+    s16 weight_index;           /* a drone's row of the drone weights (DoDrones' order) */
+    s8 crash_state;             /* CRASH_*: its crash (physics.h) */
+    s8 dead;                    /* CAR_*: in the race, dying or out (a deaths race) */
+    s8 in_tunnel;               /* in a tunnel: no wind, the sheen fades */
+    s8 slot;                    /* its own slot: the index in pc_cars, pc_models and the roster */
+    s8 camera;                  /* the window that shows it, -1 none */
+    s8 view;                    /* the camera view of that window (0 the bumper ... 2 the chase) */
+    s8 saveview;                /* the view to go back to (after the finish's or the pause's) */
+    s8 carMine;                 /* it carries a mine (the "car mines" cheat): it goes off when it hits a car */
+    u32 sheenAlpha;             /* the paint's sheen, 0 to 255 */
+    f32 strayAngle;             /* its angle to the way round, radians: past 90 degrees the WRONG WAY sign */
+    f32 stuntW[3];              /* the spin the model step added this frame (the stunts' rotations) */
+    f32 roktScale[3];           /* the rocket car's three flames' sizes */
+    struct tPadState *player;   /* its input record (gPlayers[]), NULL for a drone */
+    tCarBattle battle;
+    u32 scenes;                 /* PC: for car 8 and up, bit n set while it is in a scene trigger of collision index
+                                 * n (0-31), which the trigger's flags have no bit for (TargetCollTrigger, MORECARS.md
+                                 * 3.1); in the record's own padding, so the record is the size it was */
+} tCarData;
+
+/* The cars' records (MAT3 gGameCar), one per car slot: PC data with no N64 address (port/data/decoupled.txt), the most
+ * cars a PC race holds (PC_CAR_SLOTS, port/include/pc_game_types.h). Every walk of them stops at the cars in the race,
+ * 6 unless the [game] cars setting asks for more. */
+extern tCarData pc_cars[PC_CAR_SLOTS];
+
+/* Port code that reads the records, or stands in for the game's data itself (the asset tests define pc_cars and the
+ * data their game files use, with types of their own), defines GAME_RECORDS_ONLY and gets the records alone. */
+#ifndef GAME_RECORDS_ONLY
+
 /* Data */
 /* The six physics descriptors (MAT3's basic, forward, backward, shortie, stretch and truck, in MAT3's order), which
  * gCarModels points at by car type; nothing names them but the car set-up's pc_car_setup_data. */
@@ -295,5 +409,7 @@ void UpdateSkids(s32 slot);
 void UpdateSmoke(void);
 void UpdateStreaks(void);
 void UpdateVisuals(s16 slot);
+
+#endif /* GAME_RECORDS_ONLY */
 
 #endif /* GAME_CARS_H */

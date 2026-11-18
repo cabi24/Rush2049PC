@@ -34,8 +34,6 @@ typedef struct tModelData {
  u8 pad7C8[0x7F8 - 0x7C8];
  float skidIntensity[4];        /* +0x7F8 each tire's skid sound level */
 } tModelData;
-/* The car record (tCarData), the fields Init_MDrive reads and writes. */
-typedef struct tCarData {u8 pad0[4];float modelTime;u8 pad8[0x110 - 0x8]; struct pc_visual visuals[21]; u8 pad308[0x358 - 0x308];s8 crash_state,dead;u8 pad35A[10];float strayAngle;u8 tail[0x380 - 0x368]; void *player; u8 tail_384[0x3B8 - 0x384];} tCarData;
 
 static void multiinit_n64(s16,s16);
 

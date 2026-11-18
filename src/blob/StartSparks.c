@@ -4,11 +4,6 @@
  * rear corners and under the car (their animators are in groups/sparks). */
 #include "game/game.h"
 
-/* The car record (tCarData), its visuals (struct pc_visual: index, objnum, slot, data, timeStamp, func). */
-typedef struct tCarData {
-    u8 pad0[0x110]; struct pc_visual visuals[21]; u8 pad308[0x380 - 0x308]; void *player; u8 pad384[0x3B8 - 0x384];
-} tCarData;
-
 /* Set car `slot`'s visuals 1-5 to the five sparks, each not sparking yet (index -1) and drawing its spark object.
  * The attract demo (gGameState 8: GS_DEMO) has no sparks. */
 void StartSparks(s16 slot) {

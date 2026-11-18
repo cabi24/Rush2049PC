@@ -39,23 +39,6 @@ typedef struct tModelData {
     /* 0x7CC */ s8 drone_type;          /* DRONE_TYPE_HUMAN: a human's car */
 } tModelData;
 
-/* The car record (tCarData, N64 layout: docs/port/CARS.md 2), the fields used here. */
-typedef struct tCarData {
-    /* 0x000 */ char pad0[0x110 - 0x0]; struct pc_visual visuals[21]; char pad0_308[0x358 - 0x308];
-    /* 0x358 */ s8 crash_state;         /* CRASH_NONE, CRASH_WRECKED, CRASH_RESPAWN */
-    /* 0x359 */ s8 dead;                /* CAR_ABORTED, CAR_ALIVE, CAR_DYING, CAR_DEAD */
-    /* 0x35A */ s8 in_tunnel;
-    /* 0x35B */ s8 slot;
-    /* 0x35C */ char pad35C[3];
-    /* 0x35F */ s8 carMine;             /* it carries a car mine: the next car it hits crashes */
-    /* 0x360 */ char pad360[0x380 - 0x360]; void *input;
-    /* 0x384 */ s8 weapon_type;         /* battle.weapon.type: 5 the ram */
-    /* 0x385 */ s8 weapon_ammoCnt;      /* battle.weapon.ammoCnt */
-    /* 0x386 */ char pad386[0x26];
-    /* 0x3AC */ f32 reloadingTime;      /* battle.reloadingTime: seconds until the weapon is ready again */
-    /* 0x3B0 */ char pad3B0[8];
-} tCarData;
-
 f32 fabsf(f32);
 
 /* Collide cars m1 and m2: a corner of one is inside the other's body, `pos` that corner in m2's frame, `dir` the
@@ -120,24 +103,24 @@ void setFBCollisionForce(tModelData *m, tModelData *m1, tModelData *m2, f32 *dir
     behind = (cent[0] < m2->bodyR[0][0]) && (cent[0] > m2->bodyR[3][0]);
 
     if (gRace == kBattle && gCarTeam[gc1->slot] != gCarTeam[gc2->slot]) {
-        if (gc1->weapon_type == 5 && m2->resurrect_moving_state == RES_IDLE && gc1->reloadingTime <= 0 &&
+        if (gc1->battle.weapon.type == 5 && m2->resurrect_moving_state == RES_IDLE && gc1->battle.reloadingTime <= 0 &&
             gc2->crash_state == CRASH_NONE) {
             temp[0] = m2->reckon_rwr[0] - m1->reckon_rwr[0];
             temp[1] = m2->reckon_rwr[1] - m1->reckon_rwr[1];
             temp[2] = m2->reckon_rwr[2] - m1->reckon_rwr[2];
             BodyVector(temp, cent2, m1->reckon_uvs[0]);
             if (cent2[2] > 2.25f) {
-                gc1->reloadingTime = 0.3333333f;
-                gc1->weapon_ammoCnt--;
+                gc1->battle.reloadingTime = 0.3333333f;
+                gc1->battle.weapon.ammoCnt--;
                 damage = 160;
                 damage += m1->magvel * 7.0f;
                 BattleDamage(gc1, gc2, damage);
             }
-        } else if (gc2->weapon_type == 5 && m1->resurrect_moving_state == RES_IDLE && gc2->reloadingTime <= 0 &&
+        } else if (gc2->battle.weapon.type == 5 && m1->resurrect_moving_state == RES_IDLE && gc2->battle.reloadingTime <= 0 &&
                    gc1->crash_state == CRASH_NONE) {
             if (cent[2] > 2.25f) {
-                gc2->reloadingTime = 0.3333333f;
-                gc2->weapon_ammoCnt--;
+                gc2->battle.reloadingTime = 0.3333333f;
+                gc2->battle.weapon.ammoCnt--;
                 damage = 160;
                 damage += m2->magvel * 7.0f;
                 BattleDamage(gc2, gc1, damage);

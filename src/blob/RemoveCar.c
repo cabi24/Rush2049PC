@@ -13,15 +13,6 @@ typedef struct tVisual {
   M2C_UNK (*func)(struct tVisual *v, M2C_UNK op);   /* its animator */
 } tVisual;
 
-/* The car record (tCarData, N64 layout: docs/port/CARS.md 2), the fields RemoveCar reads. */
-typedef struct tCarData
-{
-  u8 pad000[0xF4];
-  s32 objnum;                   /* +0x0F4 the frame's scene object, -1 none */
-  u8 pad0F8[0x110 - 0xF8];
-  tVisual visuals[21];          /* +0x110 */
-} tCarData;
-
 /* If car `slot` is in the scene, remove its frame object (and so the parts under it), then stop each of its
  * visuals: an animator is called with op 0 (stop: it hides its own objects), a visual without one has its object
  * hidden. MAT3 also frees the car's shadow strips here; the N64's shadow is a polygon (StartShadow). */
@@ -37,7 +28,7 @@ void RemoveCar(s16 slot)
     car = PC_CAR(slot);
     if (car->objnum >= 0) {
       MBOX_HideObject(gCarParts[slot].frame, 2, 15);
-      v = car->visuals;
+      v = (tVisual *) car->visuals;   /* wave 4: tVisual */
       i = 0;
       do {
         func = v->func;

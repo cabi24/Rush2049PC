@@ -118,22 +118,6 @@ typedef struct tPathPoint {
     s16 basePath;               /* 0x2a */
 } tPathPoint;
 
-/* The car record (tCarData, N64 layout: docs/port/CARS.md 2), the fields used here. */
-typedef struct tCarData {       /* N64 0x3B8 */
-    u8 pad000[0xED];
-    s8 restart;                 /* 0x0ed */
-    u8 pad0EE[0x110 - 0xEE]; struct pc_visual visuals[21];
-    s8 collidable;              /* 0x308 */
-    s8 solid;                   /* 0x309 */
-    float collide_time;         /* 0x30c */
-    s8 collide_count;           /* 0x310 */
-    s8 collide_state;           /* 0x311 */
-    tPathPoint mpctl;           /* 0x314 */
-    u8 pad340[0x344 - 0x340];
-    u16 sound_flags[4];         /* 0x344 */
-    u8 pad34C[0x380 - 0x34C]; void *input; u8 pad34C_384[0x3B8 - 0x384];
-} tCarData;
-
 typedef struct tDronePt {       /* anon_pos_mph_8 */
     s16 pos[3];
     u8 mph;

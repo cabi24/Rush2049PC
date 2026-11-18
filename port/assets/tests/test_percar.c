@@ -28,6 +28,8 @@
 #include <string.h>
 
 #include "pc_prelude.h"
+#define GAME_RECORDS_ONLY   /* include/game's records alone: this file stands in for the game's data */
+#include "game/cars.h"
 #include "support.h"
 
 #define CARS 12                  /* the race's */
@@ -37,7 +39,7 @@
 
 /* ---------------------------------------------------------------- the game's data the code under test uses */
 
-struct pc_car pc_cars[PC_CAR_SLOTS];
+tCarData pc_cars[PC_CAR_SLOTS];
 struct pc_model pc_models[PC_MODEL_SLOTS];
 struct pc_link pc_links[PC_LINK_SLOTS];
 struct pc_engine_sound pc_engine_sounds[PC_MAX_LINKS];   /* data.c defines these in the game */

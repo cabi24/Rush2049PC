@@ -48,16 +48,6 @@ typedef struct tModelData {
     s8 drone_type;               /* +0x7CC 2 a human */
     u8 tail[59];
 } tModelData;
-/* The car record (tCarData, N64 layout: docs/port/CARS.md 2), the fields AnimateTire reads. */
-typedef struct tCarData {
-    u8 pad000[232];
-    u32 appearance;              /* +0x0E8 APPEAR_* */
-    u8 pad0EC[12];
-    s16 rwmph;                   /* +0x0F8 the speed, mph x 4 */
-    u8 pad0FA[0x110 - 0xFA]; struct pc_visual visuals[21]; u8 pad308[0x35C - 0x308];
-    s8 camera,view,saveview,carMine;   /* +0x35C the window that follows the car (-1 none) and its view */
-    u8 tail[0x380 - 0x360]; void *player; u8 tail_384[0x3B8 - 0x384];
-} tCarData;
 /* The car's physics descriptor (MAT3 _tCar, gCarModels[body]), its tire fields. */
 typedef struct tCar {
     u8 pad000[96];

@@ -25,15 +25,6 @@ typedef struct tModelData {
     /* 0x7CD */ u8 pad7CD[0x3B];
 } tModelData; /* 0x808 */
 
-/* The car record (tCarData, N64 layout: docs/port/CARS.md 2), the race fields. */
-typedef struct {
-    /* 0x000 */ u8 pad0[0xEE];
-    /* 0x0EE */ u8 place;           /* the start place */
-    /* 0x0EF */ u8 padEF[0x110 - 0xEF]; struct pc_visual visuals[21]; u8 padEF_308[0x35B - 0x308];
-    /* 0x35B */ s8 slot;
-    /* 0x35C */ u8 pad35C[0x380 - 0x35C]; void *input; u8 pad35C_384[0x3B8 - 0x384];
-} tCarData; /* 0x3B8 */
-
 /* For each of the gNumCars slots: whether this machine simulates it, and if the roster has it in the race, its
  * slot and start place, its kind (drone or human) and its place in the model records' list of active slots
  * (gNumActiveCars of them, PC_MODEL_SLOT(n)). The slots past gNumCars are out of the race. Then the lists: humans[]

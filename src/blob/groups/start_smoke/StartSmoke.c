@@ -5,9 +5,6 @@
  * then moves, grows and fades. */
 #include "game/game.h"
 
-/* The car record (tCarData, N64 offsets; docs/port/CARS.md 2): the fields the puffs start from. dr_uvs's rows are
- * the car's axes: [0] x (sideways), [1] y (up), [2] z (forwards). */
-typedef struct tCarData { u8 pad0[8]; f32 dr_pos[3]; f32 dr_vel[3]; u8 pad20[12]; f32 dr_uvs[3][3]; u8 pad50[36]; f32 dr_tirepos[4][3]; u8 padA4[84]; s16 rwmph; u8 padFA[0x110 - 0xFA]; struct pc_visual visuals[21]; u8 pad308[0x35C - 0x308]; s8 camera; s8 view; u8 pad35E[0x380 - 0x35E]; void *player; u8 pad384[0x3B8 - 0x384]; } tCarData;
 /* The model record (tModelData): body_type, the tires' surfaces (sviscode[4], SURF_VIS_*) and the suspension's
  * compression (reckon.suscomp). sviscode is declared 8 long here because StartSmoke reads it for every type. */
 typedef struct tModelData {_tCar *car; Tune44 *tune;u8 body_type;u8 pad9[919]; streetyp *lasttp[4]; u8 pad3B0[92]; const s16 *torquecurve; u8 pad410[524];u16 sviscode[8];u8 pad62C[28]; surftyp *movingSurface; u8 pad64C[272];f32 reckon_suscomp[4];u8 pad76C[156];} tModelData;

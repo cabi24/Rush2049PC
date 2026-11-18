@@ -25,24 +25,7 @@ typedef struct SmokePuff {
     s16 slot;           /* 84: the car it came from */
     s16 tIdx;           /* 86: its animation frame, 0-7 (fire: -1 while growing, then 0-14) */
 } SmokePuff;
-/* The car record (tCarData, N64 offsets; docs/port/CARS.md 2), the fields the puffs follow. */
-typedef struct tCarData {
-    u8 pad0[8];
-    Vec3 dr_pos;        /* 8 */
-    Vec3 dr_vel;        /* 20 */
-    u8 pad32[12];
-    Mat3 dr_uvs;        /* 44: its orientation: right, up, forward */
-    u8 pad80[36];
-    Vec3 dr_tirepos[4]; /* 116 */
-    u8 pad164[84];
-    s16 rwmph;          /* 248: mph x 4 */
-    u8 pad250[0x110 - 0xFA]; struct pc_visual visuals[21]; u8 pad308[0x35C - 0x308];
-    s8 camera;          /* 860: the view that follows the car, a bit of the views' mask */
-    s8 view;            /* 861: that view's camera mode (0 and 1 hide the car's own sprays and smoke) */
-    u8 pad35E[0x380 - 0x35E]; void *player; u8 pad384[0x3B8 - 0x384];
-} tCarData;
 
-/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 /* On the PC the tire-effect latches are pc_tire_fx, PC_MAX_LINKS long, with no N64 address (pc_game_types.h,
  * docs/port/DECOUPLE.md 6). */

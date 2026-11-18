@@ -17,20 +17,6 @@ typedef struct tVisual {
     f32 timeStamp;
     void (*func)(struct tVisual *, s16);
 } tVisual;
-/* The car record (tCarData, N64 offsets; docs/port/CARS.md 2): its place, its crash and its battle state. */
-typedef struct tCarData {
-    u8 pad0[8];
-    f32 dr_pos[3];          /* 8 */
-    u8 pad14[0x110 - 0x14]; struct pc_visual visuals[21]; u8 pad308[0x358 - 0x308];
-    s8 crash_state;         /* 856 */
-    u8 pad359[0x380 - 0x359]; void *player; u8 pad384[0x38C - 0x384];
-    u32 defense_active;     /* 908: battle.defense.active (bit 0: invisible) */
-    u8 pad390[928 - 912];
-    s8 shoot;               /* 928: battle.shoot */
-    u8 fadeAlpha;           /* 929: battle.fadeAlpha */
-    s8 fadeState;           /* 930: battle.fadeState */
-    u8 pad3A3[952 - 931];
-} tCarData;
 /* The model record (tModelData): the respawn's state, the slot, who drives. */
 typedef struct tModelData {
     _tCar *car;
@@ -92,13 +78,13 @@ void AnimateArrow(tVisual *v, s16 op) {
         ZOID_HidePoly(&PolyInstanceList[v->objnum]);
         return;
     }
-    if (gRace == kBattle && (car->defense_active & 1)) {
-        if (car->fadeState == 1) {
-            clr.c.a = car->fadeAlpha;
-        } else if (car->fadeState == 2) {
-            clr.c.a = car->fadeAlpha;
+    if (gRace == kBattle && (car->battle.defense.active & 1)) {
+        if (car->battle.fadeState == 1) {
+            clr.c.a = car->battle.fadeAlpha;
+        } else if (car->battle.fadeState == 2) {
+            clr.c.a = car->battle.fadeAlpha;
         } else {
-            clr.c.a = arrowinvsColor[car->shoot];
+            clr.c.a = arrowinvsColor[car->battle.shoot];
         }
         if (clr.c.a < 32) {
             clr.c.a = 32;

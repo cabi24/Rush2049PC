@@ -13,6 +13,8 @@
 #include <string.h>
 
 #include "pc_prelude.h"
+#define GAME_RECORDS_ONLY   /* include/game's records alone: this file stands in for the game's data */
+#include "game/cars.h"
 #include "support.h"
 
 /* NewMultiBlit.c's Blit: the layout every PC view has. */
@@ -42,7 +44,7 @@ _Static_assert(offsetof(Blit, Hide) == 0x26 && offsetof(Blit, AnimID) == 0x40, "
 int8_t gDeathMode;
 int16_t gNumWindows;
 struct pc_model pc_models[PC_MODEL_SLOTS];             /* the model records (pc_game_types.h): model[i].slot */
-struct pc_car pc_cars[PC_CAR_SLOTS];                  /* the car records (pc_game_types.h): car[slot].place_locked */
+tCarData pc_cars[PC_CAR_SLOTS];                  /* the car records (pc_game_types.h): car[slot].place_locked */
 struct { int32_t x, y; } bonesPos[4][4];             /* bonesPos [windows - 1][player] */
 uint8_t controller_dim_color[4], pause_dim_color[4];                  /* the idle overlay's and the dialog's colours */
 int32_t gGameState;

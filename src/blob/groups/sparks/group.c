@@ -7,22 +7,6 @@
  * spark textures while its scrape lasts, turned along the car's motion and smaller at low speed. */
 #include "game/game.h"
 
-/* The car record (tCarData, N64 offsets; docs/port/CARS.md 2): its motion, its tires' places and its appearance. */
-typedef struct {
-    u8 pad000[0xA4];
-    f32 v[3];                   /* 0xA4 the car's velocity, in its own axes */
-    f32 tireR[4][3];            /* 0xB0 the tires' places, in the car's axes */
-    u8 pad0E0[0xE8 - 0xE0];
-    s32 appearance;             /* 0xE8 APPEAR_* */
-    u8 pad0EC[0x110 - 0xEC]; struct pc_visual visuals[21]; u8 pad308[0x35B - 0x308];
-    u8 slot;
-    u8 pad35C[0x380 - 0x35C];
-    void *player;
-    u8 pad384[0x3A3 - 0x384];
-    u8 Points;
-    u8 pad3A4[0x3B8 - 0x3A4];
-} tCarData;
-
 /* A car visual (MAT3 tVisual) as the sparks use it. PC: next is a host pointer. */
 typedef struct tVisual {
     /* 0x0 */ void *next;

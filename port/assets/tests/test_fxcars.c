@@ -25,6 +25,8 @@
 #include <string.h>
 
 #include "pc_prelude.h"
+#define GAME_RECORDS_ONLY   /* include/game's records alone: this file stands in for the game's data */
+#include "game/cars.h"
 #include "support.h"
 
 #define ALIAS(name, base, off) __asm__(".globl " #name "\n.set " #name ", " #base " + " #off)
@@ -43,7 +45,7 @@ struct pc_skid pc_skids[PC_MAX_LINKS][4];
 
 /* ---------------------------------------------------------------- the game's data the code under test uses */
 
-struct pc_car pc_cars[PC_CAR_SLOTS];
+tCarData pc_cars[PC_CAR_SLOTS];
 struct pc_model pc_models[PC_MODEL_SLOTS];
 struct pc_link pc_links[PC_LINK_SLOTS];
 #define CF(i, n, T) (*(T *)((uint8_t *)&pc_cars[i] + CAR_OFS(n)))   /* car i's field at N64 offset n */

@@ -29,6 +29,8 @@
 #include <string.h>
 
 #include "pc_prelude.h"
+#define GAME_RECORDS_ONLY   /* include/game's records alone: this file stands in for the game's data */
+#include "game/cars.h"
 #include "support.h"
 
 #define ALIAS(name, base, off) __asm__(".globl " #name "\n.set " #name ", " #base " + " #off)
@@ -198,7 +200,7 @@ float gRetraceTime = 1.0f / 60;                   /* gRetraceTime */
 volatile int8_t gEndingGhosts;
 int32_t gModelIteration;
 struct pc_model pc_models[PC_MODEL_SLOTS];    /* the model records (pc_game_types.h) */
-struct pc_car pc_cars[PC_CAR_SLOTS];            /* the car records (pc_game_types.h) */
+tCarData pc_cars[PC_CAR_SLOTS];            /* the car records (pc_game_types.h) */
 int16_t gPickedPak;
 int8_t gCarHandling[13], gCarEngines[13], gCarTires[13], gCarFrame[13], gCarWings[13], car_color_choice_a[13],
     car_color_choice_b[13], car_color_choice_c[13], gTireRims[13], gCarHorn[13];   /* the default car settings */
