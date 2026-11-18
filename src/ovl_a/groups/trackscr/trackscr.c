@@ -7,7 +7,6 @@
 #include "game/game.h"
 #define Gfx GfxView   /* this file's own Gfx: include/game's Gfx is another type */
 
-typedef struct tMenuButton {s32 type,handle;f32 angle,matrix[3][3],position[3];u8 alpha,pad[3];} tMenuButton;
 /* A player's pad record (MAT3 tPadState, gPlayers): its buttons and its profile. */
 typedef struct Player {u8 slot,controller,pad02[2];u32 pressed,levels,repeated;u8 unknown10[56];tProfile **save;} Player;
 
@@ -29,6 +28,10 @@ typedef struct Player {u8 slot,controller,pad02[2];u32 pressed,levels,repeated;u
 #define TRACK_BUTTON_B_ARROW 47
 #define TRACK_BUTTONS 48
 
+/* The screen's button table with its extent, which include/game leaves open (EXTENT): this file's code is compiled
+ * knowing it, as it always was. */
+extern MenuButton trackscr_buttonInfo[TRACK_BUTTONS];
+
 #define WAVE_PATHS 158                  /* a race track's path data: this + the track */
 
 extern Player gPlayers[];        /* gPlayers */
@@ -37,9 +40,6 @@ extern Player gPlayers[];        /* gPlayers */
  * docs/port/MORECARS.md 1.3, 10.1): 5 with the setting at original, as on the N64. Its reset value and its default
  * (GetDefaultOption, GetDefaultOption) stay 5, so a player who never touches it races 6 cars. */
 #define PC_DRONES_MAX (pc_cars_setting() - 1)
-
-VIEW(tMenuButton[48], trackscr_buttonInfo);
-#define trackscr_buttonInfo trackscr_buttonInfo_view
 
 /* game functions */
 extern void *memcpy(void *,const void *,u32);

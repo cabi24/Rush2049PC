@@ -194,11 +194,11 @@ s32 CheckAndRepairPlayer(tProfile **h, s32 repair) {
             }
         }
     }
-    if (CalcChecksumInternal(&save->circuit.active, sizeof(tCircuitRecord) - 4) != save->circuit.checksum) {
+    if (CalcChecksumInternal(&save->circuit.active, sizeof(tCircuit) - 4) != save->circuit.checksum) {
         dirty = 1;
         if (repair) {
-            memset(&save->circuit, 0, sizeof(tCircuitRecord));
-            PS_WriteFile((*h)->fileh, &save->circuit, sizeof(tCircuitRecord));
+            memset(&save->circuit, 0, sizeof(tCircuit));
+            PS_WriteFile((*h)->fileh, &save->circuit, sizeof(tCircuit));
         }
     }
     for (i = 0; i < 13; i++) {

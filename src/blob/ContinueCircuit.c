@@ -1,22 +1,6 @@
 /* ContinueCircuit: a circuit's races and drones, from its seed (MAT3 circuit.c). */
 #include "game/game.h"
 
-/* A player's circuit in progress (MAT3 tCircuit), in their profile's save data at 0x6F4. No pointers: the same
- * layout on both. */
-struct tCircuit {
-    u32 checksum;       /* 0x00 */
-    u8 active;          /* 0x04 */
-    u8 death;           /* 0x05 the death option: out of the circuit after a crash */
-    u8 temp;            /* 0x06 entered by a circuit code: the points so far are gTempCircuitPoints' */
-    u8 difficulty;      /* 0x07 */
-    s8 type;            /* 0x08 kCircuitBeginner ... kCircuitExtreme */
-    s8 track;           /* 0x09 the races driven */
-    u8 pad0A[2];
-    u32 seed;           /* 0x0C the circuit's random seed (its tracks, its drones) */
-    f32 totalTime;      /* 0x10 */
-    u8 ranks[6][9];     /* 0x14 each car's place in each race, 3 bits a race */
-};
-
 /* A player's input record (gPlayers): its profile slot and profile. */
 typedef struct { u8 pad0; u8 selector; u8 pad[0x46]; tProfile **profile; } InRec;
 extern InRec gPlayers[];
@@ -39,7 +23,7 @@ void ContinueCircuit(void) {
     s32 m;
     s32 x;
     tSaveData *v;
-    struct tCircuit *info;
+    tCircuit *info;
     u8 pad[8];
     v = *((*gPlayers[gCircuitPlayer].profile)->datah);
     info = &v->circuit;
@@ -149,12 +133,13 @@ void ContinueCircuit(void) {
 
 /* The circuit's current race slot, gCircuitTracks[gCircuitTrack], as the game reads it. Before ContinueCircuit has
  * set up a circuit's races gCircuitTrack can be -1 (the track select of a circuit not begun), and the game then read
- * the five bytes before the table, which on the PC are the bytes the N64's layout put there: the last byte of
- * audio_cursorSpeed as memory holds it (on a little-endian PC its top byte, where the N64 had its lowest), the circuit
- * player's number (gCircuitPlayer) and three bytes of padding, zero. That slot is built from those here, so the game
- * reads what it did. */
-const CircuitTrackSlot *CurrentCircuitTrack(void) {
-    static CircuitTrackSlot before;
+ * the five bytes before the table, as the N64's memory had them: the last byte of audio_cursorSpeed, the circuit
+ * player's number (gCircuitPlayer) and three bytes of padding, zero. That slot is built from those here, the bytes
+ * as the PC holds them, as every PC build has read it: the float's last byte is its top byte on a little-endian PC
+ * (0x43 for the cursor speeds it holds), where the N64 read its lowest (0). So until the circuit is set up its race
+ * slot's track is 0x43 on the PC, where it was 0 on the N64; kept, so the game reads what the PC game always did. */
+const tCircuitTrack *CurrentCircuitTrack(void) {
+    static tCircuitTrack before;
     if (gCircuitTrack >= 0) {
         return &gCircuitTracks[gCircuitTrack];
     }

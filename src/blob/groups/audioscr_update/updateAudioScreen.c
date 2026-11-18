@@ -6,20 +6,6 @@
 /* The audio screen's lines (gAudioMenuSelect). */
 enum { AUDIO_MENU_SFX = 0, AUDIO_MENU_MUSIC = 1, AUDIO_MENU_SONG = 2, AUDIO_MENU_MONO = 3 };
 
-/* An audio screen button (audio_buttonInfo: 0-3 the lines' left buttons, 4-7 their right, 8 the cursor, 9-11
- * the decorations). */
-typedef struct {
-    s32 type;            /* 0x00 */
-    s32 handle;          /* 0x04 */
-    f32 ang;             /* 0x08 */
-    f32 mat[3][3];       /* 0x0C */
-    f32 pos[3];          /* 0x30 */
-    u8 pad3C[4];
-} Button; /* 0x40 */
-
-VIEW(Button[], audio_buttonInfo);
-#define audio_buttonInfo audio_buttonInfo_view
-
 f32 fabsf(f32);
 void *memcpy(void *, const void *, u32);
 
@@ -52,34 +38,34 @@ void audio_updateButtons(void) {
     for (i = 0; i < 4; i++) {
         if (i == gAudioMenuSelect) {
             sel_y = y;
-            if (audio_buttonInfo[i].ang < 3.1415927f)
-                audio_buttonInfo[i].ang += 12.566371f * gFrameSeconds;
-            if (3.1415927f < audio_buttonInfo[i].ang || audio_buttonsJustInited == 1)
-                audio_buttonInfo[i].ang = 3.1415927f;
+            if (audio_buttonInfo[i].angle < 3.1415927f)
+                audio_buttonInfo[i].angle += 12.566371f * gFrameSeconds;
+            if (3.1415927f < audio_buttonInfo[i].angle || audio_buttonsJustInited == 1)
+                audio_buttonInfo[i].angle = 3.1415927f;
         } else {
-            if (0.0f < audio_buttonInfo[i].ang)
-                audio_buttonInfo[i].ang -= 12.566371f * gFrameSeconds;
-            if (audio_buttonInfo[i].ang < 0.0f || audio_buttonsJustInited == 1)
-                audio_buttonInfo[i].ang = 0.0f;
+            if (0.0f < audio_buttonInfo[i].angle)
+                audio_buttonInfo[i].angle -= 12.566371f * gFrameSeconds;
+            if (audio_buttonInfo[i].angle < 0.0f || audio_buttonsJustInited == 1)
+                audio_buttonInfo[i].angle = 0.0f;
         }
-        memcpy(audio_buttonInfo[i].mat, unitmatrix, 36);
-        memcpy(old, audio_buttonInfo[i].pos, 12);
-        audio_buttonInfo[i].pos[0] = -90.0f;
-        audio_buttonInfo[i].pos[1] = y;
-        audio_buttonInfo[i].pos[2] = 300.0f;
+        memcpy(audio_buttonInfo[i].matrix, unitmatrix, 36);
+        memcpy(old, audio_buttonInfo[i].position, 12);
+        audio_buttonInfo[i].position[0] = -90.0f;
+        audio_buttonInfo[i].position[1] = y;
+        audio_buttonInfo[i].position[2] = 300.0f;
         if (audio_buttonsJustInited == 0) {
-            if (old[1] + 180.0f * gFrameSeconds < audio_buttonInfo[i].pos[1])
-                audio_buttonInfo[i].pos[1] = old[1] + 180.0f * gFrameSeconds;
-            if (audio_buttonInfo[i].pos[1] < old[1] - 180.0f * gFrameSeconds)
-                audio_buttonInfo[i].pos[1] = old[1] - 180.0f * gFrameSeconds;
+            if (old[1] + 180.0f * gFrameSeconds < audio_buttonInfo[i].position[1])
+                audio_buttonInfo[i].position[1] = old[1] + 180.0f * gFrameSeconds;
+            if (audio_buttonInfo[i].position[1] < old[1] - 180.0f * gFrameSeconds)
+                audio_buttonInfo[i].position[1] = old[1] - 180.0f * gFrameSeconds;
         }
-        audio_buttonInfo[i + 4].ang = audio_buttonInfo[i].ang;
-        audio_buttonInfo[i + 4].pos[0] = 150.0f;
-        audio_buttonInfo[i + 4].pos[1] = audio_buttonInfo[i].pos[1];
-        audio_buttonInfo[i + 4].pos[2] = audio_buttonInfo[i].pos[2];
-        WPitchUV(audio_buttonInfo[i].ang - 1.5707964f, audio_buttonInfo[i].mat);
-        memcpy(audio_buttonInfo[i + 4].mat, audio_buttonInfo[i].mat, 36);
-        if (1.5707964f < audio_buttonInfo[i].ang)
+        audio_buttonInfo[i + 4].angle = audio_buttonInfo[i].angle;
+        audio_buttonInfo[i + 4].position[0] = 150.0f;
+        audio_buttonInfo[i + 4].position[1] = audio_buttonInfo[i].position[1];
+        audio_buttonInfo[i + 4].position[2] = audio_buttonInfo[i].position[2];
+        WPitchUV(audio_buttonInfo[i].angle - 1.5707964f, audio_buttonInfo[i].matrix);
+        memcpy(audio_buttonInfo[i + 4].matrix, audio_buttonInfo[i].matrix, 36);
+        if (1.5707964f < audio_buttonInfo[i].angle)
             texture = MBOX_FindTexture_WORK("BUTTON_SELECT", &tex, 0, (s8)(gNumModels[0] - 1), 1);
         else
             texture = MBOX_FindTexture_WORK("BUTTON", &tex, 0, (s8)(gNumModels[0] - 1), 1);
@@ -94,31 +80,31 @@ void audio_updateButtons(void) {
             y -= 40.0f;
         }
     }
-    memcpy(old, audio_buttonInfo[8].pos, 12);
-    audio_buttonInfo[8].ang += 6.2831855f * gFrameSeconds;
-    if (6.2831855f < audio_buttonInfo[8].ang)
-        audio_buttonInfo[8].ang -= 6.2831855f;
-    memcpy(audio_buttonInfo[8].mat, unitmatrix, 36);
-    audio_buttonInfo[8].pos[0] = -160.0f;
-    audio_buttonInfo[8].pos[2] = 225.0f;
-    audio_buttonInfo[8].pos[1] = sel_y * 225.0f / 300.0f;
+    memcpy(old, audio_buttonInfo[8].position, 12);
+    audio_buttonInfo[8].angle += 6.2831855f * gFrameSeconds;
+    if (6.2831855f < audio_buttonInfo[8].angle)
+        audio_buttonInfo[8].angle -= 6.2831855f;
+    memcpy(audio_buttonInfo[8].matrix, unitmatrix, 36);
+    audio_buttonInfo[8].position[0] = -160.0f;
+    audio_buttonInfo[8].position[2] = 225.0f;
+    audio_buttonInfo[8].position[1] = sel_y * 225.0f / 300.0f;
     if (audio_buttonsJustInited == 0) {
-        y = audio_buttonInfo[8].pos[1];
+        y = audio_buttonInfo[8].position[1];
         if (audio_cursorSpeed < fabsf(y - old[1]) * 60.0f / 10.0f) {
             audio_cursorSpeed = fabsf(y - old[1]) * 60.0f / 10.0f;
             audio_cursorSpeed = (audio_cursorSpeed < 540.0f * audio_gButtonScale) ? audio_cursorSpeed : 540.0f * audio_gButtonScale;
             audio_cursorSpeed = (180.0f * audio_gButtonScale < audio_cursorSpeed) ? audio_cursorSpeed : 180.0f * audio_gButtonScale;
         }
         if (old[1] + audio_cursorSpeed * gFrameSeconds < y)
-            audio_buttonInfo[8].pos[1] = old[1] + audio_cursorSpeed * gFrameSeconds;
+            audio_buttonInfo[8].position[1] = old[1] + audio_cursorSpeed * gFrameSeconds;
         else if (y < old[1] - audio_cursorSpeed * gFrameSeconds)
-            audio_buttonInfo[8].pos[1] = old[1] - audio_cursorSpeed * gFrameSeconds;
+            audio_buttonInfo[8].position[1] = old[1] - audio_cursorSpeed * gFrameSeconds;
         else
             audio_cursorSpeed = 180.0f * audio_gButtonScale;
     }
-    WRollUV(audio_buttonInfo[8].ang, audio_buttonInfo[8].mat);
-    WPitchUV(1.5707964f, audio_buttonInfo[8].mat);
-    ScaleUV(audio_buttonInfo[8].mat, audio_buttonInfo[8].mat, 0.4f);
+    WRollUV(audio_buttonInfo[8].angle, audio_buttonInfo[8].matrix);
+    WPitchUV(1.5707964f, audio_buttonInfo[8].matrix);
+    ScaleUV(audio_buttonInfo[8].matrix, audio_buttonInfo[8].matrix, 0.4f);
     audio_buttonsJustInited = 0;
 }
 

@@ -7,7 +7,7 @@
 void GetCircuitCode(u8 *code)
 {
     s32 i;
-    tCircuitRecord *circuit;
+    tCircuit *circuit;
     circuit = &(*(*gPlayers_save[gCircuitPlayer].profile)->datah)->circuit;
     ContinueCircuit();
     gCircuitTrack -= 1;

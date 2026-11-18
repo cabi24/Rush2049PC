@@ -2,10 +2,7 @@
 #include "game/game.h"
 
 
-typedef struct { s32 type, handle; f32 ang; f32 mat[3][3]; f32 pos[3]; u8 pad3C[4]; } Button;   /* 0x40 */
 
-VIEW(Button[32], options_buttonInfo);
-#define options_buttonInfo options_buttonInfo_view
 void *memcpy(void *, const void *, u32);
 
 /* Counts the options offered (gMenuCount) and how many lines of them fit below the title (gOptionMenuSize). */
@@ -36,10 +33,10 @@ void op_initButtons(void)
 
     for (buttonIdx = 0; buttonIdx < 32; buttonIdx++) {
         if (options_buttonInfo[buttonIdx].handle == -1) {
-            memcpy(options_buttonInfo[buttonIdx].mat, unitmatrix, 36);
+            memcpy(options_buttonInfo[buttonIdx].matrix, unitmatrix, 36);
             options_buttonInfo[buttonIdx].handle = MBOX_NewObject(
                 MBOX_FindObject_WORK(options_buttonNames[options_buttonInfo[buttonIdx].type], 0, gNumModels[0] - 1, 1),
-                &options_buttonInfo[buttonIdx].mat, -1,
+                &options_buttonInfo[buttonIdx].matrix, -1,
                 (options_buttonInfo[buttonIdx].type == 0 || options_buttonInfo[buttonIdx].type == 1 ||
                  options_buttonInfo[buttonIdx].type == 2) ? 0x42000 : 0);
             ZOID_SetColor(options_buttonInfo[buttonIdx].handle, &buttonColor);
@@ -49,24 +46,24 @@ void op_initButtons(void)
     ZOID_SetTexture(options_buttonInfo[28].handle, tex, -1);
     tex = MBOX_FindTexture_WORK("B1", &texIdx, 0, gNumModels[0] - 1, 1);
     ZOID_SetTexture(options_buttonInfo[29].handle, tex, -1);
-    memcpy(options_buttonInfo[29].mat, unitmatrix, 36);
-    WPitchUV(-1.5707964f, options_buttonInfo[29].mat);
-    options_buttonInfo[29].pos[0] = -75.1f;
-    options_buttonInfo[29].pos[1] = 55.2f;
-    options_buttonInfo[29].pos[2] = 100.0f;
-    ScaleUV(options_buttonInfo[29].mat, options_buttonInfo[29].mat, 0.5f);
-    memcpy(options_buttonInfo[30].mat, unitmatrix, 36);
-    WPitchUV(-1.5707964f, options_buttonInfo[30].mat);
-    options_buttonInfo[30].pos[0] = -87.1f;
-    options_buttonInfo[30].pos[1] = 55.2f;
-    options_buttonInfo[30].pos[2] = 100.0f;
+    memcpy(options_buttonInfo[29].matrix, unitmatrix, 36);
+    WPitchUV(-1.5707964f, options_buttonInfo[29].matrix);
+    options_buttonInfo[29].position[0] = -75.1f;
+    options_buttonInfo[29].position[1] = 55.2f;
+    options_buttonInfo[29].position[2] = 100.0f;
+    ScaleUV(options_buttonInfo[29].matrix, options_buttonInfo[29].matrix, 0.5f);
+    memcpy(options_buttonInfo[30].matrix, unitmatrix, 36);
+    WPitchUV(-1.5707964f, options_buttonInfo[30].matrix);
+    options_buttonInfo[30].position[0] = -87.1f;
+    options_buttonInfo[30].position[1] = 55.2f;
+    options_buttonInfo[30].position[2] = 100.0f;
     tex = MBOX_FindTexture_WORK("BUTTON_TITLE", &texIdx, 0, gNumModels[0] - 1, 1);
     ZOID_SetTexture(options_buttonInfo[31].handle, tex, -1);
-    memcpy(options_buttonInfo[31].mat, unitmatrix, 36);
-    WPitchUV(-1.5707964f, options_buttonInfo[31].mat);
-    options_buttonInfo[31].pos[0] = 0.0f;
-    options_buttonInfo[31].pos[1] = 115.0f;
-    options_buttonInfo[31].pos[2] = 200.0f;
+    memcpy(options_buttonInfo[31].matrix, unitmatrix, 36);
+    WPitchUV(-1.5707964f, options_buttonInfo[31].matrix);
+    options_buttonInfo[31].position[0] = 0.0f;
+    options_buttonInfo[31].position[1] = 115.0f;
+    options_buttonInfo[31].position[2] = 200.0f;
     options_buttonsInited = 1;
     options_buttonsJustInited = 1;
     ZeroCameras();

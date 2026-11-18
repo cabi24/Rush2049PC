@@ -1,17 +1,7 @@
 /* The audio options screen's close (MAT3 audioscr.c's uninitScreen and uninitButtons). */
 #include "game/game.h"
 
-typedef struct {
-    s32 type;            /* 0x00 */
-    s32 handle;          /* 0x04 */
-    u8 pad08[0x38];
-} UButton; /* 0x40 */
-
-VIEW(UButton[12], audio_buttonInfo);
-#define audio_buttonInfo audio_buttonInfo_view
-
 s32 osSendMesg(OSMesgQueue *, void *, s32);
-
 
 /* Closes the audio screen: stops the song, and if the screen was set up removes its buttons, its panes (in the
  * pause screen), its blit and the background. */

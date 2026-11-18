@@ -30,6 +30,16 @@ enum {
 /* HAL_SetTextPos: leave that coordinate as it is. */
 #define TEXT_POS_KEEP (-0x8000)
 
+/* A box of text on the screen, in pixels: its top left corner and its size (TB_DrawTextScrollBox's box). The record
+ * screen's views are drawn in gScreenRect (MAT3 recordscr.c's, anon_x_y_c: x, y, w, h, then the box's centre cx, cy,
+ * which nothing reads and the data loader leaves out). */
+typedef struct TextBox {
+    s16 x;
+    s16 y;
+    s16 width;
+    s16 height;
+} TextBox;
+
 /* gFontAttribute holds the blitter attributes (BLIT_ATTR_*) the text is drawn with: BLIT_ATTR_TALL from
  * HAL_StartText on a tall screen, BLIT_ATTR_ZDIST from a text depth, BLIT_ATTR_XLU from a translucency. */
 

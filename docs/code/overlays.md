@@ -100,7 +100,7 @@ code.
 - `tBlitDef` (MAT3's, 0x24 bytes on the N64, 0x30 on the PC): texture name, position and size, z, alpha, callback, callback id; one
   table per screen. The callback slot is how the screen's `animText` is reached; on the PC the data loader resolves
   that N64 address to the function.
-- `tCircuit` (the circuit record: active, type, track), MAT3's `tCircuitCar` (one car's circuit results), MAT3's
+- `tCircuit` (MAT3's circuit record, in the profile's save data: types.h), MAT3's `tCircuitCar` (one car's circuit results), MAT3's
   doubly linked list (`gGhostFiles`, `gPlayerFiles`: 16 bytes,
   count, head at +8, tail at +12).
 - Labels into the middle of an object, or shifted by an index IDO folded in, are named `<object>_<field>` and

@@ -4,12 +4,6 @@
  * is startscr_text.c. */
 #include "game/game.h"
 
-/* A 3D menu button (MAT3 tMenuButton without its alpha): its type (startscr_buttonNames), its scene object, its
- * turn, its matrix (uvs[3] its position). */
-typedef struct ButtonInfo { s32 buttonType; s32 objIdx; f32 angle; f32 uvs[4][3]; } ButtonInfo;
-
-VIEW(ButtonInfo[18], startscr_buttonInfo);
-#define startscr_buttonInfo startscr_buttonInfo_view
 
 extern f32 fabsf(f32);
 extern void *memcpy(void *, const void *, u32);
@@ -46,6 +40,10 @@ int pc_start_exit(int exit, int select);
 #define START_CURSOR 16
 #define START_PLAYER_CURSOR 17      /* the cursor over the player count */
 #define START_BUTTONS 18
+
+/* The screen's button table with its extent, which include/game leaves open (EXTENT): this file's code is compiled
+ * knowing it, as it always was. */
+extern StartScreenButton startscr_buttonInfo[START_BUTTONS];
 
 /* Start watching for code `egg`: this file's own InitEgg, which numbers the start menu's code 23 (start_screen_egg,
  * just past gEggs). */
@@ -204,50 +202,51 @@ void startscr_initButtons(void)
     u16 texIdx;
     s32 buttonIdx;
     for (buttonIdx = 0; buttonIdx < START_BUTTONS; buttonIdx++)
-        if (startscr_buttonInfo[buttonIdx].objIdx == -1) {
-            memcpy(startscr_buttonInfo[buttonIdx].uvs, unitmatrix, 48);   /* with unitmatrix_origin, its position */
-            startscr_buttonInfo[buttonIdx].objIdx = MBOX_NewObject(
-                MBOX_FindObject_WORK(startscr_buttonNames[startscr_buttonInfo[buttonIdx].buttonType], 0, gNumModels[0] - 1, 1),
-                startscr_buttonInfo[buttonIdx].uvs, -1,
-                (startscr_buttonInfo[buttonIdx].buttonType == 0 || startscr_buttonInfo[buttonIdx].buttonType == 1) ? 0x42000 : 0);
-            ZOID_SetColor(startscr_buttonInfo[buttonIdx].objIdx, &buttonColor);
+        if (startscr_buttonInfo[buttonIdx].handle == -1) {
+            /* the identity matrix and, from unitmatrix's fourth row, the origin as its position */
+            memcpy(startscr_buttonInfo[buttonIdx].matrix, unitmatrix, 48);
+            startscr_buttonInfo[buttonIdx].handle = MBOX_NewObject(
+                MBOX_FindObject_WORK(startscr_buttonNames[startscr_buttonInfo[buttonIdx].type], 0, gNumModels[0] - 1, 1),
+                startscr_buttonInfo[buttonIdx].matrix, -1,
+                (startscr_buttonInfo[buttonIdx].type == 0 || startscr_buttonInfo[buttonIdx].type == 1) ? 0x42000 : 0);
+            ZOID_SetColor(startscr_buttonInfo[buttonIdx].handle, &buttonColor);
         }
     tex = MBOX_FindTexture_WORK("BUTTON_TITLE", &texIdx, 0, gNumModels[0] - 1, 1);
-    ZOID_SetTexture(startscr_buttonInfo[START_TITLE].objIdx, tex, -1);
-    memcpy(startscr_buttonInfo[START_TITLE].uvs, unitmatrix, 36);
-    WPitchUV(-1.5707964f, startscr_buttonInfo[START_TITLE].uvs);
-    startscr_buttonInfo[START_TITLE].uvs[3][0] = 0.0f;
-    startscr_buttonInfo[START_TITLE].uvs[3][1] = 115.0f;
-    startscr_buttonInfo[START_TITLE].uvs[3][2] = 200.0f;
+    ZOID_SetTexture(startscr_buttonInfo[START_TITLE].handle, tex, -1);
+    memcpy(startscr_buttonInfo[START_TITLE].matrix, unitmatrix, 36);
+    WPitchUV(-1.5707964f, startscr_buttonInfo[START_TITLE].matrix);
+    startscr_buttonInfo[START_TITLE].position[0] = 0.0f;
+    startscr_buttonInfo[START_TITLE].position[1] = 115.0f;
+    startscr_buttonInfo[START_TITLE].position[2] = 200.0f;
     tex = MBOX_FindTexture_WORK("A1", &texIdx, 0, gNumModels[0] - 1, 1);
-    ZOID_SetTexture(startscr_buttonInfo[START_A_ICON].objIdx, tex, -1);
-    memcpy(startscr_buttonInfo[START_A_ICON].uvs, unitmatrix, 36);
-    WPitchUV(-1.5707964f, startscr_buttonInfo[START_A_ICON].uvs);
-    startscr_buttonInfo[START_A_ICON].uvs[3][0] = 75.1f;
-    startscr_buttonInfo[START_A_ICON].uvs[3][1] = 55.2f;
-    startscr_buttonInfo[START_A_ICON].uvs[3][2] = 100.0f;
-    ScaleUV(startscr_buttonInfo[START_A_ICON].uvs[0], startscr_buttonInfo[START_A_ICON].uvs[0], 0.5f);
-    memcpy(startscr_buttonInfo[START_A_ARROW].uvs, unitmatrix, 36);
-    WPitchUV(-1.5707964f, startscr_buttonInfo[START_A_ARROW].uvs);
-    WRollUV(3.1415927f, startscr_buttonInfo[START_A_ARROW].uvs);
-    startscr_buttonInfo[START_A_ARROW].uvs[3][0] = 87.1f;
-    startscr_buttonInfo[START_A_ARROW].uvs[3][1] = 55.2f;
-    startscr_buttonInfo[START_A_ARROW].uvs[3][2] = 100.0f;
+    ZOID_SetTexture(startscr_buttonInfo[START_A_ICON].handle, tex, -1);
+    memcpy(startscr_buttonInfo[START_A_ICON].matrix, unitmatrix, 36);
+    WPitchUV(-1.5707964f, startscr_buttonInfo[START_A_ICON].matrix);
+    startscr_buttonInfo[START_A_ICON].position[0] = 75.1f;
+    startscr_buttonInfo[START_A_ICON].position[1] = 55.2f;
+    startscr_buttonInfo[START_A_ICON].position[2] = 100.0f;
+    ScaleUV(startscr_buttonInfo[START_A_ICON].matrix, startscr_buttonInfo[START_A_ICON].matrix, 0.5f);
+    memcpy(startscr_buttonInfo[START_A_ARROW].matrix, unitmatrix, 36);
+    WPitchUV(-1.5707964f, startscr_buttonInfo[START_A_ARROW].matrix);
+    WRollUV(3.1415927f, startscr_buttonInfo[START_A_ARROW].matrix);
+    startscr_buttonInfo[START_A_ARROW].position[0] = 87.1f;
+    startscr_buttonInfo[START_A_ARROW].position[1] = 55.2f;
+    startscr_buttonInfo[START_A_ARROW].position[2] = 100.0f;
     tex = MBOX_FindTexture_WORK("B1", &texIdx, 0, gNumModels[0] - 1, 1);
-    ZOID_SetTexture(startscr_buttonInfo[START_B_ICON].objIdx, tex, -1);
-    memcpy(startscr_buttonInfo[START_B_ICON].uvs, unitmatrix, 36);
-    WPitchUV(-1.5707964f, startscr_buttonInfo[START_B_ICON].uvs);
-    startscr_buttonInfo[START_B_ICON].uvs[3][0] = -75.1f;
-    startscr_buttonInfo[START_B_ICON].uvs[3][1] = 55.20f;
-    startscr_buttonInfo[START_B_ICON].uvs[3][2] = 100.0f;
-    ScaleUV(startscr_buttonInfo[START_B_ICON].uvs[0], startscr_buttonInfo[START_B_ICON].uvs[0], 0.5f);
-    memcpy(startscr_buttonInfo[START_B_ARROW].uvs, unitmatrix, 36);
-    WPitchUV(-1.5707964f, startscr_buttonInfo[START_B_ARROW].uvs);
-    startscr_buttonInfo[START_B_ARROW].uvs[3][0] = -87.1f;
-    startscr_buttonInfo[START_B_ARROW].uvs[3][1] = 55.20f;
-    startscr_buttonInfo[START_B_ARROW].uvs[3][2] = 100.0f;
+    ZOID_SetTexture(startscr_buttonInfo[START_B_ICON].handle, tex, -1);
+    memcpy(startscr_buttonInfo[START_B_ICON].matrix, unitmatrix, 36);
+    WPitchUV(-1.5707964f, startscr_buttonInfo[START_B_ICON].matrix);
+    startscr_buttonInfo[START_B_ICON].position[0] = -75.1f;
+    startscr_buttonInfo[START_B_ICON].position[1] = 55.20f;
+    startscr_buttonInfo[START_B_ICON].position[2] = 100.0f;
+    ScaleUV(startscr_buttonInfo[START_B_ICON].matrix, startscr_buttonInfo[START_B_ICON].matrix, 0.5f);
+    memcpy(startscr_buttonInfo[START_B_ARROW].matrix, unitmatrix, 36);
+    WPitchUV(-1.5707964f, startscr_buttonInfo[START_B_ARROW].matrix);
+    startscr_buttonInfo[START_B_ARROW].position[0] = -87.1f;
+    startscr_buttonInfo[START_B_ARROW].position[1] = 55.20f;
+    startscr_buttonInfo[START_B_ARROW].position[2] = 100.0f;
     tex = MBOX_FindTexture_WORK("CURSOR", &texIdx, 0, gNumModels[0] - 1, 1);
-    ZOID_SetTexture(startscr_buttonInfo[START_CURSOR].objIdx, tex, -1);
+    ZOID_SetTexture(startscr_buttonInfo[START_CURSOR].handle, tex, -1);
     startscr_buttonsInited = 1;
     startscr_buttonsJustInited = 1;
     ZeroCameras();
@@ -258,9 +257,9 @@ void startscr_uninitButtons(void)
 {
     s32 buttonIdx;
     for (buttonIdx = 0; buttonIdx < START_BUTTONS; buttonIdx++)
-        if (startscr_buttonInfo[buttonIdx].objIdx != -1) {
-            ZOID_RemoveObject(startscr_buttonInfo[buttonIdx].objIdx);
-            startscr_buttonInfo[buttonIdx].objIdx = -1;
+        if (startscr_buttonInfo[buttonIdx].handle != -1) {
+            ZOID_RemoveObject(startscr_buttonInfo[buttonIdx].handle);
+            startscr_buttonInfo[buttonIdx].handle = -1;
         }
     startscr_buttonsInited = 0;
 }
@@ -282,10 +281,10 @@ void startscr_updateButtons(void)
     selectedY = startscr_maxY;
     for (buttonIdx = 0; buttonIdx < kStartMenuCount; buttonIdx++) {
         if (!startscr_optionValid(buttonIdx)) {
-            MBOX_HideObject(startscr_buttonInfo[buttonIdx].objIdx, 0, 15);
+            MBOX_HideObject(startscr_buttonInfo[buttonIdx].handle, 0, 15);
             continue;
         }
-        MBOX_ShowObject(startscr_buttonInfo[buttonIdx].objIdx, 0, 15);
+        MBOX_ShowObject(startscr_buttonInfo[buttonIdx].handle, 0, 15);
         if (buttonIdx == gStartMenuSelect) {
             if (startscr_buttonInfo[buttonIdx].angle < 3.1415927f)
                 startscr_buttonInfo[buttonIdx].angle += 12.566371f * gFrameSeconds;
@@ -298,71 +297,71 @@ void startscr_updateButtons(void)
             if (startscr_buttonInfo[buttonIdx].angle < 0.0f || startscr_buttonsJustInited == 1)
                 startscr_buttonInfo[buttonIdx].angle = 0.0f;
         }
-        startscr_buttonInfo[buttonIdx].uvs[3][0] = startscr_buttonX;
-        startscr_buttonInfo[buttonIdx].uvs[3][1] = buttonY;
-        startscr_buttonInfo[buttonIdx].uvs[3][2] = startscr_buttonZ;
-        ScaleUV(unitmatrix[0], startscr_buttonInfo[buttonIdx].uvs[0], startscr_gButtonScale);
-        WPitchUV(startscr_buttonInfo[buttonIdx].angle - 1.5707964f, startscr_buttonInfo[buttonIdx].uvs[0]);
+        startscr_buttonInfo[buttonIdx].position[0] = startscr_buttonX;
+        startscr_buttonInfo[buttonIdx].position[1] = buttonY;
+        startscr_buttonInfo[buttonIdx].position[2] = startscr_buttonZ;
+        ScaleUV(unitmatrix[0], startscr_buttonInfo[buttonIdx].matrix, startscr_gButtonScale);
+        WPitchUV(startscr_buttonInfo[buttonIdx].angle - 1.5707964f, startscr_buttonInfo[buttonIdx].matrix);
         if (startscr_buttonInfo[buttonIdx].angle > 1.5707964f)
             tex = MBOX_FindTexture_WORK("BUTTON_SELECT", &texIdx, 0, gNumModels[0] - 1, 1);
         else
             tex = MBOX_FindTexture_WORK("BUTTON", &texIdx, 0, gNumModels[0] - 1, 1);
-        ZOID_SetTexture(startscr_buttonInfo[buttonIdx].objIdx, tex, -1);
+        ZOID_SetTexture(startscr_buttonInfo[buttonIdx].handle, tex, -1);
         if (buttonIdx == kStartMenuPlayers) {
             startscr_buttonInfo[START_PLAYERS_VALUE].angle = startscr_buttonInfo[buttonIdx].angle;
-            startscr_buttonInfo[START_PLAYERS_VALUE].uvs[3][0] = startscr_buttonInfo[0].uvs[3][0] + 160.0f * startscr_gButtonScale;
-            startscr_buttonInfo[START_PLAYERS_VALUE].uvs[3][1] = startscr_buttonInfo[0].uvs[3][1];
-            startscr_buttonInfo[START_PLAYERS_VALUE].uvs[3][2] = startscr_buttonInfo[0].uvs[3][2];
-            startscr_buttonInfo[START_PLAYERS_VALUE].uvs[3][0] = 1.02f * startscr_buttonInfo[START_PLAYERS_VALUE].uvs[3][0];
-            startscr_buttonInfo[START_PLAYERS_VALUE].uvs[3][1] = 1.02f * startscr_buttonInfo[START_PLAYERS_VALUE].uvs[3][1];
-            startscr_buttonInfo[START_PLAYERS_VALUE].uvs[3][2] = 1.02f * startscr_buttonInfo[START_PLAYERS_VALUE].uvs[3][2];
-            ScaleUV(unitmatrix[0], startscr_buttonInfo[START_PLAYERS_VALUE].uvs[0], startscr_gButtonScale);
-            WPitchUV(startscr_buttonInfo[START_PLAYERS_VALUE].angle - 1.5707964f, startscr_buttonInfo[START_PLAYERS_VALUE].uvs[0]);
+            startscr_buttonInfo[START_PLAYERS_VALUE].position[0] = startscr_buttonInfo[0].position[0] + 160.0f * startscr_gButtonScale;
+            startscr_buttonInfo[START_PLAYERS_VALUE].position[1] = startscr_buttonInfo[0].position[1];
+            startscr_buttonInfo[START_PLAYERS_VALUE].position[2] = startscr_buttonInfo[0].position[2];
+            startscr_buttonInfo[START_PLAYERS_VALUE].position[0] = 1.02f * startscr_buttonInfo[START_PLAYERS_VALUE].position[0];
+            startscr_buttonInfo[START_PLAYERS_VALUE].position[1] = 1.02f * startscr_buttonInfo[START_PLAYERS_VALUE].position[1];
+            startscr_buttonInfo[START_PLAYERS_VALUE].position[2] = 1.02f * startscr_buttonInfo[START_PLAYERS_VALUE].position[2];
+            ScaleUV(unitmatrix[0], startscr_buttonInfo[START_PLAYERS_VALUE].matrix, startscr_gButtonScale);
+            WPitchUV(startscr_buttonInfo[START_PLAYERS_VALUE].angle - 1.5707964f, startscr_buttonInfo[START_PLAYERS_VALUE].matrix);
             if (startscr_buttonInfo[START_PLAYERS_VALUE].angle > 1.5707964f)
                 tex = MBOX_FindTexture_WORK("BUTTON_SELECT", &texIdx, 0, gNumModels[0] - 1, 1);
             else
                 tex = MBOX_FindTexture_WORK("BUTTON", &texIdx, 0, gNumModels[0] - 1, 1);
-            ZOID_SetTexture(startscr_buttonInfo[START_PLAYERS_VALUE].objIdx, tex, -1);
+            ZOID_SetTexture(startscr_buttonInfo[START_PLAYERS_VALUE].handle, tex, -1);
         }
         buttonY -= startscr_gButtonSpace * startscr_gButtonScale;
     }
-    memcpy(prevPos, startscr_buttonInfo[START_CURSOR].uvs[3], 12);
+    memcpy(prevPos, startscr_buttonInfo[START_CURSOR].position, 12);
     startscr_buttonInfo[START_CURSOR].angle += 6.2831855f * gFrameSeconds;
     if (startscr_buttonInfo[START_CURSOR].angle > 6.2831855f)
         startscr_buttonInfo[START_CURSOR].angle -= 6.2831855f;
-    startscr_buttonInfo[START_CURSOR].uvs[3][0] = startscr_buttonX * startscr_cursorZ / startscr_buttonZ + (-60.0f) * startscr_gButtonScale;
-    startscr_buttonInfo[START_CURSOR].uvs[3][1] = selectedY * startscr_cursorZ / startscr_buttonZ;
-    startscr_buttonInfo[START_CURSOR].uvs[3][2] = startscr_cursorZ;
+    startscr_buttonInfo[START_CURSOR].position[0] = startscr_buttonX * startscr_cursorZ / startscr_buttonZ + (-60.0f) * startscr_gButtonScale;
+    startscr_buttonInfo[START_CURSOR].position[1] = selectedY * startscr_cursorZ / startscr_buttonZ;
+    startscr_buttonInfo[START_CURSOR].position[2] = startscr_cursorZ;
     if (!startscr_buttonsJustInited) {
-        if (60.0f * fabsf(startscr_buttonInfo[START_CURSOR].uvs[3][1] - prevPos[1]) / 10.0f > startscr_cursorSpeed) {
-            startscr_cursorSpeed = 60.0f * fabsf(startscr_buttonInfo[START_CURSOR].uvs[3][1] - prevPos[1]) / 10.0f;
+        if (60.0f * fabsf(startscr_buttonInfo[START_CURSOR].position[1] - prevPos[1]) / 10.0f > startscr_cursorSpeed) {
+            startscr_cursorSpeed = 60.0f * fabsf(startscr_buttonInfo[START_CURSOR].position[1] - prevPos[1]) / 10.0f;
             startscr_cursorSpeed = startscr_cursorSpeed < 540.0f * startscr_gButtonScale ? startscr_cursorSpeed : 540.0f * startscr_gButtonScale;
             startscr_cursorSpeed = startscr_cursorSpeed > 180.0f * startscr_gButtonScale ? startscr_cursorSpeed : 180.0f * startscr_gButtonScale;
         }
-        if (startscr_buttonInfo[START_CURSOR].uvs[3][1] > prevPos[1] + startscr_cursorSpeed * gFrameSeconds)
-            startscr_buttonInfo[START_CURSOR].uvs[3][1] = prevPos[1] + startscr_cursorSpeed * gFrameSeconds;
-        else if (startscr_buttonInfo[START_CURSOR].uvs[3][1] < prevPos[1] - startscr_cursorSpeed * gFrameSeconds)
-            startscr_buttonInfo[START_CURSOR].uvs[3][1] = prevPos[1] - startscr_cursorSpeed * gFrameSeconds;
+        if (startscr_buttonInfo[START_CURSOR].position[1] > prevPos[1] + startscr_cursorSpeed * gFrameSeconds)
+            startscr_buttonInfo[START_CURSOR].position[1] = prevPos[1] + startscr_cursorSpeed * gFrameSeconds;
+        else if (startscr_buttonInfo[START_CURSOR].position[1] < prevPos[1] - startscr_cursorSpeed * gFrameSeconds)
+            startscr_buttonInfo[START_CURSOR].position[1] = prevPos[1] - startscr_cursorSpeed * gFrameSeconds;
         else
             startscr_cursorSpeed = 180.0f * startscr_gButtonScale;
     }
-    ScaleUV(unitmatrix[0], startscr_buttonInfo[START_CURSOR].uvs[0], 0.4f * startscr_gButtonScale);
-    WRollUV(startscr_buttonInfo[START_CURSOR].angle, startscr_buttonInfo[START_CURSOR].uvs[0]);
-    WPitchUV(1.5707964f, startscr_buttonInfo[START_CURSOR].uvs[0]);
-    memcpy(prevPos, startscr_buttonInfo[START_PLAYER_CURSOR].uvs[3], 12);
-    startscr_buttonInfo[START_PLAYER_CURSOR].uvs[3][0] = startscr_buttonX * startscr_cursorZ / startscr_buttonZ + (72.0f + gNumPlayers * 22.5f) * startscr_gButtonScale;
-    startscr_buttonInfo[START_PLAYER_CURSOR].uvs[3][1] = startscr_maxY * startscr_cursorZ / startscr_buttonZ;
-    startscr_buttonInfo[START_PLAYER_CURSOR].uvs[3][2] = startscr_cursorZ;
+    ScaleUV(unitmatrix[0], startscr_buttonInfo[START_CURSOR].matrix, 0.4f * startscr_gButtonScale);
+    WRollUV(startscr_buttonInfo[START_CURSOR].angle, startscr_buttonInfo[START_CURSOR].matrix);
+    WPitchUV(1.5707964f, startscr_buttonInfo[START_CURSOR].matrix);
+    memcpy(prevPos, startscr_buttonInfo[START_PLAYER_CURSOR].position, 12);
+    startscr_buttonInfo[START_PLAYER_CURSOR].position[0] = startscr_buttonX * startscr_cursorZ / startscr_buttonZ + (72.0f + gNumPlayers * 22.5f) * startscr_gButtonScale;
+    startscr_buttonInfo[START_PLAYER_CURSOR].position[1] = startscr_maxY * startscr_cursorZ / startscr_buttonZ;
+    startscr_buttonInfo[START_PLAYER_CURSOR].position[2] = startscr_cursorZ;
     if (!startscr_buttonsJustInited) {
-        if (60.0f * fabsf(startscr_buttonInfo[START_PLAYER_CURSOR].uvs[3][0] - prevPos[0]) / 10.0f > playerCursorSpeed) {
-            playerCursorSpeed = 60.0f * fabsf(startscr_buttonInfo[START_PLAYER_CURSOR].uvs[3][0] - prevPos[0]) / 10.0f;
+        if (60.0f * fabsf(startscr_buttonInfo[START_PLAYER_CURSOR].position[0] - prevPos[0]) / 10.0f > playerCursorSpeed) {
+            playerCursorSpeed = 60.0f * fabsf(startscr_buttonInfo[START_PLAYER_CURSOR].position[0] - prevPos[0]) / 10.0f;
             playerCursorSpeed = playerCursorSpeed < 540.0f * startscr_gButtonScale ? playerCursorSpeed : 540.0f * startscr_gButtonScale;
             playerCursorSpeed = playerCursorSpeed > 180.0f * startscr_gButtonScale ? playerCursorSpeed : 180.0f * startscr_gButtonScale;
         }
-        if (startscr_buttonInfo[START_PLAYER_CURSOR].uvs[3][0] > prevPos[0] + playerCursorSpeed * gFrameSeconds)
-            startscr_buttonInfo[START_PLAYER_CURSOR].uvs[3][0] = prevPos[0] + playerCursorSpeed * gFrameSeconds;
-        else if (startscr_buttonInfo[START_PLAYER_CURSOR].uvs[3][0] < prevPos[0] - playerCursorSpeed * gFrameSeconds)
-            startscr_buttonInfo[START_PLAYER_CURSOR].uvs[3][0] = prevPos[0] - playerCursorSpeed * gFrameSeconds;
+        if (startscr_buttonInfo[START_PLAYER_CURSOR].position[0] > prevPos[0] + playerCursorSpeed * gFrameSeconds)
+            startscr_buttonInfo[START_PLAYER_CURSOR].position[0] = prevPos[0] + playerCursorSpeed * gFrameSeconds;
+        else if (startscr_buttonInfo[START_PLAYER_CURSOR].position[0] < prevPos[0] - playerCursorSpeed * gFrameSeconds)
+            startscr_buttonInfo[START_PLAYER_CURSOR].position[0] = prevPos[0] - playerCursorSpeed * gFrameSeconds;
         else
             playerCursorSpeed = 180.0f * startscr_gButtonScale;
     }
@@ -370,9 +369,9 @@ void startscr_updateButtons(void)
         tex = MBOX_FindTexture_WORK("CURSOR", &texIdx, 0, gNumModels[0] - 1, 1);
     else
         tex = MBOX_FindTexture_WORK("CURSOR_B", &texIdx, 0, gNumModels[0] - 1, 1);
-    ZOID_SetTexture(startscr_buttonInfo[START_PLAYER_CURSOR].objIdx, tex, -1);
-    ScaleUVXYZ(unitmatrix[0], startscr_buttonInfo[START_PLAYER_CURSOR].uvs[0], 0.6f, 0.4f, 0.4f);
-    ScaleUV(startscr_buttonInfo[START_PLAYER_CURSOR].uvs[0], startscr_buttonInfo[START_PLAYER_CURSOR].uvs[0], startscr_gButtonScale);
-    WPitchUV(1.5707964f + startscr_buttonInfo[0].angle, startscr_buttonInfo[START_PLAYER_CURSOR].uvs[0]);
+    ZOID_SetTexture(startscr_buttonInfo[START_PLAYER_CURSOR].handle, tex, -1);
+    ScaleUVXYZ(unitmatrix[0], startscr_buttonInfo[START_PLAYER_CURSOR].matrix, 0.6f, 0.4f, 0.4f);
+    ScaleUV(startscr_buttonInfo[START_PLAYER_CURSOR].matrix, startscr_buttonInfo[START_PLAYER_CURSOR].matrix, startscr_gButtonScale);
+    WPitchUV(1.5707964f + startscr_buttonInfo[0].angle, startscr_buttonInfo[START_PLAYER_CURSOR].matrix);
     startscr_buttonsJustInited = 0;
 }

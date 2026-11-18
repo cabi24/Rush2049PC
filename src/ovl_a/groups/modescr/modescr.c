@@ -3,17 +3,13 @@
  * screen up and modescr_animText.c draws its text. */
 #include "game/game.h"
 
-/* A 3D menu button (MAT3 tMenuButton without its alpha: ModeScreenButton in include/game). */
-typedef struct Slot64 {
-    s32 unknown0,id;
-    f32 angle,matrix[3][3],position[3];
-    s32 unknown3C;
-} Slot64;
+/* The screen's button table with its extent, which include/game leaves open (EXTENT): this file's code is compiled
+ * knowing it, as it always was. */
+extern MenuButton modescr_buttonInfo[MODE_BUTTONS];
+
 /* A player's pad record (MAT3 tPadState, gPlayers): only its profile. */
 typedef struct Player76 { u8 unknown0[72]; tProfile **profile; } Player76;
 
-VIEW(Slot64[13], modescr_buttonInfo);
-#define modescr_buttonInfo modescr_buttonInfo_view
 extern Player76 gPlayers[];
 
 extern void *memcpy(void *,const void *,u32);
@@ -74,10 +70,10 @@ void modescr_updateButtons(void)
         WPitchUV(modescr_buttonInfo[buttonIdx].angle - 1.5707964f, modescr_buttonInfo[buttonIdx].matrix);
         if (modescr_buttonInfo[buttonIdx].angle > 1.5707964f) tex = MBOX_FindTexture_WORK(modescr_select_texture_name, (s16 *)&texIdx, 0, gNumModels[0] - 1, 1);
         else tex = MBOX_FindTexture_WORK(modescr_button_texture_name, (s16 *)&texIdx, 0, gNumModels[0] - 1, 1);
-        ZOID_SetTexture((s16)modescr_buttonInfo[buttonIdx].id, tex, -1);
-        if (!modescr_optionValid(buttonIdx)) MBOX_HideObject(modescr_buttonInfo[buttonIdx].id, 0, 15);
+        ZOID_SetTexture((s16)modescr_buttonInfo[buttonIdx].handle, tex, -1);
+        if (!modescr_optionValid(buttonIdx)) MBOX_HideObject(modescr_buttonInfo[buttonIdx].handle, 0, 15);
         else {
-            MBOX_ShowObject(modescr_buttonInfo[buttonIdx].id, 0, 15);
+            MBOX_ShowObject(modescr_buttonInfo[buttonIdx].handle, 0, 15);
             buttonY -= modescr_gButtonSpace * modescr_gButtonScale;
         }
     }
@@ -174,9 +170,9 @@ void modescr_uninitButtons(void)
 {
     s32 buttonIdx;
     for (buttonIdx = 0; buttonIdx < MODE_BUTTONS; buttonIdx++) {
-        if (modescr_buttonInfo[buttonIdx].id != -1) {
-            ZOID_RemoveObject(modescr_buttonInfo[buttonIdx].id);
-            modescr_buttonInfo[buttonIdx].id = -1;
+        if (modescr_buttonInfo[buttonIdx].handle != -1) {
+            ZOID_RemoveObject(modescr_buttonInfo[buttonIdx].handle);
+            modescr_buttonInfo[buttonIdx].handle = -1;
         }
     }
     modescr_buttonsInited = 0;

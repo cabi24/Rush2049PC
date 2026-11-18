@@ -4,21 +4,6 @@
 
 typedef union RGBA { u8 c[4]; u32 rgba; } RGBA;   /* the car view's IRclr only (wave 4: tRGBA) */
 
-typedef struct Defense {
-    u32 active; f32 invsTime; f32 shldTime; f32 shldScale; f32 unknown10;
-} Defense;
-
-typedef struct Battle {
-    s8 type; s8 ammoCnt; s16 health; s16 damageThisFrame; u8 pad06[2];
-    Defense defense;      /* 0x08 */
-    s8 shoot;             /* 0x1c */
-    u8 fadeAlpha;         /* 0x1d */
-    s8 fadeState;         /* 0x1e */
-    s8 Points;            /* 0x1f */
-    s32 loaded;           /* 0x20 */
-    f32 fadeTime; f32 reloadingTime; f32 pitch; f32 yaw;
-} Battle;
-
 typedef struct Car {
     u8 pad00[0x110 - 0x0]; struct pc_visual visuals[21]; u8 pad00_308[0x34C - 0x308];
     RGBA IRclr;           /* 0x34c */

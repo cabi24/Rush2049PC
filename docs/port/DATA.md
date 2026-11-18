@@ -196,7 +196,7 @@ conflicts read and judged are `OVERLAPS_REVIEWED` in gen_data.py, listed apart w
 | Symbol | Over | Kept | Why |
 |---|---|---|---|
 | `flashColors_at_1` (image A's `struct Color4 { u32 word; }`) | `flashColors[1]` | the bytes | a colour the game reads as bytes; `flashColors_at_1` is only passed by value |
-| `audio_title_button_pos`, `video_title_button_pos` (`u8[]`) | `audio_buttonInfo`, `video_buttonInfo` (`Button[]`) + 0x2F0 | the floats | `&buttonInfo[11].pos`, the audio and video screens' title positions, which ZOID_ProjectWindow reads as f32 |
+| `audio_title_button_pos`, `video_title_button_pos` (`u8[]`) | `audio_buttonInfo`, `video_buttonInfo` (`MenuButton[]`) + 0x2F0 | the floats | `&buttonInfo[11].position`, the audio and video screens' title positions, which ZOID_ProjectWindow reads as f32 |
 | `gPlayerRects_biased` (`s32[][24]`) | `multiBlit` (own `MultiBlit[]`) | own storage's | read as `[n][0]` for n = 1..4 players, inside `playerscr_gPlayerRects`; row 0 never |
 | `modescr_validOption_biased` (`s8[][7]`) | `modescr_blit` (own `Blit *`) | own storage's | read as `[n][i]` for n = 1..4 players, at 0x803B4680-0x803B469B (no symbol: bytes); row 0 never |
 
@@ -482,7 +482,10 @@ generator refuses each of the three with its old declaration, so `synth_rom` fai
   two their records' fields: `startscr_buttonInfo` a `StartScreenButton[18]` (MAT3 startscr.c's
   `anon_buttonType_objIdx_3c`: type, handle, angle, matrix, position), `trackscr_buttonInfo` a `MenuButton[48]`
   (MAT3 trackscr.c's `tMenuButton`), where `u8 unknown0C[36]` lay over their matrices. The loader converts the
-  matrices as f32 now; `--check-loader` and `known_widths` hold all three.
+  matrices as f32 now; `--check-loader` and `known_widths` hold all three. Since wave 4 ([RECORDS.md](RECORDS.md)
+  4.3) every screen's table is a `MenuButton` table (MAT3's `tMenuButton`) but the start screen's: the audio and
+  video screens' (`ScreenButton` before, its bytes at +0x3C the same) and the mode screen's, whose word at +0x3C
+  (`ModeScreenButton`) is the alpha byte and its padding now, copied as bytes; no code reads them.
 - Pass 1's others: the colour unions `flashColors`, `flashColors_at_1`, `SheenColors` (bytes by design, section 2);
   `taillight_colors_dim` and `headlight_colors_night` and `vp0`, whose `s32` views only took the address, are
   include/game's `tUVPair` (u16) and `PcViewport` (s16) since wave 2's headers, so the loader converts them as the

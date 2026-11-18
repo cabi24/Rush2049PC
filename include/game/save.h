@@ -324,7 +324,7 @@ struct tSaveData { /* 0x810 bytes */
     tBattleStats battleStats[8];          /* 0x60C */
     tObstacleStats obstacleStats[1];      /* 0x66C */
     tCircuitStats circuitStats[4];        /* 0x684 */
-    tCircuitRecord circuit;               /* 0x6F4 the circuit in progress (wave 4: tCircuit) */
+    tCircuit circuit;                     /* 0x6F4 the circuit in progress */
     tCarSettings carSettings[13];         /* 0x740 */
 };
 

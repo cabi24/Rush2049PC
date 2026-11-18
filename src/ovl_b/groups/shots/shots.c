@@ -15,32 +15,6 @@ typedef struct Pad {
     u8 pad44[0x50 - 0x44];
 } Pad;
 
-typedef struct Defense {
-    u32 active;           /* 0x00 */
-    f32 invsTime;         /* 0x04 */
-    f32 shldTime;         /* 0x08 */
-    f32 shldScale;        /* 0x0c */
-    f32 unknown10;        /* 0x10 */
-} Defense;
-
-typedef struct Battle {
-    s8 type;              /* 0x00 */
-    s8 ammoCnt;           /* 0x01 */
-    s16 health;           /* 0x02 */
-    s16 damageThisFrame;  /* 0x04 */
-    u8 pad06[2];
-    Defense defense;      /* 0x08 */
-    s8 shoot;             /* 0x1c */
-    u8 fadeAlpha;         /* 0x1d */
-    s8 fadeState;         /* 0x1e */
-    s8 Points;            /* 0x1f */
-    s32 loaded;           /* 0x20 */
-    f32 fadeTime;         /* 0x24 */
-    f32 reloadingTime;    /* 0x28 */
-    f32 pitch;            /* 0x2c */
-    f32 yaw;              /* 0x30 */
-} Battle;
-
 typedef struct Car {
     u8 pad00[8];
     f32 pos[3];           /* 0x08 */
@@ -398,8 +372,8 @@ void UpdateDefense(Car *car, tModelData *m, Defense *defense, s32 i)
         gCarShield[i].mat.pos[1] = car->pos[1];
         gCarShield[i].mat.pos[2] = car->pos[2];
         CopyUV(&car->uvs[0][0], &gCarShield[i].mat.uvs[0][0]);
-        PitchUV(defense->unknown10, &gCarShield[i].mat.uvs[0][0]);
-        defense->unknown10 -= PC_FSCALE(0.005f);
+        PitchUV(defense->shldAngle, &gCarShield[i].mat.uvs[0][0]);
+        defense->shldAngle -= PC_FSCALE(0.005f);
         defense->shldTime -= gFrameSeconds;
         if (defense->shldTime <= 0.0f) {
             if (defense->active & 8) {

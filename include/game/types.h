@@ -34,7 +34,6 @@ struct CollisionReckon;
 struct Command;
 struct Config64;
 struct Cr;
-struct Defense;
 struct Descriptor;
 struct Descriptor72;
 struct Dims;
@@ -162,7 +161,6 @@ struct internal_state;
 struct tAudioSequence;
 struct pathtyp;
 struct tBasicTargetPath;
-struct tCircuit;
 struct tCarData;
 struct tFxSequence;     /* the sound manager's records: game/audiomgr.h defines them */
 struct tMemoryChunk;
@@ -539,15 +537,6 @@ typedef struct CircuitChance { /* 0x4 bytes */
     u16 unused; /* 0x0 */
     u16 range;  /* 0x2 */
 } CircuitChance;
-
-typedef struct ScreenButton { /* 0x40 bytes */
-    s32 type;      /* 0x0 */
-    s32 handle;    /* 0x4 */
-    f32 ang;       /* 0x8 */
-    f32 mat[3][3]; /* 0xC */
-    f32 pos[3];    /* 0x30 */
-    u8 pad3C[4];   /* 0x3C */
-} ScreenButton;
 
 typedef struct ScreenPos { /* 0x8 bytes */
     s32 x; /* 0x0 */
@@ -1158,21 +1147,24 @@ typedef struct tGhostHeader tGhostHeader;
 typedef struct tGhostFile tGhostFile;
 typedef struct tPlayerProfile tProfile;   /* MAT3 tPlayerProfile */
 
-/* The circuit in progress (MAT3 tCircuit; circuitscr.c has its own view of that name). */
-typedef struct tCircuitRecord { /* 0x4C bytes */
+/* A profile's circuit in progress (MAT3 tCircuit), tSaveData.circuit: part of the profile's file, so its layout is the
+ * file's (the offsets below are the record's, at 0x6F4 in the file). NewCircuit starts one, ContinueCircuit builds
+ * its races and drones from it, UpdateCircuit records each race, and a circuit code (GetCircuitCode, SetCircuitCode)
+ * holds all of it but the ranks. The checksum covers the 72 bytes after it (CheckAndRepairPlayer). */
+typedef struct tCircuit { /* 0x4C bytes */
     u32 checksum;      /* 0x0 */
-    u8 active;         /* 0x4 */
-    u8 death;          /* 0x5 */
-    u8 temp;           /* 0x6 */
-    u8 difficulty;     /* 0x7 */
-    s8 type;           /* 0x8 the circuit (circuitStats' index) */
-    s8 track;          /* 0x9 */
-    u8 padA[2];        /* 0xA */
-    u32 seed;          /* 0xC */
-    f32 totalTime;     /* 0x10 */
-    u8 ranks[6][9];    /* 0x14 */
-    u8 pad4A[2];       /* 0x4A */
-} tCircuitRecord;
+    u8 active;         /* 0x4 a circuit is under way */
+    u8 death;          /* 0x5 the death option: out of the circuit after a crash */
+    u8 temp;           /* 0x6 entered by a circuit code: the points of the races before it are gTempCircuitPoints' */
+    u8 difficulty;     /* 0x7 the drones' skill, raised after good races in an extreme circuit */
+    s8 type;           /* 0x8 the circuit: 0 beginner to 3 extreme (circuitStats' index) */
+    s8 track;          /* 0x9 the races driven */
+    u8 unusedA[2];     /* 0xA zero */
+    u32 seed;          /* 0xC the random seed its races and drones are drawn from */
+    f32 totalTime;     /* 0x10 the time of its races so far */
+    u8 ranks[6][9];    /* 0x14 each car's place in each race, 3 bits a race (24 races in a car's 9 bytes) */
+    u8 unused4A[2];    /* 0x4A zero */
+} tCircuit;
 
 
 typedef struct tBlastMat { /* 0x8 bytes */
@@ -1613,14 +1605,46 @@ typedef struct tStuntPlayer { /* 0x78 bytes */
 
 /* ---- race: the game loop and the race: state, countdown, drones, stunts, battle, ghosts */
 
-/* A race of a circuit (MAT3 tCircuitTrack, gCircuitTracks[]: the arena holds them all; ContinueCircuit). */
-typedef struct CircuitTrackSlot { /* 0x5 bytes */
-    u8 trackNum; /* 0x0 */
-    u8 backward; /* 0x1 */
-    u8 mirror;   /* 0x2 */
-    u8 fog;      /* 0x3 0 none to 3 thick */
-    u8 wind;     /* 0x4 */
-} CircuitTrackSlot;
+/* A car's defence in a battle (MAT3 anon_active_invsTime_10, the battle record's defense): the invisibility and the
+ * shield the power-ups give (StartWeaponIcon), which UpdateDefense counts down each frame. */
+typedef struct Defense {
+    u32 active;       /* what is on: 1 invisible; 2 the shield, with 8 while it grows, 4 while it is full and 16
+                       * while it shrinks */
+    f32 invsTime;     /* the invisibility's time left, seconds */
+    f32 shldTime;     /* the time to the shield's next step: a frame while it grows or shrinks, else its time left */
+    f32 shldScale;    /* the shield's size, up to the car's (gShieldSizes) */
+    f32 shldAngle;    /* the shield's spin, radians (MAT3 has no spin) */
+} Defense;
+
+/* A car's state in a battle (MAT3 anon_weapon_health_30, tCarData's battle; in the car record, gGameCar's battle
+ * fields): its weapon and ammunition, its health, its defence, its gun's aim and its fading in and out while
+ * invisible. */
+typedef struct Battle {
+    s8 type;              /* the weapon it carries, 8 none (MAT3 weapon.type) */
+    s8 ammoCnt;           /* its ammunition, -1 none (MAT3 weapon.ammoCnt) */
+    s16 health;           /* 800 full */
+    s16 damageThisFrame;
+    Defense defense;
+    s8 shoot;             /* a countdown, a frame at a time: 6 when the gun fires (its muzzle flash shows while 5 or
+                           * more); an invisible car's alpha flickers by it (UpdateInvs) */
+    u8 fadeAlpha;         /* the car's alpha while it is invisible or fading */
+    s8 fadeState;         /* 1 fading out, 3 invisible, 2 fading back in, 0 none of these */
+    s8 Points;            /* its points, or what is left of them (FindWinner ranks by it) */
+    s32 loaded;           /* weapon 3's shot, held on the car until it is fired: 1 just made, 2 held, 0 none */
+    f32 fadeTime;         /* the fade's time left, seconds */
+    f32 reloadingTime;    /* the time to its next shot, seconds */
+    f32 pitch;            /* the gun's aim (ElevateGun) */
+    f32 yaw;
+} Battle;
+
+/* A race of a circuit (MAT3 tCircuitTrack), gCircuitTracks[]: ContinueCircuit draws them from the circuit's seed. */
+typedef struct tCircuitTrack {
+    u8 trackNum;   /* the track */
+    u8 backward;   /* driven backward */
+    u8 mirror;     /* mirrored */
+    u8 fog;        /* 0 none to 3 thick */
+    u8 wind;       /* 0 none to 4 */
+} tCircuitTrack;
 
 typedef struct MuzzleObj { /* 0x10C bytes */
     s32 mdls[5];       /* 0x0 */
@@ -1856,27 +1880,6 @@ typedef struct HighScoreRect { /* 0xC bytes: a player's box on the high-score sc
     s16 cy;         /* 0xA */
 } HighScoreRect;
 
-/* A menu screen's 3D button (MAT3 tMenuButton): its model, its scene object, its turn, the tUVMatrix it draws by and
- * its alpha. */
-typedef struct MenuButton { /* 0x40 bytes */
-    s32 type;         /* 0x0 */
-    s32 handle;       /* 0x4 */
-    f32 angle;        /* 0x8 */
-    f32 matrix[3][3]; /* 0xC */
-    f32 position[3];  /* 0x30 */
-    u8 alpha;         /* 0x3C */
-    u8 pad[3];        /* 0x3D */
-} MenuButton;
-
-typedef struct ModeScreenButton { /* 0x40 bytes */
-    s32 unknown0;     /* 0x0 */
-    s32 id;           /* 0x4 */
-    f32 angle;        /* 0x8 */
-    f32 matrix[3][3]; /* 0xC */
-    f32 position[3];  /* 0x30 */
-    s32 unknown3C;    /* 0x3C */
-} ModeScreenButton;
-
 typedef struct MotionFrame { /* 0xE0 bytes */
     BackgroundMotion slot[4]; /* 0x0 */
 } MotionFrame;
@@ -1913,15 +1916,6 @@ typedef struct SelectCarWaveSlot { /* 0xC bytes: a car model load (MAT3 anon_wav
     s8 slot;   /* 0x5 the car slot it is for, -1 free */
     u8 pad[6]; /* 0x6 */
 } SelectCarWaveSlot;
-
-/* A start screen button (MAT3 startscr.c's buttonInfo, anon_buttonType_objIdx_3c): a MenuButton without the alpha. */
-typedef struct StartScreenButton { /* 0x3C bytes */
-    s32 type;         /* 0x0 its model, startscr_buttonNames[type] */
-    s32 handle;       /* 0x4 its scene object, -1 until it is made */
-    f32 angle;        /* 0x8 how far it has turned over, radians */
-    f32 matrix[3][3]; /* 0xC its orientation; with position, the tUVMatrix its scene object draws by */
-    f32 position[3];  /* 0x30 */
-} StartScreenButton;
 
 typedef struct TrackMapEntry { /* 0x48 bytes */
     s32 handle;       /* 0x0 */

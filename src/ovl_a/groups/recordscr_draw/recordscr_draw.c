@@ -5,7 +5,6 @@
 
 /* A player's pad record (MAT3 tPadState, gPlayers): only its profile. */
 typedef struct Player { u8 unknown00[72]; tProfile **owner; } Player;
-typedef struct TextBox {s16 x,y,width,height;} TextBox;
 
 /* The shown profile's save data (read by ReadPlayerData). */
 #define PROFILE_SAVE (*(*gStatPlayer)->datah)
@@ -22,8 +21,6 @@ typedef struct TextBox {s16 x,y,width,height;} TextBox;
 
 extern Player gPlayers[];
 
-VIEW(TextBox, gScreenRect);
-#define gScreenRect gScreenRect_view
 
 /* gText.tab[g]'s entry i: one of a table of texts. */
 #define NAME(g,i) (gText.taba[gText.tab[g]+(i)])

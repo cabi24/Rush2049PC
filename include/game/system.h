@@ -141,7 +141,6 @@ extern void *pause_SureBlit;
 extern void *pause_RumbleBlit;
 extern s8 pause_gControllerRemoved;
 extern s8 pause_gYes;
-extern ScreenButton video_buttonInfo[EXTENT(12)];
 extern s32 video_buttonsInited;
 extern s8 video_optionValid[EXTENT(4)];
 extern s8 video_gControllerRemoved;

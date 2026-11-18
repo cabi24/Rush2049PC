@@ -33,11 +33,7 @@ typedef union { Gwords words; long long int force_structure_alignment; } Gfx;
     _g->words.w1 = (_SHIFTL((ulx), 14, 10) | _SHIFTL((uly), 2, 10)); \
 }
 
-typedef struct ButtonInfo { u8 pad[8]; f32 angle; u8 pad12[36]; u8 pos[16]; } ButtonInfo;   /* 64 B */
 #define TEXT_VIDEO_OPTIONS 41     /* gText.tab[]: the video screen's options */
-
-VIEW(ButtonInfo[], video_buttonInfo);
-#define video_buttonInfo video_buttonInfo_view
 
 /* The confirm pane's text width: 160. */
 void vs_setWidth(s16 *width)
@@ -170,7 +166,7 @@ void video_animButtonText(void)
     TB_SetJust(0, 1);
     HAL_SetFont(13);
     TB_SetTextColor(1);
-    ZOID_ProjectWindow(0, video_buttonInfo[11].pos, gCamera, 0, screenPos);   /* the title's position */
+    ZOID_ProjectWindow(0, video_buttonInfo[11].position, gCamera, 0, screenPos);   /* the title's position */
     x = screenPos[0];
     y = screenPos[1];
     str = gText.single[53];
@@ -188,12 +184,12 @@ void video_animButtonText(void)
                 TB_FlashTextColors(flashColors[0], flashColors[1]);
                 TB_SetTextColor(22);
             }
-            ZOID_ProjectWindow(0, video_buttonInfo[i].pos, gCamera, 0, screenPos);
+            ZOID_ProjectWindow(0, video_buttonInfo[i].position, gCamera, 0, screenPos);
             x = screenPos[0] - 55;
             y = screenPos[1];
             str = gText.taba[gText.tab[TEXT_VIDEO_OPTIONS] + i];
             TB_DrawText(x, y, str);
-            ZOID_ProjectWindow(0, video_buttonInfo[i + 4].pos, gCamera, 0, screenPos);
+            ZOID_ProjectWindow(0, video_buttonInfo[i + 4].position, gCamera, 0, screenPos);
             x = screenPos[0] - 35;
             y = screenPos[1];
             switch (i) {

@@ -2,15 +2,9 @@
  * effects volume, the song, the music type) with its value, as a flat menu or beside the 3D buttons. */
 #include "game/game.h"
 
-typedef struct ButtonInfo { u8 pad[8]; f32 angle; u8 pad12[36]; u8 pos[16]; } ButtonInfo;
 #define TEXT_OFF_ON 16            /* gText.tab[]: off, on (the song list's "off") */
 #define TEXT_AUDIO_OPTIONS 39     /* gText.tab[]: the audio screen's options */
 #define TEXT_STEREO_MONO 40       /* gText.tab[]: stereo, mono */
-
-
-VIEW(ButtonInfo[], audio_buttonInfo);
-#define audio_buttonInfo audio_buttonInfo_view
-
 
 /* The two colours flashing text alternates between (MAT3 TB_text.c TB_FlashTextColors). */
 void TB_FlashTextColors(tRGBA first, tRGBA second)
@@ -55,7 +49,7 @@ void audio_animButtonText(void)
     au_SetJust(0, 1);
     au_SetFont(13);
     TB_SetTextColor(1);
-    ZOID_ProjectWindow(0, audio_buttonInfo[11].pos, gCamera, 0, screenPos);   /* the title's position */
+    ZOID_ProjectWindow(0, audio_buttonInfo[11].position, gCamera, 0, screenPos);   /* the title's position */
     x = screenPos[0];
     y = screenPos[1];
     TB_DrawText(TB_CenterText(gText.single[52], x), y, gText.single[52]);
@@ -72,7 +66,7 @@ void audio_animButtonText(void)
             TB_FlashTextColors(flashColors[0], flashColors[1]);
             TB_SetTextColor(22);
         }
-        ZOID_ProjectWindow(0, audio_buttonInfo[i].pos, gCamera, 0, screenPos);
+        ZOID_ProjectWindow(0, audio_buttonInfo[i].position, gCamera, 0, screenPos);
         x = screenPos[0];
         y = screenPos[1];
         x -= 55;
@@ -97,7 +91,7 @@ void audio_animButtonText(void)
         for (charPtr = str; *charPtr != 0; charPtr++) {
             *charPtr = (*charPtr >= 'a' && *charPtr <= 'z') ? *charPtr ^ 0x20 : *charPtr;
         }
-        ZOID_ProjectWindow(0, audio_buttonInfo[i + 4].pos, gCamera, 0, screenPos);
+        ZOID_ProjectWindow(0, audio_buttonInfo[i + 4].position, gCamera, 0, screenPos);
         x = screenPos[0];
         y = screenPos[1];
         x -= 35;

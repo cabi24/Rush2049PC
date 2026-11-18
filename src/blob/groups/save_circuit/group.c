@@ -13,7 +13,7 @@ void SavePlayerCircuitStats(tProfile **profile,u8 kind)
 /* The same for the profile's circuit in progress. */
 void SavePlayerCircuit(tProfile **profile)
 {
-    tCircuitRecord *record=&(*(*profile)->datah)->circuit;
-    record->checksum=CalcChecksumInternal(&record->active,sizeof(tCircuitRecord)-4);
-    PS_WriteFile((*profile)->fileh,record,sizeof(tCircuitRecord));
+    tCircuit *record=&(*(*profile)->datah)->circuit;
+    record->checksum=CalcChecksumInternal(&record->active,sizeof(tCircuit)-4);
+    PS_WriteFile((*profile)->fileh,record,sizeof(tCircuit));
 }

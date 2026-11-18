@@ -1231,8 +1231,8 @@ def arena_elements(members, lo, init):
 # elements keep the bytes) -> why those are the right ones.
 OVERLAPS_REVIEWED = {
     ("flashColors_at_1", "flashColors"): "flashColors[1], a colour read as bytes; flashColors_at_1's word only copies it",
-    ("audio_title_button_pos", "audio_buttonInfo"): "&buttonInfo[11].pos, the audio screen's title position (f32)",
-    ("video_title_button_pos", "video_buttonInfo"): "&buttonInfo[11].pos, the video screen's title position (f32)",
+    ("audio_title_button_pos", "audio_buttonInfo"): "&buttonInfo[11].position, the audio screen's title position (f32)",
+    ("video_title_button_pos", "video_buttonInfo"): "&buttonInfo[11].position, the video screen's title position (f32)",
     ("gPlayerRects_biased", "multiBlit"): "read as [n][0] for n = 1..4 players, in playerscr_gPlayerRects; row 0 never",
     ("modescr_validOption_biased", "modescr_blit"): "read as [n][i] for n = 1..4 players, after modescr_blit; row 0 never",
     ("gPlayerRects_biased", "playerscr_buttonInfo"): "read as [n][0] for n = 1..4 players; row 0's first 16 bytes are the model slots' "

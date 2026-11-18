@@ -193,6 +193,7 @@
 #define CONTROLS_CURSOR 14              /* the cursor */
 #define CONTROLS_B_ICON 15              /* the B button's icon, by the "back" text */
 #define CONTROLS_B_ICON_BACK 16         /* the icon's backing */
+#define CONTROLS_BUTTONS 17
 
 /* The options screen: options_buttonInfo[]: a label and a value button for each of the 14 rows, then the cursor. */
 #define OPTIONS_ROWS 14
@@ -205,9 +206,40 @@
 /* PC: is start menu row i offered (v: the game's own answer; the PC's start menu, port/app)? */
 #define PC_START_VALID(i, v) pc_start_valid((i), (v))
 
+/* ---- Records */
+
+/* A menu screen's 3D button (MAT3 tMenuButton): one entry of a screen's buttonInfo table (the options, audio, video,
+ * controls, mode, track, car, circuit, player and record screens). The screen makes its scene object from the model
+ * buttonNames[type], turns the button over as the selection moves (angle), and draws the object by the button's
+ * matrix and position, which it rebuilds each frame; the text beside a button is projected from its position. */
+typedef struct MenuButton {
+    s32 type;          /* its model, the screen's buttonNames[type] (MAT3 buttonType) */
+    s32 handle;        /* its scene object (MBOX_NewObject), -1 until it is made (MAT3 objIdx) */
+    f32 angle;         /* how far it has turned, radians: a row's button turns over to pi while the row is selected,
+                        * showing its other side, and back to 0; the cursor spins. The text beside a button is
+                        * hidden while it is edge-on (EDGE_ON_FROM to EDGE_ON_TO) */
+    f32 matrix[3][3];  /* its orientation (wave 4: tUVMatrix, with position: MAT3 mat.uvs) */
+    f32 position[3];   /* its place (MAT3 mat.pos) */
+    u8 alpha;          /* its text's opacity, 0-255, 0 hidden: the screens whose lists scroll fade the buttons at the
+                        * list's ends (the mode, audio and video screens leave it 0 and draw their text regardless) */
+} MenuButton;
+
+/* A start menu button (MAT3 startscr.c's buttonInfo, anon_buttonType_objIdx_3c): a MenuButton without the alpha,
+ * so 4 bytes shorter; the start menu never fades its text. */
+typedef struct StartScreenButton {
+    s32 type;          /* its model, startscr_buttonNames[type] */
+    s32 handle;        /* its scene object, -1 until it is made */
+    f32 angle;         /* how far it has turned over, radians */
+    f32 matrix[3][3];  /* its orientation (wave 4: tUVMatrix, with position) */
+    f32 position[3];   /* its place */
+} StartScreenButton;
+
 /* Data */
 extern s32 build_date_text;
 extern s32 build_time_text;
+/* The audio screen's buttons: its four lines' left buttons (0-3) and right ones (4-7), the cursor (8), the B button's
+ * icon and its arrow (9, 10) and the title (11). The video screen's are laid out alike. */
+extern MenuButton audio_buttonInfo[EXTENT(12)];
 extern s32 gAudioMenuSelect;
 extern s32 exitAudioScreen;
 extern s32 gLastSong;
@@ -283,6 +315,7 @@ extern const tBlitDef SureMultiBlit;
 extern const tBlitDef RumbleMultiBlit;
 extern tRGBA coin_gold_glow_color;
 extern tRGBA coin_silver_glow_color;
+extern MenuButton video_buttonInfo[EXTENT(12)];
 extern s8 video_panesCreated;
 extern s32 exitVideoScreen;
 extern s32 gVideoMenuSelect;
@@ -455,7 +488,7 @@ extern tBlitDef licensescr_blits[EXTENT(2)];
 extern tBlit *licensescr_blit;
 extern s8 licensescr_inited;
 extern char *modescr_buttonNames[EXTENT(8)];
-extern ModeScreenButton modescr_buttonInfo[EXTENT(13)];
+extern MenuButton modescr_buttonInfo[EXTENT(13)];
 #define modescr_title_button_position (modescr_buttonInfo[12].position)   /* the title's button's place */
 extern s32 modescr_buttonsInited;
 extern s32 modescr_buttonsJustInited;
@@ -647,7 +680,7 @@ extern char playerscr_title_texture_name[EXTENT(16)];
 extern char playerscr_cursor_texture_name[EXTENT(8)];
 extern char playerscr_a_button_texture_name[EXTENT(4)];
 extern char playerscr_b_button_texture_name[EXTENT(220)];
-extern config gScreenRect;
+extern TextBox gScreenRect;   /* the record screen's views' box */
 extern u8 recordscr_circuit_title_format[EXTENT(8)];
 extern u8 recordscr_track_variant_title_format[EXTENT(8)];
 extern u8 recordscr_race_laps_format[EXTENT(4)];
@@ -849,7 +882,7 @@ extern s32 newCircuitType;
 extern s8 playerscr_gSelectMenuVisible[EXTENT(4)][14];
 extern s8 playerscr_gSelectMenuCount[EXTENT(8)];
 extern s32 playerscr_gSelectMenuSelect[EXTENT(4)];
-extern struct tCircuit *gCircuit;
+extern tCircuit *gCircuit;   /* the circuit player's circuit in progress, while the circuit screen is up */
 extern u8 circuitscr_gCircuitCode[EXTENT(20)];
 extern s8 gSelectMenuControls[EXTENT(4)];
 extern s8 playerscr_gSelectPakIdx[EXTENT(4)];

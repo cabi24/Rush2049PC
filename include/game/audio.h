@@ -254,7 +254,6 @@ extern s8 audiosfx_gInited;
 extern u32 gNextIndex;
 extern volatile s8 gStopAllEffects;
 extern char *audio_buttonNames[EXTENT(9)];
-extern ScreenButton audio_buttonInfo[EXTENT(12)];
 extern s32 audio_buttonsInited;
 extern s32 audio_buttonsJustInited;
 extern f32 audio_gButtonScale;
