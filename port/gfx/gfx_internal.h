@@ -8,6 +8,7 @@
 
 #include "gfx_gbi.h"
 #include "gfx_hfr.h"
+#include "pc_gfx_list.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -44,6 +45,13 @@ typedef struct {
 #define GFX_MTX_STACK 32
 #define GFX_DL_STACK 18
 #define GFX_MAX_LIGHTS 8
+
+/* The colour combiner's selectors for one cycle, as a combine command sets them: colour (a - b) * c + d, and alpha
+ * likewise (the RDP's numbers: gfx_combine.c). */
+typedef struct {
+    uint8_t a, b, c, d;       /* colour */
+    uint8_t aa, ab, ac, ad;   /* alpha */
+} GfxCombine;
 
 typedef struct {
     uint8_t fmt, siz, palette;
@@ -82,7 +90,7 @@ typedef struct {
 
     /* RDP */
     uint32_t om_h, om_l;
-    uint32_t cc_w0, cc_w1;
+    GfxCombine combine[2];       /* cycle 1, cycle 2 */
     uint32_t fill_color;
     uint8_t prim[4], env[4], blend[4], fog[4];
     uint8_t prim_lod, prim_min_level;
@@ -123,7 +131,7 @@ typedef struct {
 
 /* Shader identity: everything that changes the generated GLSL. */
 typedef struct {
-    uint32_t cc_w0, cc_w1;   /* combine mode (w0 without opcode) */
+    GfxCombine combine[2];   /* the combiner's two cycles */
     uint16_t blender;        /* othermode_l >> 16 */
     uint8_t mode;            /* GFX_MODE_* */
     uint8_t ac;              /* 0 none, 1 threshold, 3 dither, 4 copy-mode alpha test */
@@ -227,8 +235,8 @@ float pcgfx_detail_rect_depth(float d);               /* a rectangle's primitive
 void pcgfx_detail_task(uint32_t triangles);           /* a graphics task's triangles drawn (pc_gfx_scene_stats) */
 
 /* gfx_rdp.c */
-void pcgfx_rdp_command(uint32_t op, uint32_t w0, uintptr_t w1);
-void pcgfx_texrect(uint32_t w0, uint32_t w1, uint32_t half1, uint32_t half2, int flip);
+void pcgfx_rdp_command(const Gfx *c);   /* a command for the RDP's state, its loads and its fills */
+void pcgfx_texrect(const Gfx *rect, const Gfx *tex);   /* a textured rectangle and its texture coordinates */
 /* rect_tile: -1 triangles, 0-7 texrect tile, 8 untextured rect. wide: in widescreen, the scissor's sides at the
  * frame's go to the target's (3D and full-width draws), else the scissor moves with the 4:3 frame (2D). */
 const GfxDrawState *pcgfx_draw_state(int rect_tile, int wide);
