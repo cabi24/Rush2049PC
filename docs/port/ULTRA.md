@@ -11,14 +11,14 @@ owns `main()`. About 3,300 lines of C11.
 |---|---|
 | `sched.c` | N64 threads on host threads (the baton), message queues, events, busy-wait and idle yields |
 | `timer.c` | `osGetTime`/`osGetCount` at 46.875 MHz, `osSetTimer`/`osStopTimer` |
-| `vi.c` | the video interface: mode, blackout, framebuffer swaps, the retrace event |
+| `vi.c` | the video interface: blackout, framebuffer swaps, the retrace event |
 | `rcp.c` | RSP tasks (graphics on the main thread, audio at once in real time), SP/DP done, the AI |
-| `pi.c` | ROM loading and SHA-1, PI DMA, `osPiReadIo`, inflate (zlib) and the boot LZSS |
+| `pi.c` | ROM loading and SHA-1, the game's reads of the cartridge (`pc_cart_read`), inflate (zlib) and the boot LZSS |
 | `si.c` | the PIF: controller status and buttons, each controller's accessory: a controller pak (`.mpk`), a rumble pak, hot swaps |
 | `pakfile.c`, `pakwrite.c` | the controller pak's file: a blank image, what an image is, the atomic write; the thread that writes the paks |
 | `memory.c` | the game heap's block (its size: `game.memory`), the N64 guard (`RUSH2049_N64_GUARD`), the ranges of texel memory, sample memory and the models' vertices (model data); until [NATIVE.md](NATIVE.md) step 12 the RDRAM window, `pc_n64_ptr`/`pc_n64_addr` and the absolute-symbol fix-up |
 | `heap.c` | the game heap's high-water marks and fallbacks, the exit line ([MEMORY.md](MEMORY.md) 4) |
-| `misc.c` | `osInitialize` and the low-memory globals, cache/TLB/interrupt no-ops, faults, stubs |
+| `misc.c` | `osInitialize` and the low-memory globals, interrupt and FPU no-ops, faults, stubs |
 | `loop.c` | the host main loop |
 | `defaults.c` | weak no-op versions of the other parts' interfaces |
 | `gsm.c` | the boot segment's GSM 06.10 speech kernels (RPE decoding, long-term and short-term synthesis), from `kernels.s` |
@@ -116,11 +116,11 @@ gave a base is that base plus the offset, and any other value is a pointer (`pcg
 4 GiB rule (a value below 4 GiB read as an N64 address), the physical and K0/K1 forms and `pc_n64_ptr` went with the
 window.
 
-**The cartridge** stays an N64 bus: the game reads it through libultra's PI by its KSEG1 addresses
-(`0xB0000000 | offset`, osRomBase), and the MusyX library names its samples by them; port/ultra's PI takes them
-(`pc_n64_map.h`'s cartridge names). **The data loader** reads the N64 addresses in the cartridge images' data (the
-pointers in the ROM's data, the overlay's relocations) and decodes them itself (`port/data/pc_data.h`'s loader
-constants). Neither is memory the game holds.
+**The cartridge** is read by ROM offset (section 11): `pc_cart_read` for a raw wave and the sound library's DMA
+list, whose samples, codebooks and speech are named by their ROM offsets; until wave 4 the game named it by its
+KSEG1 bus addresses (`0xB0000000 | offset`, osRomBase) through libultra's PI. **The data loader** reads the N64
+addresses in the cartridge images' data (the pointers in the ROM's data, the overlay's relocations) and decodes them
+itself (`port/data/pc_data.h`'s loader constants). Neither is memory the game holds.
 
 **The N64 guard** (`RUSH2049_N64_GUARD=1`; [NOFIXED.md](NOFIXED.md) 0, `tools/port/n64_guard.py`): at start
 port/ultra reserves the N64's whole range, 0x80000000-0xBFFFFFFF (KSEG0 and KSEG1, where RDRAM and the cartridge were),
@@ -141,13 +141,15 @@ free are the exit line's `heap:`.
 them. Adjacent ranges stay apart. `pc_mem_unregister_texels(p)` (`_samples`) drops the range that contains p. The
 WAD converter registers each WAD's IMAG, its texels and TLUTs, as texel memory, and drops it with the file's block;
 the MusyX driver registers its two DMA caches as sample memory when it allocates them and drops them when it frees
-them. PI DMA, inflate and LZSS register nothing (until step 14 they registered their destinations).
+them. The cartridge's reads, inflate and LZSS register nothing (until step 14 they registered their destinations).
 
 ## 3. Devices
 
 **VI.** No manager thread. The main loop runs a 60 Hz retrace (NTSC). It sends the `osViSetEvent` message every
-`retraceCount` retraces. A framebuffer passed to `osViSwapBuffer` becomes current at the next retrace and is shown
-(`pc_gfx_present`), unless the VI is blacked out. Mode, special features and scale are recorded.
+`retraceCount` retraces. A framebuffer passed to `pc_vi_swap_buffer` becomes current at the next retrace and is
+shown (`pc_gfx_present`), unless the screen is blacked out (`pc_vi_black`); `pc_vi_current_framebuffer` and
+`pc_vi_next_framebuffer` tell the scheduler and the main loop whether a swap waits. The N64's video mode and special
+features (its VI registers) have nothing to set on the PC, and the game sets none (section 11).
 
 **RSP and RDP.** `osSpTaskStartGo` copies a graphics task for the main thread, which owns the GL context:
 - `M_GFXTASK` goes to `pc_gfx_run_dl(t.data_ptr)`, then the SP and DP events.
@@ -185,22 +187,20 @@ first graphics task and stops: the Phase 2 goal.
   them. While the game is held (`hold()`), port/audio's target is 0.
 - `osAiGetLength` reports the queued frames × 4.
 
-**PI and the ROM.**
+**The ROM and the cartridge's reads.**
 - The ROM comes from `--rom` (default `baserom.us.z64`). It is byte-swapped from .v64 or .n64 and checked against
   the US SHA-1; `--no-rom-check` runs another dump anyway.
-- `osPiStartDma` has no manager thread: it copies at once, registers the destination as big-endian and sends the
-  completion. The game passes ROM offsets as `devAddr` (libultra adds `osRomBase`); cartridge bus addresses
-  (0x10000000 and up, or KSEG1 0xB0000000) are accepted too.
-- `osPiReadIo` reads big-endian words: the game's main reads 16 at 0xFFB000, past the ROM, so they are 0.
+- `pc_cart_read(rom_offset, dst, size, done)`: no manager thread; it copies at once (the mods' region past the ROM
+  too, MODS.md) and posts an empty message to `done`, the queue the reader waits on. Past the cartridge's bytes it
+  writes zeros and logs `cartridge read past the ROM`.
 
 **Decompressors** (hand-written assembly on the N64):
-- `unzipdata_from_rom(src, dst, n)`:
-  - the game image (ROM 0xB0CB10, `gRomCompressedData`) does nothing: it is linked in and port/data filled its data;
-  - the runtime images (0xB5C534, 0xB6FEC4) become `pc_data_overlay_load` (port/data's overlay loaders call that
-    themselves under `TARGET_PC`);
-  - any other stream is inflated with zlib from the ROM.
+- `unzipdata_from_rom(rom_offset, dst, n)` inflates the stream at a ROM offset with zlib (a deflated wave). The
+  N64's main thread also inflated the game image with it, and the overlay loaders the runtime images: on the PC the
+  game image is linked in and the overlay loaders call `pc_data_overlay_load`, so neither comes here (both cases went
+  in wave 4).
 - `unzipdata(src, size, dst)` inflates from memory (ghosts).
-- `lzss_decode(src, dst)` is the boot LZSS: flag bytes LSB first; a copy is two bytes, length `(b0 & 15) + 2`,
+- `lzss_decode(rom_offset, dst)` is the boot LZSS: flag bytes LSB first; a copy is two bytes, length `(b0 & 15) + 2`,
   distance `(b0 & 0xF0) << 4 | b1`; distance and length nibble 0 end the stream.
 
 **SI.** The game's own libultra C runs unchanged: `osContInit`, `osContStartReadData`, `__osContRamRead`/`Write`,
@@ -304,9 +304,9 @@ the game saves only to the controller pak.
 - So an N64-order image (v5's, an emulator's) can't be read. It is detected by its ID checksum and left untouched,
   and a blank pak is used in memory. A converter needs the game's save formats too.
 
-**Cache, TLB, interrupts, FPU.** No-ops: `osInvalDCache`, `osWritebackDCache`, the TLB calls, `__osDisableInt`
-(returns 1), `__osSetFpcCsr`/`__setfpcsr` (the game's FPU traps stay masked). `osSetIntMask` returns the previous
-mask.
+**Interrupts, FPU.** No-ops: `__osDisableInt` (returns 1), `__setfpcsr` (the game's FPU traps stay masked).
+`osSetIntMask` returns the previous mask. A PC's caches are coherent and the game maps no TLB: since wave 4 the game
+C makes no cache or TLB call (section 11).
 
 **Low memory.** `osInitialize` (the game's `__osInitialize_common`) sets `osTvType` (NTSC) and `osMemSize`, ordinary
 variables (port/ultra/misc.c); until [NATIVE.md](NATIVE.md) step 12 it wrote them, the ROM base, a cold reset and CIC
@@ -394,10 +394,10 @@ frame in and it has been shown.
 | lib_7b30, lib_7c80, lib_8e10, lib_10d10, lib_107a0, lib_c990, lib_cc50, lib_d580 | `osCreateThread`, `osStartThread`, `osRecvMesg`, `osSetThreadPri`, `osYieldThread`, `osDestroyThread`, `osStopThread`, `osGetThreadId`, `osGetThreadPri`, the run-queue and timer internals | sched.c, timer.c |
 | lib_7600, lib_81e0, lib_8040_msg, lib_7a10 | `osCreateMesgQueue`, `osSendMesg`, `osJamMesg`, `osSetEventMesg` | sched.c |
 | lib_7fb0, lib_efd0 | `osGetTime`, `osSetTimer` | timer.c |
-| lib_7630, lib_7940, lib_79a0, lib_7ad0, lib_8040, lib_8330, lib_83d0, lib_8920, lib_d140, lib_d270 | the VI manager and calls | vi.c |
+| lib_7630, lib_7940, lib_79a0, lib_7ad0, lib_8040, lib_8330, lib_83d0, lib_8920, lib_d140, lib_d270 | the VI manager and calls | vi.c (`pc_vi_*`, `osViSetEvent`) |
 | lib_8440, lib_8700, lib_a5b0, lib_e240, lib_e250, lib_e280, lib_e310, lib_e340, lib_10760, lib_ca70 | SP tasks, `osDpSetNextBuffer`, raw SP/DP, the AI | rcp.c |
-| lib_8e10_pi, lib_9230, lib_8dd0, lib_e7c0, lib_e8d0, lib_e9a0, lib_10a00, lib_10b60 | the PI manager, `osPiStartDma`, raw PI | pi.c |
-| lib_f0b0, lib_e390, lib_e3f0, lib_10970 | raw SI | si.c |
+| lib_8e10_pi, lib_9230, lib_8dd0, lib_e7c0, lib_e8d0, lib_e9a0, lib_10a00, lib_10b60 | the PI manager, `osPiStartDma`, raw PI | pi.c (`pc_cart_read`) |
+| lib_f0b0, lib_e390, lib_e3f0, lib_10970 | raw SI | si.c (`__osSiRawStartDma`) |
 | lib_8a80, lib_109a0, lib_10cc0, lib_a800, lib_e1c0, lib_d260 | `osInitialize`, interrupt masks, address conversion, `osGetActiveQueue` | misc.c |
 | lib_5610 | inflate (with the hand-written `unzipdata_from_rom`, `lzss_decode`) | pi.c |
 | lib_34a0 | the IDO libc (`sprintf`, `modff`, the formatter core `fcvt`) | the host's; libc.c |
@@ -442,9 +442,8 @@ graphics task ([MUSYX_DATA.md](MUSYX_DATA.md) §8.4).
 
 **The names missing from the symbol file.** By `rom_symbol_aliases.ld`, `osEPiRawReadIo`, `osEPiRawStartDma`,
 `osEPiRawWriteIo`, `__osPiDeviceBusy`, `__osPiGetCmdQueue` and `__osTLBLookup` are the decomp's names for other
-functions at those addresses. All their callers are in replaced units, so they are defined in pi.c and misc.c with
-that meaning (no-ops, or the cartridge). `__osPfsDataChecksum` is `__osContDataCrc`, which `__osContRamRead`
-calls.
+functions at those addresses. All their callers are in replaced units, and the PC layer defines none of them (pi.c
+did until wave 4). `__osPfsDataChecksum` is `__osContDataCrc`, which `__osContRamRead` calls (si.c).
 
 ## 6. Busy-waits
 
@@ -487,8 +486,8 @@ references (libc, zlib, pthreads) are left to the linker. It also writes:
 - `stubs_standalone.c` (`--standalone`) for programs that link the game without the PC layer
   (`rush2049pc_datacheck`).
 
-Now: 0 function stubs, 1 data placeholder (`ShowCull`), 1 alias (`gDecompressedDataStart`, the game image's first
-function's name), no absolute symbol (6 until step 12). The last function stubs were
+Now: 0 function stubs, 1 data placeholder (`ShowCull`), no alias (the last, `gDecompressedDataStart`, the game image's
+first function's name, went with the boot's inflate of the image in wave 4), no absolute symbol (6 until step 12). The last function stubs were
 the libgsm kernels, now `gsm.c` (§8).
 
 ## 8. Verification
@@ -684,7 +683,8 @@ cartridge's numbers stay off the repository.
 
 ## 11. The game's C in the PC's terms: memory, the cartridge and the devices (wave 4, part 1)
 
-The plan, written 2026-11-18 before the work ([RECORDS.md](RECORDS.md) 5 has the records). The game's C still asked
+Written 2026-11-18 as the plan, before the work, and kept as the record of it ([RECORDS.md](RECORDS.md) 5 has the
+records; the proof is at the end). The game's C still asked
 port/ultra for things in the N64's terms: it flushed and invalidated the CPU's caches around every transfer, named the
 cartridge by its address on the N64's bus, started DMA through the PI manager's message records, and set the video
 interface's registers. Each of those is now either a call to port/ultra in the PC's terms, or gone because the PC has
@@ -703,9 +703,14 @@ transfer completes through a message, the message stays as it is.
 | `osCreatePiManager` (a command queue nothing reads) | the idle thread | gone |
 | the game image's inflate, `unzipdata_from_rom(gRomCompressedData, gDecompressedDataStart, 0)`, which did nothing on the PC (the image is linked in) | `main_thread_entry` | gone, with `gRomCompressedData` |
 | `osViSwapBuffer`, `osViBlack`, `osViGetCurrentFramebuffer`, `osViGetNextFramebuffer` | the scheduler, the main loop, the video mode | `pc_vi_swap_buffer`, `pc_vi_black`, `pc_vi_current_framebuffer`, `pc_vi_next_framebuffer` (vi.c): the frame shown from the next retrace, the screen blacked out, the frames current and next |
-| `osViSetMode`, `osViSetSpecialFeatures`, `osCreateViManager` | the scheduler, the video mode, StartGraphics (the dither filter, the divot) | nothing: they set the N64 video interface's registers (its timing, scaling, gamma and filters), which the PC doesn't have; vi.c only stored them. The game still builds its adjusted video mode (the video screen's centring), whose vertical scale decides when the screen is unblacked |
+| `osViSetMode`, `osViSetSpecialFeatures`, `osCreateViManager` | the scheduler, the video mode (and the reset's `video_restore_base_mode`), StartGraphics (the dither filter, the divot) | nothing: they set the N64 video interface's registers (its timing, scaling, gamma and filters), which the PC doesn't have; vi.c only stored them. The game still builds its adjusted video mode (the video screen's centring), whose vertical scale decides when the screen is unblacked |
 
-The new calls are declared in `port/include/pc_prelude.h`, with the PC layer's other calls the game makes.
+The new calls are declared in `port/include/pc_prelude.h`, with the PC layer's other calls the game makes. With the
+calls went what only they used: the PI's message record (`OSIoMesg`), the data that held one (`sample_dma_io`) and
+the PI manager's command queue (`gViModeTable`, `gViModeLan1`: names the symbol file gave them), the boot's N64
+memory-map names (`gDecompressedDataStart`, `gDecompressedDataEnd1`, `gBssStart`), pi.c's raw PI calls and
+bus-address conversion, si.c's raw SI register calls, the cache and TLB no-ops, and `pc_n64_map.h`'s cartridge bus
+names (`N64_CART_SPAN`, the reach of a ROM offset, stays).
 
 **What stays, and why.**
 
@@ -732,8 +737,17 @@ copies and include/game's `PcPfs`; `OSPfsState`, include/game's `PakFileState`; 
 **The proof.** Each stage: objsame lists only the units it changed (`same` for the records), ctest passes; at the end
 the gate (every synthetic path `same`, screenshots and sound), the optimized and the audible cartridge's compares, the
 sanitizers, and the determinism tests (`hash_*`, `replay_same_*`, `net_session`). The full state hash's `heap` region
-holds the sound library's sample addresses, which are ROM offsets now, so its values differ from the reference
-build's; two runs of one build still agree, which is what the hash is for. The pause key, focus loss and the F1 overlay still hold the game (re-based); a session will disable
+holds the sound library's sample addresses, which are ROM offsets now, and its `own` region no longer has the three
+data above, so its values differ from the reference build's; two runs of one build still agree, which is what the hash
+is for.
+
+| Stage | objsame (Debug and RelWithDebInfo) | data.c against the reference |
+|---|---|---|
+| zlib's records into zlib_deflate.h | 961 of 961 same | the same |
+| the pak file system's records into pfs.h | 961 of 961 same | the same |
+| the cache calls | 952 same: boot.c, scheduler.c, video_mode.c, sound/dma_queue.c, sound/hardware.c, speech/streams.c, waves.c, paksysdc_flush/group.c, PS_ReadPartialFile.c differ by the calls gone | `gDecompressedDataEnd1`, `gBssStart` (second names of `gEngineSpecs`' and `static_ltree`'s storage) not emitted: nothing names them |
+| the cartridge | 949 same: those, and sample_dma_next.c, musyx_cart_address.c, decompress.c (u32 ROM offsets: no zero-extension) | as before, and `gViModeTable`, `gViModeLan1`, `sample_dma_io` not placed: nothing names them |
+| the video interface | 947 same: those, and StartGraphics.c and mainloop.c | the same as the cartridge's | The pause key, focus loss and the F1 overlay still hold the game (re-based); a session will disable
 them. While a hold stops the clock, port/input's UI timers that read `pc_host_ns()` (the overlay's key-capture
 timeout, menu repeat, a status line's fade, the cursor's hide) stand still too, as with `--fast`; a session's overlay
 won't hold the game, and otherwise they want a clock of their own. Without SDL's audio (headless builds) the tap is

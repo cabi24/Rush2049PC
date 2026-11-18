@@ -35,7 +35,8 @@ file, a texture without IMAG say so.
 Since [NATIVE.md](NATIVE.md) step 10 the display lists and vertices are built native beside the file, and since step
 14 the matrices and viewports a list loads too; what stays in the file in the N64's formats is IMAG, the texels and
 TLUTs, which the converter registers as the file's texel memory (`pc_mem_register_texels`; widened, and said with
-`texels:`, where a record or a list places texels outside IMAG). The PI DMA and the decompressors register nothing.
+`texels:`, where a record or a list places texels outside IMAG). The cartridge's reads and the decompressors register
+nothing.
 
 The rest of this section is the converter as it was written on 2026-10-27.
 
@@ -135,7 +136,7 @@ descriptor's block is then native, which port/gfx reads natively because it isn'
   - non-WADs, oversized chunks, a trigger that is no record and a model with 7 levels.
 - **`assets_wad_game`** (`tests/wad_game.c`). The game's own code, built with the game flags, over the same WAD in
   host memory (until [NATIVE.md](NATIVE.md) step 10 an RDRAM window the test mapped at 0x80000000). The test:
-  - loads the WAD through `_ReadWave` (a PI DMA from a synthetic cartridge, then the conversion and
+  - loads the WAD through `_ReadWave` (a read of a synthetic cartridge, `pc_cart_read`, then the conversion and
     `SetupWaveModel`);
   - checks the tables (the WAD's native records since NATIVE.md step 7), the TXLD rebase, the display-list relocation
     and LOD conditionals (one player and two), the vertex pass, and the mirror pass with its winding flips through a

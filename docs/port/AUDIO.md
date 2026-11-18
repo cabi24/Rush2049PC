@@ -29,7 +29,8 @@ The stage is implemented anyway.
 The data flow, from the asset survey ([ASSETS.md](ASSETS.md) §3.8) and the driver (the files themselves, and how
 port/assets converts them: [MUSYX_DATA.md](MUSYX_DATA.md)):
 - Bank sounds start in `sound_macro_start_sample`, then `sound_find_sample`. The format is the top byte of the sample descriptor's
-  length word. `data` is a cart address, `0xB0000000 | (0x39B40 + offset)`.
+  length word. The sample is named by its ROM offset, `0x39B40 + offset` (until wave 4 its cart address,
+  `0xB0000000 | (0x39B40 + offset)`: [ULTRA.md](ULTRA.md) 11).
 - Not being a RAM address, a cart address sets voice flag 1. The builder then fetches through two caches it fills
   by DMA from the ROM: the codebooks go to `sound_codebook_cache` (`count × 256` bytes, `sound_hw_fetch_codebook`) and the 1,536-byte
   sample blocks to `sound_sample_cache` (`sound_hw_fetch_sample_range`). The SFD's pointers point into those caches.
@@ -255,7 +256,7 @@ of its 10 checks.
      `sizeof(SoundDelayState)` for 72. The 664-byte state block stays 664.
 3. **The RAM test in `sound_hw_set_voice_sample`**, `(data & 0xF0000000) == 0x80000000`, must also count host pointers
    (≥ 4 GB) as RAM, or a host buffer is fetched as a cart address. `sound_hw_translate_address` has the same top-byte test.
-   (Since [NATIVE.md](NATIVE.md) step 9 there is no such test: a sample carries its cartridge address or its RAM
+   (Since [NATIVE.md](NATIVE.md) step 9 there is no such test: a sample carries its ROM offset or its RAM
    pointer apart, include/sound_sample_record.h's `SoundSampleInfo`, and the N64-form records went.)
 4. The other 64-bit casts in the file can stay as they are or become `uintptr_t`:
    - the D-cache cursors `sound_sfd_write_end`/`sound_sfd_cache_cursor` with `dcache_create_dirty_lines` (the writebacks are no-ops)

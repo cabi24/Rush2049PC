@@ -216,8 +216,8 @@ because the library is the same.
 - **The buttons' meaning** comes from the cartridge's `n64_button_map`: bits 0-2 and 10-13 are known from the code
   (Start, A, B, the d-pad), the others only by position (the pak manager's delete combination is bits 7 and 8, the
   start menu's debug row bit 8).
-- **The cartridge window**: `musyx_cart_address` turns a sample's offset into an address in the N64's 0xB0000000
-  window, which the PC's DMA emulation reads.
+- **The cartridge's places**: `musyx_cart_address` gives the sound library a sample's place in the cartridge, which
+  the PC's cartridge read takes: its ROM offset, as it is (the N64's was the address in its 0xB0000000 window).
 - **`gNumModels[0]`**: the model count is an array of 4 bytes in include/game (the data loader's layout: the gap to the
   next datum), so the screens read `gNumModels[0]`; MAT3's `unsigned char gNumModels` is for wave 3.
 - **The track maps** (trackscr.c): `MapLod.displayList` and `verts` were 32-bit fields given host pointers to the

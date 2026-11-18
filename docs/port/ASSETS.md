@@ -61,6 +61,10 @@ Function names are the repository's (often historical labels); the real role is 
 | `DecodeGhost` → `unzipdata` | 0x800CBE08 → 0x8000697C (`groups/save/ghost_files.c:209`) | ghost data from the Controller Pak, not the ROM | RAM | DEFLATE | buffer | C |
 | Stream bank `speech_set_bank` / `speech_play` (boot library) | | 8 or 16 kHz streams, index table `u32 = rate << 24 \| offset` | | | | C: no caller in the game, image A or image B (unused) |
 
+On the PC ([ULTRA.md](ULTRA.md) 11): the raw reads (`wave_rom_read`) and the MusyX sample list (`sample_dma_next`) read
+the cartridge by ROM offset with `pc_cart_read`, not `osPiStartDma`; `main` no longer reads the header words; the game
+image is linked in, so `main_thread_entry` inflates nothing.
+
 Decompressors [C, from `asm/us/nonmatchings/rom/lib_5610/*.s`]:
 - **DEFLATE**: raw (no zlib header). The input is streamed in 4 KB PI DMA chunks through `unzip_input_a/B`
   (0x80084A50/0x80085A50) and the output written straight to `dst`. `unzipdata_from_rom` returns the output length.

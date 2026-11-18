@@ -283,8 +283,8 @@ it and don't keep it. And a host address couldn't be kept in a u32 anyway: the s
 (`&gPlayers[i]` at +0x380, init_cars), a host pointer already, which the input records' decoupling has to
 keep (section 5).
 
-**What it reaches past its end.** Nothing. The next symbol, `sample_dma_pi_queue`, is a message queue (osPiStartDma's done queue
-in sample_dma_next, sample_dma_thread_entry's); the three objects whose C names it are those two functions (one twice, in its
+**What it reaches past its end.** Nothing. The next symbol, `sample_dma_pi_queue`, is a message queue (the sample reads' done queue:
+sample_dma_next's reads post to it, sample_dma_thread_entry waits on it); the three objects whose C names it are those two functions (one twice, in its
 context copy), and the retail code's two references to 0x80153E68 are theirs. No C names the array plus 6 or
 `&gGameCar[6]`; the walks of the array end at the cars in the race (`gGameCar + gNumCars`, image B's homing and
 radius effects, the shots), which is `PC_CARS_END(n)` now. The array had storage of its own before, so a walk from a

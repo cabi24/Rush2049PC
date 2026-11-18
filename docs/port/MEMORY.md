@@ -67,9 +67,10 @@ things made 256 MiB the limit below it (the history):
   (`sound_hw_set_voice_sample`, `hardware.c:1735`: `(data & 0xF0000000) != 0x80000000` marks a sample as in the cartridge) and
   the stream table (`speech_set_bank`, `streams.c:486`). A K0 address past 256 MiB is 0x9xxxxxxx and would be taken
   for a cartridge one. Up to 256 MiB every K0 address in the window is 0x8xxxxxxx, so both are right as they are.
-- **KSEG1 from 0xB0000000.** The game names the cartridge by its KSEG1 address, `0xB0000000 | offset` (osRomBase,
-  `musyx_cart_address.c:11`, the MusyX DMA's sources), which is the KSEG1 view of physical 0x10000000. Past 256 MiB the
-  window's KSEG1 view would reach those values, and a cartridge address and a RAM one would be the same number.
+- **KSEG1 from 0xB0000000.** The game named the cartridge by its KSEG1 address, `0xB0000000 | offset` (osRomBase,
+  `musyx_cart_address.c`, the MusyX DMA's sources), which is the KSEG1 view of physical 0x10000000. Past 256 MiB the
+  window's KSEG1 view would reach those values, and a cartridge address and a RAM one would be the same number. (Since
+  wave 4 the game names the cartridge by ROM offset: [ULTRA.md](ULTRA.md) 11.)
 
 Both could be changed (the two tests, and nothing in the PC hands a cartridge address to `pc_n64_ptr`), but nothing
 in this game needs more than 256 MiB: the whole cartridge is 32 MiB. Each size from 16 to 256 MiB uses the same
@@ -301,8 +302,9 @@ units the PC doesn't replace) for 0x7FFFFF, 0x3FFFFF, 0xFFFFFF, 0x00FFFFFF, 0x1F
 
 ## 8. Not done, or not tested
 
-- Sizes past 256 MiB (section 2): the two MusyX tests and the KSEG1 overlap would need changes, for no use in this
-  game.
+- Sizes past 256 MiB (section 2): nothing of the address model stands in the way since wave 4 (the MusyX tests went
+  with [NATIVE.md](NATIVE.md) step 9, the cartridge's KSEG1 addresses with [ULTRA.md](ULTRA.md) 11); only the setting's
+  range, for no use in this game.
 - Windows: the cross build compiles (section 6), but nothing ran on Windows: the heap's block committed at 256 MiB
   (`VirtualAlloc`, top-down), and the new tests there (CI's windows jobs run them).
 - UBSan on x86-64 (CI's other sanitize job): the build host has no UBSan runtime, so it ran only on aarch64, with ASan.

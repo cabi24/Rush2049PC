@@ -67,6 +67,34 @@ had to agree on the layout, and `view_check.py`, `view_audit.py` and `layout_che
 
 (Agent D: the message queues, the pak file system, the scheduler's clients, zlib's state.)
 
+### 5.1 zlib's state, the pak's file system, the PI's message (agent D1)
+
+| Record | Declared in | What it holds | Other tags it had |
+|---|---|---|---|
+| `z_stream_s` (`z_stream`) | `include/game/zlib_deflate.h` | the deflater's stream: the input and output, their counts, the state; `zip` makes one on its stack for each ghost it compresses | copies in `zlib_deflate/group.c` and `heap_release/zip.c` |
+| `tree_desc_s` (`tree_desc`) | the same | one Huffman tree being built: its nodes, its largest code, its static counterpart | the same two copies |
+| `internal_state` (`deflate_state`) | the same | the compressor's state (zlib 1.0.4's, trimmed), allocated from the main heap for each `zip` | the same two copies; the int after `pending` is MAT3's `data_type` and `method` (two bytes, nothing reads them), where the copies had `unk10` |
+| `OSPfs` | `include/game/pfs.h` | a controller pak's handle: what `osPfsInitPak` read of the pak (its id, label, tables' pages, banks), which every other call of the file system takes; `tPak.pfs` | include/game's `PcPfs`; copies in `paksysdc/group.c`, `paksysdc_flush/group.c`, `PS_ReadPartialFile.c`; `PR/os_pfs.h`'s for the boot segment's libultra |
+| `OSPfsState` | the same | a file's entry in a pak's directory (size, game and company codes, name, extension); `tPakFile.state` | include/game's `PakFileState`; `PR/os_pfs.h`'s |
+| `__OSInodeUnit`, `__OSInode` | the same | a page's place in a pak's inode table, and one bank's table | include/game/types.h's and `PR/os_pfs.h`'s |
+
+The pak's records are declared once for both of the game's header worlds: `include/game/types.h` and the boot
+segment's `PR/os_pfs.h` include `include/game/pfs.h`. The test programs' own host-type mirrors (`test_pak.c`,
+`test_save.c`, the self-test's `SelfPfs`) stay theirs: they read the game's bytes, not its headers.
+
+`OSIoMesg` and `OSIoMesgHdr`, the PI's DMA message (include/game/types.h, `PR/os_pi.h`, and a copy in `waves.c`), are
+gone: the game reads the cartridge with `pc_cart_read` ([ULTRA.md](ULTRA.md) 11), and the datum that held one
+(`sample_dma_io`) with them.
+
+No field disagreed between the copies: each was the same layout under the same names but `unk10`. No unit is other
+than `same` for the records (objsame, Debug and RelWithDebInfo; data.c, the symbol and layout lists the reference's).
+
+| In src/ and nonmatching/ | Before | After |
+|---|---:|---|
+| local declarations of these records | 11 (zlib's 6, `OSPfs` 3, `OSIoMesg` and its header 2) | 0 |
+| tags declared in more than one file | 4 (`z_stream_s`, `tree_desc_s`, `internal_state`, `OSPfs`) | 0 |
+| `VIEW()` lines, pad arrays | 0 | 0 |
+
 ## 6. The proof
 
 (The lead's, after the merge.)
