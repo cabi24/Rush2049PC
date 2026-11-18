@@ -428,7 +428,7 @@ extern struct pc_car pc_cars[PC_CAR_SLOTS];
 #define PC_CAR_BATTLE_YAW(i) (pc_cars[i].battle_yaw)
 
 /* ---- The level objects, the targets: MAT3 tTarget and its pool gTargetArray (130 nodes of 0x70 bytes on the N64,
- * game BSS at 0x8014D280, whose link and data were 32-bit addresses). One node per track object that takes part in
+ * in the game's BSS, whose link and data were 32-bit addresses). One node per track object that takes part in
  * the race (a cone, a cactus, a fence, a window, a coin, a mine, a weapon, an object moving on a path), taken from
  * the StatLL pool gTargetList (SetupTarget; initTargetStructs makes the pool of pc_target_nodes, which data.c
  * defines). On the PC a node is in the host layout, 0x78 bytes: its link and its kind's record are host pointers,
