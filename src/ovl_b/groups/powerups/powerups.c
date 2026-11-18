@@ -16,7 +16,7 @@ void UpdateInvs(void)
     tCarData *car;
     u8 invsColor[8] = {16, 32, 64, 96, 112, 144, 176, 176};
     for (i = 0; i < gNumPlayers; i++) {
-        car = PC_CAR(i);
+        car = &pc_cars[i];
         if (car->battle.defense.active & 1) {
             if (car->battle.fadeState == 3) {
                 car->battle.fadeAlpha = invsColor[car->battle.shoot];

@@ -168,7 +168,7 @@ void SetResurrectionData(s16 mode, tModelData *m, u32 abort) {
                 }
             }
             SetDroneResPathIndex((struct State *)m, -1, gDemoPathPt);
-            car = PC_CAR(m->slot);
+            car = &pc_cars[m->slot];
             m->resurrect_save_pos[0] = (f32)DRONE_PATH(car->mpctl.path).pts[car->mpctl.idx][0];
             m->resurrect_save_pos[1] = (f32)DRONE_PATH(car->mpctl.path).pts[car->mpctl.idx][1];
             m->resurrect_save_pos[2] = (f32)DRONE_PATH(car->mpctl.path).pts[car->mpctl.idx][2];

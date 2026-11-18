@@ -26,8 +26,8 @@ void AddBattlePointInternal(s8 row, s8 column, s8 delta) {
         if (gOptions[40] == 0) {
             return;
         }
-        if (PC_CAR_POINTS(row) <= 0) {
-            PC_CAR_POINTS(row) = 0;
+        if (pc_cars[row].battle.Points <= 0) {
+            pc_cars[row].battle.Points = 0;
             return;
         }
     }

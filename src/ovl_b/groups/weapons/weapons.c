@@ -85,7 +85,7 @@ void RemoveCannMFlash(s16 slot)
  * car's frame, its offset by body), the flashes and the ripple fade, and the weapon goes when the car has none. */
 void AnimateWeapon(Visual *v, s16 op)
 {
-    tCarData *car = PC_CAR(v->slot);
+    tCarData *car = &pc_cars[v->slot];
     s32 def;
     s32 i;
     s32 r1;

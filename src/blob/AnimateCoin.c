@@ -93,7 +93,7 @@ void AnimateCoin(struct pc_visual *v, s16 op)
                 foundByAll = 0;
                 coin->cameras |= 1 << i;
             } else {
-                car = PC_CAR(i);
+                car = &pc_cars[i];
                 MBOX_HideObject(t->dlIdx, 1, VIEW_BIT(car->camera));
                 MBOX_HideObject(coin->dlIdx.handle, 1, VIEW_BIT(car->camera));
             }

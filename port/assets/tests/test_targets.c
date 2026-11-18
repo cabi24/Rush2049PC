@@ -512,7 +512,7 @@ static void test_camera(void)
 }
 
 /* A race of 12 cars (docs/port/MORECARS.md 3.1): the scene's flags have bits 24-31 for cars 0-7, as on the N64; car 8
- * and up keep theirs in their car record (PC_CAR_SCENES: bit 4 for this scene, whose trigger is collision index 4),
+ * and up keep theirs in their car record (scenes: bit 4 for this scene, whose trigger is collision index 4),
  * none of the scene's other bits, and count when the trigger asks whether a car is in it already (0x200 is set when
  * the first one comes in). In a race of 6, a car past them is not of it. */
 static void car_on(int16_t car, int on)
@@ -528,10 +528,10 @@ static void scene_cars(struct tTarget *cam, uint8_t *sc)
     int16_t p0 = 0, p7 = 7, p8 = 8, p11 = 11;
 
     gNumCars = 12;
-    PC_CAR_SCENES(8) = PC_CAR_SCENES(11) = 0;
+    pc_cars[8].scenes = pc_cars[11].scenes = 0;
     car_on(8, 1);
     TargetCollTrigger(cam, &p8, 0, 0);
-    CHECK(PC_CAR_SCENES(8) == 1u << 4 && (*flags & 0xFF00000Fu) == 1u << 24 && (*flags & 0x220) == 0x220);
+    CHECK(pc_cars[8].scenes == 1u << 4 && (*flags & 0xFF00000Fu) == 1u << 24 && (*flags & 0x220) == 0x220);
     car_on(7, 1);
     TargetCollTrigger(cam, &p7, 0, 0);
     CHECK((*flags & 0xFF000000u) == (1u << 24 | 1u << 31));
@@ -539,32 +539,32 @@ static void scene_cars(struct tTarget *cam, uint8_t *sc)
     TargetCollTrigger(cam, &p7, 0, 0);
     car_on(0, 0);
     TargetCollTrigger(cam, &p0, 0, 0);
-    CHECK((*flags & 0xFF00000Fu) == 0 && PC_CAR_SCENES(8) == 1u << 4);
+    CHECK((*flags & 0xFF00000Fu) == 0 && pc_cars[8].scenes == 1u << 4);
     *flags &= ~0x200u;
     car_on(0, 1);                                      /* car 8 is in: car 0 is not the first */
     TargetCollTrigger(cam, &p0, 0, 0);
     CHECK((*flags & 1u << 24) && !(*flags & 0x200));
     car_on(11, 1);
     TargetCollTrigger(cam, &p11, 0, 0);
-    CHECK(PC_CAR_SCENES(11) == 1u << 4);
+    CHECK(pc_cars[11].scenes == 1u << 4);
     car_on(8, 0), car_on(11, 0), car_on(0, 0);         /* all out */
     TargetCollTrigger(cam, &p8, 0, 0);
     TargetCollTrigger(cam, &p11, 0, 0);
     TargetCollTrigger(cam, &p0, 0, 0);
-    CHECK(PC_CAR_SCENES(8) == 0 && PC_CAR_SCENES(11) == 0 && (*flags & 0xFF00000Fu) == 0);
+    CHECK(pc_cars[8].scenes == 0 && pc_cars[11].scenes == 0 && (*flags & 0xFF00000Fu) == 0);
     car_on(0, 1);                                      /* the first in */
     TargetCollTrigger(cam, &p0, 0, 0);
     CHECK((*flags & 1u << 24) && (*flags & 0x200));
 
     /* a race of 6: car 8's bit, left from a race of 12, is not of it */
-    PC_CAR_SCENES(8) = 1u << 4, gNumCars = 6;
+    pc_cars[8].scenes = 1u << 4, gNumCars = 6;
     car_on(0, 0);
     TargetCollTrigger(cam, &p0, 0, 0);
     *flags &= ~0x200u;
     car_on(0, 1);
     TargetCollTrigger(cam, &p0, 0, 0);
     CHECK((*flags & 1u << 24) && (*flags & 0x200));
-    PC_CAR_SCENES(8) = 0;
+    pc_cars[8].scenes = 0;
 }
 
 /* A bounding box model's collision: the model's box is a row of BBoxCollInfo (row 2, its kind's collVal), read by

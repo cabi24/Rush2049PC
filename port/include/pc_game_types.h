@@ -298,7 +298,7 @@ struct pc_visual {
 };
 
 /* The drone's path state inside the car record (MAT3 tCarData.mpctl, a tPathPoint, with its field names; maxpath.c):
- * no pointers, the same layout on both. Code takes its address (&PC_CAR_NAV(i)). */
+ * no pointers, the same layout on both. Code takes its address (&pc_cars[i].mpctl). */
 struct pc_car_nav {
     float xrel;                         /* +0x00 how far along the current stretch of drone path the car is */
     float yrel;                         /* +0x04 how far to the side of it */
@@ -312,55 +312,6 @@ struct pc_car_nav {
     short path;                         /* +0x28 the drone path followed (gDronePaths) */
     short basePath;                     /* +0x2A the drone path the car started on, which it prefers */
 };
-
-/* The accessors: the array (PC_CARS), record i's address (PC_CAR) and the end of the first n records
- * (PC_CARS_END: the walks over the cars in the race), all void * so each file's own view pointer takes them, and
- * record i's fields. PC_CAR_INPUT_AS(T, i) is the input pointer as a T *, for code that reads through it in its own
- * view. */
-#define PC_CARS ((void *)pc_cars)
-#define PC_CAR(i) ((void *)&pc_cars[i])
-#define PC_CARS_END(n) ((void *)&pc_cars[n])
-#define PC_CAR_POS(i) (pc_cars[i].dr_pos)
-#define PC_CAR_POS_X(i) (pc_cars[i].dr_pos[0])
-#define PC_CAR_POS_Y(i) (pc_cars[i].dr_pos[1])
-#define PC_CAR_POS_Z(i) (pc_cars[i].dr_pos[2])
-#define PC_CAR_UVS(i) (pc_cars[i].dr_uvs)
-#define PC_CAR_UVS50(i) (pc_cars[i].dr_car_uvs)
-#define PC_CAR_WHEEL_POS(i) (pc_cars[i].dr_tirepos)
-#define PC_CAR_FLAGS(i) (pc_cars[i].appearance)
-#define PC_CAR_PLACE(i) (pc_cars[i].place)
-#define PC_CAR_PLACE_LOCKED(i) (pc_cars[i].place_locked)
-#define PC_CAR_SCORE(i) (pc_cars[i].score)
-#define PC_CAR_NODE(i) (pc_cars[i].objnum)
-#define PC_CAR_MPH(i) (pc_cars[i].rwmph)
-#define PC_CAR_DISTANCE(i) (pc_cars[i].distance)
-#define PC_CAR_MILEAGE(i) (pc_cars[i].mileage)
-#define PC_CAR_VISUALS(i) (pc_cars[i].visuals)
-#define PC_CAR_NAV(i) (pc_cars[i].mpctl)
-#define PC_CAR_FWD_PROGRESS(i) (pc_cars[i].fwd_progress_t)
-#define PC_CAR_IR_COLOR(i) (pc_cars[i].IRclr.rgba)
-#define PC_CAR_PREV_IR_COLOR(i) (pc_cars[i].prevIRclr.rgba)
-#define PC_CAR_WEIGHT_INDEX(i) (pc_cars[i].weight_index)
-#define PC_CAR_CRASH_STATE(i) (pc_cars[i].crash_state)
-#define PC_CAR_DEAD(i) (pc_cars[i].dead)
-#define PC_CAR_IN_TUNNEL(i) (pc_cars[i].in_tunnel)
-#define PC_CAR_SLOT(i) (pc_cars[i].slot)
-#define PC_CAR_CAMERA(i) (pc_cars[i].camera)
-#define PC_CAR_SHEEN_ALPHA(i) (pc_cars[i].sheenAlpha)
-#define PC_CAR_STRAY_ANGLE(i) (pc_cars[i].strayAngle)
-#define PC_CAR_INPUT(i) (pc_cars[i].player)
-#define PC_CAR_INPUT_AS(T, i) ((T *)pc_cars[i].player)
-#define PC_CAR_WEAPON_TYPE(i) (pc_cars[i].battle.weapon.type)
-#define PC_CAR_AMMO_COUNT(i) (pc_cars[i].battle.weapon.ammoCnt)
-#define PC_CAR_HEALTH(i) (pc_cars[i].battle.health)
-#define PC_CAR_DEFENSE_ACTIVE(i) (pc_cars[i].battle.defense.active)
-#define PC_CAR_SHOOT(i) (pc_cars[i].battle.shoot)
-#define PC_CAR_FADE_STATE(i) (pc_cars[i].battle.fadeState)
-#define PC_CAR_POINTS(i) (pc_cars[i].battle.Points)
-#define PC_CAR_RELOADING_TIME(i) (pc_cars[i].battle.reloadingTime)
-#define PC_CAR_SCENES(i) (pc_cars[i].scenes)
-#define PC_CAR_BATTLE_PITCH(i) (pc_cars[i].battle.pitch)
-#define PC_CAR_BATTLE_YAW(i) (pc_cars[i].battle.yaw)
 
 /* ---- The level objects, the targets: MAT3 tTarget and its pool gTargetArray (130 nodes of 0x70 bytes on the N64,
  * game BSS at 0x8014D280, whose link and data were 32-bit addresses). One node per track object that takes part in

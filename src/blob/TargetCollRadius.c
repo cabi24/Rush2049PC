@@ -19,7 +19,7 @@ int TargetCollRadius(short *player_index, float *point, float *radius_in,
     float radius;
 
     index = *player_index;
-    player = PC_CAR(index);
+    player = &pc_cars[index];
     radius = *radius_in;
     if (!PC_MODEL_COLLIDABLE(index)) return 0;
     mveccopy(point,position);

@@ -20,7 +20,7 @@ void AnimateBrakeLights(tVisual *v, s16 op)
 {
 s32 slot; CarTlut *tlut; s32 braking;
  slot = v->slot;
- braking = (PC_CAR_FLAGS(slot) & APPEAR_BRAKE) != 0 && (PC_CAR_FLAGS(slot) & APPEAR_HULK) == 0;
+ braking = (pc_cars[slot].appearance & APPEAR_BRAKE) != 0 && (pc_cars[slot].appearance & APPEAR_HULK) == 0;
  tlut = car_palettes[slot].palBase;
     if (op == 0 || !braking) {
         if (gTrackNum == 3 || gTrackNum == 5) { CP(taillight_colors_dim.uv); } else { CP(taillight_colors_dark); }

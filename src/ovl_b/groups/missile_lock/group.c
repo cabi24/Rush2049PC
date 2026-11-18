@@ -19,7 +19,7 @@ void MissileLock(Object *object)
     f32 best[3];
     f32 nearest, distance;
     nearest = 2000.0f;
-    for (player = PC_CARS; player < PC_CARS_END(gNumCars); player++) {
+    for (player = pc_cars; player < &pc_cars[gNumCars]; player++) {
         if (object->owner != player->slot &&
             gCarTeam[object->owner] != gCarTeam[player->slot] &&
             !PC_MODEL_CRASHFLAG(player->slot) && player->collidable && !player->dead) {

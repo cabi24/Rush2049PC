@@ -57,7 +57,7 @@ typedef struct tModelData {
 void AnimateShadow(tVisual *v, s16 op) {
     f32 pos[3], mat[3][3], xyz[4][3], dist[4], d1, d2;
     s16 i, whl;
-    tCarData *car = PC_CAR(v->slot);
+    tCarData *car = &pc_cars[v->slot];
     tModelData *m = PC_MODEL(v->slot);
     f32 fscale, bscale, len, offset;
     s32 body;

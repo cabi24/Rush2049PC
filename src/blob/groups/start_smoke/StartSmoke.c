@@ -328,6 +328,6 @@ void StartSmoke(s16 slot, u32 type, s32 water, f32 *smkoffset)
 }
 
 /* The car record of `slot`. */
-static tCarData *get_car(s16 slot) { return PC_CAR(slot); }
+static tCarData *get_car(s16 slot) { return &pc_cars[slot]; }
 /* The car's speed, mph (rwmph holds mph x 4). */
 static s16 get_mph(tCarData *c) { return c->rwmph >> 2; }

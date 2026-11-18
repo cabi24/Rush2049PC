@@ -45,7 +45,7 @@ void RecordPractice(void)
             {
                 stats = &gTotalRaceStats[stats_index];
             }
-            car = PC_CAR(gPlayers[i].car);
+            car = &pc_cars[gPlayers[i].car];
             stats->totalMiles = (u32) ((f32) stats->totalMiles + car->mileage / FEET_PER_TENTH_MILE);
         }
         SavePlayerStats(gPlayers[i].profile, (u8) track);

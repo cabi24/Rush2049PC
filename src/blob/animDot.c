@@ -43,7 +43,7 @@ s32 animDot(tBlit *blt)
     if (Hidden(blt, gNumWindows >= 5 || slot == -1 || !gShowTrackMap))
         return 1;
     m = PC_MODEL(slot);
-    car = PC_CAR(slot);
+    car = &pc_cars[slot];
 
     world_width = gPathMax[0] - gPathMin[0];
     world_height = gPathMax[2] - gPathMin[2];

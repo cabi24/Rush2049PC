@@ -169,7 +169,7 @@ void UpdateModel(s32 slot) {
     tModelData *m;
     tPadState *player;
 
-    car = PC_CAR(slot);
+    car = &pc_cars[slot];
     player = car->player;
     if (((s8) car->dead == CAR_DYING) && ((dying = PC_MODEL(slot), (dying->magvel < 5.0f)) || (dying->modelrun == 0))) {
         *(s8 *)&car->dead = CAR_DEAD;
@@ -344,7 +344,7 @@ void model_iteration(void) {
         gModelIteration = gModelIteration + 1;
         gModelTime = (f32) gModelIteration * gRetraceTime;
         for (v = 0; v != PC_RACE_CARS; v++) {
-            if (PC_CAR_INPUT(v) == 0) {
+            if (pc_cars[v].player == 0) {
                 m = PC_MODEL(v);
                 if (m->we_control == 0) {
                     fz = m->reckon_rwv[2];
@@ -377,7 +377,7 @@ void model_iteration(void) {
                     }
                     SetClutch(m);
                     if ((m->abort != 0) && ((gRace != kBattle) || (m->crashflag != 0)) && (gGameState & GS_RACING) && (m->resurrect_moving_state == RES_IDLE)) {
-                        gc = &((tCarData *) PC_CARS)[rec->slot];
+                        gc = &((tCarData *) pc_cars)[rec->slot];
                         if ((gc->place_locked == 0) && (gc->dead == CAR_ALIVE) && (gCoastFlag == 0) && (((s8) gDeathMode == 0) || ((m->magvel < 10.0f) && (gc->crash_state == CRASH_NONE)))) {
                             if (gRace == kStunt) {
                                 CrashedStunt(i);
@@ -386,7 +386,7 @@ void model_iteration(void) {
                             AbortCar(rec->slot, 0);
                         }
                     }
-                    if (PC_CAR_DEAD(rec->slot) < CAR_DEAD) {
+                    if (pc_cars[rec->slot].dead < CAR_DEAD) {
                         UpdateModel(rec->slot);
                     } else {
                         collision(m);

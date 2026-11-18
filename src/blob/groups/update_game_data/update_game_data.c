@@ -220,7 +220,7 @@ void update_game_data(void)
     game_reckon_all(gModelTime);
     for (i = 0; i < PC_RACE_CARS; i++) {
         m = PC_MODEL(i);
-        gc = PC_CAR(i);
+        gc = &pc_cars[i];
         if (m->in_game && gc->dead < CAR_DEAD) {
             gc->modelIteration = m->modelIteration;
             gc->modelTime = m->modelTime;

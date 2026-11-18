@@ -480,7 +480,7 @@ void Resurrect(tModelData *m)
     float pos[3], delta1[3], track_width, angle;               /* unused */
     float time_scale, crash_time;
     float vel[3];
-    tCarData *gc = PC_CAR(node);
+    tCarData *gc = &pc_cars[node];
     int human;
     float c_dist, dist_e, dist_d, dist_bc, dist_b1, dist_b2, half_dist;   /* unused */
     if (gDeathMode && m->resurrect.crash_time != 0.0f && !m->resurrect.autoAbort) return;
@@ -581,7 +581,7 @@ done:
         }
     } else {
         /* FindDroneResPt (written inline) */
-        tCarData *car = PC_CAR(m->slot);
+        tCarData *car = &pc_cars[m->slot];
         int p, idx, end;
         float min, x, y, z, dx, dy, dz, dist;
         tDronePath *path;

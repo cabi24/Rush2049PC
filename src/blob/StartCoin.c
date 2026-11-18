@@ -22,11 +22,11 @@ void StartCoin(tTarget *t)
     slot = t->slot;
     t->Flags = (u8) (t->Flags & ~TARGET_HIT);
     coin = t->data;
-    if ((PC_CAR_CAMERA(slot) >= 0) && (IsCoinFound(slot, coin->whichcoin) == 0)) {
+    if ((pc_cars[slot].camera >= 0) && (IsCoinFound(slot, coin->whichcoin) == 0)) {
         FoundCoin(t->slot, coin->whichcoin);
-        MBOX_HideObject(t->dlIdx, 1, 1 << PC_CAR_CAMERA(t->slot));
-        MBOX_HideObject(coin->dlIdx, 1, 1 << PC_CAR_CAMERA(t->slot));
-        if ((coin->cameras &= ~(1 << PC_CAR_CAMERA(t->slot))) == 0) {
+        MBOX_HideObject(t->dlIdx, 1, 1 << pc_cars[t->slot].camera);
+        MBOX_HideObject(coin->dlIdx, 1, 1 << pc_cars[t->slot].camera);
+        if ((coin->cameras &= ~(1 << pc_cars[t->slot].camera)) == 0) {
             t->Flags = (u8) (t->Flags | TARGET_COIN_GONE);
         }
         PlayTargetSound(targetInfo[t->infoIdx].sound, t->slot, t->mat.pos, 2);

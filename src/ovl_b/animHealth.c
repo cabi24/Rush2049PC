@@ -16,7 +16,7 @@ int animHealth(tBlit *blt)
         blt->animFunc = 0;
         return Hidden(blt, 1);
     }
-    healthPct = PC_CAR_HEALTH(slot) / HEALTH_FULL;
+    healthPct = pc_cars[slot].battle.health / HEALTH_FULL;
     blt->x = healthPos[gNumWindows-1][slot][0] - blt->width / 2;
     blt->y = healthPos[gNumWindows-1][slot][1] - blt->height / 2;
     if (type == HEALTH_FRAME) {

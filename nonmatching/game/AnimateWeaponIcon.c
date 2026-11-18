@@ -40,7 +40,7 @@ void AnimateWeaponIcon(struct pc_visual *v, s16 op)
         if (wep != -1) {
             ok = 1;
             for (i = 0; i < gNumPlayers; i++) {
-                if (wep == PC_CAR_WEAPON_TYPE(i)) ok = 0;
+                if (wep == pc_cars[i].battle.weapon.type) ok = 0;
             }
             if (ok) {
                 MBOX_ShowObject(t->dlIdx, 0, 15);

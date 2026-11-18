@@ -34,7 +34,7 @@ void BlinkResurrectingCars(void)
     m = PC_MODEL(i);
     if (m->in_game != 0)
     {
-      car = PC_CAR(i);
+      car = &pc_cars[i];
       if (car->data_valid != 0)
       {
         if (car->solid == 0)

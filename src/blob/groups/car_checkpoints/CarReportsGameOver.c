@@ -15,22 +15,22 @@ void CarReportsGameOver(s32 slot, f32 score) {
     f32 scores[SCORES_N];
     f32 ftemp;
 
-    PC_CAR_PLACE_LOCKED(slot) = 1;
-    PC_CAR_SCORE(slot) = score;
+    pc_cars[slot].place_locked = 1;
+    pc_cars[slot].score = score;
     num_humans_locked = 0;
     for (i = 0, num_locked = -1; i < gNumActiveCars; i++) {
         index = PC_MODEL_SLOT(i);
-        if (PC_CAR_PLACE_LOCKED(index) == 1) {
+        if (pc_cars[index].place_locked == 1) {
             place[++num_locked] = index;
-            scores[num_locked] = PC_CAR_SCORE(index);
+            scores[num_locked] = pc_cars[index].score;
             if (PC_MODEL_DRONE_TYPE(index) == 2) {
                 if (gRace != kGhost || PC_MODELS == PC_MODEL(index)) {
                     num_humans_locked++;
                 }
             }
-            if (PC_CAR_DEAD(index) > 0 && PC_MODEL_LAP(index) < gNumLaps) {
+            if (pc_cars[index].dead > 0 && PC_MODEL_LAP(index) < gNumLaps) {
                 /* out of the race: after the slowest possible finish, the further it got the better */
-                scores[num_locked] = 5999.999f + (f32) (s32) (9.0f * gLapDistance) - PC_CAR_DISTANCE(index);
+                scores[num_locked] = 5999.999f + (f32) (s32) (9.0f * gLapDistance) - pc_cars[index].distance;
             }
         }
     }
@@ -54,10 +54,10 @@ void CarReportsGameOver(s32 slot, f32 score) {
         }
     }
     for (i = 0; i < num_locked + 1; i++) {
-        if (PC_CAR_DEAD(place[i]) > 0 && PC_MODEL_LAP(place[i]) < gNumLaps) {
-            PC_CAR_PLACE(place[i]) = gNumCars - num_locked + i - 1;
+        if (pc_cars[place[i]].dead > 0 && PC_MODEL_LAP(place[i]) < gNumLaps) {
+            pc_cars[place[i]].place = gNumCars - num_locked + i - 1;
         } else {
-            PC_CAR_PLACE(place[i]) = i;
+            pc_cars[place[i]].place = i;
         }
     }
     PlaceUnlockedCars();

@@ -11,7 +11,7 @@ void StartFrame(s16 slot)
   CarParts *parts;
   u16 *objects = (u16 *) &gObjList;
   parts = &gCarParts[slot];
-  car = PC_CAR(slot);
+  car = &pc_cars[slot];
   car->visuals[VIS_FRAME].func = AnimateFrame;
   car->visuals[VIS_FRAME].objnum = (s16) parts->frame;
   car->visuals[VIS_FRAME].slot = slot;

@@ -67,20 +67,20 @@ void CheckCameraView(void)
 
     if (gRace == kGhost && (gContLevels[1] & 2) && (gContEdges[1] & 4)) {
         n = gCamera[0].slot;
-        PC_CAR_CAMERA(n) = -1;
+        pc_cars[n].camera = -1;
         do {
             n++;
             if (n >= gNumCars) {
                 n = 0;
             }
-        } while (PC_MODEL_ACTIVE(n) == 0 && PC_CAR_CAMERA(n) < 0);
-        PC_CAR_CAMERA(n) = 0;
+        } while (PC_MODEL_ACTIVE(n) == 0 && pc_cars[n].camera < 0);
+        pc_cars[n].camera = 0;
         gCamera[0].slot = n;
     }
     pl = gPlayers;
     for (i = 0; i < gNumWindows; i++, pl++) {
         cam = &gCamera[i];
-        obj = PC_CAR(cam->slot);
+        obj = &pc_cars[cam->slot];
         m = PC_MODEL(cam->slot);
         view = obj->view;
         slot = obj->camera;
@@ -156,13 +156,13 @@ void CheckCameraView(void)
     }
     BlinkResurrectingCars();
     for (j = 0; j < PC_RACE_CARS; j++) {
-        if (PC_MODEL_ACTIVE(j) != 0 && PC_CAR_NODE(j) >= 0 && PC_MODEL_DRONE_TYPE(j) != 2 && PC_MODEL_HIDE_CAR(j) == 0) {
-            cam = ZOID_FindMatrix(PC_CAR_NODE(j));
-            cam->mat.pos[0] = PC_CAR_POS(j)[0];
-            cam->mat.pos[1] = PC_CAR_POS(j)[1];
-            cam->mat.pos[2] = PC_CAR_POS(j)[2];
+        if (PC_MODEL_ACTIVE(j) != 0 && pc_cars[j].objnum >= 0 && PC_MODEL_DRONE_TYPE(j) != 2 && PC_MODEL_HIDE_CAR(j) == 0) {
+            cam = ZOID_FindMatrix(pc_cars[j].objnum);
+            cam->mat.pos[0] = pc_cars[j].dr_pos[0];
+            cam->mat.pos[1] = pc_cars[j].dr_pos[1];
+            cam->mat.pos[2] = pc_cars[j].dr_pos[2];
             cam->mat.pos[1] += 0.25f;
-            CopyUV(PC_CAR_UVS50(j), cam);
+            CopyUV(pc_cars[j].dr_car_uvs, cam);
         }
     }
 }

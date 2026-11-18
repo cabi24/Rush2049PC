@@ -55,7 +55,7 @@ void update_camera(tCarData *object)
     CAM.mat.pos[1] = object->dr_pos[1];
     CAM.mat.pos[2] = object->dr_pos[2];
     CAM.mat.pos[1] += 0.25f;
-    switch (object->view) {
+    switch ((u8)object->view) {   /* the view, 0-4; this file always read it unsigned */
     case 0:
         update_car_object(object, CAM.mat.pos, object->dr_car_uvs);
         pos_in[0] = 0.0f;

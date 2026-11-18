@@ -85,7 +85,7 @@ void ModelControls(tModelData *m) {
     f32 rolloff;
     s32 i;
     tiredes *td;
-    tCarData *gc = PC_CAR(m->slot);
+    tCarData *gc = &pc_cars[m->slot];
 
     m->dt = m->fastin_dt;
     m->idt = 1 / m->dt;
@@ -156,7 +156,7 @@ void sym(tModelData *m) {
     s32 absvel, i, j;   /* absvel: unused */
 
     ModelControls(m);
-    if (m->crashflag || PC_CAR_DEAD(m->slot)) {
+    if (m->crashflag || pc_cars[m->slot].dead) {
         m->steerangle = 0.0f;
         m->clutch = 0.0f;
         m->brake = 0.0f;

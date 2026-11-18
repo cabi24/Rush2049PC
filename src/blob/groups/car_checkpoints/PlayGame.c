@@ -43,7 +43,7 @@ void PlayGame(void) {
     UpdateSmoke();
     UpdateArrowVis();
     for (i = 0; i < gNumActiveCars; i++) {
-        car = PC_CAR(i);
+        car = &pc_cars[i];
         slot = PC_MODEL_SLOT(i);
         /* volatile: the model thread sets restart; it is read again below, as MAT3 does */
         if (*(volatile s8 *)&car->restart < 0) {

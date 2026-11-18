@@ -61,7 +61,7 @@ void FindMaxpathIntervals(void)
         m = PC_MODEL(slot);
         m2 = PC_MODEL(slot);
         if (AreWeSolid(slot)) {
-            gc = PC_CAR(slot);
+            gc = &pc_cars[slot];
             if (gc->place_locked == 1) {
                 continue;
             }

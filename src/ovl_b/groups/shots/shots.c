@@ -117,7 +117,7 @@ void ElevateGun(tCarData *car)
     f32 pitch = 0.0f;
     f32 h;
 
-    for (hit = PC_CARS; hit < PC_CAR(gNumCars); hit++) {
+    for (hit = pc_cars; hit < &pc_cars[gNumCars]; hit++) {
         if (car->slot == hit->slot || gCarTeam[car->slot] == gCarTeam[hit->slot] ||
             PC_MODEL_CRASHFLAG(hit->slot) || !hit->collidable || hit->dead)
             goto next;
@@ -184,7 +184,7 @@ tCarData *ShotToCarCollision(Shot *shot, f32 *old)
         return 0;
     t0 = 1.0f;
     hit = 0;
-    for (i = 0, car = PC_CARS; i < gNumCars; i++, car++) {
+    for (i = 0, car = pc_cars; i < gNumCars; i++, car++) {
         if (shot->slot == car->slot || PC_MODEL_MOVING_STATE(i) != -1 ||
             !car->collidable || PC_MODEL_CRASHFLAG(i))
             continue;
@@ -239,7 +239,7 @@ void SonicCarCollision(Shot *shot)
     f32 mul;
     f32 scale;
 
-    our = PC_CAR(shot->slot);
+    our = &pc_cars[shot->slot];
     scale = ObjInstanceList[shot->obj->mbIdx].scale;
     if (scale <= 8.0f) {
         mul = 1.0f;
@@ -254,7 +254,7 @@ void SonicCarCollision(Shot *shot)
     pos[0] = shot->obj->mat.pos[0];
     pos[1] = shot->obj->mat.pos[1];
     pos[2] = shot->obj->mat.pos[2];
-    for (car = PC_CARS, i = 0; i < gNumCars; i++, car++) {
+    for (car = pc_cars, i = 0; i < gNumCars; i++, car++) {
         if (shot->slot == car->slot || PC_MODEL_MOVING_STATE(i) != -1 ||
             !car->collidable || (shot->slotDamaged & (1 << car->slot)))
             continue;
@@ -453,7 +453,7 @@ void UpdateShots(void)
     for (shot = gShotList.head; shot; shot = nexts) {
         nexts = shot->next;
         if (shot->type == 3) {
-            car = PC_CAR(shot->slot);
+            car = &pc_cars[shot->slot];
             m = PC_MODEL(shot->slot);
             if (shot->incTime == 0) {
                 shot->pos[0] = car->dr_pos[0];
@@ -550,7 +550,7 @@ void UpdateShots(void)
             FreeStatLLE(&gShotList, shot);
             continue;
         }
-        car = PC_CAR(shot->slot);
+        car = &pc_cars[shot->slot];
         old[0] = shot->pos[0];
         old[1] = shot->pos[1];
         old[2] = shot->pos[2];
@@ -868,7 +868,7 @@ void ShotUpdate(void)
     f32 off[3];
 
     AnimateCase();
-    for (i = 0, car = PC_CARS; i < gNumCars; i++, car++) {
+    for (i = 0, car = pc_cars; i < gNumCars; i++, car++) {
         m = PC_MODEL(car->slot);
         if (car->battle.defense.active)
             UpdateDefense(car, m, &car->battle.defense, car->slot);

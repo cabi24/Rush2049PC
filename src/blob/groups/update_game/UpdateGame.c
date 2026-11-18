@@ -120,7 +120,7 @@ void UpdateGame(void)
             case 2:
                 numDeaths = 0;
                 for (i = 0; i < gNumPlayers; i++) {
-                    if (PC_CAR_INPUT_AS(Player76, i)->numCrashes >= gStuntModeDeaths) { PC_CAR_DEAD(i) = 1; numDeaths++; }
+                    if (((Player76 *)pc_cars[i].player)->numCrashes >= gStuntModeDeaths) { pc_cars[i].dead = 1; numDeaths++; }
                 }
                 if (numDeaths == gNumPlayers) {
                     gCoastFlag = 1;
@@ -139,7 +139,7 @@ void UpdateGame(void)
                 break;
             case 0:
                 memset(gTeamPoints, 0, 4);
-                for (i = 0; i < gNumPlayers; i++) gTeamPoints[gCarTeam[i]] += PC_CAR_POINTS(i);
+                for (i = 0; i < gNumPlayers; i++) gTeamPoints[gCarTeam[i]] += pc_cars[i].battle.Points;
                 for (i = 0; i < 4; i++) {
                     if (!gGamePointPlayed && gTeamPoints[i] == gBattleModePoints - 1) {
                         gGamePointPlayed = 1;
@@ -152,7 +152,7 @@ void UpdateGame(void)
                 break;
             }
         } else if (gRace == kOneRace || gRace == kPractice || gRace == kCircuit) {
-            for (i = 0; i < gNumPlayers; i++) if (!PC_CAR_PLACE_LOCKED(gPlayers[i].slot)) goto done;
+            for (i = 0; i < gNumPlayers; i++) if (!pc_cars[gPlayers[i].slot].place_locked) goto done;
             gAPlayerReallyFinished = 0;
             for (i = 0; i < gNumPlayers; i++) if (gNumLaps == PC_MODEL_LAP(i)) gAPlayerReallyFinished = 1;
             if (!gCoastFlag) {
@@ -195,8 +195,8 @@ void EndGame(void)
     s16 i;
     for (i = 0; i < gNumActiveCars; i++) {
         End_MDrive(PC_MODEL_SLOT(i));
-        PC_CAR_FLAGS(i) &= ~8;
-        UpdateVisuals(PC_CAR_SLOT(i));
+        pc_cars[i].appearance &= ~8;
+        UpdateVisuals(pc_cars[i].slot);
     }
     modelstop();
     StopListeners();

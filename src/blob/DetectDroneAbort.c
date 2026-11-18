@@ -76,8 +76,8 @@ void DetectDroneAbort(void) {
     if (gModelTime < 5.0f) {
         for (i = 0; i < PC_RACE_CARS; i++) {
             PC_MODEL_STUCK_TIME(i) = 0.0f;
-            PC_CAR_FWD_PROGRESS(i) = 0.0f;
-            PC_CAR_STRAY_ANGLE(i) = 0.0f;
+            pc_cars[i].fwd_progress_t = 0.0f;
+            pc_cars[i].strayAngle = 0.0f;
         }
         return;
     }
@@ -85,7 +85,7 @@ void DetectDroneAbort(void) {
     for (i = 0; i < gNumActiveCars; i++) {
         node = PC_MODEL_SLOT(i);
         m = PC_MODEL(node);
-        gc = PC_CAR(node);
+        gc = &pc_cars[node];
         if (m->we_control || PC_LINK_OWNER(node) == 6) {   /* LINK_OWNER_HUMAN */
             abort_me = m->please_abort_me;
             /* fell out of the world */
@@ -138,7 +138,7 @@ void DetectDroneAbort(void) {
 
     for (node = 0; node < gNumPlayers; node++) {
         m = PC_MODEL(gPlayers[node].slot);
-        gc = PC_CAR(gPlayers[node].slot);
+        gc = &pc_cars[gPlayers[node].slot];
         if (gc->last_distance < gc->distance) {
             gc->fwd_progress_t = 0.0f;
             gc->last_distance = gc->distance;

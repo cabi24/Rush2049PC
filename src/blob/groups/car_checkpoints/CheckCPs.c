@@ -44,7 +44,7 @@ void CheckCPs(void)
     f32 zvec[3];
 
     for (index = 0; index < gNumCars; index++) {
-        gc = PC_CAR(index);
+        gc = &pc_cars[index];
         prev = PC_CP_LAST_POS(index);
         move[0] = gc->dr_pos[0] - prev[0];
         move[1] = gc->dr_pos[1] - prev[1];
@@ -87,7 +87,7 @@ void CheckCPs(void)
     if (gFirstPlaceTime != 0.0f && gSeconds - gFirstPlaceTime > 3.0f) {
         gFirstPlaceTime = 0.0f;
     }
-    if (num_humans == 1 && PC_CAR_PLACE(gPlayers) == 0 && !(gGameState & GS_DEMO)) {
+    if (num_humans == 1 && pc_cars[gPlayers].place == 0 && !(gGameState & GS_DEMO)) {
         if (gInFirstPlace == 0 && gFirstPlaceTime == 0.0f) {
             gFirstPlaceTime = gSeconds;
             PlayGameSound(16, gPlayers, 1, 1); /* MAT3 0x8E: the lead */

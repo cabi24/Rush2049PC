@@ -13,7 +13,7 @@ void StartSparks(s16 slot) {
     if (gGameState & GS_DEMO) {
         return;
     }
-    car = PC_CAR(slot);
+    car = &pc_cars[slot];
     parts = &gCarParts[slot];
     car->visuals[1].func = AnimateLFSpark;
     car->visuals[1].index = -1;

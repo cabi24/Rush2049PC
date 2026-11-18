@@ -22,7 +22,7 @@ void StartWindow(tTarget *t)
     v->func = info->visFunc;
     v->data = (uintptr_t) t;
     v->timeStamp = 0.0333333f;
-    car = PC_CAR(t->slot);
+    car = &pc_cars[t->slot];
     dot = car->dr_vel[0] * t->mat.uvs[2][0] + car->dr_vel[1] * t->mat.uvs[2][1] + car->dr_vel[2] * t->mat.uvs[2][2];
     if (dot > 0.0f) {
         YawUV(3.1415927f, t->mat.uvs);

@@ -80,7 +80,7 @@ void HandleASpark(tVisual *v, s32 on, s32 spark, f32 x, f32 y, f32 z, s16 op) {
     s16 mph;
     f32 *mat;
 
-    car = PC_CAR(v->slot);
+    car = &pc_cars[v->slot];
     if (op != 0 && !(gGameState & GS_DEMO)) {
         if (v->index < 0) {
             if (on == 0) {
@@ -133,7 +133,7 @@ void AnimateBSpark(tVisual *v, s16 op) {
     s16 mph;
     s32 top;
 
-    car = PC_CAR(v->slot);
+    car = &pc_cars[v->slot];
     mph = (s32) ((tModelData *) PC_MODEL(v->slot))->magvel;
     top = ((tModelData *) PC_MODEL(v->slot))->topscrape;
     HandleASpark(v, mph >= 13 && (top != 0 || (car->appearance & APPEAR_THUMP) != 0), 194,
@@ -153,7 +153,7 @@ void AnimateRRSpark(tVisual *v, s16 op) {
     s16 mph;
     f32 z;
 
-    car = PC_CAR(v->slot);
+    car = &pc_cars[v->slot];
     m = PC_MODEL(v->slot);
     mph = (s32) m->magvel;
     on = mph >= 21 && (car->appearance & APPEAR_SPARK_C2) != 0;
@@ -174,7 +174,7 @@ void AnimateRFSpark(tVisual *v, s16 op) {
     s16 mph;
     f32 z;
 
-    car = PC_CAR(v->slot);
+    car = &pc_cars[v->slot];
     m = PC_MODEL(v->slot);
     mph = (s32) m->magvel;
     on = mph >= 21 && (car->appearance & APPEAR_SPARK_C0) != 0;
@@ -195,7 +195,7 @@ void AnimateLRSpark(tVisual *v, s16 op) {
     s16 mph;
     f32 z;
 
-    car = PC_CAR(v->slot);
+    car = &pc_cars[v->slot];
     m = PC_MODEL(v->slot);
     mph = (s32) m->magvel;
     on = mph >= 21 && (car->appearance & APPEAR_SPARK_C3) != 0;
@@ -216,7 +216,7 @@ void AnimateLFSpark(tVisual *v, s16 op) {
     s16 mph;
     f32 z;
 
-    car = PC_CAR(v->slot);
+    car = &pc_cars[v->slot];
     m = PC_MODEL(v->slot);
     mph = (s32) m->magvel;
     on = mph >= 21 && (car->appearance & APPEAR_SPARK_C1) != 0;

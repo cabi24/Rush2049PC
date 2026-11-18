@@ -20,7 +20,7 @@ s32 TargetCollMineCylinder(s16 *slotp, f32 *pos, f32 *radiusp, f32 *dist)
     p[0] = pos[0];
     p[1] = pos[1];
     p[2] = pos[2];
-    gc = PC_CARS;
+    gc = pc_cars;
     gc += slot;
     vec[0] = gc->dr_pos[0] - p[0];
     vec[1] = gc->dr_pos[1] - p[1];

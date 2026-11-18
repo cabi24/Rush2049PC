@@ -29,15 +29,15 @@ void StartWingFlame(s16 slot, s16 side) {
     s32 index;
     s16 objnum;
     if (gRace == kGhost || gRace == kBattle || (m = PC_MODEL(slot), m->we_control != 0)) {
-        PC_CAR_VISUALS(slot)[side + VIS_WING_FLAMES].func = 0;
+        pc_cars[slot].visuals[side + VIS_WING_FLAMES].func = 0;
         return;
     }
-    PC_CAR_VISUALS(slot)[side + VIS_WING_FLAMES].func = AnimateWingFlame;
-    PC_CAR_VISUALS(slot)[side + VIS_WING_FLAMES].slot = slot;
-    PC_CAR_VISUALS(slot)[side + VIS_WING_FLAMES].data = side;
+    pc_cars[slot].visuals[side + VIS_WING_FLAMES].func = AnimateWingFlame;
+    pc_cars[slot].visuals[side + VIS_WING_FLAMES].slot = slot;
+    pc_cars[slot].visuals[side + VIS_WING_FLAMES].data = side;
     index = wings[slot + 1][m->body_type] * 4 + side + OBJLIST_WINGS + 2;
-    PC_CAR_VISUALS(slot)[side + VIS_WING_FLAMES].objnum = InitCarObj(gObjList[index], 15, PC_CAR_VISUALS(slot)[side + VIS_WINGS].objnum, 0, slot, -1, 1);
-    objnum = PC_CAR_VISUALS(slot)[side + VIS_WING_FLAMES].objnum;
+    pc_cars[slot].visuals[side + VIS_WING_FLAMES].objnum = InitCarObj(gObjList[index], 15, pc_cars[slot].visuals[side + VIS_WINGS].objnum, 0, slot, -1, 1);
+    objnum = pc_cars[slot].visuals[side + VIS_WING_FLAMES].objnum;
     ZOID_FindMatrix(objnum)->pos[1] = wing_flame_height;
-    MBOX_HideObject(PC_CAR_VISUALS(slot)[side + VIS_WING_FLAMES].objnum, 1, 15);
+    MBOX_HideObject(pc_cars[slot].visuals[side + VIS_WING_FLAMES].objnum, 1, 15);
 }

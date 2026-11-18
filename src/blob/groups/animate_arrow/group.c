@@ -70,7 +70,7 @@ void AnimateArrow(tVisual *v, s16 op) {
     f32 x, y, z, border, vscale, voffset;
     u32 j;
 
-    car = PC_CAR(v->slot);
+    car = &pc_cars[v->slot];
     m = PC_MODEL(v->slot);
     oslot = v->index;
     clr = arrow_base_color;

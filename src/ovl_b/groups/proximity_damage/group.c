@@ -14,7 +14,7 @@ void ProximityDamage(f32 *origin, f32 *endpoint, s32 source_index, f32 radius_sq
     tCarData *source;
     f32 delta[3];
     f32 distance_squared;
-    for (target = PC_CARS; target < PC_CARS_END(gNumCars); target++) {
+    for (target = pc_cars; target < &pc_cars[gNumCars]; target++) {
         if (!PC_MODEL_CRASHFLAG(target->slot) && target->collidable && !target->dead) {
             delta[0] = origin[0] - target->dr_pos[0];
             delta[1] = origin[1] - target->dr_pos[1];
@@ -22,7 +22,7 @@ void ProximityDamage(f32 *origin, f32 *endpoint, s32 source_index, f32 radius_sq
             distance_squared = delta[0]*delta[0] + delta[1]*delta[1] + delta[2]*delta[2];
             if (distance_squared < radius_squared) {
                 distance_squared = (radius_squared - distance_squared) / radius_squared;
-                source = PC_CAR(source_index);
+                source = &pc_cars[source_index];
                 if (target->battle.weapon.type == 5) {
                     direction[0] = endpoint[0] - origin[0];
                     direction[1] = endpoint[1] - origin[1];

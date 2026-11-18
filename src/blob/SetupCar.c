@@ -25,17 +25,17 @@ void SetupCar(s16 slot, u8 type, int for_game)
  u16 frame_def;
  s16 i;
  if(for_game && type!=13) {
-  if(PC_CAR_FLAGS(slot)&APPEAR_HULK) {
+  if(pc_cars[slot].appearance&APPEAR_HULK) {
    osStopThread(&model_thread);
    if(PC_LINK_OWNER(slot)!=6 || gDriveHulk[slot]==0)mask=~APPEAR_HULK;   /* owner 6: LINK_OWNER_HUMAN */
    else if(gDriveHulk[slot]==2)mask=~APPEAR_WRECK_SMOKE;
    else mask=-1;
    PC_MODEL_FLAGS(slot)&=mask;
-   PC_CAR_FLAGS(slot)&=mask;
+   pc_cars[slot].appearance&=mask;
    osStartThread(&model_thread);
   }
  }
- car=PC_CAR(slot);
+ car=&pc_cars[slot];
  frame_def=PickCar(slot,type);
  parts=&gCarParts[slot];
  ZOID_SetObjectDef(parts->frame,frame_def);

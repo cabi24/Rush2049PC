@@ -23,7 +23,7 @@ void CheckCrash(s16 slot)
 {
   tCarData *car;
   tModelData *m;
-  car = PC_CAR(slot);
+  car = &pc_cars[slot];
   switch ((s8) car->crash_state)
   {
     case CRASH_NONE:

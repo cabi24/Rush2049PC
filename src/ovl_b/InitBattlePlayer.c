@@ -8,7 +8,7 @@ void InitBattlePlayer(s16 slot)
     tCarData *gc;
     s32 i;
 
-    gc = PC_CAR(slot);
+    gc = &pc_cars[slot];
     gc->battle.defense.active = 0;
     gc->battle.fadeState = 0;
     gc->battle.shoot = 0;

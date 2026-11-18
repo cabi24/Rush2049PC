@@ -47,9 +47,9 @@ release:
         ReleaseEnviron(v,1);
         return;
     }
-    gBlastRingObjs[v->slot].pos.x=PC_CAR_POS_X(v->slot);
-    gBlastRingObjs[v->slot].pos.y=PC_CAR_POS_Y(v->slot);
-    gBlastRingObjs[v->slot].pos.z=PC_CAR_POS_Z(v->slot);
+    gBlastRingObjs[v->slot].pos.x=pc_cars[v->slot].dr_pos[0];
+    gBlastRingObjs[v->slot].pos.y=pc_cars[v->slot].dr_pos[1];
+    gBlastRingObjs[v->slot].pos.z=pc_cars[v->slot].dr_pos[2];
     gBlastRingObjs[v->slot].incTime-=gFrameSeconds;
     if(gBlastRingObjs[v->slot].incTime<=0.0f) {
         gBlastRingObjs[v->slot].uvs[0][0]+=1.5f;

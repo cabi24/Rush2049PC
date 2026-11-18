@@ -58,7 +58,7 @@ void RecordRace(void)
             } else {
                 stats = &gTotalRaceStats[course];
             }
-            car = PC_CAR(gPlayers[player].car_index);
+            car = &pc_cars[gPlayers[player].car_index];
             for (lap = 0; lap < gLap[player]; lap++) {
                 for (rank = 0; rank < 5; rank++) {
                     if (stats->scores[LAP_SCORES][rank] == 0.0f ||

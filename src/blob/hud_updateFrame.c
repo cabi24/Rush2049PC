@@ -29,7 +29,7 @@ s32 hud_updateFrame(s32 blit) {
     s16 num;
 
     for (k = 0; k < 4; k++) {
-        cvt_time((PC_CAR_PLACE_LOCKED(k) == 1) ? PC_CAR_SCORE(k) : gModelTime, TrackTimeStr[k], 'f');
+        cvt_time((pc_cars[k].place_locked == 1) ? pc_cars[k].score : gModelTime, TrackTimeStr[k], 'f');
     }
     for (i = 0; i < PC_HUD_CLEAR_N; i++) {
         dot_order_list[i] = -1;
@@ -39,7 +39,7 @@ s32 hud_updateFrame(s32 blit) {
         idx = 0;
         for (j = 0; j < num; j++) {
             idx = PC_MODEL_SLOT(j);
-            if (i == PC_CAR_PLACE(idx)) {
+            if (i == pc_cars[idx].place) {
                 break;
             }
         }

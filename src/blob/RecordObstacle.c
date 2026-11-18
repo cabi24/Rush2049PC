@@ -22,7 +22,7 @@ void RecordObstacle(void) {
   for(which=0;which<2;which++) {
    if(which==0)stats=&(*(*record->profile)->datah)->obstacleStats[course];
    else stats=&gTotalObstacleStats[course];
-   car=PC_CAR(record->index);
+   car=&pc_cars[record->index];
    stats->totalTime+=car->score;
    stats->totalRaces++;
    if(gLap[player]==1) {

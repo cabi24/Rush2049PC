@@ -20,7 +20,7 @@ void StartCactus(tTarget *t)
         v->func = info->visFunc;
         v->data = (uintptr_t) t;
         v->timeStamp = cactus_frame_time;
-        car = PC_CAR(t->slot);
+        car = &pc_cars[t->slot];
         fallDir[0] = car->dr_vel[0] * 0.125f;
         fallDir[1] = car->dr_vel[1] * 0.125f;
         fallDir[2] = car->dr_vel[2] * 0.125f;

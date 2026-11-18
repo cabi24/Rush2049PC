@@ -314,7 +314,7 @@ void AvoidAreas(s16 drone_index) {
     tModelData *m;
 
     m = PC_MODEL(drone_index);
-    cp = &PC_CAR_NAV(drone_index);
+    cp = &pc_cars[drone_index].mpctl;
 
     veccopy(cp->tgtpos, tpos);
 
@@ -461,7 +461,7 @@ void MaxPathControls(tModelData *m)
     f32 tspd;
     struct pc_car_nav *cp;
 
-    cp = &PC_CAR_NAV(m->slot);
+    cp = &pc_cars[m->slot].mpctl;
     FindInterval(m, cp);
     TargetSpeed(m, cp);
     TargetSteerPos(m, cp);

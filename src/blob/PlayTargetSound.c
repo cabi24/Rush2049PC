@@ -14,7 +14,7 @@
  * within one unit, and none on an axis more than 22.5 degrees off) index the pans of gBumpLRTab and gBumpFBTab.
  * Returns the fx tag handle, or -1 when the game's sounds are off or the slot has no human's view. */
 s32 PlayTargetSound(s32 fxid, s32 slot, f32 *position, u8 priority) {
-    tCarData *car = PC_CAR(slot);
+    tCarData *car = &pc_cars[slot];
     f32 output[3];
     f32 delta[3];
     f32 threshold;

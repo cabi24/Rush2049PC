@@ -33,7 +33,7 @@ void StartKnockdown(tTarget *t)
     v->timeStamp = 0.0333333f;
     t->frames = 4;
     t->Flags &= ~(TARGET_ACTIVE | TARGET_HIT);
-    car = PC_CAR(t->slot);
+    car = &pc_cars[t->slot];
     PointInDir(car->dr_vel, &facing);
     CopyUV(facing.uvs, t->mat.uvs);
     v->next = gEnvList;

@@ -28,7 +28,7 @@ void AnimateWingFlame(tVisual *v,s16 op) {
         return;
     }
     side=(v->data&1)?1:0;
-    car=PC_CAR(slot);
+    car=&pc_cars[slot];
     if(car->visuals[VIS_WINGS + side].data&0x10) {
         MBOX_ShowObject(v->objnum,0,15);
         mat=ZOID_FindMatrix(v->objnum);

@@ -143,8 +143,8 @@ static void setup_cars(int n)
         MS16(s, 0x6C4) = -1;                    /* not resurrecting */
         MF(s, 0x7EC) = 0;                       /* drone_scale: no target speed */
         PC_MODEL_SLOT(s) = (short)s;
-        PC_CAR_NAV(s).idx = (short)(20 * s);
-        PC_CAR_NAV(s).newIdx = -1;
+        pc_cars[s].mpctl.idx = (short)(20 * s);
+        pc_cars[s].mpctl.newIdx = -1;
     }
 }
 
@@ -229,9 +229,9 @@ static void test_pick(void)
     for (unsigned k = 0; k < sizeof want / sizeof want[0]; k++) {
         int node = current_drone < 0 ? 1 : pc_drones[current_drone];
         gModelTime = 1.0f + k;
-        IntervalPosChange(&pc_models[node], &PC_CAR_NAV(node), 1);
+        IntervalPosChange(&pc_models[node], &pc_cars[node].mpctl, 1);
         CHECK(current_drone == want[k]);
-        IntervalPosChange(&pc_models[pc_drones[current_drone]], &PC_CAR_NAV(pc_drones[current_drone]), 1);
+        IntervalPosChange(&pc_models[pc_drones[current_drone]], &pc_cars[pc_drones[current_drone]].mpctl, 1);
         CHECK(current_drone == want[k]);           /* not again within half a second */
     }
 }
@@ -420,22 +420,22 @@ static void test_dodrones(void)
     setup_cars(12);
     for (int p = 0; p < 12; p++) {
         int s = order[p];
-        PC_CAR_PLACE(s) = (signed char)p;
-        PC_CAR_DISTANCE(s) = 1000.0f - 100.0f * p;
-        PC_CAR_POS(s)[0] = 0, PC_CAR_POS(s)[1] = 0, PC_CAR_POS(s)[2] = 1000.0f - 100.0f * p;
+        pc_cars[s].place = (signed char)p;
+        pc_cars[s].distance = 1000.0f - 100.0f * p;
+        pc_cars[s].dr_pos[0] = 0, pc_cars[s].dr_pos[1] = 0, pc_cars[s].dr_pos[2] = 1000.0f - 100.0f * p;
         PC_MODEL_DRONE_TYPE(s) = (signed char)(s == 4 ? 2 : 1);
         PC_MODEL_WE_CONTROL(s) = s != 4;
         PC_MODEL_DRONE_SCALE(s) = 1, PC_MODEL_TIME_BOOST(s) = 1;
     }
-    PC_CAR_POS(order[5])[2] = PC_CAR_POS(4)[2] + 50;
-    PC_CAR_POS(order[7])[2] = PC_CAR_POS(4)[2] - 30;
+    pc_cars[order[5]].dr_pos[2] = pc_cars[4].dr_pos[2] + 50;
+    pc_cars[order[7]].dr_pos[2] = pc_cars[4].dr_pos[2] - 30;
     gModelTime = 10, gGameState = 0, gRace = 0, gDifficulty = 2, gCoastFlag = 0, gOneMoreCP = 0;
     DoDrones();
     for (int p = 0; p < 12; p++) {
         int s = order[p];
         if (s == 4)
             continue;
-        CHECK(PC_CAR_WEIGHT_INDEX(s) == w++);
+        CHECK(pc_cars[s].weight_index == w++);
         CHECK(PC_MODEL_DRONE_TARGET(s) == (p == 7 ? 4 : s));
         CHECK(PC_MODEL_DRONE_SCALE(s) < 1);
     }

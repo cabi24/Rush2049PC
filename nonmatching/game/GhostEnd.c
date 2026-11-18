@@ -39,8 +39,8 @@ void GhostEnd(void)
                 }
             } else {
                 g->flag = 0;
-                if (PC_CAR_PLACE_LOCKED(i) != 0) {
-                    g->finish = PC_CAR_SCORE(i);
+                if (pc_cars[i].place_locked != 0) {
+                    g->finish = pc_cars[i].score;
                     g->size = g->offset;
                     gGhostToSave = g;
                 } else {

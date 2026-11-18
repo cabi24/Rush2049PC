@@ -20,7 +20,7 @@ s32 AreWeSolid(s16 slot)
 {
   tModelData *m;
   m = PC_MODEL(slot);
-  return (PC_CAR_CRASH_STATE(slot)) == CRASH_NONE
+  return (pc_cars[slot].crash_state) == CRASH_NONE
       && m->crashflag == 0
       && m->resurrect_moving_state == RES_IDLE
       && m->solid != 0

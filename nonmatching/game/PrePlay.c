@@ -46,22 +46,22 @@ s32 PrePlay(s32 useHud, s32 cancel)
             for (i = 0; i < gNumPlayers; i++) {
                 slot = gPlayers[i].slot;
                 PC_LINK_OWNER(slot) -= 6;
-                PC_CAR_DEAD(slot) = 0;
-                PC_CAR_PLACE_LOCKED(slot) = 0;
-                PC_CAR_INPUT(slot) = 0;
+                pc_cars[slot].dead = 0;
+                pc_cars[slot].place_locked = 0;
+                pc_cars[slot].player = 0;
                 PC_MODEL_DRONE_TYPE(slot) = 1;
                 PC_MODEL_WE_CONTROL(slot) = 1;
                 PC_MODEL_AUTOTRANS(slot) = 1;
                 PC_MODEL_FLAGS(slot) = 0;
-                PC_CAR_FLAGS(slot) = 0;
+                pc_cars[slot].appearance = 0;
                 SetupCar(slot, PC_MODEL_BODY(slot), 1);
                 PC_DRONE(num_drones++) = i;
                 PC_OUR_DRONE(num_our_drones++) = i;
             }
             for (; i < gNumActiveCars; i++) {
-                PC_CAR_DEAD(i) = 0;
-                PC_CAR_PLACE_LOCKED(i) = 0;
-                PC_CAR_FLAGS(i) = 0;
+                pc_cars[i].dead = 0;
+                pc_cars[i].place_locked = 0;
+                pc_cars[i].appearance = 0;
                 PC_MODEL_FLAGS(i) = 0;
                 SetupCar(i, PC_MODEL_BODY(i), 1);
                 PC_DRONE(num_drones++) = i;
@@ -125,9 +125,9 @@ s32 PrePlay(s32 useHud, s32 cancel)
     if (useHud) ShowHUD();
     for (i = 0; i < gNumPlayers; i++) {
         gPlayers[i].numCrashes = 0;
-        PC_CAR_HEALTH(i) = 800;
-        PC_CAR_POINTS(i) = 0;
-        PC_CAR_RELOADING_TIME(i) = 0.0f;
+        pc_cars[i].battle.health = 800;
+        pc_cars[i].battle.Points = 0;
+        pc_cars[i].battle.reloadingTime = 0.0f;
         if (gRace == kBattle) InitBattlePlayer(i);
         gGamePointPlayed = 0;
     }

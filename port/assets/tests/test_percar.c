@@ -306,12 +306,12 @@ static void test_checkpoints(void)
     sentinels();
     /* The race's start: InitCPTime copies each of gNumActiveCars cars' position and clears its +0x108. */
     for (int k = 0; k < PC_CAR_SLOTS; k++)
-        PC_CAR_POS(k)[0] = (float)k, PC_CAR_POS(k)[1] = 0.0f, PC_CAR_POS(k)[2] = 5.0f;
+        pc_cars[k].dr_pos[0] = (float)k, pc_cars[k].dr_pos[1] = 0.0f, pc_cars[k].dr_pos[2] = 5.0f;
     gNumActiveCars = CARS;
     InitCPTime();
     for (int k = 0; k < CARS; k++)
         CHECK(pc_cp_last_pos[k][0] == (float)k && pc_cp_last_pos[k][1] == 0.0f && pc_cp_last_pos[k][2] == 5.0f &&
-              PC_CAR_MILEAGE(k) == 0.0f);
+              pc_cars[k].mileage == 0.0f);
     for (int k = CARS; k < PC_MAX_LINKS; k++)
         CHECK(all_bytes(pc_cp_last_pos[k], sizeof pc_cp_last_pos[k], SENTINEL));
 
@@ -320,12 +320,12 @@ static void test_checkpoints(void)
      * the interpolated time; PassedCP finishes the race for the humans, who get the finish camera;
      * CalcPlaces ranks the 12 by their distance along the track. */
     for (int k = 0; k < CARS; k++) {
-        PC_CAR_POS(k)[0] = (float)k + 10.0f;
+        pc_cars[k].dr_pos[0] = (float)k + 10.0f;
         PC_LINK_OWNER(k) = is_human(k) ? 6 : 0;
         CF(k, 0x004, float) = 100.0f + (float)k;    /* the car's clock */
-        PC_CAR_CRASH_STATE(k) = 0, PC_CAR_DEAD(k) = 0;    /* not crashed; racing */
-        PC_CAR_PLACE_LOCKED(k) = 0, PC_CAR_PLACE(k) = 1;
-        PC_CAR_DISTANCE(k) = 1000.0f + 37.0f * (float)((5 * k) % 12);
+        pc_cars[k].crash_state = 0, pc_cars[k].dead = 0;    /* not crashed; racing */
+        pc_cars[k].place_locked = 0, pc_cars[k].place = 1;
+        pc_cars[k].distance = 1000.0f + 37.0f * (float)((5 * k) % 12);
         PC_MODEL_SLOT(k) = (short)k, PC_MODEL_MOVING_STATE(k) = -1, PC_MODEL_FLAGS(k) = 0xFF;
         MF(k, 0x7E4, int16_t) = 0;                  /* the next checkpoint */
         MF(k, 0x7E9, int8_t) = -1;                  /* behind its plane */
@@ -343,11 +343,11 @@ static void test_checkpoints(void)
     CHECK(g_ncross == CARS);
     for (int k = 0; k < CARS; k++) {
         float plane = (float)k + 10.0f, cent = plane / (plane - -(float)(k + 1)) * (1.0f / 60.0f);
-        CHECK(PC_CAR_MILEAGE(k) == 10.0f && pc_cp_last_pos[k][0] == (float)k + 10.0f && pc_cp_last_pos[k][2] == 5.0f);
+        CHECK(pc_cars[k].mileage == 10.0f && pc_cp_last_pos[k][0] == (float)k + 10.0f && pc_cp_last_pos[k][2] == 5.0f);
         CHECK(MF(k, 0x7E9, int8_t) == 1 && pc_cp_plane[k] == plane);
         CHECK(g_cross[k].slot == k && near(g_cross[k].time, 100.0f + (float)k - cent));
         CHECK(PC_MODEL_LAP(k) == 3 && PC_MODEL_LAST_CP(k) == 0 && MF(k, 0x7E4, int16_t) == 1);
-        CHECK(PC_CAR_PLACE(k) == rank_of(k));
+        CHECK(pc_cars[k].place == rank_of(k));
         if (is_human(k))
             CHECK(pc_finish_cam[k] == 1 && pc_finish_cam_time[k] == 50.0f);
         else
@@ -356,7 +356,7 @@ static void test_checkpoints(void)
     for (int k = CARS; k < PC_MAX_LINKS; k++) {
         CHECK(all_bytes(pc_cp_last_pos[k], sizeof pc_cp_last_pos[k], SENTINEL));
         CHECK(all_bytes(&pc_cp_plane[k], 4, SENTINEL) && all_bytes(&pc_finish_cam[k], 1, SENTINEL));
-        CHECK(all_bytes(&PC_CAR_PLACE(k), 1, SENTINEL));
+        CHECK(all_bytes(&pc_cars[k].place, 1, SENTINEL));
     }
 }
 
@@ -365,16 +365,16 @@ static void test_checkpoints(void)
 static void test_cameras(void)
 {
     /* circle_camera_around_car circles car 9's camera with the clock, then 10 s after the finish freezes it there. */
-    PC_CAR_SLOT(9) = 9, PC_CAR_CAMERA(9) = 0;
-    PC_CAR_SLOT(0) = 0, PC_CAR_CAMERA(0) = 0;
+    pc_cars[9].slot = 9, pc_cars[9].camera = 0;
+    pc_cars[0].slot = 0, pc_cars[0].camera = 0;
     gModelTime = 61.0f;
-    circle_camera_around_car(PC_CAR(9), PC_CAR_POS(9), NULL);
+    circle_camera_around_car(&pc_cars[9], pc_cars[9].dr_pos, NULL);
     float ang = (float)(61000u % 6000) * (1.0f / 6000) * 6.2831855f;
     CHECK(pc_finish_cam[9] == 2 && pc_finish_cam_time[9] == 61.0f);
     CHECK(g_res[1] == 10.0f && near(g_res[0], cosf(ang) * 15.0f) && near(g_res[2], sinf(ang) * 15.0f));
     float res0 = g_res[0], res2 = g_res[2];
     gModelTime = 75.0f;
-    circle_camera_around_car(PC_CAR(9), PC_CAR_POS(9), NULL);
+    circle_camera_around_car(&pc_cars[9], pc_cars[9].dr_pos, NULL);
     CHECK(g_res[0] == res0 && g_res[2] == res2 && pc_finish_cam_time[9] == 61.0f);   /* frozen */
     CHECK(pc_finish_cam[0] == 1 && pc_finish_cam_time[0] == 50.0f);                     /* car 0's untouched */
 
@@ -386,10 +386,10 @@ static void test_cameras(void)
         MF(9, 0x5EC + 4 * k, float) = 10.0f;         /* no tire compressed: no suspension average */
     for (int j = 0; j < PC_MAX_LINKS; j++) {
         PC_MODEL_ACTIVE(j) = 1, PC_MODEL_HIDE_CAR(j) = 0, PC_MODEL_DRONE_TYPE(j) = is_human(j) ? 2 : 1;
-        PC_CAR_NODE(j) = j;
-        PC_CAR_POS(j)[0] = 10.0f + (float)j, PC_CAR_POS(j)[1] = 0.0f, PC_CAR_POS(j)[2] = 5.0f;
+        pc_cars[j].objnum = j;
+        pc_cars[j].dr_pos[0] = 10.0f + (float)j, pc_cars[j].dr_pos[1] = 0.0f, pc_cars[j].dr_pos[2] = 5.0f;
         for (int e = 0; e < 9; e++)
-            PC_CAR_UVS50(j)[e / 3][e % 3] = (float)(j * 10 + e);
+            pc_cars[j].dr_car_uvs[e / 3][e % 3] = (float)(j * 10 + e);
         ObjInstanceList[j].cam = &g_cams[j];
     }
     for (int pass = 0; pass < 2; pass++) {
@@ -400,7 +400,7 @@ static void test_cameras(void)
         for (int j = 0; j < PC_MAX_LINKS; j++) {
             if (j < test_race_cars && !is_human(j))
                 CHECK(g_cams[j].pos[0] == 10.0f + (float)j && g_cams[j].pos[1] == 0.25f && g_cams[j].pos[2] == 5.0f &&
-                      memcmp(g_cams[j].uvs, PC_CAR_UVS50(j), 36) == 0);
+                      memcmp(g_cams[j].uvs, pc_cars[j].dr_car_uvs, 36) == 0);
             else
                 CHECK(all_bytes(&g_cams[j], sizeof g_cams[j], SENTINEL));
         }

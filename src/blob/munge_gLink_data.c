@@ -40,7 +40,7 @@ void munge_gLink_data(void) {
     gNumActiveCars = 0;
     for (i = 0; i < gNumCars; i++) {
         m = PC_MODEL(i);
-        car = PC_CAR(i);
+        car = &pc_cars[i];
         m->we_control = (PC_LINK_OWNER(i) == 0);
         m->drone_type = DRONE_TYPE_NONE;
         m->in_game = (PC_LINK_FLAGS(i) & LINK_ACTIVE) != 0;

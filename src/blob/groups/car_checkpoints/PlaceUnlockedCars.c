@@ -4,7 +4,7 @@
 /* PC: the cars still racing, by slot, and their distances by slot, as many as the race's cars (up to
  * PC_MAX_LINKS, pc_game_types.h, docs/port/MORECARS.md 2.5); the N64's 6. */
 #define CARS_N PC_MAX_LINKS
-/* Places the cars that haven't finished, furthest first (their distance along the track, PC_CAR_DISTANCE), after
+/* Places the cars that haven't finished, furthest first (their distance along the track), after
  * the cars that have finished and before those out of the race (state positive before the last lap), which
  * CarReportsGameOver placed at the end. A selection sort; the swap is by exclusive or. */
 void PlaceUnlockedCars(void) {
@@ -20,15 +20,15 @@ void PlaceUnlockedCars(void) {
     num_done = 0;
     num_left = 0;
     for (i = 0; i < gNumActiveCars; i++) {
-        if (PC_CAR_DEAD(PC_MODEL_SLOT(i)) > 0 && PC_MODEL_LAP(i) < gNumLaps) {
+        if (pc_cars[PC_MODEL_SLOT(i)].dead > 0 && PC_MODEL_LAP(i) < gNumLaps) {
             num_done++;
-        } else if (PC_CAR_PLACE_LOCKED(PC_MODEL_SLOT(i)) != 1) {
+        } else if (pc_cars[PC_MODEL_SLOT(i)].place_locked != 1) {
             place[num_left++] = PC_MODEL_SLOT(i);
         }
     }
     if (num_left != 0) {
         for (i = 0; i < num_left; i++) {
-            dist_tab[place[i]] = PC_CAR_DISTANCE(place[i]);
+            dist_tab[place[i]] = pc_cars[place[i]].distance;
         }
         for (i = 0; i < num_left; i++) {
             high_index = i;
@@ -38,7 +38,7 @@ void PlaceUnlockedCars(void) {
                     high_index = j;
                 }
             }
-            PC_CAR_PLACE(place[high_index]) = i + gNumActiveCars - num_left - num_done;
+            pc_cars[place[high_index]].place = i + gNumActiveCars - num_left - num_done;
             place[high_index] ^= place[i];
             place[i] ^= place[high_index];
             place[high_index] ^= place[i];

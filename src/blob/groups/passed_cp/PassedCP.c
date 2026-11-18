@@ -55,7 +55,7 @@ void PassedCP(Model *m, f32 time)
         m->started = 1;
     }
     link = &PC_LINKS[slot];
-    gc = PC_CAR(slot);
+    gc = &pc_cars[slot];
     if (PC_LINKP_OWNER(link) == 6) {
         if (m->last_cp_index == gCheckpoints.finishPt && !(gGameState & GS_DEMO)) {
             ShowCheckpointTime(slot, time);

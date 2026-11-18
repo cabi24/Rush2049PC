@@ -7,6 +7,6 @@ void SyncMaxpathToLastCheckpoint(s16 slot)
 {
     tCarData *car;
 
-    car = PC_CAR(slot);
+    car = &pc_cars[slot];
     car->mpctl.newIdx = gCheckpoints.points[PC_MODEL_LAST_CP(slot)].pathPts[car->mpctl.path + 1];
 }

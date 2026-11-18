@@ -48,11 +48,11 @@ s32 animRadarBlip(tBlit *blt) {
         return Hidden(blt, 1);
     }
     slot = blt->animID & 0xF;
-    if (Hidden(blt, !gShowRadar || PC_CAR_PLACE_LOCKED(me) == 1)) {
+    if (Hidden(blt, !gShowRadar || pc_cars[me].place_locked == 1)) {
         return 1;
     }
     m = PC_MODEL(slot);
-    gc = PC_CAR(slot);
+    gc = &pc_cars[slot];
     if (!m->in_game) {
         blt->animFunc = 0;
         return Hidden(blt, 1);
@@ -60,7 +60,7 @@ s32 animRadarBlip(tBlit *blt) {
     if (Hidden(blt, slot != me && !AreWeSolid(slot))) {
         return 1;
     }
-    mc = PC_CAR(me);
+    mc = &pc_cars[me];
     lpos[0] = gc->dr_pos[0] - mc->dr_pos[0];
     lpos[1] = gc->dr_pos[1] - mc->dr_pos[1];
     lpos[2] = gc->dr_pos[2] - mc->dr_pos[2];

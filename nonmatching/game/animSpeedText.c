@@ -21,9 +21,9 @@ s32 animSpeedText(void *blt)
     digitW = HAL_GetCharWidth('8') + 1;
     for (slot = 0; slot < gNumWindows; slot++) {
         if (y) {}
-        if (PC_CAR_PLACE_LOCKED(PC_MODEL_SLOT(slot)) == 1)
+        if (pc_cars[PC_MODEL_SLOT(slot)].place_locked == 1)
             continue;
-        mph = PC_CAR_MPH(slot) >> 2;
+        mph = pc_cars[slot].rwmph >> 2;
         mph *= 1.2f;
         if (gShowMetric)
             mph *= 1.61f;

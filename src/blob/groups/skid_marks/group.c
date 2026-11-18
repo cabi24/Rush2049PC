@@ -73,14 +73,14 @@ void UpdateSkid(WheelSlot *slot, s16 player, u32 wheel, u8 *color)
     f32 dir[3];
     f32 wid;
 
-    orth[0] = PC_CAR_WHEEL_POS(player)[wheel | 1][0] - PC_CAR_WHEEL_POS(player)[wheel & 2][0];
-    orth[1] = PC_CAR_WHEEL_POS(player)[wheel | 1][1] - PC_CAR_WHEEL_POS(player)[wheel & 2][1];
-    orth[2] = PC_CAR_WHEEL_POS(player)[wheel | 1][2] - PC_CAR_WHEEL_POS(player)[wheel & 2][2];
+    orth[0] = pc_cars[player].dr_tirepos[wheel | 1][0] - pc_cars[player].dr_tirepos[wheel & 2][0];
+    orth[1] = pc_cars[player].dr_tirepos[wheel | 1][1] - pc_cars[player].dr_tirepos[wheel & 2][1];
+    orth[2] = pc_cars[player].dr_tirepos[wheel | 1][2] - pc_cars[player].dr_tirepos[wheel & 2][2];
     orth[1] += m->wheelHeight[wheel | 1] - m->wheelHeight[wheel & 2];
     vector_direction(orth, dir);
     for (i = 0; i < 3; i++) {
         wid = dir[i] * 0.75f;
-        slot->pos[i] = PC_CAR_WHEEL_POS(player)[wheel][i];
+        slot->pos[i] = pc_cars[player].dr_tirepos[wheel][i];
         slot->left[i] = slot->pos[i] - wid;
         slot->right[i] = slot->pos[i] + wid;
     }
@@ -179,9 +179,9 @@ void ContinueSkid(WheelSlot *ns, s16 slot, u32 tire, u8 *color)
 
     UpdateSkid(ns, slot, tire, color);
 
-    vec[0] = PC_CAR_WHEEL_POS(slot)[tire][0] - ns->start[0];
-    vec[1] = PC_CAR_WHEEL_POS(slot)[tire][1] - ns->start[1];
-    vec[2] = PC_CAR_WHEEL_POS(slot)[tire][2] - ns->start[2];
+    vec[0] = pc_cars[slot].dr_tirepos[tire][0] - ns->start[0];
+    vec[1] = pc_cars[slot].dr_tirepos[tire][1] - ns->start[1];
+    vec[2] = pc_cars[slot].dr_tirepos[tire][2] - ns->start[2];
     lensq = magsq(vec);
 
     if (ns->lenSq > 0.0f) {
@@ -225,7 +225,7 @@ void UpdateSkids(s32 slot)
     m = PC_MODEL(slot);
     ns = gNewSkid[slot];
     for (i = 0; i < 4; i++, ns++) {
-        on = ((PC_CAR_FLAGS(slot) & skid_tire_flags[i]) != 0) && (m->airborne[0] == -1) &&
+        on = ((pc_cars[slot].appearance & skid_tire_flags[i]) != 0) && (m->airborne[0] == -1) &&
              (m->terrain[i] != 8) && ((stree_surf[m->surface[i]].snd_flags & 0x30) == 0);
         laston = (ns->obj != 0);
         color = (m->terrain[i] == 0) ? gShadowColor.c : gDirtColor;

@@ -51,7 +51,7 @@ void StartWater(s16 slot, u32 tire) {
     s32 snap;               /* the sentinel, for a debug check the retail build compiled out */
     f32 mat[3][3];
 
-    car = PC_CAR(slot);
+    car = &pc_cars[slot];
     snap = start_water_sentinel;
     mph = car->rwmph >> 2;
     mph2 = fabsf((f32)mph);

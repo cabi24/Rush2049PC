@@ -12,7 +12,7 @@ typedef struct tVisual { struct tVisual *next; s16 index, objnum, slot; uintptr_
  * (update), then the skid marks. */
 void UpdateVisuals(s16 slot)
 {
-    tCarData *car = PC_CAR(slot);
+    tCarData *car = &pc_cars[slot];
     tVisual *v = (tVisual *) &car->visuals[0];   /* wave 4: tVisual */
     s16 i;
     f32 usec;

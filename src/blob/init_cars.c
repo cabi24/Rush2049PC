@@ -97,7 +97,7 @@ void init_cars(void) {
     gNumActiveCars=0;
     for(i=0;i<gNumCars;i++) {
         m=PC_MODEL(i);
-        car=PC_CAR(i);
+        car=&pc_cars[i];
         dt=m->dt;
         for(j=0;j<sizeof(tModelData);j++)
             ((s8 *)m)[j]=0;

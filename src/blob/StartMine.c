@@ -20,19 +20,19 @@ void StartMine(tTarget *t)
     f32 local[3];
 
     if (PC_MODEL_CRASHFLAG(t->slot) == 0) {
-        car = PC_CAR(t->slot);
+        car = &pc_cars[t->slot];
         if (car->battle.weapon.type == WEAPON_FRONT_ARMOUR) {
             delta[0] = t->pos[0] - car->dr_pos[0];
             delta[1] = t->pos[1] - car->dr_pos[1];
             delta[2] = t->pos[2] - car->dr_pos[2];
             BodyVector(delta, local, car->dr_uvs[0]);
             if (local[2] >= 0.0f) {
-                BattleDamage(PC_CAR(t->owner), car, MINE_DAMAGE_FRONT_ARMOUR);
+                BattleDamage(&pc_cars[t->owner], car, MINE_DAMAGE_FRONT_ARMOUR);
             } else {
-                BattleDamage(PC_CAR(t->owner), car, MINE_DAMAGE);
+                BattleDamage(&pc_cars[t->owner], car, MINE_DAMAGE);
             }
         } else {
-            BattleDamage(PC_CAR(t->owner), car, MINE_DAMAGE);
+            BattleDamage(&pc_cars[t->owner], car, MINE_DAMAGE);
         }
         t->Flags &= ~TARGET_ACTIVE; /* AnimateMine blows up a mine without it */
         PlayTargetSound(targetInfo[t->infoIdx].sound, t->slot, t->mat.pos, 2);

@@ -25,7 +25,7 @@ void RemoveCar(s16 slot)
   tVisual *v;
   int one;
   do {
-    car = PC_CAR(slot);
+    car = &pc_cars[slot];
     if (car->objnum >= 0) {
       MBOX_HideObject(gCarParts[slot].frame, 2, 15);
       v = (tVisual *) car->visuals;   /* wave 4: tVisual */

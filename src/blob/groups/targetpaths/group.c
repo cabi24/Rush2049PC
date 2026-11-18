@@ -114,9 +114,9 @@ plain:
     if (path->flags & 0x20) {
         near = 1;
         if (gRace == kObstacle) {
-            d[0] = target->mat.pos[0] - ((f32 *) PC_CARS)[2];
-            d[1] = target->mat.pos[1] - ((f32 *) PC_CARS)[3];
-            d[2] = target->mat.pos[2] - ((f32 *) PC_CARS)[4];
+            d[0] = target->mat.pos[0] - pc_cars[0].dr_pos[0];
+            d[1] = target->mat.pos[1] - pc_cars[0].dr_pos[1];
+            d[2] = target->mat.pos[2] - pc_cars[0].dr_pos[2];
             dist = d[0] * d[0] + d[1] * d[1] + d[2] * d[2];
             if (22500.0f < dist) {
                 near = 0;
@@ -301,9 +301,9 @@ void PlacePathTargetPos(tTarget *target) {
         if (path->flags & 0x20) {
             near = 1;
             if (gRace == kObstacle) {
-                w[0] = target->mat.pos[0] - ((f32 *) PC_CARS)[2];
-                w[1] = target->mat.pos[1] - ((f32 *) PC_CARS)[3];
-                w[2] = target->mat.pos[2] - ((f32 *) PC_CARS)[4];
+                w[0] = target->mat.pos[0] - pc_cars[0].dr_pos[0];
+                w[1] = target->mat.pos[1] - pc_cars[0].dr_pos[1];
+                w[2] = target->mat.pos[2] - pc_cars[0].dr_pos[2];
                 d = w[0] * w[0] + w[1] * w[1] + w[2] * w[2];
                 if (202500.0f < d) {
                     near = 0;

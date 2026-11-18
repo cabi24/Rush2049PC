@@ -129,7 +129,7 @@ void AnimateFrame(tVisual *v, s16 op)
 
     slot = v->slot;
     m = PC_MODEL(slot);
-    car = PC_CAR(slot);
+    car = &pc_cars[slot];
     def = ObjInstanceList[v->objnum].index;
     if (op == 0) {
         if (v->objnum >= 0) {
@@ -273,7 +273,7 @@ void AnimateRocketFlame(s16 slot, int hulk)
     int mph;
     int b;
     m=PC_MODEL(slot);
-    car=PC_CAR(slot);
+    car=&pc_cars[slot];
     if(hulk) {
         MBOX_HideObject(gCarParts[slot].extraparts[0],1,15);
         MBOX_HideObject(gCarParts[slot].extraparts[1],1,15);

@@ -20,11 +20,11 @@ void GetResPt(void) {
     f32 delta1[3];
     f32 delta2[3];
     s16 *p;
-    tCarData *car = PC_CARS;
+    tCarData *car = pc_cars;
 
-    x = PC_CAR_POS(0)[0];
-    y = PC_CAR_POS(0)[1];
-    z = PC_CAR_POS(0)[2];
+    x = pc_cars[0].dr_pos[0];
+    y = pc_cars[0].dr_pos[1];
+    z = pc_cars[0].dr_pos[2];
     c_dist = 1e20;
     for (i = 0; i < gResPath.numPts; i++) {
         dx = gResPath.pts[i][0] - x;

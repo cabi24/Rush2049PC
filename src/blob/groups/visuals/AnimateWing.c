@@ -118,11 +118,11 @@ grow:
     }
     if (v->flags & 0x10) {
         CopyUV(unitmatrix, basis);
-        PitchUV(PC_CAR_INPUT_AS(Pose, slot)->angle * 0.507f, basis);
+        PitchUV(((Pose *)pc_cars[slot].player)->angle * 0.507f, basis);
         ZOID_UpdateObject(v->object, 0, basis);
         if (gNumPlayers == 1) StartSmoke(slot, reverse ? 7 : 6, 0, position);
     }
-    car = PC_CAR(slot);
+    car = &pc_cars[slot];
     hulk = (car->appearance & 0x10) != 0;
     lucent = (gInvisibleCar != 0) || ((car->appearance & 8) != 0);
     if (CheckVisibleAll(v, !hulk && !car->carMine)) {

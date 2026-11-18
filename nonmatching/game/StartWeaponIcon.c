@@ -35,7 +35,7 @@ void StartWeaponIcon(tTarget *t)
     s32 wep;
     CollSize *sizep;
     if (t->Flags & 4) {
-        car = PC_CAR(t->slot);
+        car = &pc_cars[t->slot];
         m = PC_MODEL(t->slot);
         t->Flags &= ~6;
         if (car->appearance & 0x10) {

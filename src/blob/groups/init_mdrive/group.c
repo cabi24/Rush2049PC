@@ -44,7 +44,7 @@ static void multiinit_n64(s16,s16);
  * thread runs again. */
 void Init_MDrive(s16 mode,s16 slot)
 {
- tCarData *car=PC_CAR(slot);
+ tCarData *car=&pc_cars[slot];
  tModelData *m=PC_MODEL(slot);
  PC_LINK *link;
  if(gDeathMode && !car->dead && mode==INIT_MODE_CRASH) {
@@ -84,7 +84,7 @@ static void multiinit_n64(s16 mode,s16 slot)
   else m->polepos=slot+PC_RESPAWN_BASE;
  }
  Resurrect(m);
- PC_CAR_CRASH_STATE(slot)=CRASH_NONE;   /* crash_state */
+ pc_cars[slot].crash_state=CRASH_NONE;   /* crash_state */
  for(i=0;i<4;i++) {
   m->skidIntensity[i]=0.0f;
   m->tires[i].sideforce=0.0f;

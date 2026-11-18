@@ -28,7 +28,7 @@ void AbortCar(s16 slot, s32 death)
       InitBattlePlayer(slot);
     }
     SetResurrectionData(INIT_MODE_CRASH, PC_MODEL(slot), abort_flag = 1);
-    car = PC_CAR(slot);
+    car = &pc_cars[slot];
     car->crash_state = CRASH_RESPAWN;
     if ((((s8) gDeathMode) != 0) && (death != 0))
     {

@@ -14,11 +14,11 @@ int animAmmoCounts(void *callback_context)
     HAL_SetFont(10);
     TB_SetJust(kTB_JustCenter, kTB_JustCenter);
     for (i = 0; i < gNumWindows; i++) {
-        if (i < gNumWindows && PC_CAR_WEAPON_TYPE(i) != WEAPON_NONE) {
+        if (i < gNumWindows && pc_cars[i].battle.weapon.type != WEAPON_NONE) {
             x = ammoPos[gNumWindows - 1][i].x;
             y = ammoPos[gNumWindows - 1][i].y;
-            if (PC_CAR_AMMO_COUNT(i) >= 0) {
-                TB_Sprintf(text, ammo_count_format, PC_CAR_AMMO_COUNT(i));
+            if (pc_cars[i].battle.weapon.ammoCnt >= 0) {
+                TB_Sprintf(text, ammo_count_format, pc_cars[i].battle.weapon.ammoCnt);
                 TB_SetTextColor(kTB_BlackText);
                 TB_DrawText(x + 1, y + 1, text);
                 TB_SetTextColor(kTB_WhiteText);

@@ -52,7 +52,7 @@ void StartCone(tTarget *t)
     TargInfo *info;
 
     info = &targetInfo[t->infoIdx];
-    car = PC_CAR(t->slot);
+    car = &pc_cars[t->slot];
     if (gCarMines && info->objListIdx == OBJ_CONE) {
         car->carMine = 1;
         MBOX_HideObject(t->dlIdx, 0, 15);

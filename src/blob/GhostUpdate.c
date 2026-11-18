@@ -70,7 +70,7 @@ s32 GhostUpdate(s32 idx, f32 *out)
         }
         return 0;
     } else {
-        if (PC_CAR_PLACE_LOCKED(idx)) {
+        if (pc_cars[idx].place_locked) {
             return 0;
         }
         if (!(s->offset < s->size)) {

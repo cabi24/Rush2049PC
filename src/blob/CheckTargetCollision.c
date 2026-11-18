@@ -14,7 +14,7 @@ void CheckTargetCollision(s16 slot) {
     tCarData *car;
     tAlwaysCol *acol; tAlwaysCol *acolnext; tTarget *t; TargInfo *info; tTargetGroup *tg; s32 currentG; s32 i; s32 collFunc; void *d1; void *d2; void *d3; f32 x; f32 z;
 
-    car = PC_CAR(slot);
+    car = &pc_cars[slot];
     if ((gGameState & GS_DEMO) && expansion_pak_present == 0) {
         return;
     }

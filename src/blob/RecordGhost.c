@@ -45,8 +45,8 @@ void RecordGhost(void)
                 r = &(*(*gPlayers[i].profile)->datah)->raceStats[track];
             else
                 r = &gTotalRaceStats[track];
-            car = PC_CAR(gPlayers[i].car);
-            if (PC_CAR_PLACE_LOCKED(gPlayers[i].car)) {
+            car = &pc_cars[gPlayers[i].car];
+            if (pc_cars[gPlayers[i].car].place_locked) {
                 time = car->score;
                 for (k = 0; k < 5; k++) {
                     if (r->scores[GHOST_SCORES][k] == 0.0f || time < r->scores[GHOST_SCORES][k]) {

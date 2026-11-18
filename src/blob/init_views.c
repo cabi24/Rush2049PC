@@ -12,7 +12,7 @@ void init_views(void) {
     s32 i;
     tCarData *gc;
     for (i = 0; i < gNumWindows; i++) {
-        gc = PC_CAR(gCamera[i].slot);
+        gc = &pc_cars[gCamera[i].slot];
         gc->camera = i;
         init_view3(gc);
         gc->view = 7;

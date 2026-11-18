@@ -76,8 +76,8 @@ void setFBCollisionForce(tModelData *m, tModelData *m1, tModelData *m2, f32 *dir
     tCarData *gc1;
     tCarData *gc2;
 
-    gc1 = PC_CAR(m1->slot);
-    gc2 = PC_CAR(m2->slot);
+    gc1 = &pc_cars[m1->slot];
+    gc2 = &pc_cars[m2->slot];
     if (m1->slot >= 0 && m2->slot >= 0 && gRace != kBattle) {
         if (gc1->carMine) {
             m2->crashflag = 1;

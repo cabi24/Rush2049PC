@@ -89,7 +89,7 @@ void AnimateTire(tVisual *v, s16 op)
         return;
     }
     slot = v->slot;
-    car = PC_CAR(slot);
+    car = &pc_cars[slot];
     tire = v->index;
     m = PC_MODEL(slot);
     spring = m->suscomp[tire];

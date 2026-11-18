@@ -86,7 +86,7 @@ void UpdateSmoke(void)
         slot = puff->slot;
         type = (puff->data >> PUFF_TYPE_SHIFT) & 0xF;
         if (puff->data & PUFF_WATER) {
-            gc = (tCarData *)PC_CAR(slot);
+            gc = &pc_cars[slot];
             mph = gc->rwmph >> 2;
             mph2 = fabsf((f32)mph);
             if (gc->view < 2) {
@@ -167,7 +167,7 @@ void UpdateSmoke(void)
                     }
                 }
                 /* fire keeps its place on the car: vel holds its sideways and lengthways offsets */
-                gc = (tCarData *)PC_CAR(slot);
+                gc = &pc_cars[slot];
                 pos[0] = gc->dr_pos[0];
                 pos[1] = gc->dr_pos[1];
                 pos[2] = gc->dr_pos[2];
