@@ -12,12 +12,6 @@ typedef struct Car952 {
     u8 pad35F[0x380 - 0x35F]; void *input; u8 pad35F_384[0x3B8 - 0x384];
 } Car952;
 
-/* A player's input record (gPlayers): the field this counts. */
-typedef struct Player76 { u8 pad00[64]; u16 numCrashes; u8 pad42[0x48 - 0x42]; void *ref; } Player76;
-
-extern Player76 gPlayers[];
-
-
 /* Each car's ghost (tGhostFile), whose header's flag says whether it is raced against (positive) or recorded. */
 VIEW(tGhostFile **[], gGhosts);
 #define gGhosts gGhosts_view

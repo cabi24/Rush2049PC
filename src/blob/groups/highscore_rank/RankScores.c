@@ -10,16 +10,6 @@ typedef struct {
     char name[1];
 } PlayerProfile;
 
-/* A player's pad record (MAT3 tPadState, gPlayers). */
-typedef struct InputRecord {
-    u8 pad00;
-    u8 controller;          /* 0x01 */
-    u8 pad02[0x48 - 2];
-    PlayerProfile **profile; /* 0x48 */
-} InputRecord;
-
-extern InputRecord gPlayers[];
-
 #define NO_NAME (-1)                /* gThisPlayer[]: a guest without a name yet */
 
 VIEW(s8[3][5], gNewTotalScore);
@@ -39,7 +29,7 @@ void RankScores(void)
     PlayerProfile **profile;
 
     for (i = 0; i < gNumPlayers; i++) {
-        profile = gPlayers[i].profile;
+        profile = gPlayers[i].save;
         if ((*profile)->fileh == 0) {
             gThisPlayer[i] = gLastPlayer[gPlayers[i].controller];
         } else {

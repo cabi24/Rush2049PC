@@ -12,13 +12,6 @@ typedef struct MultiBlit {
     u32 animid;
 } MultiBlit;
 
-/* A player's pad record (MAT3 tPadState, gPlayers). */
-typedef struct PlayerStatus {
-    unsigned char slot, controller, rest[0x48 - 2]; void *ref;
-} PlayerStatus;
-
-extern PlayerStatus gPlayers[4];
-
 #define SND_START 0x4F              /* the effect Start plays here */
 
 /* The screen's frame. The first frame puts up its blits and starts a 5-second timer; a soft reset is over once the

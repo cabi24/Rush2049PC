@@ -4,15 +4,6 @@
 #define LAP_SCORES 0              /* tRaceStats.scores[0]: the best laps */
 #define AVERAGE_SCORES 1          /* scores[1]: the best average laps */
 
-/* A player's input record as this reads it: the car, which "just play" profile, the crashes, the profile. */
-typedef struct PlayerPad {
-    u8 car_index;
-    u8 resource_index;
-    u8 unknown02[62];
-    u16 numCrashes;
-    u8 unknown66[6];
-    tProfile **profile;
-} PlayerPad;
 /* A car's record as this reads it: its place, whether it finished, the distance driven (feet). */
 typedef struct CarRecord {
     u8 unknown00[238];
@@ -22,8 +13,6 @@ typedef struct CarRecord {
     float distance;
     u8 unknown268[0x110 - 0x10C]; struct pc_visual visuals[21]; u8 unknown268_308[0x380 - 0x308]; void *input; u8 unknown268_384[0x3B8 - 0x384];
 } CarRecord;
-
-extern PlayerPad gPlayers[];
 
 /* The high score tables' owners for a track (gTotalNames): 15 slots, the laps', the averages' and the ghost times'. */
 VIEW(tProfile **[][15], gTotalNames);
@@ -55,19 +44,19 @@ void RecordRace(void)
         saveTrack += TRACK_BACKWARD_FIRST;
     }
     for (player = 0; player < gNumPlayers; player++) {
-        if (gPlayers[player].profile == 0) {
-            gPlayers[player].profile = &gJustPlayers[gPlayers[player].resource_index];
+        if (gPlayers[player].save == 0) {
+            gPlayers[player].save = &gJustPlayers[gPlayers[player].controller];
         }
-        if ((*gPlayers[player].profile)->datah == 0) {
+        if ((*gPlayers[player].save)->datah == 0) {
             return;
         }
         for (phase = 0; phase < 2; phase++) {
             if (phase == 0) {
-                stats = &(*(*gPlayers[player].profile)->datah)->raceStats[course];
+                stats = &(*(*gPlayers[player].save)->datah)->raceStats[course];
             } else {
                 stats = &gTotalRaceStats[course];
             }
-            car = PC_CAR(gPlayers[player].car_index);
+            car = PC_CAR(gPlayers[player].slot);
             for (lap = 0; lap < gLap[player]; lap++) {
                 for (rank = 0; rank < 5; rank++) {
                     if (stats->scores[LAP_SCORES][rank] == 0.0f ||
@@ -82,8 +71,8 @@ void RecordRace(void)
                         stats->scores[LAP_SCORES][rank] = gLapTimes[player][lap];
                         if (phase == 1) {
                             gNewTotalScore[rank] = player;
-                            if ((*gPlayers[player].profile)->fileh) {
-                                gTotalNames[course][rank] = gPlayers[player].profile;
+                            if ((*gPlayers[player].save)->fileh) {
+                                gTotalNames[course][rank] = gPlayers[player].save;
                             }
                         }
                         break;
@@ -108,8 +97,8 @@ void RecordRace(void)
                         stats->scores[AVERAGE_SCORES][rank] = mean;
                         if (phase == 1) {
                             gNewTotalScore[shift + 5] = player;
-                            if ((*gPlayers[player].profile)->fileh) {
-                                gTotalNames[course][rank + 5] = gPlayers[player].profile;
+                            if ((*gPlayers[player].save)->fileh) {
+                                gTotalNames[course][rank + 5] = gPlayers[player].save;
                             }
                         }
                         break;
@@ -139,6 +128,6 @@ void RecordRace(void)
             }
             stats->totalMiles += car->distance / FEET_PER_TENTH_MILE;
         }
-        SavePlayerStats(gPlayers[player].profile, saveTrack);
+        SavePlayerStats(gPlayers[player].save, saveTrack);
     }
 }

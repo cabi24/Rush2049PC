@@ -15,15 +15,6 @@ typedef struct MenuItem {
 #define TEXT_PAUSE 56             /* gText.tab[]: the pause screen's strings: "paused", the menu, quit, restart */
 #define TEXT_REMOVED 233          /* gText.single[]: "removed" (a controller) */
 
-typedef struct PlayerRec {
-    u8 pad0[0x48];
-    intptr_t *name;     /* the profile handle: its first word is the profile record, a pointer (POINTERS.md 10) */
-} PlayerRec;
-/* The profile record (save.c's SaveSlot) is 64 bytes on the PC, its name at +0x20 (PROFILE_OFS, pc_prelude.h;
- * docs/port/POINTERS.md 9.10). */
-
-extern PlayerRec gPlayers[];
-
 /* The pause screen's title: "controller N removed" when a controller was pulled out; else the restart or quit
  * word (gPauseState 7, 8), nothing for the rumble screen (6), or the pausing player's name and "paused" in the
  * player's colour. Returns 1: the blit stays. */
@@ -54,7 +45,7 @@ s32 animTitleText(MenuItem *item) {
         } else if (v == 6) {
             buf[0] = 0;
         } else {
-            TB_Sprintf(buf, pause_player_title_format, *gPlayers[playerInPause].name + PROFILE_OFS(20), gText.taba[gText.tab[TEXT_PAUSE]]);
+            TB_Sprintf(buf, pause_player_title_format, (*gPlayers[playerInPause].save)->name, gText.taba[gText.tab[TEXT_PAUSE]]);
             TB_SetTextColor(playerTextColor[playerInPause]);
         }
     }

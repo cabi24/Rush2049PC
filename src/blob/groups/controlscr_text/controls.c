@@ -2,30 +2,6 @@
  * of controls, drawn over the 3D buttons in the front end, or as a flat list in the pause menu. */
 #include "game/game.h"
 
-/* A profile (MAT3 tPlayerProfile; save.c's SaveSlot) in its PC layout, 64 bytes: its links and its pak file
- * handle are pointers, so the rest is later than on the N64 (pc_prelude.h PROFILE_OFS, docs/port/POINTERS.md
- * 9.10). */
-typedef struct PlayerProfile {
-    void *next, *prev;      /* 0x00 */
-    void *fileh;            /* 0x10 its pak file */
-    u32 id[2];              /* 0x18 */
-    char name[13];          /* 0x20 (N64 0x14) */
-    s8 controls[10];        /* 0x2D */
-    s8 rumble;              /* 0x37 (N64 0x2B) the rumble setting, 0-2 */
-    void *datah;            /* 0x38 */
-} PlayerProfile;
-
-/* A player's pad record (MAT3 tPadState, gPlayers; 76 bytes, 80 on the PC). */
-typedef struct PadState {
-    u8 slot;
-    u8 controller;          /* 0x01 its controller, CONTROLLER_NONE without one */
-    u8 other[70];
-    PlayerProfile **profile; /* 0x48 its profile */
-} PadState;
-
-extern PadState gPlayers[];
-
-
 /* gText's entries */
 #define TEXT_CONTROLS_TITLE 37      /* single[]: "%s's controls" over a player's list */
 #define TEXT_PRESS_A 38             /* single[]: the prompt to open the screen in the pause menu */
@@ -60,7 +36,7 @@ void controls_animButtonText(s8 p)
         else HAL_SetFont(13);
         TB_SetTextColor(kTB_WhiteText);
         w = gNumWindows == 1 ? 150 : 69;
-        str = (*gPlayers[p].profile)->name;
+        str = (*gPlayers[p].save)->name;
         ct_DrawEllipseText(x, y, w, str);
         TB_SetJust(kTB_JustLeft, kTB_JustCenter);
         if (!controlScrActive[p]) {
@@ -102,7 +78,7 @@ void controls_animButtonText(s8 p)
                     x = screenPos[0] - 25.0f * gTextPosScale * 300.0f / controls_buttonZ;
                     y = screenPos[1];
                     if (!PS_PakRumble(gPlayers[p].controller)) str = gText.taba[gText.tab[TEXT_RUMBLE_OFF]];
-                    else str = gText.taba[gText.tab[TEXT_RUMBLE_NAMES] + (*gPlayers[p].profile)->rumble];
+                    else str = gText.taba[gText.tab[TEXT_RUMBLE_NAMES] + (*gPlayers[p].save)->rumble];
                     TB_DrawText(x, y, str);
                 }
             }
@@ -151,7 +127,7 @@ s32 controls_animText(s32 blit)
             if (!gControllerData[p].attached) {
                 TB_Sprintf(str1, controller_removed_format, p + 1, gText.single[TEXT_NO_CONTROLLER]);
             } else {
-                TB_EllipseText(pName, (*gPlayers[p].profile)->name, 69);
+                TB_EllipseText(pName, (*gPlayers[p].save)->name, 69);
                 TB_Sprintf(str1, gText.single[TEXT_CONTROLS_TITLE], pName);
             }
             TB_DrawText(TB_CenterText(str1, x), y, str1);
@@ -184,7 +160,7 @@ s32 controls_animText(s32 blit)
                             if (!PS_PakRumble(gPlayers[p].controller))
                                 str = gText.taba[gText.tab[TEXT_RUMBLE_OFF]];
                             else
-                                str = gText.taba[gText.tab[TEXT_RUMBLE_NAMES] + (*gPlayers[p].profile)->rumble];
+                                str = gText.taba[gText.tab[TEXT_RUMBLE_NAMES] + (*gPlayers[p].save)->rumble];
                             TB_DrawText(x + 20, y, str);
                         }
                         y += 16;

@@ -141,25 +141,6 @@ void controlCircuitCode(void)
     }
 }
 
-/* A pak file record (MAT3 tPS_File) in its PC layout (pc_prelude.h PSF_OFS, docs/port/POINTERS.md 9.10): pak is
- * the pak it is on. */
-typedef struct Item { void *next, *prev; void (*RemoveFile)(void *), (*MoveFile)(void *, void *); u8 pak; } Item;
-typedef struct Selection { Item *file; } Selection;
-typedef struct Resource { u8 *bytes; } Resource;
-typedef struct MenuOwner MenuOwner;
-/* A profile (MAT3 tPlayerProfile) in its PC layout, 64 bytes (pc_prelude.h PROFILE_OFS): the links of
- * gPlayerFiles, its pak file (NULL for a guest), its id, its name, its save data. */
-typedef struct OwnerBody {
-    MenuOwner *next, *previous;
-    Selection *fileh;
-    u8 id[8];
-    u8 name[24];            /* 0x20 (N64 0x14) */
-    Resource *datah;        /* 0x38 */
-} OwnerBody;
-/* A profile handle (MAT3 tPlayerProfile **). */
-struct MenuOwner { OwnerBody *body; };
-/* A player's pad record (MAT3 tPadState, gPlayers): only its profile. */
-typedef struct Player { u8 other[72]; MenuOwner *owner; } Player;
 typedef struct Blit Blit;
 typedef struct FiveParts FiveParts;
 typedef struct MultiBlit {
@@ -169,10 +150,6 @@ typedef struct MultiBlit {
     s32 (*callback)(Blit *);
     u32 descriptor;
 } MultiBlit;
-
-extern Player gPlayers[];
-
-
 
 /* Set the screen up: the players' race type is saved as circuit; a circuit that is active but has run no race is
  * dropped; an active one is continued (ContinueCircuit sets the race up), and if it is finished the trophy for the
@@ -185,7 +162,7 @@ void circuitscr_initScreen(void)
     s32 model;
     s16 texture_index;
     for (i = 0; i < gNumPlayers; i++) {
-        SavePlayerRaceType((u8 ***)gPlayers[i].owner, gRace);
+        SavePlayerRaceType(gPlayers[i].save, gRace);
     }
     newCircuitType = 0;
     if (gCircuit->active && gCircuit->track == 0)
@@ -236,7 +213,7 @@ void circuitscr_initScreen(void)
  * resetEnabled allows them. */
 s32 menuItemValid(s32 mode)
 {
-    return (mode != kCircuitMenuCode || gPlayers[gCircuitPlayer].owner->body->fileh == 0)
+    return (mode != kCircuitMenuCode || (*gPlayers[gCircuitPlayer].save)->fileh == 0)
         && (!(mode == kCircuitMenuContinue) || gContinueEnabled != 0)
         && (!(mode == kCircuitMenuStats) || gStatsEnabled != 0);
 }
@@ -250,7 +227,7 @@ s32 menuItemValid(s32 mode)
 void updateCircuitScreen(void)
 {
     s32 i;
-    gCircuit = &((SaveData *)gPlayers[gCircuitPlayer].owner->body->datah->bytes)->circuit;
+    gCircuit = &((SaveData *)*(*gPlayers[gCircuitPlayer].save)->datah)->circuit;
     if (gSkipToGameState != SKIP_NONE) {
         if (gSkipToGameState != gGameState) {
             setGameState(GS_TRACK);
@@ -369,8 +346,8 @@ void updateCircuitScreen(void)
         }
     }
     for (i = 0; i < gNumPlayers; i++) {
-        if (gPlayers[i].owner->body->fileh) {
-            if (PS_PakChanged(gPlayers[i].owner->body->fileh->file->pak)) {
+        if ((*gPlayers[i].save)->fileh) {
+            if (PS_PakChanged((*gPlayers[i].save)->fileh->file->pak)) {
                 circuitscr_uninitScreen();
                 setGameState(GS_PLAYER);
                 return;
@@ -685,7 +662,7 @@ void getFinishedStr(u8 *destination)
 /* Player's profile name, into destination (MAT3 circuitscr.c getPlayerStr). */
 void getPlayerStr(s32 player,u8 *destination)
 {
-    TB_Strcpy(destination,gPlayers[player].owner->body->name);
+    TB_Strcpy(destination,(*gPlayers[player].save)->name);
 }
 
 /* The progress box's size and place (gProgressWidth, gProgressHeight, gProgressTop): wide enough for the circuit's
@@ -775,7 +752,7 @@ void drawReview(void)
         y=129+(rank%3)*24;
         TB_DrawText(TB_CenterText(number,x+6),y+1,number);
         HAL_SetFont(11);
-        if(i<gNumPlayers)TB_Strcpy(name,gPlayers[i].owner->body->name);
+        if(i<gNumPlayers)TB_Strcpy(name,(*gPlayers[i].save)->name);
         else TB_Strcpy(name,gDefaultNames[gCircuitCars[i].name]);
         TB_DrawEllipseText((s16)(x+15),y+2,120,name);
         TB_Sprintf(number,circuitscr_review_points_format,gReviewTrack==gCircuit->track ?

@@ -11,9 +11,6 @@
 float fabsf(float);
 float sqrtf(float);
 
-/* The players' input records (tPadState: the car each drives, its controller, its profile). */
-extern tPadState gPlayers[];
-
 /* The car record (tCarData, N64 layout: docs/port/CARS.md 2), the fields used here. */
 typedef struct tCarData {
     u8 pad00[0xEF];

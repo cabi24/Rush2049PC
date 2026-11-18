@@ -121,7 +121,6 @@ extern s8 gSpecialTires;
 extern s16 humans[EXTENT(8)];
 extern s32 gModelIteration;
 extern s16 gNumPlayers;
-/* gPlayers: declared by its files (src/blob/groups/game_sounds/InitOptions.c: defines it) */
 extern s8 gCatchup;
 extern s8 gUseCatchup;
 extern OSMesg si_event_msgs[EXTENT(8)];

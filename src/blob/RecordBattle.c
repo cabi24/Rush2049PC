@@ -1,11 +1,6 @@
 /* RecordBattle: record a battle (MAT3 gamerecords.c). */
 #include "game/game.h"
 
-/* A player's input record as this reads it: which "just play" profile, the profile handle in use. */
-typedef struct PlayerPad { u8 pad0; u8 selector; u8 pad2[0x46]; tProfile **profile; } PlayerPad;
-
-extern PlayerPad gPlayers[];
-
 VIEW(s8[], gBattlePoints);
 #define gBattlePoints gBattlePoints_view
 
@@ -21,11 +16,11 @@ void RecordBattle(void)
     arena = gTrackNum - TRACK_BATTLE_FIRST;
     for (i = 0; i < gNumPlayers; i++)
     {
-        if (gPlayers[i].profile == 0)
+        if (gPlayers[i].save == 0)
         {
-            gPlayers[i].profile = &gJustPlayers[gPlayers[i].selector];
+            gPlayers[i].save = &gJustPlayers[gPlayers[i].controller];
         }
-        if ((*gPlayers[i].profile)->datah == 0)
+        if ((*gPlayers[i].save)->datah == 0)
         {
             return;
         }
@@ -37,7 +32,7 @@ void RecordBattle(void)
             s32 k;
             if (pass == 0)
             {
-                stats = &(*(*gPlayers[i].profile)->datah)->battleStats[arena];
+                stats = &(*(*gPlayers[i].save)->datah)->battleStats[arena];
             }
             else
             {
@@ -71,6 +66,6 @@ void RecordBattle(void)
             }
           }
         }
-        SavePlayerStats(gPlayers[i].profile, gTrackNum);
+        SavePlayerStats(gPlayers[i].save, gTrackNum);
     }
 }

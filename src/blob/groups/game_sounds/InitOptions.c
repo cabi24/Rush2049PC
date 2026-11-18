@@ -1,18 +1,7 @@
 /* InitOptions: the options and race state at start-up (MAT3 options.c), and the players' input records. */
 #include "game/game.h"
 
-/* A player's input record (MAT3 tPadState) as this file defines it. */
-typedef struct Player {
-    u8 node;
-    s8 unk1;
-    u8 pad2[0x42 - 2];
-    s8 unk42;
-    u8 pad43;
-    s32 unk44;
-    void *ref;              /* 0x48: a pointer into gJustPlayers (Player76.ref), so 8 bytes and 80-byte records here */
-} Player;
-
-Player gPlayers[4];
+tPadState gPlayers[4];
 
 /* One player in one window. */
 static void reset_player_counts(void) {
@@ -29,10 +18,10 @@ void InitOptions(void) {
     {
         int j;
         for (j = 0; j < 4; j++) {
-            gPlayers[j].unk1 = 5;
-            gPlayers[j].unk42 = 0;
-            gPlayers[j].unk44 = -1;
-            gPlayers[j].node = j;
+            gPlayers[j].controller = CONTROLLER_NONE;
+            gPlayers[j].trans = 0;
+            gPlayers[j].listener = -1;
+            gPlayers[j].slot = j;
         }
     }
     SetControls(1);

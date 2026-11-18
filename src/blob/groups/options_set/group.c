@@ -5,8 +5,6 @@ typedef struct Stats { u8 pad[1785]; u8 option_a; u8 pad1786; u8 option_b; } Sta
 typedef struct Profile { Stats *stats; } Profile;
 typedef struct PlayerState { void *next; void *prev; void *fileh; u8 pad_C[0x2C - 0xC]; Profile *profile; } PlayerState;
 typedef struct Player { PlayerState *state; } Player;
-typedef struct InputRecord { u8 pad[72]; Player *player; } InputRecord;
-extern InputRecord gPlayers[];
 
 
 /* Saves the game options to every player's profile (not in attract mode) and sets the game from them: the HUD's
@@ -20,9 +18,9 @@ void SetOptions(void)
     Player *player;
     if (!(gGameState & GS_DEMO)) {
         for (i = 0; i < gNumPlayers; i++) {
-            if (gPlayers[i].player != 0) {
+            if (gPlayers[i].save != 0) {
                 for (setting = 0; setting < 21; setting++) {
-                    SavePlayerOption(gPlayers[i].player, (u8)setting, gOptions[setting]);
+                    SavePlayerOption(gPlayers[i].save, (u8)setting, gOptions[setting]);
                 }
             }
         }
@@ -111,7 +109,7 @@ void SetOptions(void)
             gFogIntensity = options->fog;
             gWind = options->wind;
             gGravityScale = 1;
-            player = gPlayers[gCircuitPlayer].player;
+            player = gPlayers[gCircuitPlayer].save;
             gDifficulty = player->state->profile->stats->option_b;
             gCatchup = 2;
             gDeathMode = player->state->profile->stats->option_a;

@@ -346,7 +346,7 @@ void pc_CheckMulti(s32 idx);
 void pc_ContinueSkid(struct WheelSlot *ns, s16 slot, u32 tire, u8 *color);
 f32 *pc_grid_start(struct tModelData *m, s32 what);
 f32 *pc_pole_row(s32 place);
-void pc_ReadShifter(struct CarState *car, struct InputRecord *player);
+void pc_ReadShifter(struct CarState *car, struct tPadState *player);
 s32 pc_scenery_unplaced(s32 idx, void *node_obj, s32 absolute);
 void pc_ValidateEmitter(struct CamSlot *c);
 void pdf_dealloc(void *ptr);

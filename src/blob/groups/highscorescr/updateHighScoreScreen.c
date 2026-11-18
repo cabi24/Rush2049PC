@@ -2,11 +2,6 @@
  * Its pages, in order: what the race unlocked, the circuit's code, name entry, the ghost save menu, the tables. */
 #include "game/game.h"
 
-/* A player's pad record (MAT3 tPadState, gPlayers): 76 bytes, 80 on the PC. */
-typedef struct Rec76 { s32 w0; u32 edges; s32 rest[16]; void *profile; } Rec76;
-
-extern Rec76 gPlayers[];
-
 /* PC: game.ghost_prompt (port/config/ghost_prompt.c, docs/port/SAVES.md "The ghost save prompt"): the save prompt
    after a ghost race for every profile, not only the developer's (gSaveGhostFiles, LoadPlayerData); off, the N64's. */
 int pc_ghost_prompt(int developer);
@@ -74,8 +69,8 @@ void updateHighScoreScreen(void)
                 if (PC_GHOST_PROMPT(gSaveGhostFiles) != 0) {
                     SetHighScoreState(kHighScoreGhost);
                 } else {
-                    /* the first player's profile (gPlayers_save is the label of this field) */
-                    SaveGhost(gGhostPak, gPlayers[0].profile, gSavedGhost, 1);
+                    /* the first player's profile */
+                    SaveGhost(gGhostPak, gPlayers[0].save, gSavedGhost, 1);
                     gSavedGhost = 0;
                     SetHighScoreState(kHighScoreScores);
                 }

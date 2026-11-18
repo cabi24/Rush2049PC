@@ -14,14 +14,6 @@ typedef struct MultiBlit {
 } MultiBlit;
 typedef struct tMenuButton {s32 type,handle;f32 angle,matrix[3][3],position[3];u8 alpha,pad[3];} tMenuButton;
 typedef union Color {u32 word;u8 channel[4];} Color;
-/* A pak file record (MAT3 tPS_File) in its PC layout (pc_prelude.h PSF_OFS, docs/port/POINTERS.md 9.10). */
-typedef struct FileInfo {void *next, *prev; void (*RemoveFile)(void *), (*MoveFile)(void *, void *); u8 pak;} FileInfo;
-/* A profile (MAT3 tPlayerProfile) in its PC layout (pc_prelude.h PROFILE_OFS): fileh NULL for a guest, stats its
- * save data. */
-typedef struct Profile Profile;
-struct Profile {Profile **next,**previous;FileInfo **fileh;u32 id0,id1;u8 name[24];u8 **stats;};
-/* A player's pad record (MAT3 tPadState, gPlayers): its buttons and its profile. */
-typedef struct Player {u8 slot,controller,pad02[2];u32 pressed,levels,repeated;u8 unknown10[56];Profile **save;} Player;
 
 #define RACE_OPTIONS_FIRST 21           /* gOptions[21..40]: the race options, kept per profile */
 #define RACE_OPTIONS_END 41
@@ -42,9 +34,7 @@ typedef struct Player {u8 slot,controller,pad02[2];u32 pressed,levels,repeated;u
 #define TRACK_BUTTONS 48
 
 #define WAVE_PATHS 158                  /* a race track's path data: this + the track */
-#define CIRCUIT_DEATH_MODE_BYTE 1785    /* the profile's save data: the circuit's death mode */
-
-extern Player gPlayers[];        /* gPlayers */
+#define CIRCUIT_DEATH_MODE_BYTE 1785    /* the profile's save data (tSaveData): its circuit's death mode, circuit.death */
 
 /* PC: the Drones option (gOptions[22], item 17) goes up to the cars a race may hold less one ([game] cars,
  * docs/port/MORECARS.md 1.3, 10.1): 5 with the setting at original, as on the N64. Its reset value and its default
@@ -162,7 +152,7 @@ void updateTrackScreen(void)
     if (!trackscr_inited) trackscr_InitScreen();
     showTrackSelect();
     for (i = 0; i < gNumPlayers; i++) {
-        if ((*gPlayers[i].save)->fileh && PS_PakChanged((*(*gPlayers[i].save)->fileh)->pak)) {
+        if ((*gPlayers[i].save)->fileh && PS_PakChanged((*gPlayers[i].save)->fileh->file->pak)) {
             trackscr_UninitScreen(); setGameState(GS_PLAYER); return;
         }
     }
@@ -336,7 +326,7 @@ void updateTrackScreen(void)
             if (add) {
                 gOptions[31] ^= 1;
             } else gOptions[31] = 0;
-            if (gRace == kCircuit) (*(*gPlayers[gCircuitPlayer].save)->stats)[CIRCUIT_DEATH_MODE_BYTE] = gOptions[31];
+            if (gRace == kCircuit) ((u8 *)*(*gPlayers[gCircuitPlayer].save)->datah)[CIRCUIT_DEATH_MODE_BYTE] = gOptions[31];
             break;
         }
         SetOptions();

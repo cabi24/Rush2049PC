@@ -14,23 +14,6 @@ typedef struct Ghost {            /* GC __anon_49a9c; N64 layout 0x2C */
     tGhostHeader **header;        /* 0x28 */
 } Ghost;
 
-typedef struct PlayerRec {        /* GC player record (0x4C); N64 0x30 */
-    void *next; void *prev; void *fileh;
-    u32 playerId[2];              /* 0x0C */
-    u8 name[13];                  /* 0x14 */
-    u8 pad21[44 - 33];
-    u8 **datah;                   /* 0x2C */
-} PlayerRec;
-
-typedef struct Player {           /* GC gPlayers (0x50); N64 0x4C */
-    u8 node;                      /* 0x00 */
-    u8 slot;                      /* 0x01 */
-    u8 pad2[66 - 2];
-    u8 carTrans;                  /* 0x42 */
-    u8 pad43[72 - 67];
-    PlayerRec **handle;           /* 0x48 */
-} Player;
-
 /* A profile's save data (the player's tSaveData): its cars' settings, from +1860, and its tracks' records, from
  * +224 (forward ones, then backward from the seventh). */
 typedef struct CarCfg { u8 s[16]; } CarCfg;
@@ -41,7 +24,6 @@ void *memcpy(void *, const void *, u32);
 
 VIEW(Ghost **[], gGhosts);
 #define gGhosts gGhosts_view
-extern Player gPlayers[];                                 /* GC gPlayers */
 
 /* Sets a ghost race's ghosts up (only in a ghost race): each player gets a new ghost to record, its header from the
  * player (best time for the track, name, id, car, transmission and settings, the frame time) and, but on a restart,
@@ -82,13 +64,13 @@ void GhostStart(void) {
         gRealNewGhosts[i].header = &gNewGhostHeaders[i];
         g->flag = -1;
         bk = gBackwards ? 6 : 0;
-        g->bestTime = ((TrackRec *)(*(*gPlayers[i].handle)->datah + 224) + bk)[gTrackNum].time;
+        g->bestTime = ((TrackRec *)((u8 *)*(*gPlayers[i].save)->datah + 224) + bk)[gTrackNum].time;
         g->track = gTrackNum;
         g->backward = gBackwards;
-        memcpy(g->name, (*gPlayers[i].handle)->name, 13);
-        memcpy(g->playerId, (*gPlayers[i].handle)->playerId, 8);
-        g->carTrans = GetPlayerCarTrans(gPlayers[i].handle);
-        memcpy(g->settings, ((CarCfg *)(*(*gPlayers[i].handle)->datah + 1860))[PC_LINK_CAR(i)].s, 12);
+        memcpy(g->name, (*gPlayers[i].save)->name, 13);
+        memcpy(g->playerId, (*gPlayers[i].save)->id, 8);
+        g->carTrans = GetPlayerCarTrans(gPlayers[i].save);
+        memcpy(g->settings, ((CarCfg *)((u8 *)*(*gPlayers[i].save)->datah + 1860))[PC_LINK_CAR(i)].s, 12);
         g->car = PC_LINK_CAR(i);
         g->frameTime = gRetraceTime;
         if (!gRestartGame) {
@@ -115,12 +97,12 @@ void GhostStart(void) {
         g->offset = 0;
         car = g->car;
         memset(&gPlayers[i], 0, 76);
-        gPlayers[i].handle = &gGhostPlayers[i];
+        gPlayers[i].save = (tProfile **)&gGhostPlayers[i];   /* the ghost's profile */
         memset(gGhostPlayers[i], 0, PROFILE_OFS(48));
-        memcpy((*gPlayers[i].handle)->name, g->name, 13);
-        gPlayers[i].node = i;
+        memcpy((*gPlayers[i].save)->name, g->name, 13);
         gPlayers[i].slot = i;
-        gPlayers[i].carTrans = g->carTrans;
+        gPlayers[i].controller = i;
+        gPlayers[i].trans = g->carTrans;
         gCarHandling[i + 1][car] = g->settings[0];
         gCarEngines[i + 1][car] = g->settings[1];
         gCarTires[i + 1][car] = g->settings[2];

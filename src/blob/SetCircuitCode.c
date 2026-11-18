@@ -17,14 +17,6 @@ struct tCircuit {
     u8 ranks[54];       /* 0x14 each car's place in each race, 3 bits a race, 9 bytes a car (MAT3 [6][9]) */
 };
 
-/* A player's profile (SaveSlot, host layout: pc_prelude.h), its save data, and its input record (gPlayers). */
-typedef struct Resource { u8 *data; } Resource;
-typedef struct Object { void *next; void *prev; void *fileh; u8 pad0_C[0x2C - 0xC]; Resource *resource; } Object;
-typedef struct Handle { Object *object; } Handle;
-typedef struct Player76 { u8 index, selector; u8 pad2[70]; Handle *handle; } Player76;
-
-extern Player76 gPlayers[];
-
 /* Reads circuit code `input` (a password of 86 bits in 14 characters: the type, the death death, the races driven,
  * the seed, the difficulty, the six cars' points) and, if it holds together (races within the circuit, the points
  * those races can give, the best no more than all wins), starts that circuit for the player (NewCircuit) at that
@@ -38,7 +30,7 @@ s32 SetCircuitCode(u8 *input)
     s32 i, j;
     struct tCircuit *circuit;
 
-    circuit = (struct tCircuit *)(gPlayers[gCircuitPlayer].handle->object->resource->data + 1780);
+    circuit = (struct tCircuit *)&(*(*gPlayers[gCircuitPlayer].save)->datah)->circuit;
     NewPassword(86, 14);
     if (!SetPasswordString(input)) return 0;
     GetPasswordElement(&type, 3);
@@ -67,10 +59,10 @@ s32 SetCircuitCode(u8 *input)
     circuit->temp = 1;
     circuit->death = death;
     circuit->track = track;
-    gTempCircuitFirstTrack[gPlayers[gCircuitPlayer].selector] = track;
+    gTempCircuitFirstTrack[gPlayers[gCircuitPlayer].controller] = track;
     circuit->seed = seed;
     circuit->difficulty = difficulty;
-    for (i = 0; i < 6; i++) gTempCircuitPoints[gPlayers[gCircuitPlayer].selector][i] = values[i];
+    for (i = 0; i < 6; i++) gTempCircuitPoints[gPlayers[gCircuitPlayer].controller][i] = values[i];
     ContinueCircuit();
     return 1;
 }

@@ -1,17 +1,6 @@
 /* init_cars.c: set the car and model records up for a race (MAT3 mdrive.c, init_cars()). */
 #include "game/game.h"
 
-/* A human's input record (gPlayers[i], tPadState) as init_cars reads it: its transmission choice as an unsigned byte,
- * as MAT3's tPadState has it. types.h's tPadState has trans signed, and with it GCC -O0 copies the byte into the model
- * record through another register (the same byte), so this file keeps its own view; the save pointer gives it the
- * record's size and alignment (80 bytes, 8). */
-typedef struct PadTrans {
-    u8 pad0[0x42];
-    u8 trans;                   /* +0x42 bit 0: manual */
-    u8 pad43[0x48 - 0x43];
-    void *save;                 /* +0x48 */
-} PadTrans;
-
 /* The model record (tModelData, docs/port/CARS.md 4), the fields init_cars sets. */
 typedef struct tModelData {
     _tCar *car;                 /* +0x000 the physics descriptor */
@@ -86,14 +75,12 @@ typedef struct tCarData {
     s8 view;
     s8 saveview;
     u8 pad35F[33];
-    PadTrans *player;           /* +0x380 the input record, NULL for a drone (a host pointer) */
+    tPadState *player;           /* +0x380 the input record, NULL for a drone (a host pointer) */
     u8 pad384[52];
 } tCarData;
 
 /* collsize[body]: the collision box of a car type, feet (MAT3 colfront, colrear, colside, colheight). */
 typedef struct Bounds {float front,rear,side,height;} Bounds;
-
-extern PadTrans gPlayers[];
 
 extern float sqrtf(float);
 #pragma intrinsic (sqrtf)

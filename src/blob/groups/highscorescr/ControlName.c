@@ -2,17 +2,6 @@
  * (gPlayerNameChars, 9 a row) with "space", "delete" and "end" under it. */
 #include "game/game.h"
 
-/* A player's pad record (MAT3 tPadState, gPlayers). */
-typedef struct InputRecord {
-    u8 slot, controller;
-    u8 unk2[2];
-    u32 pressed;            /* 0x04 edges */
-    u32 levels;             /* 0x08 */
-    u32 repeated;           /* 0x0C the auto-repeating presses */
-    u8 unk10[0x48 - 0x10]; void *ref;
-} InputRecord;
-extern InputRecord gPlayers[];
-
 VIEW(intptr_t[12][3][5], gTotalNames);
 #define gTotalNames gTotalNames_view
 VIEW(s8[3][5], gNewTotalScore);
@@ -27,12 +16,12 @@ VIEW(s8[3][5], gNewTotalScore);
 void ControlName(s32 player)
 {
     s32 row, place;
-    InputRecord *input;
+    tPadState *input;
     u8 *name;
 
     input = &gPlayers[player];
-    if (input->repeated & BUTTON_UP) {
-        PlayUDSound(input->repeated);
+    if (input->autoEdges & BUTTON_UP) {
+        PlayUDSound(input->autoEdges);
         if (highscore_gNameSelect[player] == NAME_SEL_END) highscore_gNameSelect[player] = 52;
         else if (highscore_gNameSelect[player] == NAME_SEL_DELETE) highscore_gNameSelect[player] = 49;
         else if (highscore_gNameSelect[player] == NAME_SEL_SPACE) highscore_gNameSelect[player] = 46;
@@ -40,8 +29,8 @@ void ControlName(s32 player)
         else if (highscore_gNameSelect[player] < 6) highscore_gNameSelect[player] = NAME_SEL_DELETE;
         else if (highscore_gNameSelect[player] < 9) highscore_gNameSelect[player] = NAME_SEL_END;
         else highscore_gNameSelect[player] -= NAME_GRID_COLUMNS;
-    } else if (input->repeated & BUTTON_DOWN) {
-        PlayUDSound(input->repeated);
+    } else if (input->autoEdges & BUTTON_DOWN) {
+        PlayUDSound(input->autoEdges);
         if (highscore_gNameSelect[player] == NAME_SEL_END) highscore_gNameSelect[player] = 7;
         else if (highscore_gNameSelect[player] == NAME_SEL_DELETE) highscore_gNameSelect[player] = 4;
         else if (highscore_gNameSelect[player] == NAME_SEL_SPACE) highscore_gNameSelect[player] = 1;
@@ -49,24 +38,24 @@ void ControlName(s32 player)
         else if (highscore_gNameSelect[player] < 48) highscore_gNameSelect[player] = NAME_SEL_SPACE;
         else if (highscore_gNameSelect[player] < 51) highscore_gNameSelect[player] = NAME_SEL_DELETE;
         else highscore_gNameSelect[player] = NAME_SEL_END;
-    } else if (input->repeated & BUTTON_LEFT) {
-        PlayLRSound(input->repeated);
+    } else if (input->autoEdges & BUTTON_LEFT) {
+        PlayLRSound(input->autoEdges);
         if (highscore_gNameSelect[player] == NAME_SEL_END) highscore_gNameSelect[player] = NAME_SEL_DELETE;
         else if (highscore_gNameSelect[player] == NAME_SEL_DELETE) highscore_gNameSelect[player] = NAME_SEL_SPACE;
         else if (highscore_gNameSelect[player] == NAME_SEL_SPACE) highscore_gNameSelect[player] = NAME_SEL_END;
         else if (highscore_gNameSelect[player] % 9 == 0) highscore_gNameSelect[player] += 8;
         else highscore_gNameSelect[player]--;
-    } else if (input->repeated & BUTTON_RIGHT) {
-        PlayLRSound(input->repeated);
+    } else if (input->autoEdges & BUTTON_RIGHT) {
+        PlayLRSound(input->autoEdges);
         if (highscore_gNameSelect[player] == NAME_SEL_END) highscore_gNameSelect[player] = NAME_SEL_SPACE;
         else if (highscore_gNameSelect[player] == NAME_SEL_DELETE) highscore_gNameSelect[player] = NAME_SEL_END;
         else if (highscore_gNameSelect[player] == NAME_SEL_SPACE) highscore_gNameSelect[player] = NAME_SEL_DELETE;
         else if (highscore_gNameSelect[player] % 9 == 8) highscore_gNameSelect[player] -= 8;
         else highscore_gNameSelect[player]++;
     }
-    if ((input->pressed & BUTTON_ACCEPT) || CountdownTimeOut()) {
-        PlayStartABSound(input->pressed);
-        if ((input->pressed & BUTTON_START) || CountdownTimeOut()) {
+    if ((input->edges & BUTTON_ACCEPT) || CountdownTimeOut()) {
+        PlayStartABSound(input->edges);
+        if ((input->edges & BUTTON_START) || CountdownTimeOut()) {
             highscore_gNameSelect[player] = NAME_SEL_END;
         }
         if (highscore_gNameSelect[player] == NAME_SEL_DELETE) {
@@ -101,8 +90,8 @@ void ControlName(s32 player)
             gScoreName[player][highscore_gNameLen[player]] = 0;
             if (highscore_gNameLen[player] == NAME_MAX) highscore_gNameSelect[player] = NAME_SEL_END;
         }
-    } else if (input->pressed & BUTTON_B) {
-        PlayStartABSound(input->pressed);
+    } else if (input->edges & BUTTON_B) {
+        PlayStartABSound(input->edges);
         if (highscore_gNameLen[player] > 0) {
             highscore_gNameLen[player]--;
             gScoreName[player][highscore_gNameLen[player]] = 0;

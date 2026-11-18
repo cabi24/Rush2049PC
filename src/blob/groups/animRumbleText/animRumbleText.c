@@ -16,17 +16,6 @@ typedef struct Blit {
 #define TEXT_RUMBLE_ON 171        /* "on" */
 #define TEXT_RUMBLE_TITLE 226     /* its title */
 
-typedef struct Player {   /* gPlayers' record (tPadState) */
-    u8 b0;
-    u8 control;
-    u8 pad2[70];
-    intptr_t *name;     /* the profile handle: its first word is the profile record, a pointer (POINTERS.md 10) */
-} Player;
-/* The profile record (save.c's SaveSlot) is 64 bytes on the PC, its name at +0x20 (PROFILE_OFS, pc_prelude.h;
- * docs/port/POINTERS.md 9.10). */
-
-extern Player gPlayers[];
-
 /* On the pause screen's rumble page (gPauseState 6, MAT3 kPauseRumbleScreen): a title (message 226) when some
  * player has no Rumble Pak, then each player's name in their colour at their place on the page with their rumble
  * state under it. Hidden on the other pages. Returns 1: the blit stays. */
@@ -45,7 +34,7 @@ s32 animRumbleText(Blit *blt)
     }
     HAL_SetTextDepth(0.0f);
     for (i = 0; i < gNumPlayers; i++) {
-        ctl = gPlayers[i].control;
+        ctl = gPlayers[i].controller;
         if (!PS_PakRumble(ctl)) {
             ok = 0;
         }
@@ -64,10 +53,10 @@ s32 animRumbleText(Blit *blt)
         x = pause_gPlayerRects[gNumPlayers - 1][i].cx;
         y = pause_gPlayerRects[gNumPlayers - 1][i].cy - TB_GetFontLineHeight();
         TB_SetTextColor(playerTextColor[i]);
-        str = (char *)(*gPlayers[i].name + PROFILE_OFS(20));
+        str = (char *)(*gPlayers[i].save)->name;
         TB_DrawText(TB_CenterText(str, x), y, str);
         y += TB_GetFontLineHeight();
-        ctl = gPlayers[i].control;
+        ctl = gPlayers[i].controller;
         if (PS_PakRumble(ctl)) {
             str = gText.single[TEXT_RUMBLE_ON];
         } else {

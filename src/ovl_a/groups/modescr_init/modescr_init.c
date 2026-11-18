@@ -7,13 +7,10 @@ typedef struct Slot64 {
     f32 angle,matrix[3][3],position[3];
     s32 unknown3C;
 } Slot64;
-/* A player's pad record (MAT3 tPadState, gPlayers): only its profile. */
-typedef struct Player76 { u8 unknown0[72]; void **profile; } Player76;
 typedef struct Blit Blit;
 
 VIEW(Slot64[13], modescr_buttonInfo);
 #define modescr_buttonInfo modescr_buttonInfo_view
-extern Player76 gPlayers[];
 
 extern void *memcpy(void *,const void *,u32);
 
@@ -50,7 +47,7 @@ void modescr_initScreen(void)
     modescr_blit=NewMultiBlit(0,0,&modescr_mblit,1);
     exitModeScreen=0;
     ClearRushControls();
-    gModeMenuSelect=GetPlayerRaceType((void **)gPlayers[0].profile);
+    gModeMenuSelect=GetPlayerRaceType(gPlayers[0].save);
     switch(gModeMenuSelect) {
     case 1: gModeMenuSelect=1; break;
     case 2: gModeMenuSelect=2; break;

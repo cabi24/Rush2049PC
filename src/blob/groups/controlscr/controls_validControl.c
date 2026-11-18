@@ -1,8 +1,6 @@
 /* validControl (MAT3 controlscr.c): whether the controls screen may give the chosen control the chosen button. */
 #include "game/game.h"
 
-extern tPadState gPlayers[];
-
 /* Whether player's choice on the controls screen is allowed: the control's assignment isn't "none" (23) and is a
  * valid one (gControlValid), the steering (2) takes only the stick (19, or 25 with a dead zone), and the controls
  * after the steering take anything but the stick. */

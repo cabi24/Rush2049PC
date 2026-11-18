@@ -157,17 +157,6 @@ void UpdateRoadSounds(ModelView *model)
         }
     }
 }
-/* PC: an input record (gPlayers) is 80 bytes, its pointer at +0x48 is 8 (docs/port/POINTERS.md 10). */
-typedef struct PlayerPad {
-    u8 pad0[4];
-    s32 edges;          /* 0x4: the buttons pressed this frame */
-    u8 pad8[56 - 8];
-    s32 hornControl;    /* 0x38: the horn's button (MAT3 controls[10]) */
-    u8 pad3C[80 - 60];
-} PlayerPad;
-
-extern PlayerPad gPlayers[];
-
 /* The engine record of a car (pc_engine_sounds: MAT3's specs, state[2], hum, rev): its car type's two layers,
  * their sounds, an unused one and the drones' random engine sound. */
 typedef struct {
@@ -336,7 +325,7 @@ void UpdateCarSounds(ModelView *model)
     UpdateBumps(model);
     if(gSeconds<sLastHornTime[original_slot])sLastHornTime[original_slot]=0.0f;
     if(!(model->appearance&APPEARANCE_NO_HORN) &&
-       (gPlayers[original_slot].edges&gPlayers[original_slot].hornControl) &&
+       (gPlayers[original_slot].edges&gPlayers[original_slot].controls[CONTROL_HORN]) &&
        gSeconds-sLastHornTime[original_slot]>0.1f) {
         sLastHornTime[original_slot]=gSeconds;
         gHornSounds[original_slot]=AudPlayEffect(gCarHorn[original_slot + 1][model->body_type]+SND_HORN_FIRST,original_slot,1,4);

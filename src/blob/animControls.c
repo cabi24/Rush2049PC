@@ -18,16 +18,6 @@ typedef struct Blit {
     u32 data;
 } Blit;
 
-/* A player's pad record (MAT3 tPadState, gPlayers). */
-typedef struct Player {
-    u8 slot;
-    u8 controller;          /* 0x01 its controller, CONTROLLER_NONE without one */
-    u8 pad2[0x48 - 0x2]; void *ref;
-} Player;
-
-extern Player gPlayers[];
-
-
 #define CONTROL_ANALOG_STICK 25     /* a control's last value, an analog source: gas and brake (rows 0, 1) show icon 26 for it */
 
 /* The controls list's rows as this file counts them: every one but row 8. */

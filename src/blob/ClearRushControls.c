@@ -1,8 +1,6 @@
 /* ClearRushControls (MAT3 controls.c): forgets every controller's input and every player's copy of it. */
 #include "game/game.h"
 
-extern tPadState gPlayers[];
-
 /* ClearControls, then each player's pressed, held and auto-repeated buttons and stick. */
 void ClearRushControls(void) {
     tPadState *player;

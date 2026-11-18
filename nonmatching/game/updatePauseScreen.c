@@ -1,9 +1,5 @@
 #include "game/game.h"
 
-typedef struct Player76 { u8 slot; u8 pad01[3]; s32 edges; u8 pad08[0x48 - 0x8]; void *ref; } Player76;
-
-extern Player76 gPlayers[];   /* gPlayers */
-
 void PlaySelectSfx(void)
 {
     AudPlayEffect(37, 0, 1, 0);

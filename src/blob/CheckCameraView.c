@@ -40,22 +40,6 @@ typedef struct Model {
     s8 f2015;           /* 2015 */
     u8 other2016[40];
 } Model;                /* 0x808 */
-/* A player's profile (SaveSlot, host layout: pc_prelude.h), and its handle. */
-typedef struct { void *next, *prev, *fileh; u8 other0C[32]; void *resource; } HObject;
-typedef struct Handle { HObject *object; } Handle;
-/* A player's input record (gPlayers): the fields this reads. */
-typedef struct {
-    u8 index;
-    u8 other1[3];
-    s32 mask;           /* 4 */
-    u8 other8[44];
-    s32 edges;          /* 52 */
-    u8 other56[16];
-    Handle *handle;     /* 72 */
-} Player76;
-
-extern Player76 gPlayers[];
-
 
 /* Picks each window's view and moves its camera (update_camera), then places the drones' scene nodes where their cars
  * are. In a ghost race the second controller's button 4 (with 2 held) moves window 0 to the next car in the race.
@@ -74,7 +58,7 @@ void CheckCameraView(void)
     Model *m;
     tCamera *cam;
     s32 i;
-    Player76 *pl;
+    tPadState *pl;
     s32 n;
     s32 new_view3, block, delta, extra_lag; /* unused: see header (frame residual) */
     u32 edge;                               /* unused */
@@ -130,13 +114,13 @@ void CheckCameraView(void)
                     break;
                 }
             }
-        } else if (PC_FINISH_CAM(pl->index) != 0 && view != 4) {
+        } else if (PC_FINISH_CAM(pl->slot) != 0 && view != 4) {
             view = 5;
-        } else if (view != 4 && (pl->edges & pl->mask)) {
+        } else if (view != 4 && (pl->controls[CONTROL_VIEW] & pl->edges)) {
             view++;
             if (view >= 4) view = 0;
-            if (pl->handle->object->resource) {
-                SavePlayerCarView(pl->handle, view);
+            if ((*pl->save)->datah) {
+                SavePlayerCarView(pl->save, view);
             }
             if (view == 1) {
                 cur_acc[obj->slot][0] = 0.0f;

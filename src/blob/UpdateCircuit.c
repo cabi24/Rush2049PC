@@ -17,13 +17,6 @@ struct tCircuit {
     u8 ranks[54];       /* 0x14 each car's place in each race, 3 bits a race, 9 bytes a car (MAT3 [6][9]) */
 };
 
-/* A player's profile (SaveSlot, host layout: pc_prelude.h), its save data, and its input record (gPlayers). */
-typedef struct Resource { u8 *data; } Resource;
-typedef struct Object { void *next; void *prev; void *fileh; u8 opaque_C[0x2C - 0xC]; Resource *resource; } Object;
-typedef struct Handle { Object *object; } Handle;
-typedef struct Player76 { u8 index, selector; u8 opaque[70]; Handle *handle; } Player76;
-extern Player76 gPlayers[];
-
 #define SWAP(a, b) { (a) ^= (b); (b) ^= (a); (a) ^= (b); }
 
 /* Records the race just driven: each car's place (`values`, 3 bits each, the two players' swapped for the second
@@ -37,8 +30,8 @@ void UpdateCircuit(u8 *values, float time)
     int count, i, j, bit, best;
     int first, second, difference, level;
 
-    data = gPlayers[gCircuitPlayer].handle->object->resource->data;
-    circuit = (struct tCircuit *)(data + 1780);
+    data = (u8 *)*(*gPlayers[gCircuitPlayer].save)->datah;   /* the profile's save data (tSaveData) */
+    circuit = (struct tCircuit *)(data + 1780);   /* tSaveData.circuit */
     count = 6 - (gNumPlayers == 1 ? 0 : 2);
     if (gCircuitPlayer > 0) {
         SWAP(values[0], values[1]);
@@ -73,5 +66,5 @@ void UpdateCircuit(u8 *values, float time)
             (best < 3 && level < 2) ||
             (best < 4 && level <= 0)) circuit->difficulty = level + 1;
     }
-    SavePlayerCircuit(gPlayers[gCircuitPlayer].handle);
+    SavePlayerCircuit(gPlayers[gCircuitPlayer].save);
 }

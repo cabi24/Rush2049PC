@@ -5,16 +5,6 @@
 
 typedef union RGBA { u8 c[4]; u32 rgba; } RGBA;
 
-typedef struct Pad {
-    u8 slot, controller; u8 pad02[2];
-    u32 edges;            /* 0x04 */
-    u32 levels;           /* 0x08 */
-    u32 autoEdges;        /* 0x0c */
-    f32 analog[2];        /* 0x10 */
-    u32 controls[11];     /* 0x18 */
-    u8 pad44[0x50 - 0x44];
-} Pad;
-
 typedef struct Defense {
     u32 active;           /* 0x00 */
     f32 invsTime;         /* 0x04 */
@@ -56,7 +46,7 @@ typedef struct Car {
     u8 pad35a;
     s8 slot;              /* 0x35b */
     u8 pad35c[0x380 - 0x35c];
-    Pad *player;          /* 0x380 */
+    tPadState *player;          /* 0x380 */
     Battle battle;        /* 0x384 */
 } Car;
 
@@ -564,7 +554,7 @@ void UpdateShots(void)
                     ZOID_SetColor(o->mbIdx, &clr);
                     o = shot->obj2;
                     ZOID_SetColor(o->mbIdx, &clr);
-                    if (car->player && (car->player->edges & car->player->controls[9])) {
+                    if (car->player && (car->player->edges & car->player->controls[CONTROL_WINGS])) {
                         clr.c[3] = 255;
                         o = shot->obj;
                         ZOID_SetColor(o->mbIdx, &clr);
@@ -922,7 +912,7 @@ void ShotUpdate(void)
             ElevateGun(car);
             break;
         }
-        if (car->player->edges & car->player->controls[6])
+        if (car->player->edges & car->player->controls[CONTROL_ABORT])
             goto resetWeapon;
         if (!car->battle.ammoCnt) {
             if (car->battle.type == 5) {
@@ -946,8 +936,8 @@ resetWeapon:
                 car->battle.loaded = 1;
             } else {
                 if (!car->player || car->battle.type == 5 ||
-                    (!(car->player->edges & car->player->controls[9]) &&
-                     (car->battle.type != 1 || !(car->player->levels & car->player->controls[9]))) ||
+                    (!(car->player->edges & car->player->controls[CONTROL_WINGS]) &&
+                     (car->battle.type != 1 || !(car->player->levels & car->player->controls[CONTROL_WINGS]))) ||
                     m->crashflag || !car->collidable || car->dead)
                     continue;
                 car->battle.shoot = 6;

@@ -11,15 +11,12 @@ typedef struct FileInfo {void *next, *prev; void (*RemoveFile)(void *), (*MoveFi
 /* A profile (MAT3 tPlayerProfile) in its PC layout (pc_prelude.h PROFILE_OFS): fileh NULL for a guest. */
 typedef struct Profile Profile;
 struct Profile {Profile **next,**previous;FileInfo **fileh;u32 id0,id1;u8 name[24];u8 **stats;};
-/* A player's pad record (MAT3 tPadState, gPlayers): its buttons, its transmission choice and its profile. */
-typedef struct Player {u8 slot,controller,pad02[2];u32 pressed,levels,repeated;u8 unknown10[50];u8 trans,unknown43[5];Profile **profile;} Player;
 /* A ghost's save header (MAT3 tSaveHeader): the car it was recorded with and its settings (CAR_SETTING_*). */
 typedef struct SaveHeader {u8 unknown00[8],car,trans;s8 settings[12];} SaveHeader;
 typedef struct Record Record;
 /* A ghost file (MAT3 tGhostFile; SaveInit's Ghost) in its PC layout: its links, pak file, data and header handles are
  * pointers (docs/port/CASTS.md). */
 struct Record {Record **next;FileInfo **fileh;s8 track;u8 backward,name[14];u32 id0,id1;f32 finish;void *datah;SaveHeader **header;};
-extern Player gPlayers[];
 VIEW(Record **[4], gGhosts);
 #define gGhosts gGhosts_view
 
@@ -96,7 +93,7 @@ void setGhosts(void)
     s32 ghostCount;
     s32 i;
     s32 j;
-    player = *gPlayers[0].profile;
+    player = *gPlayers[0].save;
     for (i = 0; i < 4; i++) gGhosts[i] = 0;
     for (i = 0; i < 5; i++) nearGhosts[i] = 0;
     for (i = 1; i < 4; i++) gLastCar[i] = -1;
@@ -257,7 +254,7 @@ void setGhosts(void)
  * car, stepped down by two until it is unlocked. Then the text blit. */
 void carscr_InitScreen(void)
 {
-    Player *pl;
+    tPadState *pl;
     s32 p;
     s32 i;
 
@@ -350,40 +347,40 @@ void carscr_InitScreen(void)
         gTurntableMat[p][1][11] = 15.0f;
         carscr_initButtons(p);
         for (i = 0; i < CARS; i++) {
-            gCarHandling[p + 1][i] = GetPlayerCarSetting(pl->profile, i, CAR_SETTING_HANDLING);
-            gCarEngines[p + 1][i] = GetPlayerCarSetting(pl->profile, i, CAR_SETTING_ENGINE);
+            gCarHandling[p + 1][i] = GetPlayerCarSetting(pl->save, i, CAR_SETTING_HANDLING);
+            gCarEngines[p + 1][i] = GetPlayerCarSetting(pl->save, i, CAR_SETTING_ENGINE);
             while (!IsEngineUnlocked(p, gCarEngines[p + 1][i])) {
                 gCarEngines[p + 1][i]--;
                 if (gCarEngines[p + 1][i] < 0) { gCarEngines[p + 1][i] = 0; break; }
             }
-            SavePlayerCarSetting(pl->profile, i, CAR_SETTING_ENGINE, gCarEngines[p + 1][i]);
-            gCarTires[p + 1][i] = GetPlayerCarSetting(pl->profile, i, CAR_SETTING_TIRES);
+            SavePlayerCarSetting(pl->save, i, CAR_SETTING_ENGINE, gCarEngines[p + 1][i]);
+            gCarTires[p + 1][i] = GetPlayerCarSetting(pl->save, i, CAR_SETTING_TIRES);
             while (!IsTiresUnlocked(p, gCarTires[p + 1][i])) {
                 gCarTires[p + 1][i]--;
                 if (gCarTires[p + 1][i] < 0) { gCarTires[p + 1][i] = 0; break; }
             }
-            SavePlayerCarSetting(pl->profile, i, CAR_SETTING_TIRES, gCarTires[p + 1][i]);
-            gCarFrame[p + 1][i] = GetPlayerCarSetting(pl->profile, i, CAR_SETTING_FRAME);
+            SavePlayerCarSetting(pl->save, i, CAR_SETTING_TIRES, gCarTires[p + 1][i]);
+            gCarFrame[p + 1][i] = GetPlayerCarSetting(pl->save, i, CAR_SETTING_FRAME);
             while (!IsFrameUnlocked(p, gCarFrame[p + 1][i])) {
                 gCarFrame[p + 1][i]--;
                 if (gCarFrame[p + 1][i] < 0) { gCarFrame[p + 1][i] = 0; break; }
             }
-            SavePlayerCarSetting(pl->profile, i, CAR_SETTING_FRAME, gCarFrame[p + 1][i]);
-            gCarWings[p + 1][i] = GetPlayerCarSetting(pl->profile, i, CAR_SETTING_WINGS);
+            SavePlayerCarSetting(pl->save, i, CAR_SETTING_FRAME, gCarFrame[p + 1][i]);
+            gCarWings[p + 1][i] = GetPlayerCarSetting(pl->save, i, CAR_SETTING_WINGS);
             if (gRace != kStunt && gCarWings[p + 1][i] > 1) gCarWings[p + 1][i] = 1;
-            car_color_choice_a[p + 1][i] = GetPlayerCarSetting(pl->profile, i, CAR_SETTING_COLOR_A);
-            car_color_choice_b[p + 1][i] = GetPlayerCarSetting(pl->profile, i, CAR_SETTING_COLOR_B);
-            car_color_choice_c[p + 1][i] = GetPlayerCarSetting(pl->profile, i, CAR_SETTING_COLOR_C);
-            TIRE_RIMS(p + 1)[i] = GetPlayerCarSetting(pl->profile, i, CAR_SETTING_RIMS);
-            gCarHorn[p + 1][i] = GetPlayerCarSetting(pl->profile, i, CAR_SETTING_HORN);
-            gFrontTireScale[p + 1][i] = GetPlayerCarSetting(pl->profile, i, CAR_SETTING_FRONT_TIRE_SCALE) / 100.0f + 0.75f;
-            gRearTireScale[p + 1][i] = GetPlayerCarSetting(pl->profile, i, CAR_SETTING_REAR_TIRE_SCALE) / 100.0f + 0.75f;
+            car_color_choice_a[p + 1][i] = GetPlayerCarSetting(pl->save, i, CAR_SETTING_COLOR_A);
+            car_color_choice_b[p + 1][i] = GetPlayerCarSetting(pl->save, i, CAR_SETTING_COLOR_B);
+            car_color_choice_c[p + 1][i] = GetPlayerCarSetting(pl->save, i, CAR_SETTING_COLOR_C);
+            TIRE_RIMS(p + 1)[i] = GetPlayerCarSetting(pl->save, i, CAR_SETTING_RIMS);
+            gCarHorn[p + 1][i] = GetPlayerCarSetting(pl->save, i, CAR_SETTING_HORN);
+            gFrontTireScale[p + 1][i] = GetPlayerCarSetting(pl->save, i, CAR_SETTING_FRONT_TIRE_SCALE) / 100.0f + 0.75f;
+            gRearTireScale[p + 1][i] = GetPlayerCarSetting(pl->save, i, CAR_SETTING_REAR_TIRE_SCALE) / 100.0f + 0.75f;
             if (!gEnableTireScaling) {
                 gFrontTireScale[p + 1][i] = gFrontTireScale[0][i];
                 gRearTireScale[p + 1][i] = gRearTireScale[0][i];
             }
         }
-        gThisCar[p] = GetPlayerCar(pl->profile);
+        gThisCar[p] = GetPlayerCar(pl->save);
         while (!IsCarUnlocked(p, gThisCar[p])) {
             if (!gThisCar[p]) gThisCar[p] = 12;
             else gThisCar[p]--;
@@ -394,7 +391,7 @@ void carscr_InitScreen(void)
         if (gThisCarIndex[p] >= gNumCarsActive[p]) {
             gThisCarIndex[p] = p + 1;
             gThisCar[p] = gCars[p][gThisCarIndex[p]];
-            SavePlayerCar(pl->profile, gThisCar[p]);
+            SavePlayerCar(pl->save, gThisCar[p]);
         }
         gLastCar[p] = -1;
         calcValidOptions(p);
@@ -406,7 +403,7 @@ void carscr_InitScreen(void)
         }
         if (gRace == kBattle) gPlayers[p].trans = BATTLE_TRANS;
         else {
-            gPlayers[p].trans = GetPlayerCarTrans((void **)pl->profile);
+            gPlayers[p].trans = GetPlayerCarTrans(pl->save);
             while (!IsTransUnlocked(p, gPlayers[p].trans)) {
                 gPlayers[p].trans -= 2;
                 if ((s32)gPlayers[p].trans < 0) { gPlayers[p].trans += 2; break; }
@@ -475,7 +472,7 @@ void updateCarScreen(void)
     if (!carscr_inited) carscr_InitScreen();
     showCarSelect();
     for (i = 0; i < gNumPlayers; i++) {
-        if ((*gPlayers[i].profile)->fileh && PS_PakChanged((*(*gPlayers[i].profile)->fileh)->pak)) {
+        if ((*gPlayers[i].save)->fileh && PS_PakChanged((*gPlayers[i].save)->fileh->file->pak)) {
             carscr_UninitScreen(); setGameState(GS_PLAYER); carscr_wait = 0; return;
         }
     }
@@ -492,7 +489,7 @@ void updateCarScreen(void)
         s16 gx, gy, gw, gh;
         f32 pos[3];
         s16 gscreenPos[2];
-        if (!allLocked && (gPlayers[p].pressed & BUTTON_B)) {
+        if (!allLocked && (gPlayers[p].edges & BUTTON_B)) {
             if (gCarLocked[p] == 1) gCarLocked[p] = 0;
             else { AudPlayEffect(SND_MENU_BACK, 0, 1, 0); carscr_UninitScreen(); setGameState(GS_TRACK); carscr_wait = 0; return; }
         }
@@ -513,7 +510,7 @@ void updateCarScreen(void)
             } else {
                 w = HAL_GetTextWidth(gText.single[TEXT_WAITING_FOR], -1);
                 h = TB_GetFontLineHeight() * 2;
-                if (notReadyCount == 1) w = (w > HAL_GetTextWidth((*gPlayers[notReadyIdx].profile)->name, -1) ? w : HAL_GetTextWidth((*gPlayers[notReadyIdx].profile)->name, -1));
+                if (notReadyCount == 1) w = (w > HAL_GetTextWidth((*gPlayers[notReadyIdx].save)->name, -1) ? w : HAL_GetTextWidth((*gPlayers[notReadyIdx].save)->name, -1));
                 else w = (w > HAL_GetTextWidth(gText.single[TEXT_WAITING_FOR_ALL], -1) ? w : HAL_GetTextWidth(gText.single[TEXT_WAITING_FOR_ALL], -1));
             }
             y -= TB_GetFontLineHeight() / 2;
@@ -522,8 +519,8 @@ void updateCarScreen(void)
             continue;
         }
         ChangePaneSize(carscr_pane[p], -20, 0, -10, 10);
-        if (gPlayers[p].pressed & BUTTON_ACCEPT) {
-            PlayStartABSound(gPlayers[p].pressed);
+        if (gPlayers[p].edges & BUTTON_ACCEPT) {
+            PlayStartABSound(gPlayers[p].edges);
             gCarLocked[p] = 1;
             PC_LINK_FLAGS(p) = 160;     /* 0xA0: 0x80 in the game (MAT3 LINK_FLAG_IN_GAME), and 0x20 */
             PC_LINK_CAR(p) = gThisCar[p];
@@ -538,17 +535,17 @@ void updateCarScreen(void)
             }
             carscr_wait = 0;
         }
-        if (gPlayers[p].repeated & BUTTON_UP) {
+        if (gPlayers[p].autoEdges & BUTTON_UP) {
             AudPlayEffect(SND_MENU_UP, 0, 1, 0);
             carscr_gActiveOption[p]--;
             if (carscr_gActiveOption[p] < 0) carscr_gActiveOption[p] = carscr_gNumOptions[p] - 1;
-        } else if (gPlayers[p].repeated & BUTTON_DOWN) {
+        } else if (gPlayers[p].autoEdges & BUTTON_DOWN) {
             AudPlayEffect(SND_MENU_DOWN, 0, 1, 0);
             carscr_gActiveOption[p]++;
             if (carscr_gActiveOption[p] > carscr_gNumOptions[p] - 1) carscr_gActiveOption[p] = 0;
-        } else if (gPlayers[p].repeated & (BUTTON_LEFT | BUTTON_RIGHT | BUTTON_DEFAULT_OPTION)) {
+        } else if (gPlayers[p].autoEdges & (BUTTON_LEFT | BUTTON_RIGHT | BUTTON_DEFAULT_OPTION)) {
             /* d: -1 left, 1 right, 0 the option's default */
-            s32 d = (gPlayers[p].repeated & BUTTON_LEFT) ? -1 : ((gPlayers[p].repeated & BUTTON_RIGHT) ? 1 : 0);
+            s32 d = (gPlayers[p].autoEdges & BUTTON_LEFT) ? -1 : ((gPlayers[p].autoEdges & BUTTON_RIGHT) ? 1 : 0);
             /* Original game: nothing sets carscr_gActiveZ (MAT3 neither), so the default button only ever plays the
              * error sound, and every `else ... = [0][car]` (the default) below is unreachable. */
             if (!carscr_gActiveOptionEnabled[p] || (!d && !carscr_gActiveZ[p])) {
@@ -566,7 +563,7 @@ void updateCarScreen(void)
                 }
                 gThisCar[p] = gCars[p][gThisCarIndex[p]];
                 if (gRace == kBattle) gPlayers[p].trans = BATTLE_TRANS;
-                else gPlayers[p].trans = GetPlayerCarTrans((void **)gPlayers[p].profile);
+                else gPlayers[p].trans = GetPlayerCarTrans(gPlayers[p].save);
                 for (i = 0; i < CARS; i++) gCarTrans[p + 1][i] = gPlayers[p].trans;
                 calcValidOptions(p);
                 carscr_buttonsJustInited[p] = 1;
@@ -581,7 +578,7 @@ void updateCarScreen(void)
                         } while (!IsTransUnlocked(p, gCarTrans[p + 1][gThisCar[p]]) || (gRace == kBattle && (gCarTrans[p + 1][gThisCar[p]] & 1)));
                     } else gCarTrans[p + 1][gThisCar[p]] = gCarTrans[0][gThisCar[p]];
                     gPlayers[p].trans = gCarTrans[p + 1][gThisCar[p]];
-                    SavePlayerCarTrans(gPlayers[p].profile, gPlayers[p].trans);
+                    SavePlayerCarTrans(gPlayers[p].save, gPlayers[p].trans);
                 } else sound = 0;
                 break;
             case CAR_OPT_HANDLING:
@@ -590,7 +587,7 @@ void updateCarScreen(void)
                     if (gCarHandling[p + 1][gThisCar[p]] < 0) gCarHandling[p + 1][gThisCar[p]] = 2;
                     else if (gCarHandling[p + 1][gThisCar[p]] > 2) gCarHandling[p + 1][gThisCar[p]] = 0;
                 } else gCarHandling[p + 1][gThisCar[p]] = gCarHandling[0][gThisCar[p]];
-                SavePlayerCarSetting(gPlayers[p].profile, gThisCar[p], CAR_SETTING_HANDLING, gCarHandling[p + 1][gThisCar[p]]);
+                SavePlayerCarSetting(gPlayers[p].save, gThisCar[p], CAR_SETTING_HANDLING, gCarHandling[p + 1][gThisCar[p]]);
                 break;
             case CAR_OPT_ENGINE:
                 if (d) {
@@ -600,7 +597,7 @@ void updateCarScreen(void)
                         else if (gCarEngines[p + 1][gThisCar[p]] > 8) gCarEngines[p + 1][gThisCar[p]] = 0;
                     } while (!IsEngineUnlocked(p, gCarEngines[p + 1][gThisCar[p]]));
                 } else gCarEngines[p + 1][gThisCar[p]] = gCarEngines[0][gThisCar[p]];
-                SavePlayerCarSetting(gPlayers[p].profile, gThisCar[p], CAR_SETTING_ENGINE, gCarEngines[p + 1][gThisCar[p]]);
+                SavePlayerCarSetting(gPlayers[p].save, gThisCar[p], CAR_SETTING_ENGINE, gCarEngines[p + 1][gThisCar[p]]);
                 break;
             case CAR_OPT_TIRES:
                 if (d) {
@@ -610,7 +607,7 @@ void updateCarScreen(void)
                         else if (gCarTires[p + 1][gThisCar[p]] > 4) gCarTires[p + 1][gThisCar[p]] = 0;
                     } while (!IsTiresUnlocked(p, gCarTires[p + 1][gThisCar[p]]));
                 } else gCarTires[p + 1][gThisCar[p]] = gCarTires[0][gThisCar[p]];
-                SavePlayerCarSetting(gPlayers[p].profile, gThisCar[p], CAR_SETTING_TIRES, gCarTires[p + 1][gThisCar[p]]);
+                SavePlayerCarSetting(gPlayers[p].save, gThisCar[p], CAR_SETTING_TIRES, gCarTires[p + 1][gThisCar[p]]);
                 break;
             case CAR_OPT_FRAME:
                 if (d) {
@@ -620,7 +617,7 @@ void updateCarScreen(void)
                         else if (gCarFrame[p + 1][gThisCar[p]] > 5) gCarFrame[p + 1][gThisCar[p]] = 0;
                     } while (!IsFrameUnlocked(p, gCarFrame[p + 1][gThisCar[p]]));
                 } else gCarFrame[p + 1][gThisCar[p]] = gCarFrame[0][gThisCar[p]];
-                SavePlayerCarSetting(gPlayers[p].profile, gThisCar[p], CAR_SETTING_FRAME, gCarFrame[p + 1][gThisCar[p]]);
+                SavePlayerCarSetting(gPlayers[p].save, gThisCar[p], CAR_SETTING_FRAME, gCarFrame[p + 1][gThisCar[p]]);
                 break;
             case CAR_OPT_WINGS:
                 if (d) {
@@ -628,7 +625,7 @@ void updateCarScreen(void)
                     if (gCarWings[p + 1][gThisCar[p]] < 0) gCarWings[p + 1][gThisCar[p]] = (gRace != kStunt ? 1 : 2);
                     else if (gCarWings[p + 1][gThisCar[p]] > (gRace != kStunt ? 1 : 2)) gCarWings[p + 1][gThisCar[p]] = 0;
                 } else gCarWings[p + 1][gThisCar[p]] = gCarWings[0][gThisCar[p]];
-                SavePlayerCarSetting(gPlayers[p].profile, gThisCar[p], CAR_SETTING_WINGS, gCarWings[p + 1][gThisCar[p]]);
+                SavePlayerCarSetting(gPlayers[p].save, gThisCar[p], CAR_SETTING_WINGS, gCarWings[p + 1][gThisCar[p]]);
                 break;
             case CAR_OPT_COLOR_A:
                 if (d) {
@@ -636,7 +633,7 @@ void updateCarScreen(void)
                     if (car_color_choice_a[p + 1][gThisCar[p]] < 0) car_color_choice_a[p + 1][gThisCar[p]] = 31;
                     else if (car_color_choice_a[p + 1][gThisCar[p]] >= 32) car_color_choice_a[p + 1][gThisCar[p]] = 0;
                 } else car_color_choice_a[p + 1][gThisCar[p]] = car_color_choice_a[0][gThisCar[p]];
-                SavePlayerCarSetting(gPlayers[p].profile, gThisCar[p], CAR_SETTING_COLOR_A, car_color_choice_a[p + 1][gThisCar[p]]);
+                SavePlayerCarSetting(gPlayers[p].save, gThisCar[p], CAR_SETTING_COLOR_A, car_color_choice_a[p + 1][gThisCar[p]]);
                 break;
             case CAR_OPT_COLOR_B:
                 if (d) {
@@ -644,7 +641,7 @@ void updateCarScreen(void)
                     if (car_color_choice_b[p + 1][gThisCar[p]] < 0) car_color_choice_b[p + 1][gThisCar[p]] = 31;
                     else if (car_color_choice_b[p + 1][gThisCar[p]] >= 32) car_color_choice_b[p + 1][gThisCar[p]] = 0;
                 } else car_color_choice_b[p + 1][gThisCar[p]] = car_color_choice_b[0][gThisCar[p]];
-                SavePlayerCarSetting(gPlayers[p].profile, gThisCar[p], CAR_SETTING_COLOR_B, car_color_choice_b[p + 1][gThisCar[p]]);
+                SavePlayerCarSetting(gPlayers[p].save, gThisCar[p], CAR_SETTING_COLOR_B, car_color_choice_b[p + 1][gThisCar[p]]);
                 break;
             case CAR_OPT_COLOR_C:
                 if (d) {
@@ -652,7 +649,7 @@ void updateCarScreen(void)
                     if (car_color_choice_c[p + 1][gThisCar[p]] < 0) car_color_choice_c[p + 1][gThisCar[p]] = 31;
                     else if (car_color_choice_c[p + 1][gThisCar[p]] >= 32) car_color_choice_c[p + 1][gThisCar[p]] = 0;
                 } else car_color_choice_c[p + 1][gThisCar[p]] = car_color_choice_c[0][gThisCar[p]];
-                SavePlayerCarSetting(gPlayers[p].profile, gThisCar[p], CAR_SETTING_COLOR_C, car_color_choice_c[p + 1][gThisCar[p]]);
+                SavePlayerCarSetting(gPlayers[p].save, gThisCar[p], CAR_SETTING_COLOR_C, car_color_choice_c[p + 1][gThisCar[p]]);
                 break;
             case CAR_OPT_TEAM:
                 if (d) {
@@ -673,7 +670,7 @@ void updateCarScreen(void)
                     if (TIRE_RIMS(p + 1)[gThisCar[p]] < 0) TIRE_RIMS(p + 1)[gThisCar[p]] = 20;
                     else if (TIRE_RIMS(p + 1)[gThisCar[p]] > 20) TIRE_RIMS(p + 1)[gThisCar[p]] = 0;
                 } else TIRE_RIMS(p + 1)[gThisCar[p]] = TIRE_RIMS(0)[gThisCar[p]];
-                SavePlayerCarSetting(gPlayers[p].profile, gThisCar[p], CAR_SETTING_RIMS, TIRE_RIMS(p + 1)[gThisCar[p]]);
+                SavePlayerCarSetting(gPlayers[p].save, gThisCar[p], CAR_SETTING_RIMS, TIRE_RIMS(p + 1)[gThisCar[p]]);
                 break;
             case CAR_OPT_HORN:
                 if (d) {
@@ -684,7 +681,7 @@ void updateCarScreen(void)
                 sound = 0;
                 AudStopEffect(gHornSnd[p]);
                 gHornSnd[p] = AudPlayEffect(gCarHorn[p + 1][gThisCar[p]] + SND_HORN_FIRST, 0, 1, 0);
-                SavePlayerCarSetting(gPlayers[p].profile, gThisCar[p], CAR_SETTING_HORN, gCarHorn[p + 1][gThisCar[p]]);
+                SavePlayerCarSetting(gPlayers[p].save, gThisCar[p], CAR_SETTING_HORN, gCarHorn[p + 1][gThisCar[p]]);
                 break;
             case CAR_OPT_FRONT_TIRE_SCALE:
                 if (d) {
@@ -692,7 +689,7 @@ void updateCarScreen(void)
                     if (gFrontTireScale[p + 1][gThisCar[p]] < 0.74f) gFrontTireScale[p + 1][gThisCar[p]] = 1.5f;
                     else if (gFrontTireScale[p + 1][gThisCar[p]] > 1.6f) gFrontTireScale[p + 1][gThisCar[p]] = 0.75f;
                 } else gFrontTireScale[p + 1][gThisCar[p]] = gFrontTireScale[0][gThisCar[p]];
-                SavePlayerCarSetting(gPlayers[p].profile, gThisCar[p], CAR_SETTING_FRONT_TIRE_SCALE, (s8)(100.0f * gFrontTireScale[p + 1][gThisCar[p]] - 75.0f));
+                SavePlayerCarSetting(gPlayers[p].save, gThisCar[p], CAR_SETTING_FRONT_TIRE_SCALE, (s8)(100.0f * gFrontTireScale[p + 1][gThisCar[p]] - 75.0f));
                 break;
             case CAR_OPT_REAR_TIRE_SCALE:
                 if (d) {
@@ -700,7 +697,7 @@ void updateCarScreen(void)
                     if (gRearTireScale[p + 1][gThisCar[p]] < 0.74f) gRearTireScale[p + 1][gThisCar[p]] = 1.5f;
                     else if (gRearTireScale[p + 1][gThisCar[p]] > 1.5f) gRearTireScale[p + 1][gThisCar[p]] = 0.75f;
                 } else gRearTireScale[p + 1][gThisCar[p]] = gRearTireScale[0][gThisCar[p]];
-                SavePlayerCarSetting(gPlayers[p].profile, gThisCar[p], CAR_SETTING_REAR_TIRE_SCALE, (s8)(100.0f * gRearTireScale[p + 1][gThisCar[p]] - 75.0f));
+                SavePlayerCarSetting(gPlayers[p].save, gThisCar[p], CAR_SETTING_REAR_TIRE_SCALE, (s8)(100.0f * gRearTireScale[p + 1][gThisCar[p]] - 75.0f));
                 break;
             case CAR_OPT_SHEEN:
                 if (d) {
@@ -714,7 +711,7 @@ void updateCarScreen(void)
             case CAR_OPT_GHOST_2: gGhosts[2] = getNextGhost(gGhosts[2], d); break;
             case CAR_OPT_GHOST_3: gGhosts[3] = getNextGhost(gGhosts[3], d); break;
             }
-            if (sound) PlayLRSound(gPlayers[p].repeated);
+            if (sound) PlayLRSound(gPlayers[p].autoEdges);
         }
         if (carscr_gFirstOption[p] > carscr_gActiveOption[p] - 1) carscr_gFirstOption[p] = carscr_gActiveOption[p] - 1;
         if (carscr_gFirstOption[p] < carscr_gActiveOption[p] - 1) carscr_gFirstOption[p] = carscr_gActiveOption[p] - 1;
@@ -723,7 +720,7 @@ void updateCarScreen(void)
         carscr_gActiveOptionEnabled[p] = 1;
 after_options:
         if (gLastCar[p] != gThisCar[p]) {
-            if (gLastCar[p] >= 0) SavePlayerCar(gPlayers[p].profile, gThisCar[p]);
+            if (gLastCar[p] >= 0) SavePlayerCar(gPlayers[p].save, gThisCar[p]);
             gLastCar[p] = gThisCar[p];
         }
         if (gRace == kGhost) {

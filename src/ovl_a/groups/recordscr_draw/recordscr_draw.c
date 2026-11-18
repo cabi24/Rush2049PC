@@ -10,8 +10,6 @@ typedef struct FileInfo { void *next, *prev; void (*RemoveFile)(void *), (*MoveF
  * file, its id, its name, its save data (datah: a handle to a SaveData). */
 typedef struct Profile Profile;
 struct Profile { Profile **next,**previous; FileInfo **fileh; u8 id[8]; u8 name[24]; u8 **datah; };
-/* A player's pad record (MAT3 tPadState, gPlayers): only its profile. */
-typedef struct Player { u8 unknown00[72]; Profile **owner; } Player;
 typedef struct FiveParts FiveParts;
 typedef struct TextBox {s16 x,y,width,height;} TextBox;
 
@@ -93,7 +91,6 @@ typedef struct SaveData {
 
 VIEW(tRGBA, flashColors_at_1);
 #define flashColors_at_1 flashColors_at_1_view
-extern Player gPlayers[];
 
 VIEW(Profile **, gStatPlayer);
 #define gStatPlayer gStatPlayer_view
@@ -278,10 +275,10 @@ void drawUnlockedParts(void)
     u8 *label;
     if(!gStatPlayer)return;
     TB_SetJust(kTB_JustLeft, kTB_JustTop);
-    saved_owner=gPlayers[0].owner;saved_players=gNumPlayers;
-    gNumPlayers=1;gPlayers[0].owner=gStatPlayer;
+    saved_owner=gPlayers[0].save;saved_players=gNumPlayers;
+    gNumPlayers=1;gPlayers[0].save=gStatPlayer;
     CalcUnlockedStuff();
-    gPlayers[0].owner=saved_owner;gNumPlayers=saved_players;
+    gPlayers[0].save=saved_owner;gNumPlayers=saved_players;
     TB_SetTextColor(kTB_WhiteText);
     HAL_SetFont(11);
     y=90;
@@ -356,10 +353,10 @@ void drawUnlockedTracks(void)
     u8 text[44];
     if(!gStatPlayer)return;
     TB_SetJust(kTB_JustLeft, kTB_JustTop);
-    saved_owner=gPlayers[0].owner;saved_players=gNumPlayers;
-    gPlayers[0].owner=gStatPlayer;gNumPlayers=1;
+    saved_owner=gPlayers[0].save;saved_players=gNumPlayers;
+    gPlayers[0].save=gStatPlayer;gNumPlayers=1;
     CalcUnlockedStuff();
-    gPlayers[0].owner=saved_owner;gNumPlayers=saved_players;
+    gPlayers[0].save=saved_owner;gNumPlayers=saved_players;
     first=0;second=0;
     for(i=0;i<19;i++) {
         if(i==0 || i==1 || i==2 || i==3 || i==14 || i==6 || i==7 || i==8 || i==9)continue;
@@ -520,10 +517,10 @@ void drawUnlockedCars(void)
     s16 saved_players,i,y,width=20;
     if(!gStatPlayer)return;
     TB_SetJust(kTB_JustLeft, kTB_JustTop);
-    saved_owner=gPlayers[0].owner;saved_players=gNumPlayers;
-    gPlayers[0].owner=gStatPlayer;gNumPlayers=1;
+    saved_owner=gPlayers[0].save;saved_players=gNumPlayers;
+    gPlayers[0].save=gStatPlayer;gNumPlayers=1;
     CalcUnlockedStuff();
-    gPlayers[0].owner=saved_owner;gNumPlayers=saved_players;
+    gPlayers[0].save=saved_owner;gNumPlayers=saved_players;
     HAL_SetFont(12);TB_SetTextColor(kTB_WhiteText);y=90;
     for(i=6;i<13;i++) {
         if(i==0 || i==1 || i==2 || i==3 || i==4 || i==5)continue;

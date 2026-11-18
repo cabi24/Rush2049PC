@@ -61,8 +61,7 @@ typedef struct {
     u8 pad368[0x380 - 0x368]; void *input; u8 pad368_384[0x3B8 - 0x384];
 } tCarData;
 
-extern tPadState gPlayers[];   /* the players' input records: one per controller, four */
-#define PAD_RECORDS 4
+#define PAD_RECORDS 4   /* the players' input records, gPlayers[4] */
 
 /* Abort cars that fell out of the world or are stuck, and measure each human's wrong-way angle.
  *
