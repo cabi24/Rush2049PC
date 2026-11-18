@@ -6,7 +6,7 @@
     python3 tools/port/to_headers.py --build build/pc --apply src/blob/AbortCar.c ...    only these files
     python3 tools/port/to_headers.py --build build/pc --check            files the headers would change (exit 1 if any)
 
-Almost every game C file under src/blob, src/ovl_a, src/ovl_b and nonmatching/ began with a context the decompiler
+Almost every game C file under src/blob, src/ovl_a and src/ovl_b began with a context the decompiler
 (m2c) wrote: thousands of lines of typedefs, structs and extern declarations, then the file's own code. The game's
 shared declarations are include/game now (docs/code/README.md "The headers"): every type, datum and function the
 files share, declared once. This tool rewrites a file so that it includes those and keeps only what is its own:
@@ -141,10 +141,8 @@ DECL_BEFORE = {"int", "char", "short", "long", "float", "double", "unsigned", "s
 
 def game_files(root):
     """The files to convert: the game's C but the boot segment's (src/rom has its own headers: rom_tu.h)."""
-    out = sorted(str(p.relative_to(root)) for p in (root / "src").rglob("*.c") if not
-                 str(p.relative_to(root)).startswith("src/rom/"))
-    out += sorted(str(p.relative_to(root)) for p in (root / "nonmatching").rglob("*.c"))
-    return out
+    return sorted(str(p.relative_to(root)) for p in (root / "src").rglob("*.c") if not
+                  str(p.relative_to(root)).startswith("src/rom/"))
 
 
 # ---------------------------------------------------------------- the headers

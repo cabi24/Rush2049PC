@@ -370,7 +370,7 @@ native side table (ASSETS.md 4 #14). Files: `targets/group.c`, `targetpaths/grou
 `ClearStatLL.c`, `FreeStatLLE.c`, `GetStatLLE.c`, `InitStatLL.c`, `PauseTargets.c`, `GetTargetVelocity.c`,
 `TargetCollBBox.c`, `TargetCollTrigger.c`, `CheckTargetCollision.c`, `setMiniFBCollisionForce.c`, the `Animate*`
 and `Start*` visuals (`Coin`, `Flag`, `Mine`, `VelRotGeneric`, `RotGeneric`, `Knockdown`, `ObjSwapGeneric`, `Cone`,
-`Cactus`, `Fence`, `Window`), `nonmatching/game/AnimateWeaponIcon.c`, `src/ovl_b/InitBattlePowerUps.c`, the
+`Cactus`, `Fence`, `Window`), `src/blob/groups/targets/AnimateWeaponIcon.c`, `src/ovl_b/InitBattlePowerUps.c`, the
 target records in `include/game/types.h`, `pc_statll_link` in `port/include/pc_prelude.h`, the GTLD part of
 `port/assets/world.c`. The PTHD records (the paths' `pts`, `trigPtr`, `parent`) stay for step 7. Proof: the gate
 (battle, stunt and race paths reach the targets; the retail battle scripts); `assets_targets`, `assets_battle`.

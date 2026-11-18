@@ -3,7 +3,7 @@
 # [brackets]: gcc13 (Ubuntu 24.04, CI's x86-64 runner), gcc14 (Rocky Linux 10), mingw12 (Debian, the Pi).
 # A `two offsets` or `clamped` finding needs a verdict that starts with fixed or judged.
 
-nonmatching/game/createBG.c backPolys tmr safe: indexed by the loop optimizer, with no other place or write beside it in that function [gcc13,gcc14,mingw12]
+src/blob/createBG.c backPolys tmr safe: indexed by the loop optimizer, with no other place or write beside it in that function [gcc13,gcc14,mingw12]
 src/blob/CarSetup.c pc_carsetup_flags view safe: declared at the storage's true size (pc_carsetup_flags, PC_MAX_LINKS flags, which data.c defines); the function reaches one place of it, the flag of slot (an active car's slot, below gNumActiveCars), read and then set [gcc14]
 src/blob/ControllerUpdate.c n64_button_map tmr safe: indexed by the loop optimizer, with no other place or write beside it in that function [gcc13,gcc14,mingw12]
 src/blob/InitBlits.c BlitPtrs view safe: no function reaches two places of it with a write (one place, or reads only) [gcc13,gcc14,mingw12]

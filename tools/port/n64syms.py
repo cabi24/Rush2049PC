@@ -69,8 +69,7 @@ def types_objects(build):
         path = build / "game_objects.txt"
     return path.read_text().split() if path.exists() else []
 
-_IMAGE_DIRS = (("/src/rom/", "boot"), ("/src/blob/", "game"), ("/src/ovl_a/", "ovl_a"), ("/src/ovl_b/", "ovl_b"),
-               ("/nonmatching/game/", "game"), ("/nonmatching/ovl_a/", "ovl_a"), ("/nonmatching/ovl_b/", "ovl_b"))
+_IMAGE_DIRS = (("/src/rom/", "boot"), ("/src/blob/", "game"), ("/src/ovl_a/", "ovl_a"), ("/src/ovl_b/", "ovl_b"))
 
 # N64 virtual memory regions (docs/memory_map.md), from the tables above. Both runtime images load at OVERLAY_BASE;
 # their region runs to the 4 MiB mark.
@@ -208,8 +207,7 @@ def nm_objects(paths, nm="nm"):
 
 
 def object_image(path):
-    """'boot', 'game', 'ovl_a' or 'ovl_b' for an object compiled from src/rom, src/blob, src/ovl_a or src/ovl_b
-    (or nonmatching/<image>)."""
+    """'boot', 'game', 'ovl_a' or 'ovl_b' for an object compiled from src/rom, src/blob, src/ovl_a or src/ovl_b."""
     p = str(path).replace("\\", "/")
     for part, image in _IMAGE_DIRS:
         if part in p:

@@ -1826,7 +1826,7 @@ def race(c):
     for i in range(1, 122):
         c.set("game", "targetInfo", "ptr", c.string(f"TARGET{i:03}"), "a target's name" if i == 1 else "(same)",
               offset=0x30 * i)
-    # Target 0 is the battle arenas' weapon icon (MAT3's _StartWeaponIcon, nonmatching/game/StartWeaponIcon.c): a
+    # Target 0 is the battle arenas' weapon icon (MAT3's _StartWeaponIcon, src/blob/groups/targets/StartWeaponIcon.c): a
     # world node named WEAPONnn becomes one (SetupTarget). Its flags: 0x20 (made without the Expansion
     # Pak), 8 (a record of its category), 0x4000 (its start function runs when it is made: StartWeaponIcon's set-up
     # hides it, marks it 0x20 and counts one more power-up, which battle mode's power-up slots, InitBattlePowerUps, are

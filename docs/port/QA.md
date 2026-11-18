@@ -596,7 +596,7 @@ finishes a race, so CI's sanitizer jobs never reach it.
   = files` a player's own ghost races are kept for the session only, as on the N64, and the folder's ghosts are the
   imported ones. A ghost race also has three laps always (`SetOptions`, `options_set/group.c:146`) and ends only
   at its time limit (`countdown.c:309-316`); its track select has no Laps option, and GhostEnd
-  (`nonmatching/game/GhostEnd.c:117`) keeps the ghost only of a car that finished its laps.
+  (`src/blob/GhostEnd.c:117`) keeps the ghost only of a car that finished its laps.
   Checked again 2026-11-05, as a possible porting bug: it is the cartridge's own behaviour. The compare is
   `strcmp` (`game_strcmp`) of the profile's name with `cheat_profile_name`, a 12-character code of digits, letters and a
   symbol (read in the running game on the Pi, not recorded), not a default name; the same branch unlocks the cheat

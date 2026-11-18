@@ -54,9 +54,9 @@ the same file, so it is reported and left (gen_stubs.py still links it to the re
   reported and left. A quoted #include that names a file from its C file's own folder ("rom_tu.h", "../x.h") is
   the path from the C file's new folder to the included file's new place, when either moves. A file row may name a
   folder (src/blob/groups/carcolor): its files move, and references to the folder and to paths in it follow. A
-  func, data or type row whose old name is the stem of a file under src/ or nonmatching/
+  func, data or type row whose old name is the stem of a file under src/
   (src/ovl_a/func_8038F454.c) moves that file to the new stem as well, when the file defines the symbol (an implied
-  file row; --no-follow-files turns that off), so a CMake list of stems (nonmatching/game/${f}.c) stays true; a file
+  file row; --no-follow-files turns that off), so a CMake list of stems (src/ovl_a/${f}.c) stays true; a file
   whose stem is only the same word (groups/countdown/countdown.c, which holds animCountdownTimer, not the function
   countdown) stays and is reported. In CMake files an explicit file row's bare stem is renamed too.
 - Words. An old name that is also an English word (lower-case letters only: `countdown`, the stem `renderer`) is
@@ -319,7 +319,7 @@ class Plan:
                 new, row, how = self.dir_moves[d][0] + f[len(d):], self.dir_moves[d][1], "folder"
             stem = Path(f).stem
             r = self.ident.get(nc.norm(stem))
-            if follow_files and r and r.old == stem and f.startswith(("src/", "nonmatching/")) \
+            if follow_files and r and r.old == stem and f.startswith("src/") \
                     and f.endswith((".c", ".h")):
                 if self.defines(f, r):
                     new = new.rsplit("/", 1)[0] + "/" + r.new + Path(f).suffix

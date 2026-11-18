@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Make game C read as the PC compiler sees it: TARGET_PC's conditionals resolved, the neutrality macros unwrapped.
 
-    python3 tools/port/flatten_pc.py [--check] [FILE...]      # default: every .c/.h under src/, include/, nonmatching/
+    python3 tools/port/flatten_pc.py [--check] [FILE...]      # default: every .c/.h under src/ and include/
 
 Until 2026-11-08 the game C also built the N64 ROM, so the PC's code sat in `#ifdef TARGET_PC` blocks (the N64's in
 the `#else`, or under `#ifndef TARGET_PC`), and statements one build had and the other didn't were wrapped in macros
@@ -234,7 +234,7 @@ def files_of(args):
     if args:
         return [Path(a) for a in args]
     out = []
-    for d in ("src", "include", "nonmatching"):
+    for d in ("src", "include"):
         out += sorted(p for p in (ROOT / d).rglob("*") if p.suffix in (".c", ".h"))
     return out
 

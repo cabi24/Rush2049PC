@@ -1,10 +1,10 @@
-/* port/assets/tests/test_hudtext.c: two text callbacks of the game image, from their drafts in nonmatching/game:
+/* port/assets/tests/test_hudtext.c: two text callbacks of the game image:
  * animSpeedText, the HUD's digital speedometer, and video_animPanes (animPanes@videoscr.c), the video screen's panes.
  * The speedometer reads the car records in their PC layout (0x468 bytes, docs/port/CARS.md) by the model records'
  * slots (MAT3's offset, MODEL_OFS), and its units from the text bank's string table (a host pointer at +8, ModelTables); the
  * panes' InitPane takes a pointer-sized sixth argument. The test stands in for the font and
  * text functions and records what they draw.
- * game: nonmatching/game/animSpeedText.c nonmatching/game/video_animPanes.c src/blob/TB_SetJust.c
+ * game: src/blob/groups/hud_speed/animSpeedText.c src/blob/groups/videoscr/video_animPanes.c src/blob/TB_SetJust.c
  */
 #include <stddef.h>
 #include <string.h>

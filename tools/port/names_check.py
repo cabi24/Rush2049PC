@@ -24,8 +24,8 @@ Errors (exit status 1):
   twice, across all the maps given, unless the old names are aliases: names of one address in the symbol tables
   (D_801174B4 and state_word_a), which rename.py makes one symbol (a field's new name twice in one struct; one new
   path twice);
-- a new name that collides with what the tree has already: an identifier of the C of src/, include/, port/ and
-  nonmatching/ (other than an old name a row renames away), said with where it is (a static function in a file,
+- a new name that collides with what the tree has already: an identifier of the C of src/, include/ and
+  port/ (other than an old name a row renames away), said with where it is (a static function in a file,
   defined in, used in), or a name in the symbol tables (asm/us/*/symbols.json, symbol_addrs.us.txt,
   undefined_syms_auto.us.txt, layout/*.json) at another address, less what the drop list removes. Not collisions,
   but warnings: a name of the old one's address already (an alias; any table that gives both one address is
@@ -93,7 +93,7 @@ SOURCES = ("mat3", "code")
 CONFIDENCES = ("sure", "likely")
 
 # The C of these folders is where a game name lives and where a new one must not collide (PCONLY.md 3).
-SCAN_DIRS = ("src", "include", "port", "nonmatching")
+SCAN_DIRS = ("src", "include", "port")
 C_EXTS = (".c", ".h", ".inc")
 
 IDENT = re.compile(r"(?<![0-9A-Za-z_])[A-Za-z_][A-Za-z0-9_]*")   # not inside a number (0x27C)
@@ -1120,7 +1120,7 @@ def tool_names(root, files, names):
 
 def check_drops(drops, rows, tree):
     """(errors, warnings, dropped) of the drop rows. Errors: a label in no row of a map's old names, in the table
-    named (or in some table, for *), and not used: by the C of src/, include/, port/ and nonmatching/ (referenced in
+    named (or in some table, for *), and not used: by the C of src/, include/ and port/ (referenced in
     a function body or an initialiser, or defined: not declared only, not a member, not an identity #define) or by
     the tools' Python (code and strings). A label a map gives to another address is dropped first, so its name is
     free (NAMING.md 7). Declarations left of a dropped label are one warning (wave 2 deletes them). A label in no

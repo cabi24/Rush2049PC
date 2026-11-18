@@ -1,11 +1,11 @@
 /* port/assets/tests/test_carscr.c: runtime image A's carscr_animText (animText@carscr.c, with animButtonText inlined),
- * the car-select screen's per-player text, from its draft in nonmatching/ovl_a. It reaches the records the front end
+ * the car-select screen's per-player text (src/ovl_a/groups/carscr). It reaches the records the front end
  * builds in their PC layouts: the input records (80 bytes, the profile handle at +0x48), the profiles and the ghost
  * records through their handles (pointer fields host-sized), the text bank's three string tables (ModelTables: +8,
  * +0x18, +0x20) and the car-select slots (64 bytes, N64 layout). Player 1 and records past the first are used, so an
  * N64 stride or offset lands somewhere else. The test stands in for the text and projection functions and records
  * what is drawn where.
- * game: nonmatching/ovl_a/carscr_animText.c
+ * game: src/ovl_a/groups/carscr/carscr_animText.c
  */
 #include <stdarg.h>
 #include <stddef.h>

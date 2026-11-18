@@ -11,7 +11,7 @@
  * RemoveFile. The pak's notes are the test's (in place of the SI and the Pfs C, which the selftest covers); the
  * game's heap runs in the tests' memory (support.h), with the N64's size, so its blocks and handles are host pointers
  * into it, as in the game.
- * game: src/blob/groups/paksysdc/group.c nonmatching/game/PS_ReadPartialFile.c src/blob/PS_ReadFile.c
+ * game: src/blob/groups/paksysdc/group.c src/blob/PS_ReadPartialFile.c src/blob/PS_ReadFile.c
  * game: src/blob/groups/paksysdc_flush/group.c src/blob/SaveFlush.c src/blob/pak_poll_inserted.c
  * game: src/blob/InsertLLE.c src/blob/RemoveLLE.c src/blob/pak_encode_name.c src/blob/pak_decode_name.c
  * game: src/blob/groups/save/save.c src/blob/groups/save/group.c

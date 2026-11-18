@@ -6,7 +6,7 @@ block of its heap when it needs them, one at a time:
 
 | | Image A: the front end | Image B: the HUD extras |
 |---|---|---|
-| Sources | `src/ovl_a/`, `nonmatching/ovl_a/` | `src/ovl_b/`, `nonmatching/ovl_b/` |
+| Sources | `src/ovl_a/` | `src/ovl_b/` |
 | Loaded | when the game enters its menus (after boot, and after each race) | at the start of a battle, stunt or obstacle race, and of every race when the game found an Expansion Pak (`expansion_pak_present`) |
 | Unloaded | when a race starts | when the front end is loaded again |
 | Loaded flag | `start_overlay_loaded` | `extra_overlay_loaded` |
@@ -38,8 +38,8 @@ Names: every function and datum named here comes from `tools/port/names/ovl.tsv`
 where the N64 function is shown to be MAT3's, else a name from what the code does. A file-static MAT3 name that
 several files use (`initScreen`, `animText`, `blit`) carries its file's name as a prefix (`cheatscr_initScreen`,
 `hudextra_blit`). The `_stub` functions and the stubs named after an inlined static are the 8-byte empty bodies IDO
-leaves where it inlined a static function: nothing calls them, and the PC defines them only so that a pointer to
-one would still resolve (nonmatching/ovl_*/stubs.c).
+leaves where it inlined a static function: nothing calls them or takes their address, so the PC has no C for them
+(the data loader's function table has none in their places).
 
 ## Image A: the front end
 
@@ -164,7 +164,7 @@ through the weapon visual. Game code also reads some image-B data directly: `coi
 - The image itself: inflated from the cartridge into the shared heap block at 0x8038A400, its BSS cleared, and the
   8-byte stubs IDO leaves where it inlined a static (`NewStreakPoly`, `AnimateStreakPolys`, `animStuntCoins_stub`,
   `animBattleCoins_stub`, `ClearBattlePoints`; nothing calls them). On the PC the code is linked into the executable,
-  the stubs are empty functions (nonmatching/ovl_b/stubs.c), and a load refills image B's data arena and C data
+  the stubs have no C (nothing calls them), and a load refills image B's data arena and C data
   (docs/port/DATA.md section 5).
 - Image B's first function and image A's first function share the address 0x8038A400. On the PC image B's is
   `findDamageSlot` and image A's is compiled under its own name (`updateWarningScreen`).
@@ -195,4 +195,4 @@ through the weapon visual. Game code also reads some image-B data directly: `coi
 - **Same-named statics.** MAT3 gives many screens a static with the same name (`initScreen`, `animText`,
   `buttonInfo`, `blit`); the map prefixes them with the file (`trackscr_buttonInfo`). The two carscr.c statics the
   tree already calls `animButtonText` and `drawOptions` keep those names (they are `static` and only in
-  nonmatching/ovl_a).
+  src/ovl_a/groups/carscr/carscr_animText.c).
