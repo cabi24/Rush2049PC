@@ -484,7 +484,7 @@ static void t_pif(void)
     check("pak image after the delete", image == PC_PAK_IMAGE_OK, why);
 }
 
-/* The OSPfs the game's Pfs and motor C fill, with its host pointer (as paksys' PcPfs). */
+/* The OSPfs the game's Pfs and motor C fill (include/game/pfs.h), in the host types of this program. */
 typedef struct {
     int32_t status;
     void *queue;

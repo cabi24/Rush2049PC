@@ -8,14 +8,6 @@ typedef struct OSMesgQueue {
     s32 validCount, first, msgCount;
     OSMesg *msg;
 } OSMesgQueue;
-typedef struct OSPfs {
-    s32 status;
-    OSMesgQueue *queue;
-    s32 channel;
-    u8 id[32], label[32];
-    s32 version, dir_size, inode_table, minode_table, dir_table, inode_start_page;
-    u8 banks, activebank;
-} OSPfs;
 typedef struct tPS_File tPS_File;
 typedef struct PakHandle { tPS_File *file; } PakHandle;
 /* GC tPS_File (N64 76 bytes): ll, RemoveFile, MoveFile, pak, file number, name/ext, size, blocks, data */
@@ -77,7 +69,7 @@ void pdf_dealloc(void *ptr)
 }
 void pdf_free_blocks(s32 pak)
 {
-    osPfsFreeBlocks((OSPfs *)&gPaks[pak].pfs, (s32 *)&gPaks[pak].FreeSpace);
+    osPfsFreeBlocks(&gPaks[pak].pfs, (s32 *)&gPaks[pak].FreeSpace);
 }
 void pdf_release(PakHandle *fileh)
 {
@@ -116,7 +108,7 @@ void PS_ReadPartialFile(PakHandle *fileh, s32 offset, u32 numBytes)
     size = numBytes;
     do {} while (0);
 read_retry:
-    error = osPfsReadWriteFile((OSPfs *)&gPaks[pak].pfs, fileNo, 0, offset,
+    error = osPfsReadWriteFile(&gPaks[pak].pfs, fileNo, 0, offset,
                                ((size + 31) >> 5) << 5, *psfile->data);
     if (error) {
         gPaks[pak].error = pak_error_from_pfs(error);

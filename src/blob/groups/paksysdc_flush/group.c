@@ -5,16 +5,6 @@
 
 typedef struct OSThread_s OSThread;
 
-/* libultra's OSPfs (PcPfs's layout). */
-typedef struct OSPfs {
-    s32 status;
-    OSMesgQueue *queue;
-    s32 channel;
-    u8 id[32], label[32];
-    s32 version, dir_size, inode_table, minode_table, dir_table;
-    s32 inode_start_page;
-    u8 banks, activebank;
-} OSPfs;
 extern void osCreateMesgQueue(OSMesgQueue *, OSMesg *, s32);
 extern s32 osRecvMesg(OSMesgQueue *, OSMesg *, s32);
 extern s32 osSendMesg(OSMesgQueue *, OSMesg, s32);

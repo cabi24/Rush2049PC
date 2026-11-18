@@ -141,8 +141,6 @@ struct Node104;
 struct Node16;
 struct Node68;
 struct OSContPad;
-struct OSPfs;
-struct OSPfsState;
 struct OSScClient_s;
 struct OSScTask_s;
 struct OSThread_s;
@@ -394,14 +392,9 @@ typedef union Vtx { /* 0x10 bytes */
     s64 force_structure_alignment;
 } Vtx;
 
-typedef union __OSInodeUnit { /* 0x2 bytes */
-    struct { u8 bank; u8 page; } inode_t;
-    u16 ipage;
-} __OSInodeUnit;
-
-typedef struct __OSInode { /* 0x100 bytes */
-    __OSInodeUnit inode_page[128]; /* 0x0 */
-} __OSInode;
+/* The controller pak's file system: OSPfs, OSPfsState, __OSInodeUnit, __OSInode (declared once for the game and the
+ * boot segment's libultra). */
+#include "game/pfs.h"
 
 typedef struct __OSThreadContext { /* 0x190 bytes */
     u64 at;       /* 0x0 */
@@ -558,22 +551,6 @@ typedef struct PaneColors { /* 0x8 bytes */
     u8 x[4]; /* 0x0 */
     u8 y[4]; /* 0x4 */
 } PaneColors;
-
-typedef struct PcPfs { /* 0x70 bytes */
-    s32 status;           /* 0x0 */
-    void *queue;          /* 0x8 */
-    s32 channel;          /* 0x10 */
-    u8 id[32];            /* 0x14 */
-    u8 label[32];         /* 0x34 */
-    s32 version;          /* 0x54 */
-    s32 dir_size;         /* 0x58 */
-    s32 inode_table;      /* 0x5C */
-    s32 minode_table;     /* 0x60 */
-    s32 dir_table;        /* 0x64 */
-    s32 inode_start_page; /* 0x68 */
-    u8 banks;             /* 0x6C */
-    u8 activebank;        /* 0x6D */
-} PcPfs;
 
 typedef struct PcRespawn { /* 0x10 bytes */
     s8 flag;    /* 0x0 */
@@ -1359,15 +1336,6 @@ typedef struct tPadState { /* 0x50 bytes */
 
 /* ---- save: the Controller Pak, profiles, records, options and passwords */
 
-/* libultra's OSPfsState: a file's entry in a pak's directory (the same layout on the PC). */
-typedef struct PakFileState { /* 0x20 bytes */
-    u32 file_size;     /* 0x0 0: no file */
-    u32 game_code;     /* 0x4 */
-    u16 company_code;  /* 0x8 */
-    u8 ext_name[4];    /* 0xA in the pak's character set (pak_charset) */
-    u8 game_name[16];  /* 0xE */
-} PakFileState;
-
 /* One of the 16 files of a pak, as the pak system keeps it (tPak.files, by the file's number on the pak). */
 typedef struct tPakFile { /* 0x28 bytes */
     s8 locked;           /* 0x0 in use (PS_LockFile): the pak's files stay while it is out */
@@ -1376,7 +1344,7 @@ typedef struct tPakFile { /* 0x28 bytes */
     u8 pad3;             /* 0x3 */
     u16 mapBytes;        /* 0x4 the size of its dirty map: one bit for each 32 bytes of its data, after the data */
     u16 pad6;            /* 0x6 */
-    PakFileState state;  /* 0x8 its directory entry (osPfsFileState) */
+    OSPfsState state;    /* 0x8 its directory entry (osPfsFileState) */
 } tPakFile;
 
 /* One controller's pak, as the pak system keeps it (gPaks; MAT3 paksysdc.c's anon_changed_inserted_25c, whose flags
@@ -1395,7 +1363,7 @@ typedef struct tPak { /* 0x310 bytes */
     s8 original;         /* 0x9 the pak in is the one the files came from */
     s8 locked;           /* 0xA one of its files is locked (tPakFile.locked) */
     s8 flush;            /* 0xB one of its files is dirty */
-    PcPfs pfs;           /* 0x10 the pak's libultra handle */
+    OSPfs pfs;           /* 0x10 the pak's libultra handle */
     s32 error;           /* 0x80 the last error (kPS_Err*) */
     s32 FreeSpace;       /* 0x84 free bytes (osPfsFreeBlocks) */
     u8 motorOn;          /* 0x88 the rumble thread's: the motor is running */
