@@ -6,30 +6,9 @@
  * 0-8 to MAT3's scrolls. */
 #include "game/game.h"
 
-/* What a palette animation works on: the palette's colours, or a texture's load display list (the scrolls). */
-typedef union AnimatedData { u16 *palette; Gfx *commands; } AnimatedData;
-/* A palette animation (MAT3 tPaletteAnim); state is a PALANIM_* (scene.h). */
-typedef struct tPaletteAnim {
-    void *name;         /* NULL ends the list */
-    s16 start, end;     /* the entries it works on; the scroll's position and its wrap */
-    s8 offset;          /* the swaps' gap, the scroll's step, the chasers' counter */
-    u8 state;
-    s16 speed;          /* the period, in 30 Hz frames */
-    f32 time;           /* the time left to the next step, seconds */
-    AnimatedData ptr;
-} tPaletteAnim;
 /* PC: the palettes are the WAD's TLUTs, which keep the N64's texel format in the file (port/assets/wad.c): a colour
  * is written in it. */
 #define PAL_SET(entry, value) pc_tlut_set(&(entry), value)
-/* A flipbook frame (MAT3 tTextureBase; InitTextureAnimation's Item12): its texture's name, the texture (the WAD's
- * record, MAT3 tTexture), the image it shows. */
-typedef struct tTextureBase { char *name; tTexture *tex; void *texBase; } tTextureBase;
-/* A texture flipbook (MAT3 tTextureSwap; InitTextureAnimation.c). */
-typedef struct tTextureSwap {
-    s16 num, startnum, fd, idx;
-    f32 time, initTime;
-    tTextureBase *swapTexs;
-} tTextureSwap;
 /* PC: game.frame_rate 60 (pc_game_fps.h). The texture scrolls (actions 9 and 10) add step x the frame's retraces each
  * time they run: every frame when ticks is 0 (so step a retrace at any rate), else once every ticks 30 Hz frames, when
  * on the N64 the frame's retraces are its 2. At 60 those keep the N64's 2, so the scroll keeps its speed. */
@@ -60,7 +39,7 @@ void TextureAnimation(void)
             if(!(plist->time>0.0f)) {
                 plist->time+=(f32)plist->speed*0.0333333f;
                 palette=plist->ptr.palette;
-                switch(plist->state) {
+                switch((u8)plist->state) {   /* PALANIM_*, 0-10 */
                 case PALANIM_ROTATE_UP:
                     i=plist->end;
                     saved=palette[i];

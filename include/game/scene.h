@@ -157,11 +157,45 @@ typedef struct SmokePuff {
     s16 tIdx;               /* its animation frame, 0-7 (fire: -1 while growing, then 0-14) */
 } SmokePuff;
 
+/* A track's palette animation (MAT3 tPaletteAnim; PaletteLists, InitTextureAnimation, TextureAnimation): a palette
+ * rotation or swap, a traffic light, a lamp chaser, or a texture scroll. */
+typedef struct tPaletteAnim {
+    char *name;         /* the palette's name (a texture's for the scrolls); NULL ends a track's list */
+    s16 start, end;     /* the entries it works on; a scroll's position and its wrap */
+    s8 offset;          /* the swaps' gap, a scroll's step, the chasers' count */
+    s8 state;           /* what it does: PALANIM_* (0-10) */
+    s16 speed;          /* its period, in 30 Hz frames */
+    f32 time;           /* the seconds to its next step */
+    union {
+        u16 *palette;   /* the palette's colours (PALANIM_ROTATE_UP to PALANIM_CHASE7) */
+        Gfx *commands;  /* the texture's load display list (the scrolls) */
+    } ptr;
+} tPaletteAnim;
+
+/* A frame of a texture flipbook (MAT3 tTextureBase; texture_swap_shared_frames, a flipbook's swapTexs). */
+typedef struct tTextureBase {
+    char *name;         /* its texture's name */
+    tTexture *tex;      /* the texture, once found (InitTextureAnimation) */
+    void *texBase;      /* the image it shows: the texture's texBase, or the image its load display list loads */
+} tTextureBase;
+
+/* A texture flipbook (MAT3 tTextureSwap; TextureSwapLists): the texture of frame startnum shows frame idx's image,
+ * idx stepping every initTime seconds. */
+typedef struct tTextureSwap {
+    s16 num;            /* the frames; 0 ends a track's list */
+    s16 startnum;       /* the frame whose texture is the one drawn */
+    s16 fd;             /* 1 steps forward, 0 backward */
+    s16 idx;            /* the frame shown */
+    f32 time;           /* the seconds to its next step */
+    f32 initTime;       /* its period, seconds */
+    tTextureBase *swapTexs;
+} tTextureSwap;
+
 /* Data */
 extern ModelDefTable gRomObjDefPtrs[EXTENT(64)];
-extern Item12 texture_swap_shared_frames[EXTENT(400)];
-extern struct Sequence20 *TextureSwapLists[EXTENT(19)];
-extern struct Row20 *PaletteLists[EXTENT(19)];
+extern tTextureBase texture_swap_shared_frames[EXTENT(400)];   /* frames several flipbooks share */
+extern tTextureSwap *TextureSwapLists[EXTENT(19)];   /* each track's flipbooks */
+extern tPaletteAnim *PaletteLists[EXTENT(19)];       /* each track's palette animations */
 extern u32 track1Parts[EXTENT(117)][4];
 extern u32 track2Parts[EXTENT(117)][4];
 extern u32 track3Parts[EXTENT(117)][4];

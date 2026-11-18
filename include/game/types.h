@@ -178,12 +178,10 @@ struct ResSlot;
 struct ResourceGroup;
 struct ResourceOffsets;
 struct Respawn;
-struct Row20;
 struct SalMatrix;
 struct SalVector;
 struct SampleRecord;
 struct SaveData;
-struct Sequence20;
 struct SequencePageEntry;
 struct SequencePlayParams;
 struct SequenceHead;
@@ -1054,14 +1052,6 @@ typedef struct DmaList { /* 0x18 bytes */
     struct DmaReq *reqs;        /* 0x8 */
     struct OSMesgQueue_s *done; /* 0x10 */
 } DmaList;
-
-/* A flipbook frame of texture animation (MAT3 tTextureBase): the texture's name, the texture once found, the image
- * to show (its texBase, or the address its display list loads). */
-typedef struct Item12 { /* 0x18 bytes */
-    char *name;                  /* 0x0 */
-    struct tTexture *tex;        /* 0x8 */
-    void *texBase;               /* 0x10 */
-} Item12;
 
 /* A model WAD's records (MAT3's names; pc_game_types.h declares them: the WAD's converter builds them beside the
  * file, port/assets/wad.c). */
