@@ -1,15 +1,5 @@
 #include "game/game.h"
 
-typedef struct Blit Blit;
-/* PC: WarningBlit is an array, which gcc wants complete: the MultiBlit of the other image-A screens. */
-typedef struct MultiBlit {
-    const char *texname;
-    short dulx, duly, width, height, top, bot, left, right;
-    u32 zdepth, alpha;
-    s32 (*animfunc)(Blit *);
-    u32 animid;
-} MultiBlit;
-
 VIEW(u8, gBlocksNeeded);
 #define gBlocksNeeded gBlocksNeeded_view
 
@@ -21,7 +11,7 @@ VIEW(u8, gBlocksNeeded);
 
 /* The warning's blit while it is up (MAT3's function-local static; image A's data: a load of the image clears it,
  * docs/port/DATA.md 5). */
-Blit *warningscr_blit = 0;
+tBlit *warningscr_blit = 0;
 
 void updateWarningScreen(void)
 {

@@ -2,15 +2,6 @@
  * N64 it also starts the controller-pak system, and Start held on any controller at boot opens the pak manager. */
 #include "game/game.h"
 
-typedef struct Blit Blit;
-typedef struct MultiBlit {
-    const char *texname;
-    short dulx, duly, width, height, top, bot, left, right;
-    u32 zdepth, alpha;
-    s32 (*animfunc)(Blit *);
-    u32 animid;
-} MultiBlit;
-
 VIEW(s8, gBlocksNeeded);
 #define gBlocksNeeded gBlocksNeeded_view
 

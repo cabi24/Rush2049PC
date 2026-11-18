@@ -20,7 +20,7 @@ extern f32 unitmatrix[4][3];
 extern f32 uvector[EXTENT(3)];
 extern f32 rvector[EXTENT(3)];
 extern s32 rand_seed;
-extern void *video_gTitlePane;
+extern tBlitSet *video_gTitlePane;
 /* The IA blits' colours, eight bytes as BlitColors reads them for that format (ZOID_EndFrame): the primitive colour,
  * whose alpha is the blit's, then the environment colour, which nothing sets: on the N64 it is the first two of
  * blit_tile_lines after it, and the two share their storage as there, so it still is. */

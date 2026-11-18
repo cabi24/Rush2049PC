@@ -131,7 +131,7 @@ the selection).
   (the data loader makes it an alias into gPlayers' storage); the high-score files now write the field.
 - The **pak file record** (MAT3 `tPS_File`; 76 bytes, 96 on the PC): links and two functions, then `pak`,
   `fileNo`, the note's name and suffix, its pages (`PSF_OFS`).
-- Each screen's `buttonInfo[]` (`MenuButton` or a file view of it), its `MultiBlit` table (the texture name, place,
+- Each screen's `buttonInfo[]` (`MenuButton` or a file view of it), its `tBlitDef` table (the texture name, place,
   z, alpha and the callback; the data loader turns the N64 callback address into the function) and its state
   variables (`gModeMenuSelect`, `gPlayerState[]`, `gHighScoreState`, `gGameOverState`, `gState` ...), with MAT3's
   enums as macros in frontend.h where several files share them (`kPlayerState*`, `kHighScore*`, `kGhostMenu*`,
@@ -206,7 +206,7 @@ because the library is the same.
   are `mboxname`, `startFunc`, `animFunc`, `collFuncIdx`, `Flags`, `objListIdx`, `structureID`, `structureIdx`,
   `collVal`, `startSnd`, `moveSnd`, `stopSnd`, `replace`, `fadeDist` (StartCone.c has a view with them).
 - **Image A's data** is an arena at its N64 addresses, refilled on each "load" (docs/port/DATA.md 5); its
-  `MultiBlit` tables hold N64 callback addresses the loader resolves.
+  `tBlitDef` tables hold N64 callback addresses the loader resolves.
 - **Records with pointers** (the profile, the pak file record, a ghost) are in their PC layout, but the code still
   reaches some of them through `PROFILE_OFS`/`PSF_OFS`-style views per file; the shared definitions in types.h
   (`PlayerSaveSlot`, `ProfileRec`) disagree with each other and should become one `PlayerProfile`.
@@ -223,8 +223,8 @@ because the library is the same.
 - **The track maps** (trackscr.c): `MapLod.displayList` and `verts` were 32-bit fields given host pointers to the
   display lists `buildTrackMaps` makes, which held only while the heap was in the fixed window; they are pointers
   since [NATIVE.md](../port/NATIVE.md) step 10.
-- **Labels into objects**: `flashColors_at_1` is `flashColors[1]`, `gPlayers_save` is `gPlayers[0].profile` (no
-  longer used here), the trophy sheen's scale is `ObjInstanceList[node].w` (until wave 2c circuitscr.c wrote it
+- **Labels into objects**: `flashColors_at_1` was `flashColors[1]` (the screens read that; the label went in wave
+  4), `gPlayers_save` is `gPlayers[0].profile` (no longer used here), the trophy sheen's scale is `ObjInstanceList[node].w` (until wave 2c circuitscr.c wrote it
   through `object_list_scale_view`, a label 0x10 before `ObjInstanceList` read as 0x44-byte records: the window's
   copy, so the drawn sheen kept w 1; the label is gone); `gFrontTireScale` and `gRearTireScale` are declared
   [5][13] (until [NATIVE.md](../port/NATIVE.md) 18 one row long, rows 1-4 read through `gFrontTireScale_players`).

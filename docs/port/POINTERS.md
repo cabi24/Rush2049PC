@@ -341,7 +341,8 @@ pads (`animDot`, `animArrows`, runtime_a_c93c_closure's `ImageMeta`, DelBlit's),
 a sprite through the N64 address 0x80140C06. The extent is declared in `zoid_draw/group.c` and
 `ZOID_AddBlit.c`. 13 views agree.
 
-A **Blit** (NewMultiBlit.c's) is 0x68 bytes on the PC:
+A **Blit** (NewMultiBlit.c's; since wave 4 include/game's `tBlit`, every file's, [RECORDS.md](RECORDS.md) 3.3) is
+0x68 bytes on the PC:
 
 | N64 | PC | Field |
 |---:|---:|---|
@@ -367,7 +368,8 @@ A **Blit** (NewMultiBlit.c's) is 0x68 bytes on the PC:
 
 ### 9.4 Pane groups `gPaneBlits`
 
-16 `FiveParts` (an active flag, the owner flag, two RGBA colours and five blits), 0x38 bytes on the PC with the
+16 `FiveParts` (an active flag, the owner flag, two RGBA colours and five blits; MAT3's `tBlitSet`, every file's
+since wave 4), 0x38 bytes on the PC with the
 blits pointer-sized from +0x10 (N64: 0x20, blits from +0xC). RemovePane, `RemovePanes` (which also stopped
 at `gPasswordAlphabet`, a variable of its own on the PC) and ChangePaneColor were m2c code at N64 offsets; they have PC
 versions. They call `RemoveBlit` through blit.h's prototype (PROTOTYPES.md 7).

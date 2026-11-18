@@ -3,15 +3,6 @@
  * (gSkipToGameState). */
 #include "game/game.h"
 
-typedef struct Blit Blit;
-typedef struct MultiBlit {
-    const char *texname;
-    short dulx, duly, width, height, top, bot, left, right;
-    u32 zdepth, alpha;
-    s32 (*animfunc)(Blit *);
-    u32 animid;
-} MultiBlit;
-
 /* A player's pad record (MAT3 tPadState, gPlayers). */
 typedef struct PlayerStatus {
     unsigned char slot, controller, rest[0x48 - 2]; void *ref;

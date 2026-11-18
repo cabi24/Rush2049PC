@@ -1,15 +1,6 @@
 /* ShowHUD: make the race's HUD (MAT3 hud.c). */
 #include "game/game.h"
 
-typedef struct Blit Voice;
-typedef struct Pane Pane;
-typedef s32 (*PaneAnimation)(Voice *);
-typedef struct MultiBlit {
-    const char *texname; s16 dulx,duly,width,height,top,bot,left,right;
-    u32 zdepth,alpha; s32 (*animfunc)(Voice *); u32 animid;
-} MultiBlit;
-
-
 /* PC: the race set with a minimap dot and a radar blip for each car past the N64's 8 (docs/port/MORECARS.md 7). The
  * set (RaceMultiBlit, ROM data) has a dot for each of the HUD order's first 8 entries (AnimateDot, animDot: AnimID
  * the entry) and, for each of the 4 viewers, a blip for each of car slots 0-7 (AnimateTraffic, animRadarBlip: AnimID
@@ -20,7 +11,7 @@ typedef struct MultiBlit {
 #define PC_HUD_RACE_ROM 89
 #define PC_HUD_RACE_RUNS 8   /* room for 8 runs to grow: the set has 5 */
 #define PC_HUD_RACE_MAX (PC_HUD_RACE_ROM + PC_HUD_RACE_RUNS * (PC_MAX_LINKS - 8))
-static MultiBlit pc_hud_race[PC_HUD_RACE_MAX];
+static tBlitDef pc_hud_race[PC_HUD_RACE_MAX];
 static s16 pc_hud_race_count;
 
 /* Builds pc_hud_race: the race set with each run of dots and blips continued past car 7 to the race's cars. */
@@ -29,7 +20,7 @@ static void pc_hud_race_build(void)
     s32 cars = PC_RACE_CARS, i, k, n = 0;
 
     for (i = 0; i < PC_HUD_RACE_ROM; i++) {
-        const MultiBlit *e = &RaceMultiBlit[i];
+        const tBlitDef *e = &RaceMultiBlit[i];
         pc_hud_race[n++] = *e;
         if ((e->animfunc == animDot || e->animfunc == animRadarBlip) && (e->animid & 0xF) == 7) {
             for (k = 8; k < cars && n < PC_HUD_RACE_MAX - (PC_HUD_RACE_ROM - 1 - i); k++) {
@@ -43,7 +34,7 @@ static void pc_hud_race_build(void)
 }
 
 /* The race set for this race: RaceMultiBlit itself for 8 cars or fewer, else the built copy. */
-static const MultiBlit *pc_hud_race_set(void)
+static const tBlitDef *pc_hud_race_set(void)
 {
     if (PC_RACE_CARS <= 8) {
         return RaceMultiBlit;

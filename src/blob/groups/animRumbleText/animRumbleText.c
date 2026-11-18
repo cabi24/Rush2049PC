@@ -1,17 +1,6 @@
 /* The pause screen's rumble page (MAT3 pausescr.c's rumble screen text): an animation function of a blit. */
 #include "game/game.h"
 
-/* PC: the Blit's host layout (NewMultiBlit.c), as every view has it (docs/port/POINTERS.md 9). */
-typedef struct Blit {
-    void *name, *image, *info;
-    u16 texIndex;
-    s16 x, y;
-    u16 z;
-    s16 width, height;
-    u8 alpha, flip;
-    s8 hidden;
-} Blit;
-
 #define TEXT_RUMBLE_OFF 170       /* gText.single[]: the rumble page's "off" */
 #define TEXT_RUMBLE_ON 171        /* "on" */
 #define TEXT_RUMBLE_TITLE 226     /* its title */
@@ -30,7 +19,7 @@ extern Player gPlayers[];
 /* On the pause screen's rumble page (gPauseState 6, MAT3 kPauseRumbleScreen): a title (message 226) when some
  * player has no Rumble Pak, then each player's name in their colour at their place on the page with their rumble
  * state under it. Hidden on the other pages. Returns 1: the blit stays. */
-s32 animRumbleText(Blit *blt)
+s32 animRumbleText(tBlit *blt)
 {
     u16 i;
     s32 ok;

@@ -420,7 +420,6 @@ void controlView(void)
     }
 }
 
-typedef struct { u8 red, green, blue, alpha; } Color4;
 extern void *memcpy(void *, const void *, u32);
 
 
@@ -459,7 +458,7 @@ void recordscr_uninitButtons(void)
  * see-through), white; then texture and place the title, the cursor and the A and B icons. */
 void recordscr_initButtons(void)
 {
-    Color4 buttonColor PC_WORD_ALIGNED = {255, 255, 255, 255};
+    tRGBA buttonColor = {{255, 255, 255, 255}};
     void *tex;
     s16 texIdx;
     s32 buttonIdx;
@@ -547,7 +546,7 @@ void updateSelectButtons(void)
     s8 clearScrollSpeed = 1;
     void *tex;
     s16 texIdx;
-    Color4 buttonColor PC_WORD_ALIGNED = {255, 255, 255, 255};
+    tRGBA buttonColor = {{255, 255, 255, 255}};
 
     if (gDeleteConfirm == 1 || gDeleteNotify == 1) {
         for (buttonIdx = 0; buttonIdx < 23; buttonIdx++) {
@@ -639,7 +638,7 @@ void updateSelectButtons(void)
                 recordscr_buttonInfo[buttonIdx].alpha = 255.f - (recordscr_minY - recordscr_buttonInfo[buttonIdx].position[1]) * 255.0f / (recordscr_gButtonSpace * recordscr_gButtonScale);
             else recordscr_buttonInfo[buttonIdx].alpha = 255;
             if (!recordscr_gSelectMenuVisible[buttonIdx]) recordscr_buttonInfo[buttonIdx].alpha = 0;
-            buttonColor.alpha = recordscr_buttonInfo[buttonIdx].alpha;
+            buttonColor.c[3] = recordscr_buttonInfo[buttonIdx].alpha;
             ZOID_SetColor(recordscr_buttonInfo[buttonIdx].handle, &buttonColor);
             if (!recordscr_gSelectMenuVisible[buttonIdx] || !recordscr_buttonInfo[buttonIdx].alpha) MBOX_HideObject(recordscr_buttonInfo[buttonIdx].handle, 1, 15);
             else MBOX_ShowObject(recordscr_buttonInfo[buttonIdx].handle, 0, 15);
@@ -715,7 +714,7 @@ void updateViewButtons(void)
     s8 clearScrollSpeed = 1;
     void *tex;
     u16 texIdx;
-    Color4 buttonColor PC_WORD_ALIGNED = {255, 255, 255, 255};
+    tRGBA buttonColor = {{255, 255, 255, 255}};
     gViewMenuCount = 0;
     whichItem = 0;
     for (i = 0; i < kViewMenuCount; i++) {
@@ -789,7 +788,7 @@ void updateViewButtons(void)
         else if (recordscr_buttonInfo[buttonIdx].position[1] < recordscr_minY) recordscr_buttonInfo[buttonIdx].alpha = 255.0f - (recordscr_minY - recordscr_buttonInfo[buttonIdx].position[1]) * 255 / (recordscr_gButtonSpace * recordscr_gButtonScale);
         else recordscr_buttonInfo[buttonIdx].alpha = 255;
         if (!gViewMenuVisible[buttonIdx - RECORD_VIEW_ROW_BUTTON]) recordscr_buttonInfo[buttonIdx].alpha = 0;
-        buttonColor.alpha = recordscr_buttonInfo[buttonIdx].alpha;
+        buttonColor.c[3] = recordscr_buttonInfo[buttonIdx].alpha;
         ZOID_SetColor((s16)recordscr_buttonInfo[buttonIdx].handle, &buttonColor);
         if (!gViewMenuVisible[buttonIdx - RECORD_VIEW_ROW_BUTTON] || !recordscr_buttonInfo[buttonIdx].alpha) MBOX_HideObject(recordscr_buttonInfo[buttonIdx].handle, 1, 15);
         else MBOX_ShowObject(recordscr_buttonInfo[buttonIdx].handle, 0, 15);

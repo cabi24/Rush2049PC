@@ -1,11 +1,7 @@
 /* The video options screen's start: its font, menu rectangle and blits (MAT3 videoscr.c). */
 #include "game/game.h"
 
-typedef struct Blit Blit;
-typedef struct MultiBlit MultiBlit;
 typedef struct { s32 type, handle; f32 ang; f32 mat[3][3]; f32 pos[3]; u8 pad3C[4]; } Button;   /* 0x40 */
-
-typedef union Color { u8 c[4]; u32 rgba; } Color;
 
 VIEW(Button[12], video_buttonInfo);
 #define video_buttonInfo video_buttonInfo_view
@@ -62,7 +58,7 @@ void video_initScreen(void)
     if (gGameState & GS_FRONTEND_MASK) {
         createBG();
         {
-            Color buttonColor = { { 255, 255, 255, 255 } };
+            tRGBA buttonColor = { { 255, 255, 255, 255 } };
             tTexture *tex;
             u16 texIdx;
             s32 buttonIdx;

@@ -1,4 +1,4 @@
-/* animate_blit_unchanged: a blit animation function that leaves its blit as it is (N64 only). A MultiBlit table
+/* animate_blit_unchanged: a blit animation function that leaves its blit as it is (N64 only). A multiblit table
  * names it for a blit that needs a callback but has nothing to update. */
 #include "game/game.h"
 

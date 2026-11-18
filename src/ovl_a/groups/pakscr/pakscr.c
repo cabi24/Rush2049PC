@@ -3,15 +3,6 @@
  * drawing is pakscr_draw.c. */
 #include "game/game.h"
 
-typedef struct Blit Blit;
-typedef struct MultiBlit {
-    const char *texname;
-    s16 dulx,duly,width,height,top,bot,left,right;
-    u32 zdepth,alpha;
-    s32 (*animfunc)(Blit *);
-    u32 animid;
-} MultiBlit;
-
 
 #define PAK_ERR_NO_CONTROLLER 1     /* gPakErr: SetPakError's box for a missing controller */
 #define PAK_ERR_NO_PAK 2            /* gPakErr: for a controller without a pak */
@@ -125,7 +116,7 @@ void updatePakScreen(void)
     s8 result;
     s8 choice;
     if(!pakscr_gInited) {
-        HudBlitDef descriptor;
+        tBlitDef descriptor;
         descriptor=pakscr_mblit;
         SetState(kStatePickPak);
         if(gGameState&GS_FRONTEND_MASK)createBG();

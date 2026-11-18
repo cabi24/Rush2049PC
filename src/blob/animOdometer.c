@@ -1,34 +1,14 @@
 /* animOdometer: the odometer's digits, a blit animation function (MAT3 hud.c). */
 #include "game/game.h"
 
-/* PC: the Blit's host layout (NewMultiBlit.c), as every view has it (docs/port/POINTERS.md 9). */
-typedef struct Blit {
-    void *Name, *Image, *Info;
-    u16 TexIndex;
-    s16 X;
-    s16 Y;
-    s16 pad12;
-    s16 Width;
-    s16 Height;
-    u8 pad18[2];
-    s8 Hide;
-    u8 Init;
-    s16 Top;
-    s16 Bot;
-    s16 Left;
-    s16 Right;
-    s32 pad24;
-    intptr_t animFunc;
-    u32 AnimID;
-} Blit;
-
-#define HW (blt->Width / 2)
+#define HW (blt->width / 2)
 
 /* Digit animID & 0xF (0 hundreds .. 3 tenths of a mile, or of a kilometre with kOptMetric) of the odometer of the
  * player in animID's high nibble, a strip of digits scrolled to the car's distance: the tenths roll smoothly, each
  * higher digit rolls when all those below it read 9. Hidden (and its animation stopped) past the windows or on the
- * obstacle course; hidden when the HUD hides it or the car finished. Placed at odometerPos. Returns 1. */
-s32 animOdometer(Blit *blt) {
+ * obstacle course; hidden when the HUD hides it or the car finished. Placed at odometerPos. Returns 1. (The hide
+ * flag, 0 or 1, is read as a signed byte, as the original reads it here.) */
+s32 animOdometer(tBlit *blt) {
     s32 slot;
     s32 digit;
     s32 unused0;
@@ -40,8 +20,8 @@ s32 animOdometer(Blit *blt) {
     f32 frac;
     f32 tenths;
 
-    slot = (blt->AnimID & 0xF0) >> 4;
-    digit = blt->AnimID & 0xF;
+    slot = (blt->animID & 0xF0) >> 4;
+    digit = blt->animID & 0xF;
     frac = 0.0f;
     dist = PC_CAR_MILEAGE(slot);
     if (gOptions[kOptMetric]) {
@@ -49,18 +29,18 @@ s32 animOdometer(Blit *blt) {
     }
     if (!(slot < gNumWindows) || gRace == kObstacle) {
         blt->animFunc = 0;
-        if (blt->Hide != 1) {
-            blt->Hide = 1;
+        if (blt->hide != 1) {
+            blt->hide = 1;
             UpdateBlit(blt);
         }
         return 1;
     }
     hide = gShowOdometer == 0 || PC_CAR_PLACE_LOCKED(pc_models[slot].slot) == 1;
-    if (hide != blt->Hide) {
-        blt->Hide = hide;
+    if (hide != (s8)blt->hide) {
+        blt->hide = hide;
         UpdateBlit(blt);
     }
-    hide = blt->Hide;
+    hide = (s8)blt->hide;
     if (hide) {
         return 1;
     }
@@ -71,41 +51,41 @@ s32 animOdometer(Blit *blt) {
     }
     switch (digit) {
     case 0:
-        blt->X = odometerPos[gNumWindows - 1][slot].x - HW * 2;
-        blt->Y = odometerPos[gNumWindows - 1][slot].y;
-        blt->Left = 0;
-        blt->Top = ((s32) (dist / 528000.0f) % 10) * HW;
+        blt->x = odometerPos[gNumWindows - 1][slot].x - HW * 2;
+        blt->y = odometerPos[gNumWindows - 1][slot].y;
+        blt->left = 0;
+        blt->top = ((s32) (dist / 528000.0f) % 10) * HW;
         if ((s32) (dist / 52800.0f) % 10 == 9 && (s32) (dist / 5280.0f) % 10 == 9 && itenths % 10 == 9) {
-            blt->Top = blt->Top + frac * HW;
+            blt->top = blt->top + frac * HW;
         }
         break;
     case 1:
-        blt->X = odometerPos[gNumWindows - 1][slot].x - HW;
-        blt->Y = odometerPos[gNumWindows - 1][slot].y;
-        blt->Left = 0;
-        blt->Top = ((s32) (dist / 52800.0f) % 10) * HW;
+        blt->x = odometerPos[gNumWindows - 1][slot].x - HW;
+        blt->y = odometerPos[gNumWindows - 1][slot].y;
+        blt->left = 0;
+        blt->top = ((s32) (dist / 52800.0f) % 10) * HW;
         if ((s32) (dist / 5280.0f) % 10 == 9 && itenths % 10 == 9) {
-            blt->Top = blt->Top + frac * HW;
+            blt->top = blt->top + frac * HW;
         }
         break;
     case 2:
-        blt->X = odometerPos[gNumWindows - 1][slot].x;
-        blt->Y = odometerPos[gNumWindows - 1][slot].y;
-        blt->Left = 0;
-        blt->Top = ((s32) (dist / 5280.0f) % 10) * HW;
+        blt->x = odometerPos[gNumWindows - 1][slot].x;
+        blt->y = odometerPos[gNumWindows - 1][slot].y;
+        blt->left = 0;
+        blt->top = ((s32) (dist / 5280.0f) % 10) * HW;
         if (itenths % 10 == 9) {
-            blt->Top = blt->Top + frac * HW;
+            blt->top = blt->top + frac * HW;
         }
         break;
     case 3:
-        blt->X = odometerPos[gNumWindows - 1][slot].x + HW;
-        blt->Y = odometerPos[gNumWindows - 1][slot].y;
-        blt->Left = HW;
-        blt->Top = HW * (itenths % 10 + tenths - itenths);
+        blt->x = odometerPos[gNumWindows - 1][slot].x + HW;
+        blt->y = odometerPos[gNumWindows - 1][slot].y;
+        blt->left = HW;
+        blt->top = HW * (itenths % 10 + tenths - itenths);
         break;
     }
-    blt->Right = blt->Left + HW - 1;
-    blt->Bot = blt->Top + HW - 1;
+    blt->right = blt->left + HW - 1;
+    blt->bot = blt->top + HW - 1;
     UpdateBlit(blt);
     return 1;
 }

@@ -35,7 +35,6 @@ void drawRect(s32 x, s32 y, s32 w, s32 h, u8 *color)
     blitMode = -1;
 }
 
-typedef struct RGBA {u8 r,g,b,a;} RGBA;
 /* A profile (MAT3 tPlayerProfile) in its PC layout (pc_prelude.h PROFILE_OFS): its name at 0x20 (N64 0x14). */
 typedef struct PlayerProfile {void *next, *prev, *fileh; u32 id[2]; char name[13];} PlayerProfile;
 /* A player's pad record (MAT3 tPadState, gPlayers): only its profile. */
@@ -102,7 +101,7 @@ void drawRaceStandings(void)
     s32 row, col;
     f32 time;
     f32 time2;
-    RGBA c;
+    tRGBA color;
 
     rows = gNumPlayers + 1;
     cols = (gNumCars == 1 || (gRace == kCircuit && !PC_CAR_PLACE_LOCKED(gCircuitPlayer))) ? 3 : 4;
@@ -110,20 +109,20 @@ void drawRaceStandings(void)
         for (col = 0; col < cols; col++) {
             if (row == 0 && col == 0) continue;
             if (col > 0 && row > 0) {
-                c.r = 0; c.g = 0; c.b = 0; c.a = 192;
+                color.c[0] = 0; color.c[1] = 0; color.c[2] = 0; color.c[3] = 192;
                 switch (gRankedPlayer[row - 1]) {
-                case 0: c.b = 128; break;
-                case 1: c.r = 128; break;
-                case 2: c.r = 128; c.g = 128; break;
-                case 3: c.g = 128; break;
+                case 0: color.c[2] = 128; break;
+                case 1: color.c[0] = 128; break;
+                case 2: color.c[0] = 128; color.c[1] = 128; break;
+                case 3: color.c[1] = 128; break;
                 }
             } else {
-                c.r = 0; c.g = 0; c.b = 0;
-                c.a = 192;
+                color.c[0] = 0; color.c[1] = 0; color.c[2] = 0;
+                color.c[3] = 192;
             }
             x = 160 - cols * 60 / 2 + col * 60;
             bgY = 36 + row * 14;
-            drawRect(x, bgY, 60, 14, (u8 *)&c);
+            drawRect(x, bgY, 60, 14, color.c);
         }
     }
     HAL_SetTextDepth(0.0f);
@@ -198,7 +197,7 @@ void drawBattleStandings(void)
     char value[40];
     s32 rows,columns;
     s32 row,column,total,other;
-    RGBA color;
+    tRGBA color;
     char label[212];
     rows=gNumActiveCars+1;
     columns=3;
@@ -206,20 +205,20 @@ void drawBattleStandings(void)
         for(column=0;column<columns;column++) {
             if(row!=0 || column!=0) {
                 if(column>0 && row>0) {
-                    color.r=0;color.g=0;color.b=0;color.a=192;
+                    color.c[0]=0;color.c[1]=0;color.c[2]=0;color.c[3]=192;
                     switch(gCarTeam[gRankedPlayer[row-1]]) {
-                    case 0:color.b=128;break;
-                    case 1:color.r=128;break;
-                    case 2:color.r=128;color.g=128;break;
-                    case 3:color.g=128;break;
+                    case 0:color.c[2]=128;break;
+                    case 1:color.c[0]=128;break;
+                    case 2:color.c[0]=128;color.c[1]=128;break;
+                    case 3:color.c[1]=128;break;
                     }
                 } else {
-                    color.r=0;
-                    color.g=0;
-                    color.b=0;
-                    color.a=192;
+                    color.c[0]=0;
+                    color.c[1]=0;
+                    color.c[2]=0;
+                    color.c[3]=192;
                 }
-                drawRect(column*60+70,row*14+36,60,14,(u8 *)&color);
+                drawRect(column*60+70,row*14+36,60,14,color.c);
             }
         }
     }
@@ -282,7 +281,7 @@ void drawStuntStandings(void)
     char value[40];
     s32 rows,columns;
     s32 row,column,total,other;
-    RGBA color;
+    tRGBA color;
     char label[204];
     rows=gNumActiveCars+1;
     columns=3;
@@ -290,20 +289,20 @@ void drawStuntStandings(void)
         for(column=0;column<columns;column++) {
             if(row!=0 || column!=0) {
                 if(column>0 && row>0) {
-                    color.r=0;color.g=0;color.b=0;color.a=192;
+                    color.c[0]=0;color.c[1]=0;color.c[2]=0;color.c[3]=192;
                     switch(gRankedPlayer[row-1]) {
-                    case 0:color.b=128;break;
-                    case 1:color.r=128;break;
-                    case 2:color.r=128;color.g=128;break;
-                    case 3:color.g=128;break;
+                    case 0:color.c[2]=128;break;
+                    case 1:color.c[0]=128;break;
+                    case 2:color.c[0]=128;color.c[1]=128;break;
+                    case 3:color.c[1]=128;break;
                     }
                 } else {
-                    color.r=0;
-                    color.g=0;
-                    color.b=0;
-                    color.a=192;
+                    color.c[0]=0;
+                    color.c[1]=0;
+                    color.c[2]=0;
+                    color.c[3]=192;
                 }
-                drawRect(column*60+70,row*14+36,60,14,(u8 *)&color);
+                drawRect(column*60+70,row*14+36,60,14,color.c);
             }
         }
     }
@@ -364,7 +363,7 @@ void drawStuntScore(void)
     char value[40];
     s32 rows,columns;
     s32 row,column,left,width;
-    RGBA color;
+    tRGBA color;
     char label[180];
     rows=13;
     columns=gNumPlayers+1;
@@ -377,26 +376,26 @@ void drawStuntScore(void)
                 y=row*14+19;
                 if(row>=3) {
                     if(row==3 && column==0) {
-                        color.r=0;color.g=0;color.b=0;color.a=192;
-                        drawRect(160-width/2+x,y,width,7,(u8 *)&color);
+                        color.c[0]=0;color.c[1]=0;color.c[2]=0;color.c[3]=192;
+                        drawRect(160-width/2+x,y,width,7,color.c);
                     }
                     y+=7;
                 }
                 if(column>0 && row>0) {
-                    color.r=0;color.g=0;color.b=0;color.a=192;
+                    color.c[0]=0;color.c[1]=0;color.c[2]=0;color.c[3]=192;
                     switch(column-1) {
-                    case 0:color.b=128;break;
-                    case 1:color.r=128;break;
-                    case 2:color.r=128;color.g=128;break;
-                    case 3:color.g=128;break;
+                    case 0:color.c[2]=128;break;
+                    case 1:color.c[0]=128;break;
+                    case 2:color.c[0]=128;color.c[1]=128;break;
+                    case 3:color.c[1]=128;break;
                     }
                 } else {
-                    color.r=0;
-                    color.g=0;
-                    color.b=0;
-                    color.a=192;
+                    color.c[0]=0;
+                    color.c[1]=0;
+                    color.c[2]=0;
+                    color.c[3]=192;
                 }
-                drawRect(160-width/2+x,y,60,14,(u8 *)&color);
+                drawRect(160-width/2+x,y,60,14,color.c);
             }
         }
     }
@@ -500,7 +499,7 @@ void drawBattleScore(void)
     char value[40];
     s32 rows,columns;
     s32 row,column,total,other;
-    RGBA color;
+    tRGBA color;
     char name[188];
     char label[144];
     rows=gNumPlayers+2;
@@ -513,40 +512,40 @@ void drawBattleScore(void)
                 x=column*other;
                 if(row>=2) {
                     if(row==2 && column==0) {
-                        color.r=0;color.g=0;color.b=0;color.a=192;
-                        drawRect(160-columns*other/2+x,y,columns*60,8,(u8 *)&color);
+                        color.c[0]=0;color.c[1]=0;color.c[2]=0;color.c[3]=192;
+                        drawRect(160-columns*other/2+x,y,columns*60,8,color.c);
                     }
                     y+=8;
                 }
                 if(column==0 || row==0) {
-                    color.r=0;
-                    color.g=0;
-                    color.b=0;
-                    color.a=192;
+                    color.c[0]=0;
+                    color.c[1]=0;
+                    color.c[2]=0;
+                    color.c[3]=192;
                 } else if(column+1==row) {
-                    color.r=0;
-                    color.g=0;
-                    color.b=0;
-                    color.a=192;
+                    color.c[0]=0;
+                    color.c[1]=0;
+                    color.c[2]=0;
+                    color.c[3]=192;
                     switch(gCarTeam[column-1]) {
-                    case 0:color.b=64;break;
-                    case 1:color.r=64;break;
-                    case 2:color.r=64;color.g=64;break;
-                    case 3:color.g=64;break;
+                    case 0:color.c[2]=64;break;
+                    case 1:color.c[0]=64;break;
+                    case 2:color.c[0]=64;color.c[1]=64;break;
+                    case 3:color.c[1]=64;break;
                     }
                 } else {
-                    color.r=0;
-                    color.g=0;
-                    color.b=0;
-                    color.a=192;
+                    color.c[0]=0;
+                    color.c[1]=0;
+                    color.c[2]=0;
+                    color.c[3]=192;
                     switch(gCarTeam[column-1]) {
-                    case 0:color.b=128;break;
-                    case 1:color.r=128;break;
-                    case 2:color.r=128;color.g=128;break;
-                    case 3:color.g=128;break;
+                    case 0:color.c[2]=128;break;
+                    case 1:color.c[0]=128;break;
+                    case 2:color.c[0]=128;color.c[1]=128;break;
+                    case 3:color.c[1]=128;break;
                     }
                 }
-                drawRect(160-columns*other/2+x,y,60,16,(u8 *)&color);
+                drawRect(160-columns*other/2+x,y,60,16,color.c);
             }
         }
     }
@@ -608,7 +607,7 @@ s32 gameover_animText(s32 blit)
     char value[40];
     s32 rows,columns;
     s32 row,column,left,width;
-    RGBA color;
+    tRGBA color;
     char label[252];
     f32 t;
     switch(gGameOverState) {
@@ -635,26 +634,26 @@ s32 gameover_animText(s32 blit)
                         y=row*16-rows*16/2+110;
                         if(row>=3) {
                             if(row==3 && column==0) {
-                                color.r=0;color.g=0;color.b=0;color.a=192;
-                                drawRect(160-width/2+x,y,width,8,(u8 *)&color);
+                                color.c[0]=0;color.c[1]=0;color.c[2]=0;color.c[3]=192;
+                                drawRect(160-width/2+x,y,width,8,color.c);
                             }
                             y+=8;
                         }
                         if(column>0 && row>0) {
-                            color.r=0;color.g=0;color.b=0;color.a=192;
+                            color.c[0]=0;color.c[1]=0;color.c[2]=0;color.c[3]=192;
                             switch(column-1) {
-                            case 0:color.b=128;break;
-                            case 1:color.r=128;break;
-                            case 2:color.r=128;color.g=128;break;
-                            case 3:color.g=128;break;
+                            case 0:color.c[2]=128;break;
+                            case 1:color.c[0]=128;break;
+                            case 2:color.c[0]=128;color.c[1]=128;break;
+                            case 3:color.c[1]=128;break;
                             }
                         } else {
-                            color.r=0;
-                            color.g=0;
-                            color.b=0;
-                            color.a=192;
+                            color.c[0]=0;
+                            color.c[1]=0;
+                            color.c[2]=0;
+                            color.c[3]=192;
                         }
-                        drawRect(160-width/2+x,y,60,16,(u8 *)&color);
+                        drawRect(160-width/2+x,y,60,16,color.c);
                     }
                 }
             }

@@ -4,8 +4,6 @@
 
 typedef struct { s32 type, handle; f32 ang; f32 mat[3][3]; f32 pos[3]; u8 pad3C[4]; } Button;   /* 0x40 */
 
-typedef union Color { u8 c[4]; u32 rgba; } Color;
-
 VIEW(Button[32], options_buttonInfo);
 #define options_buttonInfo options_buttonInfo_view
 void *memcpy(void *, const void *, u32);
@@ -31,7 +29,7 @@ void op_calcOptionMenuMaxSize(void)
  * the cursor (28), the B button (29), its frame (30) and the title button (31), and resets the cameras. */
 void op_initButtons(void)
 {
-    Color buttonColor = { { 255, 255, 255, 255 } };
+    tRGBA buttonColor = { { 255, 255, 255, 255 } };
     tTexture *tex;
     u16 texIdx;
     s32 buttonIdx;

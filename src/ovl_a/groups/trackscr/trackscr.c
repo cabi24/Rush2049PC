@@ -7,13 +7,7 @@
 #include "game/game.h"
 #define Gfx GfxView   /* this file's own Gfx: include/game's Gfx is another type */
 
-typedef struct Blit Blit;
-typedef struct MultiBlit {
-    char *name;s16 x,y,width,height,top,bottom,left,right;
-    u32 z,alpha;s32 (*callback)(Blit *);u32 descriptor;
-} MultiBlit;
 typedef struct tMenuButton {s32 type,handle;f32 angle,matrix[3][3],position[3];u8 alpha,pad[3];} tMenuButton;
-typedef union Color {u32 word;u8 channel[4];} Color;
 /* A pak file record (MAT3 tPS_File) in its PC layout (pc_prelude.h PSF_OFS, docs/port/POINTERS.md 9.10). */
 typedef struct FileInfo {void *next, *prev; void (*RemoveFile)(void *), (*MoveFile)(void *, void *); u8 pak;} FileInfo;
 /* A profile (MAT3 tPlayerProfile) in its PC layout (pc_prelude.h PROFILE_OFS): fileh NULL for a guest, stats its
@@ -53,11 +47,6 @@ extern Player gPlayers[];        /* gPlayers */
 
 VIEW(tMenuButton[48], trackscr_buttonInfo);
 #define trackscr_buttonInfo trackscr_buttonInfo_view
-
-VIEW(Color, trackscr_init_button_color);
-#define trackscr_init_button_color trackscr_init_button_color_view
-VIEW(Color, trackscr_update_button_color);
-#define trackscr_update_button_color trackscr_update_button_color_view
 
 /* game functions */
 extern void *memcpy(void *,const void *,u32);
@@ -109,19 +98,12 @@ typedef union { Gwords words; long long int force_structure_alignment; } Gfx;
     _g->words.w1 = __gsSP1Triangle_w1(v10, v11, v12); \
 }
 
-/* PC: the Blit's host layout (NewMultiBlit.c), as every view has it (docs/port/POINTERS.md 9). */
-struct Blit {const char *Name;void *Image;void *Info;u16 TexIndex;s16 X,Y;u16 Z;s16 Width,Height;u8 Alpha,Flip;s8 Hide,Init;
-    s16 Top,Bot,Left,Right,color;u16 reserved;void *AnimFunc;u32 AnimID;intptr_t AnimDTA;u16 resource;};
-
 /* The fog layer's texture tile (MAT3 BlowFog's static fogTileSize, anon_uls_ult_8). */
 typedef struct TileSize {u16 uls,ult,lrs,lrt;} TileSize;
 
 
 
 typedef struct DisplayCommand {u32 w0,w1;} DisplayCommand;
-
-VIEW(Color, loadTrackScreen_backColor);
-#define loadTrackScreen_backColor loadTrackScreen_backColor_view
 
 /* PC: track-map display lists in host Gfx, 16 bytes a command: 5 per map section plus 7. */
 #define MAP_DL_SECTION_BYTES 80
@@ -130,9 +112,6 @@ VIEW(Color, loadTrackScreen_backColor);
 #define DISPLAY_TEXTURE(p,on) DISPLAY_WORDS(p,0xD7000000u|((on)<<1),0xFFFFFFFFu)
 #define DISPLAY_VERTEX(p,v,n,first) DISPLAY_WORDS(p,0x01000000u|((n)<<12)|(((first)+(n))<<1),(u32)(v))
 #define DISPLAY_TRIANGLES(p,a,b,c,d,e,f) DISPLAY_WORDS(p,0x06000000u|((a)*2<<16)|((b)*2<<8)|((c)*2),((d)*2<<16)|((e)*2<<8)|((f)*2))
-
-VIEW(Color, race_map_vertex_color);
-#define race_map_vertex_color race_map_vertex_color_view
 
 extern f32 sqrtf(f32);
 #pragma intrinsic (sqrtf)
@@ -604,9 +583,9 @@ void SetFogIntensity(s32 initialize)
         trackscr_fogColor[5] = 0;
         trackscr_fogColor[6] = 0;
         trackscr_fogColor[7] = 0;
-        trackFogPoly->Z = 0x7E00;
-        trackFogPoly->Alpha = trackscr_fogColor[3];
-        trackFogPoly->Image = &n64FogPal;
+        trackFogPoly->z = 0x7E00;
+        trackFogPoly->alpha = trackscr_fogColor[3];
+        trackFogPoly->palette = &n64FogPal;
         UpdateBlit(trackFogPoly);
     }
 }
@@ -638,19 +617,19 @@ void loadTrackScreen(void)
 {
     f32 polyVerts[4][3];
     u16 texIdx;
-    Color backColor = loadTrackScreen_backColor;
+    tRGBA backColor = loadTrackScreen_backColor;
     unloadTrackScreen();
     if (!((gTrackNum >= TRACK_RACE_FIRST && gTrackNum <= TRACK_RACE_LAST) ||
         (gTrackNum >= TRACK_BATTLE_FIRST && gTrackNum <= TRACK_BATTLE_LAST) ||
         (gTrackNum >= TRACK_STUNT_FIRST && gTrackNum <= TRACK_STUNT_LAST) ||
         (gTrackNum >= TRACK_OBSTACLE && gTrackNum <= TRACK_OBSTACLE))) return;
     trackScreenPoly = NewBlit(trackScreenNames[gTrackNum],176,32,0);
-    trackScreenPoly->Z = 0x7F00;
+    trackScreenPoly->z = 0x7F00;
     UpdateBlit(trackScreenPoly);
-    gBlitInstanceList[trackScreenPoly->resource].flags |= 1;
+    gBlitInstanceList[trackScreenPoly->blidx].flags |= BLITINST_ALPHA_COMPARE;
     if (OptionValid(TRACK_OPT_FOG) == 1) {
         trackFogPoly = NewBlit(track_fog_texture_name,176,32,0);
-        trackFogPoly->Z = 0x7E00;
+        trackFogPoly->z = 0x7E00;
         UpdateBlit(trackFogPoly);
     }
 }
@@ -658,7 +637,7 @@ void loadTrackScreen(void)
 /* Remove the track picture and the fog layer. */
 void unloadTrackScreen(void)
 {
-    Blit *b;
+    tBlit *b;
     if ((b = trackScreenPoly)) { RemoveBlit(b); trackScreenPoly = 0; }
     if ((b = trackFogPoly)) { RemoveBlit(b); trackFogPoly = 0; }
 }
@@ -908,10 +887,10 @@ void buildRaceTrackMaps(void)
                     vtx->flag = 0x8000;
                     vtx->tc[0] = 0;
                     vtx->tc[1] = 0;
-                    vtx->cn[0] = race_map_vertex_color.channel[0];
-                    vtx->cn[1] = race_map_vertex_color.channel[1];
-                    vtx->cn[2] = race_map_vertex_color.channel[2];
-                    vtx->cn[3] = race_map_vertex_color.channel[3];
+                    vtx->cn[0] = race_map_vertex_color.c[0];
+                    vtx->cn[1] = race_map_vertex_color.c[1];
+                    vtx->cn[2] = race_map_vertex_color.c[2];
+                    vtx->cn[3] = race_map_vertex_color.c[3];
                     vtx++;
                 }
                 if (pointIdx == kNumMapSects - 1) {
@@ -1036,7 +1015,6 @@ void clearTrackMaps(void)
     }
 }
 
-typedef union MapColor { u8 c[4]; u32 w; } MapColor;
 typedef struct MapVtx { s16 ob[3]; u16 flag; s16 tc[2]; u8 cn[4]; } MapVtx;
 /* The track maps, each frame: each placed by its offset and scale (the highlighted one a little smaller), and the
  * race maps' sections coloured: the other tracks in their own dim colour, the highlighted one bright with a darker
@@ -1047,7 +1025,7 @@ void animTrackMaps(void)
     s32 pointIdx;
     MapVtx *pStrip;
     s32 fade;
-    MapColor col;
+    tRGBA col;
     s32 i;
     s32 mapIdx;
     if (trackMapsBuilt) {
@@ -1095,9 +1073,9 @@ void animTrackMaps(void)
                                 if ((currentTrackMap + 1) & 2) col.c[1] = 255 - fade; else col.c[1] = 255 - fade * 3;
                                 if ((currentTrackMap + 1) & 4) col.c[2] = 255 - fade; else col.c[2] = 255 - fade * 3;
                             }
-                            if (pointIdx == kNumMapSects - 1) col.w = 0xFFFFFFFF;
+                            if (pointIdx == kNumMapSects - 1) col.rgba = 0xFFFFFFFF;
                             for (i = 0; i < (pointIdx == kNumMapSects - 1 ? 8 : 4); i++) {
-                                if (i & 2) col.w = 255;
+                                if (i & 2) col.rgba = 255;   /* a word: its bytes in the host's order, c[0] 255 here */
                                 pStrip->cn[0] = col.c[2];
                                 pStrip->cn[1] = col.c[1];
                                 pStrip->cn[2] = col.c[0];
@@ -1137,7 +1115,7 @@ void unloadPathData(void)
  * with their arrows. */
 void trackscr_initButtons(void)
 {
-    Color color = trackscr_init_button_color;
+    tRGBA color = trackscr_init_button_color;
     s32 i;
     s16 texture_index;
     f32 yaw;
@@ -1148,7 +1126,7 @@ void trackscr_initButtons(void)
                 MBOX_FindObject_WORK(trackscr_buttonNames[trackscr_buttonInfo[i].type], 0, gNumModels[0] - 1, 1),
                 trackscr_buttonInfo[i].matrix, -1,
                 (trackscr_buttonInfo[i].type == 0 || trackscr_buttonInfo[i].type == 1 || trackscr_buttonInfo[i].type == 2) ? 0x42000 : 0);
-            ZOID_SetColor((s16)trackscr_buttonInfo[i].handle, (s32 *)&color);
+            ZOID_SetColor((s16)trackscr_buttonInfo[i].handle, &color);
         }
     }
     ZOID_SetTexture((s16)trackscr_buttonInfo[TRACK_BUTTON_TITLE].handle,
@@ -1218,7 +1196,7 @@ void trackscr_updateButtons(void)
     s8 clearScrollSpeed = 1;
     tTexture *tex;
     s16 texIdx;
-    Color buttonColor = trackscr_update_button_color;
+    tRGBA buttonColor = trackscr_update_button_color;
     if (trackscr_buttonsInited) {
         if (trackscr_gButtonScale * ((trackscr_gNumOptions - 1) * trackscr_gButtonSpace) > trackscr_maxY - trackscr_minY)
             selectedPos = trackscr_maxY - trackscr_gActiveOption * (trackscr_maxY - trackscr_minY) / (trackscr_gNumOptions - 1);
@@ -1294,9 +1272,9 @@ void trackscr_updateButtons(void)
             else trackscr_buttonInfo[buttonIdx].alpha = 255;
             if (!OptionValid(buttonIdx)) trackscr_buttonInfo[buttonIdx].alpha = 0;
             trackscr_buttonInfo[TRACK_VALUE_BUTTON(buttonIdx)].alpha = trackscr_buttonInfo[buttonIdx].alpha;
-            buttonColor.channel[3] = trackscr_buttonInfo[buttonIdx].alpha;
-            ZOID_SetColor(trackscr_buttonInfo[buttonIdx].handle, (s32 *)&buttonColor);
-            ZOID_SetColor(trackscr_buttonInfo[TRACK_VALUE_BUTTON(buttonIdx)].handle, (s32 *)&buttonColor);
+            buttonColor.c[3] = trackscr_buttonInfo[buttonIdx].alpha;
+            ZOID_SetColor(trackscr_buttonInfo[buttonIdx].handle, &buttonColor);
+            ZOID_SetColor(trackscr_buttonInfo[TRACK_VALUE_BUTTON(buttonIdx)].handle, &buttonColor);
             if (!OptionValid(buttonIdx)) {
                 MBOX_HideObject(trackscr_buttonInfo[buttonIdx].handle, 0, 15);
                 MBOX_HideObject(trackscr_buttonInfo[TRACK_VALUE_BUTTON(buttonIdx)].handle, 0, 15);

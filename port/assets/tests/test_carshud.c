@@ -65,6 +65,14 @@ struct { int16_t id; uint8_t pad[50]; } gPlayerCoin[4][2];
 float gCheckPtTimeout[4], gLapTime[4], gElapsedTime[4];
 int8_t expansion_pak_present, gTrackNum;
 int16_t gNumWindows;
+/* A multiblit table's entry, the layout of include/game's tBlitDef (MAT3's; N64 36 bytes, PC 48). */
+struct pc_multiblit {
+    const char *texname;
+    short dulx, duly, width, height, top, bot, left, right;
+    unsigned int zdepth, alpha;
+    int (*animfunc)(void *);
+    unsigned int animid;
+};
 struct pc_multiblit OverlayMultiBlit[1], TwoPlayerMultiBlit[1], ThreePlayerMultiBlit[1], RaceMultiBlit[89], HudMultiBlit[8];
 int32_t gShowCredits, gCredit, gCorner, gCreditWidth, gNumCreditNames;
 int32_t pauseMenuSelect; uint32_t animPause_color;       /* animPause.c's, where Hidden is */

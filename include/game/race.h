@@ -65,13 +65,13 @@ extern CircuitChance gCircuitFog[EXTENT(4)];
 extern CircuitChance gCircuitWind[EXTENT(4)];
 extern s32 gCircuitDiff[EXTENT(4)];
 extern s32 circuit_drone_skills[EXTENT(6)][12];
-extern struct pc_multiblit demo_multiblit[EXTENT(1)];
+extern tBlitDef demo_multiblit[EXTENT(1)];
 extern s8 gRestartGame;
 extern s8 gGamePointPlayed;
 extern u8 gFogColors[EXTENT(28)][3];   /* the fog colours (ZOID_SetFog), R G B */
 extern s32 playerTextColor[EXTENT(4)];
 extern tRGBA flashColors[EXTENT(2)];
-extern struct pc_multiblit idle_warning_multiblit[EXTENT(1)];
+extern tBlitDef idle_warning_multiblit[EXTENT(1)];
 extern void *inactiveBlit;
 extern s8 ghost_gInited;
 extern volatile s8 gEndingGhosts;

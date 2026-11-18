@@ -7,11 +7,6 @@ float fabsf(float);
 #pragma intrinsic (sqrtf)
 #pragma intrinsic (fabsf)
 
-typedef union Color {
-    u8 b[4];
-    u32 w;
-} Color;
-
 /* A scene node's matrix: its rotation (CopyUV copies the 3x3) and its position relative to its parent. */
 typedef struct tUVMatrix {
     /* 0x00 */ f32 uvs[3][3];
@@ -63,10 +58,10 @@ typedef struct tVisual {
  * tires' road polygons name, and, as its rear left tire gets more than 20 feet off the ground, more and more
  * (fully at 60 feet) the track's base colour (gTrackBaseColors). Alpha 255. MAT3 also smooths it with the last
  * frame's (prevIRclr, a third of the new); the N64 doesn't. */
-Color GetCarsIRColor(tCarData *car, tModelData *m)
+tRGBA GetCarsIRColor(tCarData *car, tModelData *m)
 {
-    Color clr;
-    Color sclr2;
+    tRGBA clr;
+    tRGBA sclr2;
     unsigned char rgb[3];
     float d1;
     float d2;
@@ -81,34 +76,34 @@ Color GetCarsIRColor(tCarData *car, tModelData *m)
     i1=(car->sound_flags[1]&0xf800)>>11;
     i2=(car->sound_flags[2]&0xf800)>>11;
     i3=(car->sound_flags[3]&0xf800)>>11;
-    sum = ((Color *)gTrackColors[gTrackNum])[i0].b[0]+((Color *)gTrackColors[gTrackNum])[i1].b[0]+((Color *)gTrackColors[gTrackNum])[i2].b[0]+((Color *)gTrackColors[gTrackNum])[i3].b[0];
+    sum = gTrackColors[gTrackNum][i0].c[0]+gTrackColors[gTrackNum][i1].c[0]+gTrackColors[gTrackNum][i2].c[0]+gTrackColors[gTrackNum][i3].c[0];
     rgb[0] = sum >> 2;
-    sum = ((Color *)gTrackColors[gTrackNum])[i0].b[1]+((Color *)gTrackColors[gTrackNum])[i1].b[1]+((Color *)gTrackColors[gTrackNum])[i2].b[1]+((Color *)gTrackColors[gTrackNum])[i3].b[1];
+    sum = gTrackColors[gTrackNum][i0].c[1]+gTrackColors[gTrackNum][i1].c[1]+gTrackColors[gTrackNum][i2].c[1]+gTrackColors[gTrackNum][i3].c[1];
     rgb[1] = sum >> 2;
-    sum = ((Color *)gTrackColors[gTrackNum])[i0].b[2]+((Color *)gTrackColors[gTrackNum])[i1].b[2]+((Color *)gTrackColors[gTrackNum])[i2].b[2]+((Color *)gTrackColors[gTrackNum])[i3].b[2];
+    sum = gTrackColors[gTrackNum][i0].c[2]+gTrackColors[gTrackNum][i1].c[2]+gTrackColors[gTrackNum][i2].c[2]+gTrackColors[gTrackNum][i3].c[2];
     rgb[2] = sum >> 2;
     if (m->airdist[2] >= 20.0f) {
         d1 = 0.025f * (m->airdist[2] - 20.0f);
         if (d1 > 1.0f)
-            return ((Color *)gTrackColors[gTrackNum])[gTrackBaseColors[gTrackNum]];
+            return gTrackColors[gTrackNum][gTrackBaseColors[gTrackNum]];
         if (d1 > 0.0f) {
-            sclr2.w = ((Color *)gTrackColors[gTrackNum])[gTrackBaseColors[gTrackNum]].w;
+            sclr2.rgba = gTrackColors[gTrackNum][gTrackBaseColors[gTrackNum]].rgba;
             d2 = 1.0f - d1;
             a = rgb[0];
-            b = sclr2.b[0];
+            b = sclr2.c[0];
             rgb[0] = a * d2 + b * d1;
             a = rgb[1];
-            b = sclr2.b[1];
+            b = sclr2.c[1];
             rgb[1] = a * d2 + b * d1;
             a = rgb[2];
-            b = sclr2.b[2];
+            b = sclr2.c[2];
             rgb[2] = a * d2 + b * d1;
         }
     }
-    clr.b[0] = rgb[0];
-    clr.b[1] = rgb[1];
-    clr.b[2] = rgb[2];
-    clr.b[3] = 255;
+    clr.c[0] = rgb[0];
+    clr.c[1] = rgb[1];
+    clr.c[2] = rgb[2];
+    clr.c[3] = 255;
     return clr;
 }
 
@@ -129,11 +124,11 @@ void AnimateFrame(tVisual *v, s16 op)
     u32 flags;
     u32 hobj;
     u32 sobj;
-    Color clr;
-    Color sclr1;
-    Color sclr2;
+    tRGBA clr;
+    tRGBA sclr1;
+    tRGBA sclr2;
     int tex;
-    Color nextclr;
+    tRGBA nextclr;
 
     slot = v->slot;
     m = &pc_models[slot];
@@ -155,11 +150,11 @@ void AnimateFrame(tVisual *v, s16 op)
     }
 
     nextclr = GetCarsIRColor(car, m);
-    clr.w = nextclr.w;
+    clr.rgba = nextclr.rgba;
     car->prevIRclr = car->IRclr;
-    car->IRclr = clr.w;
-    sclr1.w = SheenColors[gTrackNum][0].rgba;
-    sclr2.w = SheenColors[gTrackNum][1].rgba;
+    car->IRclr = clr.rgba;
+    sclr1.rgba = SheenColors[gTrackNum][0].rgba;
+    sclr2.rgba = SheenColors[gTrackNum][1].rgba;
 
     if (car->in_tunnel != 0) {
         if (car->sheenAlpha < 0x20) {
@@ -174,18 +169,18 @@ void AnimateFrame(tVisual *v, s16 op)
             PC_EACH30(car->sheenAlpha += 0x19;)
         }
     }
-    sclr1.b[3] = car->sheenAlpha;
-    sclr2.b[3] = car->sheenAlpha;
+    sclr1.c[3] = car->sheenAlpha;
+    sclr2.c[3] = car->sheenAlpha;
     if (gRace == kGhost && slot > 0) {
-        clr.b[3] = 0x80;
+        clr.c[3] = 0x80;
     } else if (gRace == kBattle && (car->defense_active & 1)) {
-        clr.b[3] = car->fadeAlpha;
-        sclr1.b[3] = car->fadeAlpha;
-        sclr2.b[3] = car->fadeAlpha;
+        clr.c[3] = car->fadeAlpha;
+        sclr1.c[3] = car->fadeAlpha;
+        sclr2.c[3] = car->fadeAlpha;
     } else {
-        clr.b[3] = 0xFF;
+        clr.c[3] = 0xFF;
     }
-    SetFrameColor(slot, &clr.w);
+    SetFrameColor(slot, &clr.rgba);
     SetSheenColor(slot, &sclr1, &sclr2);
 
     if (hulk) {
@@ -220,8 +215,8 @@ void AnimateFrame(tVisual *v, s16 op)
         if (car->sheenAlpha < 0x11) {
             MBOX_HideObject(sobj, 1, 15);
         } else {
-            sclr1.b[3] = car->sheenAlpha;
-            sclr2.b[3] = car->sheenAlpha;
+            sclr1.c[3] = car->sheenAlpha;
+            sclr2.c[3] = car->sheenAlpha;
             SetSheenColor(slot, &sclr1, &sclr2);
         }
     } else if ((gRace == kBattle || gRace == kStunt) && gNumWindows >= 3) {
@@ -275,7 +270,7 @@ void AnimateRocketFlame(s16 slot, int hulk)
     tCarData *car;
     tUVMatrix *mat;
     tUVMatrix *flames[3];
-    Color clr = { {255,255,255,255} };
+    tRGBA clr = { {255,255,255,255} };
     float scale1;
     float pos[3];
     int mph;
@@ -291,9 +286,9 @@ void AnimateRocketFlame(s16 slot, int hulk)
     MBOX_ShowObject(gCarParts[slot].extraparts[0],0,15);
     MBOX_ShowObject(gCarParts[slot].extraparts[1],0,15);
     MBOX_ShowObject(gCarParts[slot].extraparts[2],0,15);
-    if(gRace==kGhost && slot>0) clr.b[3]=128;
+    if(gRace==kGhost && slot>0) clr.c[3]=128;
     else if(gRace==kBattle && (car->defense_active&1))
-        clr.b[3]=car->fadeAlpha;
+        clr.c[3]=car->fadeAlpha;
     ZOID_SetColor(gCarParts[slot].extraparts[0], &clr);
     ZOID_SetColor(gCarParts[slot].extraparts[1], &clr);
     ZOID_SetColor(gCarParts[slot].extraparts[2], &clr);

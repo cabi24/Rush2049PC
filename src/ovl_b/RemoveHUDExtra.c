@@ -1,14 +1,12 @@
 /* RemoveHUDExtra: remove the battle and stunt HUD extras (MAT3 hudextra.c; runtime image B). */
 #include "game/game.h"
 
-#define blit hudextra_blit
-
 /* Removes the extras' multiblit and every window's weapon, powerup, battle coin and stunt coin icons (3D objects),
  * leaving them their "none" types (8, 0 and 11). */
 void RemoveHUDExtra(void)
 {
     int player, j;
-    if (blit) { RemoveBlit(blit); blit = 0; }
+    if (hudextra_blit) { RemoveBlit(hudextra_blit); hudextra_blit = 0; }
     for (player = 0; player < gNumWindows; player++) {
         if (weaponIcon[player].idx != -1) {
             ZOID_RemoveObject(weaponIcon[player].idx);

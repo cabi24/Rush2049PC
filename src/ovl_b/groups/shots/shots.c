@@ -3,7 +3,7 @@
  * and invisibility (UpdateDefense) and the gun's aim (ElevateGun) too. */
 #include "game/game.h"
 
-typedef union RGBA { u8 c[4]; u32 rgba; } RGBA;
+typedef union RGBA { u8 c[4]; u32 rgba; } RGBA;   /* the car view's IRclr only (wave 4: tRGBA) */
 
 typedef struct Pad {
     u8 slot, controller; u8 pad02[2];
@@ -379,7 +379,7 @@ reduceScale:
  * its invisibility (the car faded out and back) counts down and ends. */
 void UpdateDefense(Car *car, tModelData *m, Defense *defense, s32 i)
 {
-    RGBA clr = { { 255, 255, 255, 255 } };
+    tRGBA clr = { { 255, 255, 255, 255 } };
     s32 j, k;
 
     if ((defense->active & 1) && car->battle.fadeState != 2) {
@@ -462,7 +462,7 @@ void UpdateShots(void)
     f32 vel;
     f32 off[3];
     s32 pady;
-    RGBA clr = { { 255, 255, 255, 255 } };
+    tRGBA clr = { { 255, 255, 255, 255 } };
     f32 verts[4][3];
     f32 scale;
     f32 radius;

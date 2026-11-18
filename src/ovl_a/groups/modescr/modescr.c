@@ -15,7 +15,6 @@ typedef struct Resource { void *next, *prev; void (*RemoveFile)(void *), (*MoveF
 typedef struct Owner { void *unknown0,*unknown4; Resource **fileh; } Owner;
 /* A player's pad record (MAT3 tPadState, gPlayers): only its profile. */
 typedef struct Player76 { u8 unknown0[72]; Owner **profile; } Player76;
-typedef struct Blit Blit;
 
 VIEW(Slot64[13], modescr_buttonInfo);
 #define modescr_buttonInfo modescr_buttonInfo_view

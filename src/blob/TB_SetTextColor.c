@@ -1,14 +1,5 @@
 /* TB_SetTextColor: the text colour by name (MAT3 TB_text.c). */
 #include "game/game.h"
-#define Color8 Color8View   /* this file's own Color8: include/game's Color8 is another type */
-
-typedef struct Color4 {u8 r,g,b,a;} Color4;
-typedef struct Color8 {Color4 color;u8 extra[4];} Color8;
-
-VIEW(Color4, gFlashColor2);
-#define gFlashColor2 gFlashColor2_view
-VIEW(Color4, gFlashColor1);
-#define gFlashColor1 gFlashColor1_view
 
 /* Makes the text colour entry color of the colour table (kTB_*Text; each entry's second colour is unused here), or for
  * kTB_FlashText the mix of gFlashColor2 and gFlashColor1 by gColorCycle, which then changes every frame: the first
@@ -22,12 +13,12 @@ void TB_SetTextColor(int color)
    }
   }
   HAL_SetTextColor(
-   (u8)(gFlashColor2.r*(1.0f-gColorCycle)+gFlashColor1.r*gColorCycle),
-   (u8)(gFlashColor2.g*(1.0f-gColorCycle)+gFlashColor1.g*gColorCycle),
-   (u8)(gFlashColor2.b*(1.0f-gColorCycle)+gFlashColor1.b*gColorCycle),
-   (u8)(gFlashColor2.a*(1.0f-gColorCycle)+gFlashColor1.a*gColorCycle));
+   (u8)(gFlashColor2.c[0]*(1.0f-gColorCycle)+gFlashColor1.c[0]*gColorCycle),
+   (u8)(gFlashColor2.c[1]*(1.0f-gColorCycle)+gFlashColor1.c[1]*gColorCycle),
+   (u8)(gFlashColor2.c[2]*(1.0f-gColorCycle)+gFlashColor1.c[2]*gColorCycle),
+   (u8)(gFlashColor2.c[3]*(1.0f-gColorCycle)+gFlashColor1.c[3]*gColorCycle));
  } else {
-  HAL_SetTextColor(gFontColors[color].color.r,gFontColors[color].color.g,
-   gFontColors[color].color.b,gFontColors[color].color.a);
+  HAL_SetTextColor(gFontColors[color][0].c[0],gFontColors[color][0].c[1],
+   gFontColors[color][0].c[2],gFontColors[color][0].c[3]);
  }
 }

@@ -2,10 +2,6 @@
  * name and value beside its 3D buttons. */
 #include "game/game.h"
 
-
-VIEW(tRGBA, flashColors_at_1);
-#define flashColors_at_1 flashColors_at_1_view
-
 extern int sprintf(char *,const char *,...);
 
 

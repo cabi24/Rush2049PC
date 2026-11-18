@@ -3,10 +3,6 @@
 
 typedef struct Slot { f32 x,y,angle; u8 unknown0C[36]; f32 position[3]; u8 unknown3C[4]; } Slot;
 
-
-VIEW(tRGBA, flashColors_at_1);
-#define flashColors_at_1 flashColors_at_1_view
-
 #define TEXT_MODE_TITLE 40          /* gText.single[]: the screen's title */
 #define TEXT_ONE_PLAYER 29          /* gText.single[]: "player" */
 #define TEXT_PLAYERS 20             /* gText.tab[]: "players" */

@@ -68,7 +68,8 @@ s32 animResults(s32 unused)
         if (resultPane[playerIdx] == 0) {
             s32 h = TB_GetFontLineHeight() * 3 / 2;
             resultPane[playerIdx] = InitPane(x - 69, y - h - 4, x + 69, h + y + 4, 192, 0, playerIdx << 4, 1);
-            ChangePaneColor(resultPane[playerIdx], &hud_playerPaneColors[playerIdx].x, &hud_playerPaneColors[playerIdx].y);
+            ChangePaneColor(resultPane[playerIdx], hud_playerPaneColors[playerIdx].pane.c,
+                            hud_playerPaneColors[playerIdx].border.c);
         }
         if (gRace == kStunt) {
             TB_Sprintf(str, "%s\n%d %s", *gPlayers[playerIdx].name + PROFILE_OFS(20), gStuntPlayer[playerIdx].totalPoints,

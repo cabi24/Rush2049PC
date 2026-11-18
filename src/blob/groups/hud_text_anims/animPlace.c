@@ -73,7 +73,7 @@ s32 animPlace(s32 blit)
             TB_SetTextColor(kTB_BlackText);
             TB_DrawText(x + 1, y + 1, ch);
             if (k < slash) {
-                HAL_SetTextColor(hud_playerColor[i].r, hud_playerColor[i].g, hud_playerColor[i].b, 255);
+                HAL_SetTextColor(hud_playerColor[i].c[0], hud_playerColor[i].c[1], hud_playerColor[i].c[2], 255);
             } else {
                 TB_SetTextColor(kTB_WhiteText);
             }

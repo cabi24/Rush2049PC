@@ -1,8 +1,6 @@
 /* The player (profile select) screen's tear-down (MAT3 playerscr.c uninitScreen and uninitButtons). */
 #include "game/game.h"
 
-typedef struct Blit Blit;typedef struct FiveParts FiveParts;
-
 
 /* Take the screen down: every player's buttons and pane, the controls screen, the text blit and the background; the
  * view goes back to one window with the usual 90-degree field of view, and the scene is reset. */
@@ -12,7 +10,7 @@ void playerscr_uninitScreen(void)
     for(i=0;i<gNumPlayers;i++) {
         playerscr_uninitButtons(i);
         if(playerscr_pane[i]) {
-            RemovePane((tBlitSet *)playerscr_pane[i]);
+            RemovePane(playerscr_pane[i]);
             playerscr_pane[i]=0;
         }
     }

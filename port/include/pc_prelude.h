@@ -49,17 +49,6 @@ void pc_os_idle(void);
 /* A visual (tVisual: N64 0x18 bytes, PC 0x28), struct pc_visual, is declared with the car record in
  * pc_game_types.h (included at the end), for views of the car record that pad over the car's 21 visuals. */
 
-/* NewMultiBlit's descriptor (NewMultiBlit; MultiBlit, arcade LIB/blit.h): N64 36 bytes, PC 48, its texture name and
- * animation function being pointers. A file whose declaration of such a table has no layout (s32, u8[]) declares it
- * with this one on the PC, so the data loader gives the table its PC layout (docs/port/BRINGUP.md 1). */
-struct pc_multiblit {
-    const char *texname;
-    short dulx, duly, width, height, top, bot, left, right;
-    unsigned int zdepth, alpha;
-    int (*animfunc)(void *);
-    unsigned int animid;
-};
-
 /* The car record (gGameCar, 6 cars) is 0x510 bytes on the PC, 0x3B8 on the N64: its 21 visuals are 0x28 bytes (struct
  * pc_visual: next, the data word and func pointer-sized) from +0x110 to N64 +0x308, and its input record pointer at
  * N64 +0x380 is 8 bytes. CAR_OFS(n) is the PC offset of N64 offset n, which may run into the next cars (CAR_OFS(0x3B8)

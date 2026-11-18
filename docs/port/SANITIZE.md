@@ -316,6 +316,8 @@ across a cache line costs time). A misaligned atomic (`LDXR`, `CAS`, a locked x8
 vector access would fault or trap, and GCC uses neither for a one-word copy. It is undefined in C. **Fix**: the six
 locals are aligned to 4 under `TARGET_PC` (`PC_WORD_ALIGNED`, empty for the N64, on the declarations' own lines, so
 `n64_neutral.py` sees the functions shifted, not changed). The full-UBSan run has no alignment site after it.
+Since wave 4 each is a `tRGBA`, which its word aligns to 4, and `PC_WORD_ALIGNED` is gone ([RECORDS.md](RECORDS.md)
+3.3).
 
 ### 3.3 The retail paths under all of UBSan
 

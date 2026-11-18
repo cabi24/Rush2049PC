@@ -1,33 +1,12 @@
 /* The HUD's finish flag on the track map (MAT3 hud.c animFlag): an animation function of a blit. */
 #include "game/game.h"
 
-/* A blit (MAT3 _tBlit_2), the PC's layout. */
-typedef struct Blit {
-    char *name;
-    void *palette;
-    void *texture;
-    u16 texIndex;
-    s16 x;
-    s16 y;
-    u16 z;
-    s16 width;
-    s16 height;
-    u8 alpha;
-    u8 flip;
-    s8 hide;
-    s8 init;
-    s16 top, bot, left, right;
-    s16 color;
-    void *animFunc;
-    u32 animID;         /* the frame shown */
-    intptr_t animDTA;   /* milliseconds to the next frame */
-} Blit;
-
 /* On the track map (one to four windows, the map shown, a lap race but not battle, stunt or obstacle, gRace 4-6),
  * from the last lap on: places the flag at the finish line's place on the map (mirrored for a mirrored track). On
  * the last lap, unless practising (1) or in the demo, the laps left are drawn there instead; else the flag waves,
- * a frame each 100 ms, half translucent. Returns 1: the blit stays. */
-s32 animFlag(Blit *blt)
+ * a frame each 100 ms (the blit's animID is the frame shown, its animDTA the milliseconds to the next), half
+ * translucent. Returns 1: the blit stays. */
+s32 animFlag(tBlit *blt)
 {
     s32 x, y, width, height, w, h, xoff, yoff;
 

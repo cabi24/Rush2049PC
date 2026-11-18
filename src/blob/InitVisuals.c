@@ -15,7 +15,7 @@ void InitVisuals(s32 cars) {
     u16 tex;
 
     for (i = 0; i < 32; i++) {
-        paint_colors[i] = (u16)GPACK_RGBA5551(paint_colors_rgb[i].r, paint_colors_rgb[i].g, paint_colors_rgb[i].b, 0) | 1;
+        paint_colors[i] = (u16)GPACK_RGBA5551(paint_colors_rgb[i].c[0], paint_colors_rgb[i].c[1], paint_colors_rgb[i].c[2], 0) | 1;
     }
     gCarTeamColor[0] = 11;
     gCarTeamColor[1] = 5;

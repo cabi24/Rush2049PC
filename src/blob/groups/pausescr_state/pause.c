@@ -2,9 +2,6 @@
  * page is made of. */
 #include "game/game.h"
 
-typedef struct Blit Blit;
-typedef struct MultiBlit MultiBlit;
-
 /* HAL_SetFont without its result. */
 void ps_SetFont(s32 font)
 {
