@@ -104,11 +104,11 @@ extern s32 gStuntMode;
 extern s32 gStuntFlow;
 extern tGhostHeader *gGhostToSave;
 extern s32 gStuntModeMins;
-extern struct PlayerRec *gGhostPlayers[EXTENT(4)];
+extern tProfile *gGhostPlayers[EXTENT(4)];   /* the ghosts' drivers in a ghost race: handles of gRealGhostPlayers */
 extern s32 gStuntModePoints;
 extern tProfile gRealGhostPlayers[EXTENT(4)];
 extern s32 gStuntModeDeaths;
-extern struct Ghost *gNewGhosts[EXTENT(4)];
+extern tGhostFile *gNewGhosts[EXTENT(4)];   /* the race's recordings, by player: handles of gRealNewGhosts */
 extern s32 gBattleMode;
 extern tGhostFile gRealNewGhosts[EXTENT(4)];
 extern s32 gBattleModeMins;

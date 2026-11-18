@@ -12,8 +12,6 @@ typedef struct tCircuit {
     s8 type;                /* 0x8 kCircuitBeginner ... kCircuitExtreme */
     s8 track;               /* 0x9 the races run */
 } tCircuit;
-/* A profile's save data (MAT3 tSaveData): the circuit at 0x6F4 (MAT3 0x6F8: the N64's records are 4 bytes earlier). */
-typedef struct SaveData { u8 records[0x6F4]; tCircuit circuit; } SaveData;
 
 /* The circuit menu's rows (gCircuitMenuSelect, MAT3 enum_kCircuitMenuCount). */
 #define kCircuitMenuContinue 0
@@ -75,9 +73,6 @@ void resetEnabled(void)
         gContinueEnabled = 0;
     }
 }
-
-VIEW(u8 *, gPasswordAlphabet);
-#define gPasswordAlphabet gPasswordAlphabet_view
 
 /* The circuit code entry's input: the d-pad (auto-repeating) moves over the 32 letters (12 a row, the delete button
  * after the last row's 8), A adds a letter or deletes one; the 20th letter checks the code (SetCircuitCode): a bad
@@ -141,25 +136,8 @@ void controlCircuitCode(void)
     }
 }
 
-/* A pak file record (MAT3 tPS_File) in its PC layout (pc_prelude.h PSF_OFS, docs/port/POINTERS.md 9.10): pak is
- * the pak it is on. */
-typedef struct Item { void *next, *prev; void (*RemoveFile)(void *), (*MoveFile)(void *, void *); u8 pak; } Item;
-typedef struct Selection { Item *file; } Selection;
-typedef struct Resource { u8 *bytes; } Resource;
-typedef struct MenuOwner MenuOwner;
-/* A profile (MAT3 tPlayerProfile) in its PC layout, 64 bytes (pc_prelude.h PROFILE_OFS): the links of
- * gPlayerFiles, its pak file (NULL for a guest), its id, its name, its save data. */
-typedef struct OwnerBody {
-    MenuOwner *next, *previous;
-    Selection *fileh;
-    u8 id[8];
-    u8 name[24];            /* 0x20 (N64 0x14) */
-    Resource *datah;        /* 0x38 */
-} OwnerBody;
-/* A profile handle (MAT3 tPlayerProfile **). */
-struct MenuOwner { OwnerBody *body; };
 /* A player's pad record (MAT3 tPadState, gPlayers): only its profile. */
-typedef struct Player { u8 other[72]; MenuOwner *owner; } Player;
+typedef struct Player { u8 other[72]; tProfile **owner; } Player;
 typedef struct Blit Blit;
 typedef struct FiveParts FiveParts;
 typedef struct MultiBlit {
@@ -185,7 +163,7 @@ void circuitscr_initScreen(void)
     s32 model;
     s16 texture_index;
     for (i = 0; i < gNumPlayers; i++) {
-        SavePlayerRaceType((u8 ***)gPlayers[i].owner, gRace);
+        SavePlayerRaceType(gPlayers[i].owner, gRace);
     }
     newCircuitType = 0;
     if (gCircuit->active && gCircuit->track == 0)
@@ -236,7 +214,7 @@ void circuitscr_initScreen(void)
  * resetEnabled allows them. */
 s32 menuItemValid(s32 mode)
 {
-    return (mode != kCircuitMenuCode || gPlayers[gCircuitPlayer].owner->body->fileh == 0)
+    return (mode != kCircuitMenuCode || (*gPlayers[gCircuitPlayer].owner)->fileh == 0)
         && (!(mode == kCircuitMenuContinue) || gContinueEnabled != 0)
         && (!(mode == kCircuitMenuStats) || gStatsEnabled != 0);
 }
@@ -250,7 +228,7 @@ s32 menuItemValid(s32 mode)
 void updateCircuitScreen(void)
 {
     s32 i;
-    gCircuit = &((SaveData *)gPlayers[gCircuitPlayer].owner->body->datah->bytes)->circuit;
+    gCircuit = &(*(*gPlayers[gCircuitPlayer].owner)->datah)->circuit;
     if (gSkipToGameState != SKIP_NONE) {
         if (gSkipToGameState != gGameState) {
             setGameState(GS_TRACK);
@@ -369,8 +347,8 @@ void updateCircuitScreen(void)
         }
     }
     for (i = 0; i < gNumPlayers; i++) {
-        if (gPlayers[i].owner->body->fileh) {
-            if (PS_PakChanged(gPlayers[i].owner->body->fileh->file->pak)) {
+        if ((*gPlayers[i].owner)->fileh) {
+            if (PS_PakChanged((*gPlayers[i].owner)->fileh->file->pak)) {
                 circuitscr_uninitScreen();
                 setGameState(GS_PLAYER);
                 return;
@@ -685,7 +663,7 @@ void getFinishedStr(u8 *destination)
 /* Player's profile name, into destination (MAT3 circuitscr.c getPlayerStr). */
 void getPlayerStr(s32 player,u8 *destination)
 {
-    TB_Strcpy(destination,gPlayers[player].owner->body->name);
+    TB_Strcpy(destination,(*gPlayers[player].owner)->name);
 }
 
 /* The progress box's size and place (gProgressWidth, gProgressHeight, gProgressTop): wide enough for the circuit's
@@ -742,9 +720,6 @@ void calcProgressSize(void)
     gProgressTop = gMenuBottom + (220 - gMenuBottom - gProgressHeight) / 2;
 }
 
-VIEW(u8 *[], gDefaultNames);
-#define gDefaultNames gDefaultNames_view
-
 /* The review: the six cars' places, names and points, in two columns of three by place, the players' in their
  * colour, over the whole circuit so far (the review on its last race) or for the reviewed race (a race a car didn't
  * run: a line of text instead, and no more). */
@@ -775,7 +750,7 @@ void drawReview(void)
         y=129+(rank%3)*24;
         TB_DrawText(TB_CenterText(number,x+6),y+1,number);
         HAL_SetFont(11);
-        if(i<gNumPlayers)TB_Strcpy(name,gPlayers[i].owner->body->name);
+        if(i<gNumPlayers)TB_Strcpy(name,(*gPlayers[i].owner)->name);
         else TB_Strcpy(name,gDefaultNames[gCircuitCars[i].name]);
         TB_DrawEllipseText((s16)(x+15),y+2,120,name);
         TB_Sprintf(number,circuitscr_review_points_format,gReviewTrack==gCircuit->track ?

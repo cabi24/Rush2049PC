@@ -55,7 +55,7 @@ enum {
     kPS_ErrUnknown = 15        /* any other libultra error (MAT3's kPS_ErrUnknown is 14) */
 };
 
-/* ---- The records. types.h names them (typedef struct tProfile tProfile ...) for the headers before this one.
+/* ---- The records. types.h names them (typedef struct tPak tPak ...) for the headers before this one.
  *
  * In memory: the pak system's paks (tPak), their files (tPakFile) and the open files (PakFileRecord, reached through
  * a tPakHandle); a profile (tProfile) and a ghost (tGhostFile) for each profile and ghost file found on a pak, each
@@ -99,6 +99,11 @@ struct tPak {
     u8 unused2[2];
     tPakFile files[16];
 };
+
+/* The pak system's error callback (gErrorFunc; PS_InitPakSys sets it to PS_ErrorFunc, the pak error dialog): it shows
+ * error `error` (kPS_Err*) on pak `pak`, with the pages a file needs (`blocks`), and sets *retry to try again; poll,
+ * when given, says whether the pak was taken out meanwhile. */
+typedef void (*PakErrorFunc)(s32 pak, s32 error, u32 blocks, s32 unused, s8 *retry, s8 *status, s32 (*poll)(s32));
 
 #define NUM_PAKS 4          /* one a controller */
 #define PAK_MAX_FILES 16    /* the files a pak holds (tPak.files) */
@@ -149,14 +154,6 @@ struct PakFileRecord {
                                                     * read */
 };
 
-/* The profiles on the paks (gPlayerFiles): a list header as AudioList (of handles), its first two words read as
- * words. */
-struct PlayerFileList {
-    u32 unknown0;             /* indirect, doubly */
-    u32 unknown4;             /* count */
-    void *head;
-    void *tail;
-};
 
 /* The parts of a profile file (tSaveData), each at its offset in the file. Each starts with the checksum of the rest
  * (CalcChecksumInternal), which CheckAndRepairPlayer checks. MAT3's layouts and names (save.c's anon_checksum_*). */
@@ -357,7 +354,8 @@ struct tGhostHeader { /* 0x58 bytes */
     u16 tournamentKey;      /* 0x24 */
     u8 pad26[2];            /* 0x26 */
     u32 playerId[2];        /* 0x28 the driver's profile id */
-    u32 bestTime;           /* 0x30 the driver's best time on the track when recorded */
+    u32 id;                 /* 0x30 the ghost's number: the driver's ghost races on the track before it (its profile's
+                             * raceStats totalGhosts; MAT3 id) */
     f32 frameTime;          /* 0x34 the model step it was recorded at (MAT3 retraceTime) */
     f32 finish;             /* 0x38 the race time */
     u32 zippedSize;         /* 0x3C */
@@ -390,7 +388,7 @@ struct tGhostFile {
  * Each pak's profiles are player_profile_records, reached through handles (player_profile_handles); gPlayerFiles
  * lists the profiles read, linked through their handles (next, prev). gRealJustPlayers are the four without a pak
  * ("Player n"), gRealGhostPlayers the drivers of a ghost race's ghosts. */
-struct tProfile {
+struct tPlayerProfile {
     tProfile **next;          /* the next profile's handle on gPlayerFiles (MAT3 ll.next) */
     tProfile **prev;          /* the one before (MAT3 ll.prev) */
     tPakHandle *fileh;        /* its pak file, NULL for a profile without one */
@@ -401,11 +399,13 @@ struct tProfile {
     tSaveData **datah;        /* its file's data once read (the pak file's data handle), else NULL */
 };
 
-/* The owners of the high score tables' entries (gTotalNames, a track each). */
-typedef struct RecordOwner { /* 0x78 bytes */
-    intptr_t names[2][5];    /* 0x0 */
-    struct Profile **who[5]; /* 0x50 */
-} RecordOwner;
+/* Who set a time in the high score tables (gTotalNames; the high score screen's gThisPlayer): a profile's handle, or
+ * for a player without a profile the name typed on the high score screen, by its index in gTempNames (0 to 19); -1
+ * for none. MAT3 keeps both in the handle (tPlayerProfile **); here they are a union, pointer-sized either way. */
+typedef union tScoreOwner {
+    intptr_t name;            /* the typed name's index in gTempNames, or -1 */
+    tProfile **profile;       /* the profile's handle */
+} tScoreOwner;
 
 /* Data */
 extern u8 rumble_thread_stack_top[EXTENT(4096)];
@@ -454,58 +454,61 @@ extern char ghost_file_ext[EXTENT(4)];
 extern char player_file_prefix[EXTENT(12)];
 extern char player_file_digits_format[EXTENT(8)];
 extern u8 password_gData[EXTENT(32)];
-extern PlayerFileList gPlayerFiles;
-extern struct Record **gLimboGhosts;
+extern AudioList gPlayerFiles;   /* the profiles read from the paks, in name order: a list of their handles */
+extern tGhostFile **gLimboGhosts;   /* the ghosts kept in memory ("limbo"), three a track: gRealLimboGhosts' handles */
 extern tProfile gRealJustPlayers[EXTENT(4)];
 extern tSaveData *gJustPlayerData[EXTENT(4)];   /* their data (gRealJustPlayerData), through these handles */
 extern tSaveData gRealJustPlayerData[EXTENT(4)];
-extern void **player_profile_handles[EXTENT(4)][16];
-extern tProfile player_profile_records[EXTENT(4)][16][1];
-extern struct Record *gRealLimboGhosts;
+extern tProfile *player_profile_handles[EXTENT(4)][16];   /* by pak and file number: a profile's handle */
+extern tProfile player_profile_records[EXTENT(4)][16];    /* the profiles they hold (NewPlayer) */
+extern tGhostFile *gRealLimboGhosts;   /* the records gLimboGhosts' handles hold, in the heap (SaveInit) */
 extern u8 gNumLimbo;
 extern s8 gRankedPlayer[EXTENT(4)];
-extern void (*gErrorFunc)(s32, s32, u32, s32, s8 *, s8 *, s32 (*)(s32));
+extern PakErrorFunc gErrorFunc;
 extern u8 gLap[EXTENT(4)];
 extern tPak gPaks[EXTENT(4)];
 extern tPakHandle pak_file_handles[EXTENT(64)];   /* the open files' handles, one a pak_file_records entry */
-extern AudioList gPS_Files[EXTENT(4)];
+extern AudioList gPS_Files[EXTENT(4)];   /* each pak's open files: a list of their handles */
 extern f32 gBestLapTime[EXTENT(4)];
 extern PakFileRecord pak_file_records[EXTENT(64)];
 extern s8 gOptions[EXTENT(kNumOptions)];   /* the options, a byte each by kOpt* (MAT3: signed char gOptions[41]) */
 extern tProfile *gJustPlayers[EXTENT(4)];   /* the controllers' own profiles, "Player n" (gRealJustPlayers) */
-extern s32 gBattlePoints;
+extern s8 gBattlePoints[EXTENT(4)][4];   /* this battle's points, by player: [scorer][victim], the points one scored
+                                         * against the other (RecordBattlePoints; negative for its own deaths) */
 extern f32 gLapTimes[EXTENT(4)][8];
 extern s32 ties;
 extern s8 tied[EXTENT(8)];
-/* What each player has unlocked (CalcUnlockedStuff), a row per player: MAT3 signed char [4][n]. The data loader
- * has other sizes for three of them: one row of gUnlockedTracks (the other three lie in the gap after it, as on the
- * N64), 16 bytes of gUnlockedCars (MAT3 52) and 56 of gUnlockedFrames (MAT3 24); the files that read the rows of the
- * last two view them as [][13] and [][6]. */
-extern s8 gUnlockedTracks[EXTENT(1)][19];
-extern u8 gUnlockedCars[EXTENT(16)];
+/* What each player has unlocked (CalcUnlockedStuff, from the players' records), a row per player: MAT3 signed char
+ * [4][n]. IsCarUnlocked and the others read them; the high score screen shows what a race unlocked. */
+extern s8 gUnlockedTracks[EXTENT(4)][19];
+extern s8 gUnlockedCars[EXTENT(4)][13];
 extern s8 gUnlockedCircuits[EXTENT(4)][4];
-extern s8 gUnlockedTrans[EXTENT(1)][8];
+extern s8 gUnlockedTrans[EXTENT(4)][8];
 extern s8 gUnlockedEngines[EXTENT(4)][9];
 extern s8 gUnlockedTires[EXTENT(4)][5];
-extern u8 gUnlockedFrames[EXTENT(56)];
+extern s8 gUnlockedFrames[EXTENT(4)][6];
 extern u8 gForceUnlockedCircuits[EXTENT(4)];
 extern tRaceStats gTotalRaceStats[EXTENT(12)];
 extern tStuntStats gTotalStuntStats[EXTENT(4)];
 extern tBattleStats gTotalBattleStats[EXTENT(8)];
 extern tObstacleStats gTotalObstacleStats[EXTENT(1)];
 extern tCircuitStats gTotalCircuitStats[EXTENT(4)];
-extern RecordOwner gTotalNames[EXTENT(12)];
+extern tScoreOwner gTotalNames[EXTENT(12)][3][5];   /* by track, the owners of gTotalRaceStats' scores: the five
+                                                     * best laps, average laps and ghost race times */
 extern char gTempNames[EXTENT(20)][13];
 extern u16 gTempNameAges[EXTENT(20)];
-extern s8 gNewTotalScore[EXTENT(16)];
-extern AudioList gGhostFiles;
+extern s8 gNewTotalScore[EXTENT(3)][5];   /* this race's places in the three high score tables of gTotalNames: the
+                                            * player holding each, -1 for none */
+extern AudioList gGhostFiles;   /* the ghosts on the paks, fastest first: a list of their handles */
 extern s8 gTeamPoints[EXTENT(4)];
 extern f32 video_buttonSlideSpeed;
-extern struct ReplaySlot *gGhosts[EXTENT(4)];
+/* By car, in a ghost race: the ghost it records or plays back (a handle), NULL for none. A ghost race's cars are its
+ * players and ghosts, four at most (GhostStart), so the bound is the game's too: the sanitizer builds check it. */
+extern tGhostFile **gGhosts[4];
 extern PakErrorState gPakError[EXTENT(4)][2];
 
 /* Functions */
-void **_ReadGhostHeader(void **fileh);
+tGhostFile **_ReadGhostHeader(tPakHandle *fileh);
 void AddPlayerScores(tProfile **profile);
 void AddPlayerStats(tProfile **profile);
 void *allocate_memory_at(void *ptr, u32 size);
@@ -513,22 +516,22 @@ s32 animControllerDimInternal(tBlit *spr);
 s32 CalcChecksum(void);
 void CalcUnlockedStuff(void);
 void CancelPakError(s32 pak);
-s32 CheckAndRepairGhost(struct Ghost **ghosth, s32 data, s32 repair);
+s32 CheckAndRepairGhost(tGhostFile **ghosth, s32 data, s32 repair);
 void ClearFlush(s32 index);
 s32 ClearPlayerRecords(tProfile **profile);
 void ClearTotalStats(void);
-void **CompressGhost(tGhostHeader *header, s8 *blocks);
+tGhostFile **CompressGhost(tGhostHeader *header, u8 *blocks);
 u8 **ghost_recording(tGhostHeader *header);
 s32 CountBits(u32 x, u8 n);
-void **CreatePlayer(s32 pak, u8 *name);
-void DecodeGhost(struct Obj **h);
-void DeleteGhost(struct Obj **ghosth);
-void DeletePlayer(void **h);
+tProfile **CreatePlayer(s32 pak, u8 *name);
+void DecodeGhost(tGhostFile **h);
+void DeleteGhost(tGhostFile **ghosth);
+void DeletePlayer(tProfile **h);
 void DrawPakErrNoPak(s32 row, s32 col);
 s16 FindTempNameIdx(u8 *name);
 void FindWinner(void);
 void FoundCoin(s32 player, s32 bit);
-void FreeGhost(void **ghosth);
+void FreeGhost(tGhostFile **ghosth);
 s32 game_memcmp(void *memory, u8 *right, s32 count);
 char *game_strncat(char *s1, const char *s2, u32 n);
 u8 *game_strstr(u8 *haystack, u8 *needle);
@@ -550,7 +553,7 @@ void heap_move_block_low(void *addr);
 void highscore_InitScreen(void);
 void InitBattlePoints(void);
 void InitOptions(void);
-void InitPlayer(void **h);
+void InitPlayer(tProfile **h);
 void InitRecords(void);
 s8 IsCarUnlocked(s32 row, s32 col);
 s32 IsCircuitUnlocked(s32 field);
@@ -565,9 +568,9 @@ void load_overlay(u8 *dst, u8 *end, s8 *loaded);
 void load_start_overlay(void);
 u8 *runtime_image_block(void);
 void MovePlayerFile(tPakHandle *from, tPakHandle *to);
-void **NewGhost(void);
+tGhostFile **NewGhost(void);
 s32 NewPassword(u32 dataBits, u32 checksumBits);
-void **NewPlayer(s32 pak, s32 slot);
+tProfile **NewPlayer(s32 pak, s32 slot);
 u8 NumCoinsFound(s32 index, s32 lane);
 void pak_decode_name(u8 *out, u8 *in, u8 len);
 void pak_encode_name(u8 *output, u8 *input, u8 limit);
@@ -577,7 +580,7 @@ s32 pak_find_dirty_run(tPakHandle *handle, u8 **address, s32 *bytes, s32 *offset
 s32 pak_get_free_bytes(s32 pak);
 void pak_insert_file(tPakHandle *fileh);
 void pak_mark_dirty(tPakHandle *handle, u8 *address, u32 bytes, s32 mark);
-struct PakHandle *pfs_get_node(void);
+tPakHandle *pfs_get_node(void);
 s32 Pow(s32 exp);
 tPakHandle *PS_CreateFile(s32 pak, u8 *name, u8 *ext, u32 numBytes, s32 company, s32 gameCode);
 void PS_DeleteFile(tPakHandle *fileh);
@@ -588,7 +591,7 @@ s32 PS_FlushPak(s32 index, s32 mode);
 s32 PS_GetBlocks(s32 bytes);
 u32 PS_GetFreeBlocks(s32 pak);
 s32 PS_GetFreeFiles(s32 pak);
-void PS_InitPakSys(void (*errorFunc)(s32, s32, u32, s32, s8 *, s8 *, s32 (*)(s32)));
+void PS_InitPakSys(PakErrorFunc errorFunc);
 void PS_LockFile(tPakHandle *handle, s32 active);
 s8 PS_PakChanged(s32 pak);
 s8 PS_PakDamaged(s32 pak);
@@ -596,19 +599,19 @@ s32 PS_PakFormatted(s32 pak);
 s8 PS_PakInserted(s32 pak);
 s8 PS_PakRumble(s32 pak);
 void PS_PakServer(s32 forceUpdate, s32 rumbleOnly);
-void PS_PurgeFile(struct Obj **h);
-void PS_ReadFile(void **fileh);
-void PS_ReadPartialFile(struct PakHandle *fileh, s32 offset, u32 numBytes);
+void PS_PurgeFile(tPakHandle *fileh);
+void PS_ReadFile(tPakHandle *fileh);
+void PS_ReadPartialFile(tPakHandle *fileh, s32 offset, u32 numBytes);
 void PS_RumbleGo(void);
 void PS_RumbleStop(void);
 void PS_SetRumblePercent(s32 pak, u32 value);
 void PS_WriteFile(tPakHandle *handle, void *address, u32 bytes);
-void PurgeGhostData(struct Obj **h);
+void PurgeGhostData(tGhostFile **h);
 void PurgePlayerData(tProfile **profile);
-s32 ReadGhostData(struct Obj **h);
-s32 ReadGhostDataInternal(struct Ghost **ghosth, s32 decode, s32 select);
-void **ReadPlayer(void **fileh);
-s32 ReadPlayerData(void **h);
+s32 ReadGhostData(tGhostFile **h);
+s32 ReadGhostDataInternal(tGhostFile **ghosth, s32 decode, s32 select);
+tProfile **ReadPlayer(tPakHandle *fileh);
+s32 ReadPlayerData(tProfile **h);
 void RecordBattle(void);
 void RecordBattlePoints(s8 row, s8 column, s8 delta);
 void RecordCircuit(void);
@@ -621,11 +624,11 @@ void RecordRace(void);
 void RecordStunt(void);
 void RemovePak(s32 pak);
 void RemovePlayerFile(tPakHandle *fileh);
-void RemovePlayerScores(intptr_t handle);
+void RemovePlayerScores(tProfile **profile);
 void ResetHighScores(void);
-s32 save_file_pak_ready(struct Profile **profile, s32 action);
+s32 save_file_pak_ready(tProfile **profile, s32 action);
 void SaveFlush(s32 action);
-s32 SaveGhost(s32 pak, struct Obj **player, struct Obj **saveGhosth, s32 limbo);
+s32 SaveGhost(s32 pak, tProfile **player, tGhostFile **saveGhosth, s32 limbo);
 void SaveGhostInLimbo(tGhostHeader *entry, void *payload);
 void SaveGlobals(void);
 void SaveInit(void);
@@ -643,7 +646,7 @@ void SavePlayerStats(tProfile **profile, u8 track);
 void SavePlayerTrack(tProfile **profile, s32 raceType, u8 value);
 void SaveSelectPlayer(tProfile **profile);
 void SaveServer(s32 forceUpdate, s32 rumbleOnly);
-void SetDefaultCarSettings(void *profile, s32 car);
+void SetDefaultCarSettings(tProfile **profile, s32 car);
 void SetOptions(void);
 void SetPakError(s32 player, s32 mode, s32 x, s32 y, s32 w, s32 h);
 s32 SetPasswordString(u8 *str);

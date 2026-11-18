@@ -8,11 +8,6 @@ typedef struct {
 } PlayerPad; /* 0x4C */
 
 extern PlayerPad gPlayers[];
-VIEW(s8[][13], gUnlockedCars);
-#define gUnlockedCars gUnlockedCars_view
-
-VIEW(s8[][6], gUnlockedFrames);
-#define gUnlockedFrames gUnlockedFrames_view
 
 /* Fills the unlock tables (gUnlockedCars, gUnlockedTrans, gUnlockedEngines, gUnlockedTires, gUnlockedFrames,
  * gUnlockedTracks, gUnlockedCircuits) for each player from its profile, or all of them with the cheats:

@@ -9,12 +9,8 @@ typedef struct Slot64 {
     f32 angle,matrix[3][3],position[3];
     s32 unknown3C;
 } Slot64;
-/* PC: the pak file record's host layout (pc_prelude.h, docs/port/POINTERS.md 9.10): pak is the pak it is on. */
-typedef struct Resource { void *next, *prev; void (*RemoveFile)(void *), (*MoveFile)(void *, void *); u8 pak; } Resource;
-/* A profile (MAT3 tPlayerProfile) in its PC layout: only its pak file handle (NULL for a guest). */
-typedef struct Owner { void *unknown0,*unknown4; Resource **fileh; } Owner;
 /* A player's pad record (MAT3 tPadState, gPlayers): only its profile. */
-typedef struct Player76 { u8 unknown0[72]; Owner **profile; } Player76;
+typedef struct Player76 { u8 unknown0[72]; tProfile **profile; } Player76;
 typedef struct Blit Blit;
 
 VIEW(Slot64[13], modescr_buttonInfo);
@@ -139,8 +135,8 @@ void updateModeScreen(void)
         do { if (++gModeMenuSelect >= kModeMenuCount) gModeMenuSelect = 0; } while (!modescr_optionValid(gModeMenuSelect));
     }
     for (i = 0; i < gNumPlayers; i++) {
-        Resource **fileh = (*gPlayers[i].profile)->fileh;
-        if (fileh && PS_PakChanged((*fileh)->pak)) {
+        tPakHandle *fileh = (*gPlayers[i].profile)->fileh;
+        if (fileh && PS_PakChanged(fileh->file->pak)) {
             modescr_uninitScreen(); setGameState(GS_PLAYER); return;
         }
     }

@@ -2,18 +2,13 @@
  * just entered. */
 #include "game/game.h"
 
-/* The words it looks for (obscenities): 21 strings and an empty one that ends the list. */
-typedef struct List { u8 *p[22]; } List;
-VIEW(List, obscenities);
-#define obscenities obscenities_view
-
-/* Overwrite with '!' every word of the list that name contains (fixword does one word, letting its letters be
- * doubled or spaced out). name is a row of a table that ends at end, where fixword's search stops. Returns non-zero
- * if it changed anything. */
+/* Overwrite with '!' every word of the list (obscenities: 21 strings and an empty one that ends it) that name
+ * contains (fixword does one word, letting its letters be doubled or spaced out). name is a row of a table that ends
+ * at end, where fixword's search stops. Returns non-zero if it changed anything. */
 u8 censor(u8 *name, const u8 *end) {
     u8 changed;
     u8 **word;
-    List list;
+    ObscenityList list;
     list = obscenities;
     changed = 0;
     word = list.p;

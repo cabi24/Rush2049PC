@@ -64,12 +64,12 @@ void highscore_InitScreen(void)
     CalcUnlockedStuff();
     for (p = 0; p < gNumPlayers; p++) {
         gStuffUnlocked[p] = game_memcmp(gPrevUnlockedTracks[p], gUnlockedTracks[p], 19) != 0
-                     || game_memcmp(gPrevUnlockedCars[p], &gUnlockedCars[p * 13], 13) != 0
+                     || game_memcmp(gPrevUnlockedCars[p], gUnlockedCars[p], 13) != 0
                      || game_memcmp(gPrevUnlockedCircuits[p], gUnlockedCircuits[p], 4) != 0
                      || game_memcmp(gPrevUnlockedTrans[p], gUnlockedTrans[p], 8) != 0
                      || game_memcmp(gPrevUnlockedEngines[p], gUnlockedEngines[p], 9) != 0
                      || game_memcmp(&gPrevUnlockedTires[p * 5], gUnlockedTires[p], 5) != 0
-                     || game_memcmp(gPrevUnlockedFrames[p], &gUnlockedFrames[p * 6], 6) != 0;
+                     || game_memcmp(gPrevUnlockedFrames[p], gUnlockedFrames[p], 6) != 0;
         if (gStuffUnlocked[p]) {
             stuffUnlocked = 1;
         }

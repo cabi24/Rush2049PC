@@ -462,7 +462,7 @@ static void test_results(void)
     memset(pc_models, 0, sizeof pc_models);
     memset(pc_cars, 0, sizeof pc_cars);
     gNumPlayers = 1, gNumCars = 12, gRace = 0, gRankedPlayer[0] = 0;
-    strcpy(g_profile + PROFILE_OFS(20), "ME");
+    strcpy(g_profile + 0x20, "ME");                  /* the profile's name (tProfile.name) */
     gPlayers[0].name = &g_profile_p;
     gLap[0] = 1, gNumLaps = 3;
 

@@ -17,11 +17,8 @@ struct tCircuit {
     u8 ranks[54];       /* 0x14 each car's place in each race, 3 bits a race, 9 bytes a car (MAT3 [6][9]) */
 };
 
-/* A player's profile (SaveSlot, host layout: pc_prelude.h), its save data, and its input record (gPlayers). */
-typedef struct Resource { u8 *data; } Resource;
-typedef struct Object { void *next; void *prev; void *fileh; u8 pad0_C[0x2C - 0xC]; Resource *resource; } Object;
-typedef struct Handle { Object *object; } Handle;
-typedef struct Player76 { u8 index, selector; u8 pad2[70]; Handle *handle; } Player76;
+/* A player's input record (gPlayers): its profile. */
+typedef struct Player76 { u8 index, selector; u8 pad2[70]; tProfile **handle; } Player76;
 
 extern Player76 gPlayers[];
 
@@ -38,7 +35,7 @@ s32 SetCircuitCode(u8 *input)
     s32 i, j;
     struct tCircuit *circuit;
 
-    circuit = (struct tCircuit *)(gPlayers[gCircuitPlayer].handle->object->resource->data + 1780);
+    circuit = &(*(*gPlayers[gCircuitPlayer].handle)->datah)->circuit;
     NewPassword(86, 14);
     if (!SetPasswordString(input)) return 0;
     GetPasswordElement(&type, 3);

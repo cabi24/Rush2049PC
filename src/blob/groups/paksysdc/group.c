@@ -25,8 +25,6 @@ typedef struct tDLList {
     u32 count;
     tPakHandle *head, *tail;
 } tDLList;
-typedef s32 (*PakPredicate)(s32);
-typedef void (*PakErrorFunc)(s32, s32, u32, s32, s8 *, s8 *, PakPredicate);
 
 extern s32 osSendMesg(OSMesgQueue *, OSMesg, s32);
 extern s32 osRecvMesg(OSMesgQueue *, OSMesg *, s32);

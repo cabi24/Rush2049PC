@@ -17,10 +17,8 @@ typedef struct MenuItem {
 
 typedef struct PlayerRec {
     u8 pad0[0x48];
-    intptr_t *name;     /* the profile handle: its first word is the profile record, a pointer (POINTERS.md 10) */
+    tProfile **profile; /* the player's profile (a handle) */
 } PlayerRec;
-/* The profile record (save.c's SaveSlot) is 64 bytes on the PC, its name at +0x20 (PROFILE_OFS, pc_prelude.h;
- * docs/port/POINTERS.md 9.10). */
 
 extern PlayerRec gPlayers[];
 
@@ -54,7 +52,7 @@ s32 animTitleText(MenuItem *item) {
         } else if (v == 6) {
             buf[0] = 0;
         } else {
-            TB_Sprintf(buf, pause_player_title_format, *gPlayers[playerInPause].name + PROFILE_OFS(20), gText.taba[gText.tab[TEXT_PAUSE]]);
+            TB_Sprintf(buf, pause_player_title_format, (*gPlayers[playerInPause].profile)->name, gText.taba[gText.tab[TEXT_PAUSE]]);
             TB_SetTextColor(playerTextColor[playerInPause]);
         }
     }

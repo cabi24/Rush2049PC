@@ -6,7 +6,7 @@
  * adds one; UpdateListeners hands it on; StopListeners gives it back), and a new record of the player's save
  * data reached from its input record (NewCircuit: the profile, SaveSlot.data, the data pointer read whole). Every
  * check is on records 1 to 3 too, so a 76-byte stride reads or writes the wrong bytes. The pause screen's title
- * (animTitleText) names the player from its profile, whose name is at +0x20 on the PC (PROFILE_OFS(20)). The pause
+ * (animTitleText) names the player from its profile, whose name is at +0x20 (tProfile.name). The pause
  * screen's pages (the title, the language list animPauseText, the two-choice page animSureText) show and hide their
  * blit through Hidden (animPause.c), its Hide at +0x26 of the Blit's host layout: the N64's +0x1A is the low
  * byte of X (LAYOUT.md 9).
@@ -81,10 +81,10 @@ void *n64_memset(void *p, int c, uint32_t n) { return memset(p, c, n); }
 static void *g_written;
 void PS_WriteFile(void **file, uintptr_t data, int32_t size) { g_written = (void *)data; }
 void NewCircuit(int32_t mode);
-/* A profile (SaveInit' SaveSlot on the PC, POINTERS.md 9.10): its file handle at +16, its data at +56. */
+/* A profile (include/game/save.h's tProfile): its file handle at +16, its name at +32, its data at +56. */
 typedef struct { void *next, *prev; void **file; uint8_t pad24[56 - 24]; void **data; } SaveSlot;
-_Static_assert(offsetof(SaveSlot, file) == PROFILE_OFS(8) && offsetof(SaveSlot, data) == PROFILE_OFS(0x2C),
-               "the profile's host layout");
+#define PROFILE_NAME 0x20
+_Static_assert(offsetof(SaveSlot, file) == 0x10 && offsetof(SaveSlot, data) == 0x38, "the profile's host layout");
 static void *g_saved[8];
 static int g_nsaved;
 void SavePlayerControls(void **profile, int8_t *controls) { g_saved[g_nsaved++ & 7] = profile; }
@@ -272,7 +272,7 @@ static void test_pause_title(void)
     static SaveSlot slot;
     static PauseBlit item;
 
-    strcpy((char *)&slot + PROFILE_OFS(20), "ALICE");
+    strcpy((char *)&slot + PROFILE_NAME, "ALICE");
     gJustPlayers[6] = &slot;
     gPlayers[1].profile = &gJustPlayers[6];
     playerInPause = 1;
@@ -280,7 +280,7 @@ static void test_pause_title(void)
     g_named = g_drawn = NULL;
     page_blit(&item, 0);
     CHECK(animTitleText(&item) == 1);
-    CHECK(g_named == (char *)&slot + PROFILE_OFS(20) && strcmp(g_named, "ALICE") == 0 && g_drawn != NULL);
+    CHECK(g_named == (char *)&slot + PROFILE_NAME && strcmp(g_named, "ALICE") == 0 && g_drawn != NULL);
     CHECK(item.X == 0x1234 && item.Hide == 0 && g_updates == 0);   /* shown already: nothing to update */
 
     /* hidden: the title shows its blit (Hide, host +0x26), once, and leaves X (host +0x1A) as it was */

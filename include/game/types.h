@@ -51,11 +51,9 @@ struct EngineState;
 struct Entity;
 struct Entry;
 struct FiveParts;
-struct Ghost;
 struct GsmState;
 struct GsmStream;
 struct H12;
-struct Handle;
 struct Header;
 struct Header88;
 struct Heap;
@@ -67,7 +65,6 @@ struct Link;
 struct LinkNode;
 struct List;
 struct ListHead;
-struct ListNode;
 struct LookAt;
 struct MODELDAT;
 struct MacroCommand;
@@ -150,12 +147,10 @@ struct Obj;
 struct Object;
 struct Outer;
 struct ObjInstance;
-struct Owner;
 struct P3;
 struct PackedLeadingKey;
 struct Packet;
 struct PadConfig;
-struct PakHandle;
 struct Palette;
 struct PathPoint;
 struct PathPt;
@@ -167,17 +162,14 @@ struct PlayerRec;
 struct PointList;
 struct Poly;
 struct Pool;
-struct Profile;
 struct QNode;
 struct RampState;
 struct Rec32;
 struct RecB;
 struct Reckon;
-struct Record;
 struct Record88;
 struct Region;
 struct RelativeEntry;
-struct ReplaySlot;
 struct ResSlot;
 struct ResourceGroup;
 struct ResourceOffsets;
@@ -186,7 +178,6 @@ struct Row20;
 struct SalMatrix;
 struct SalVector;
 struct SampleRecord;
-struct SaveData;
 struct Sequence20;
 struct SequencePageEntry;
 struct SequencePlayParams;
@@ -256,7 +247,6 @@ struct tModelDef;
 struct tModelPart;
 struct tNewSkid;
 struct tPoly;
-struct tPS_File;
 struct tPaletteDef;
 struct tPlayerProfile;
 struct tSfxCmd;
@@ -270,7 +260,6 @@ struct tWindowInfo;
 struct tree_desc_s;
 struct z_stream_s;
 union Color;
-union InputSequence;
 union tAudioMsg;
 
 /* ---- ultra: libultra and the RSP microcode: the N64 OS interface port/ultra implements */
@@ -639,7 +628,7 @@ typedef struct PcSched { /* 0x2C0 bytes */
 /* An input record (gPlayers, 80 bytes) from its profile handle on (MAT3 tPadState.profile, at +0x48): what
  * gPlayers_save, a label at gPlayers + 0x48, reads per player. */
 typedef struct PlayerTail { /* 0x50 bytes */
-    struct tProfile **profile; /* 0x0 the player's profile (a handle) */
+    struct tPlayerProfile **profile; /* 0x0 the player's profile (a handle) */
     u8 pad[72];                /* 0x8 the next player's record up to its profile */
 } PlayerTail;
 
@@ -1364,11 +1353,10 @@ typedef struct tPak tPak;
 typedef struct tPakHandle tPakHandle;
 typedef struct PakErrorState PakErrorState;
 typedef struct PakFileRecord PakFileRecord;
-typedef struct PlayerFileList PlayerFileList;
 typedef struct tSaveData tSaveData;
 typedef struct tGhostHeader tGhostHeader;
 typedef struct tGhostFile tGhostFile;
-typedef struct tProfile tProfile;
+typedef struct tPlayerProfile tProfile;   /* MAT3 tPlayerProfile */
 
 /* libultra's OSPfsState: a file's entry in a pak's directory (the same layout on the PC). */
 typedef struct PakFileState { /* 0x20 bytes */

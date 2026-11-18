@@ -17,12 +17,8 @@ struct tCircuit {
     u8 ranks[6][9];     /* 0x14 each car's place in each race, 3 bits a race */
 };
 
-/* A profile's save data (the player's tSaveData): its circuit. */
-typedef struct { u8 pad[0x6F4]; struct tCircuit info; } Sess;
-/* A player's profile (SaveSlot, host layout: pc_prelude.h): its save data's handle. */
-typedef struct { void *next; void *prev; void *fileh; u8 pad_C[0x2C - 0xC]; Sess **s; } A;
 /* A player's input record (gPlayers): its profile slot and profile. */
-typedef struct { u8 pad0; u8 selector; u8 pad[0x46]; A **profile; } InRec;
+typedef struct { u8 pad0; u8 selector; u8 pad[0x46]; tProfile **profile; } InRec;
 extern InRec gPlayers[];
 
 /* The circuit's drones: the cars after the players. */
@@ -42,11 +38,11 @@ void ContinueCircuit(void) {
     s32 idx[6];
     s32 m;
     s32 x;
-    Sess *v;
+    tSaveData *v;
     struct tCircuit *info;
     u8 pad[8];
-    v = *((*gPlayers[gCircuitPlayer].profile)->s);
-    info = &v->info;
+    v = *((*gPlayers[gCircuitPlayer].profile)->datah);
+    info = &v->circuit;
     gCircuitSeed = info->seed;
     n = gNumCircuitTracks[info->type];
     if (expansion_pak_present == 0 && n >= 5) n = 5;

@@ -6,22 +6,9 @@
  * starts (GS_GAME_INIT). The 3D cars themselves are selectcarload.c's. */
 #include "game/game.h"
 
-/* A pak file record (MAT3 tPS_File) in its PC layout (pc_prelude.h PSF_OFS, docs/port/POINTERS.md 9.10). */
-typedef struct FileInfo {void *next, *prev; void (*RemoveFile)(void *), (*MoveFile)(void *, void *); u8 pak;} FileInfo;
-/* A profile (MAT3 tPlayerProfile) in its PC layout (pc_prelude.h PROFILE_OFS): fileh NULL for a guest. */
-typedef struct Profile Profile;
-struct Profile {Profile **next,**previous;FileInfo **fileh;u32 id0,id1;u8 name[24];u8 **stats;};
 /* A player's pad record (MAT3 tPadState, gPlayers): its buttons, its transmission choice and its profile. */
-typedef struct Player {u8 slot,controller,pad02[2];u32 pressed,levels,repeated;u8 unknown10[50];u8 trans,unknown43[5];Profile **profile;} Player;
-/* A ghost's save header (MAT3 tSaveHeader): the car it was recorded with and its settings (CAR_SETTING_*). */
-typedef struct SaveHeader {u8 unknown00[8],car,trans;s8 settings[12];} SaveHeader;
-typedef struct Record Record;
-/* A ghost file (MAT3 tGhostFile; SaveInit's Ghost) in its PC layout: its links, pak file, data and header handles are
- * pointers (docs/port/CASTS.md). */
-struct Record {Record **next;FileInfo **fileh;s8 track;u8 backward,name[14];u32 id0,id1;f32 finish;void *datah;SaveHeader **header;};
+typedef struct Player {u8 slot,controller,pad02[2];u32 pressed,levels,repeated;u8 unknown10[50];u8 trans,unknown43[5];tProfile **profile;} Player;
 extern Player gPlayers[];
-VIEW(Record **[4], gGhosts);
-#define gGhosts gGhosts_view
 
 typedef struct FiveParts FiveParts;
 typedef struct Blit Blit;
@@ -30,7 +17,7 @@ typedef struct MultiBlit {char *name;s16 x,y,width,height,top,bottom,left,right;
 VIEW(void *[48], gCarMatrices);
 #define gCarMatrices gCarMatrices_view
 
-/* A profile's per-car settings (GetPlayerCarSetting, SavePlayerCarSetting; a ghost's SaveHeader.settings). */
+/* A profile's per-car settings (GetPlayerCarSetting, SavePlayerCarSetting; a ghost's tGhostHeader.settings). */
 #define CAR_SETTING_HANDLING 0
 #define CAR_SETTING_ENGINE 1
 #define CAR_SETTING_TIRES 2
@@ -87,12 +74,12 @@ void calcStats(s32 player)
  * gLastCar[1..3]. */
 void setGhosts(void)
 {
-    Record **nearGhosts[5];
-    Record **ghosth;
-    Record *ghost;
-    Record **best = 0;
-    Record **nextGhost;
-    Profile *player;
+    tGhostFile **nearGhosts[5];
+    tGhostFile **ghosth;
+    tGhostFile *ghost;
+    tGhostFile **best = 0;
+    tGhostFile **nextGhost;
+    tProfile *player;
     s32 ghostCount;
     s32 i;
     s32 j;
@@ -107,7 +94,7 @@ void setGhosts(void)
             nextGhost = ghost->next;
             if (ghost->track == gTrackNum && ghost->backward == gBackwards &&
                 !game_strcmp(ghost->name, player->name) &&
-                player->id0 == ghost->id0 && player->id1 == ghost->id1) {
+                player->id[0] == ghost->playerId[0] && player->id[1] == ghost->playerId[1]) {
                 if ((!best || ghost->finish < (*best)->finish) && ReadGhostData(ghosth)) best = ghosth;
             }
         }
@@ -116,7 +103,7 @@ void setGhosts(void)
             ghost = *ghosth;
             if (ghost->header && ghost->track == gTrackNum && ghost->backward == gBackwards &&
                 !game_strcmp(ghost->name, player->name) &&
-                player->id0 == ghost->id0 && player->id1 == ghost->id1) {
+                player->id[0] == ghost->playerId[0] && player->id[1] == ghost->playerId[1]) {
                 if ((!best || ghost->finish < (*best)->finish) && ReadGhostData(ghosth)) best = ghosth;
             }
         }
@@ -242,8 +229,8 @@ void setGhosts(void)
         }
     }
     if (!expansion_pak_present) {
-        if (gGhosts[2]) { PurgeGhostData((void **)gGhosts[2]); gGhosts[2] = 0; }
-        if (gGhosts[3]) { PurgeGhostData((void **)gGhosts[3]); gGhosts[3] = 0; }
+        if (gGhosts[2]) { PurgeGhostData(gGhosts[2]); gGhosts[2] = 0; }
+        if (gGhosts[3]) { PurgeGhostData(gGhosts[3]); gGhosts[3] = 0; }
     }
 }
 
@@ -406,7 +393,7 @@ void carscr_InitScreen(void)
         }
         if (gRace == kBattle) gPlayers[p].trans = BATTLE_TRANS;
         else {
-            gPlayers[p].trans = GetPlayerCarTrans((void **)pl->profile);
+            gPlayers[p].trans = GetPlayerCarTrans(pl->profile);
             while (!IsTransUnlocked(p, gPlayers[p].trans)) {
                 gPlayers[p].trans -= 2;
                 if ((s32)gPlayers[p].trans < 0) { gPlayers[p].trans += 2; break; }
@@ -446,9 +433,9 @@ void updateCarScreen(void)
     s16 i;
     s16 p;
     s32 sound = 1;
-    Record **ghosth;
-    Record *ghost;
-    Record **nextGhost;
+    tGhostFile **ghosth;
+    tGhostFile *ghost;
+    tGhostFile **nextGhost;
 
     if (!expansion_pak_present) limboGhosts = gLimboGhosts;
     else limboGhosts = gLimboGhosts + ((gBackwards ? 6 : 0) + gTrackNum) * 3;
@@ -460,7 +447,7 @@ void updateCarScreen(void)
         for (ghosth = gGhostFiles.head; ghosth; ghosth = nextGhost) {
             ghost = *ghosth;
             nextGhost = ghost->next;
-            if (ghost->fileh && !PS_PakInserted((*ghost->fileh)->pak)) continue;
+            if (ghost->fileh && !PS_PakInserted(ghost->fileh->file->pak)) continue;
             if (ghosth == gGhosts[i]) break;
         }
         if (!ghosth) {
@@ -475,7 +462,7 @@ void updateCarScreen(void)
     if (!carscr_inited) carscr_InitScreen();
     showCarSelect();
     for (i = 0; i < gNumPlayers; i++) {
-        if ((*gPlayers[i].profile)->fileh && PS_PakChanged((*(*gPlayers[i].profile)->fileh)->pak)) {
+        if ((*gPlayers[i].profile)->fileh && PS_PakChanged((*gPlayers[i].profile)->fileh->file->pak)) {
             carscr_UninitScreen(); setGameState(GS_PLAYER); carscr_wait = 0; return;
         }
     }
@@ -566,7 +553,7 @@ void updateCarScreen(void)
                 }
                 gThisCar[p] = gCars[p][gThisCarIndex[p]];
                 if (gRace == kBattle) gPlayers[p].trans = BATTLE_TRANS;
-                else gPlayers[p].trans = GetPlayerCarTrans((void **)gPlayers[p].profile);
+                else gPlayers[p].trans = GetPlayerCarTrans(gPlayers[p].profile);
                 for (i = 0; i < CARS; i++) gCarTrans[p + 1][i] = gPlayers[p].trans;
                 calcValidOptions(p);
                 carscr_buttonsJustInited[p] = 1;
@@ -763,8 +750,8 @@ after_options:
         if (gRace == kCircuit) ContinueCircuit();
         if (gRace == kGhost) {
             {
-                Record **gh;
-                for (gh = gGhostFiles.head; gh; gh = (*gh)->next) PurgeGhostData((void **)gh);
+                tGhostFile **gh;
+                for (gh = gGhostFiles.head; gh; gh = (*gh)->next) PurgeGhostData(gh);
             }
             for (i = 1; i < gNumGhosts; i++) {
                 if (!gGhosts[i]) { gGhosts[i] = gGhosts[i + 1]; gGhosts[i + 1] = 0; }
@@ -815,10 +802,10 @@ void calcValidOptions(s32 player)
  * already in a slot, whose data is in memory (or can be read from its pak). The ghosts are walked as one list, the
  * paks' files then the three in memory, wrapping round; from no ghost the walk starts at either end. NULL if none
  * qualifies. */
-Record **getNextGhost(Record **node,s8 direction)
+tGhostFile **getNextGhost(tGhostFile **node,s8 direction)
 {
-    Record **next;
-    Record *record;
+    tGhostFile **next;
+    tGhostFile *record;
     if(!node) {
         if(direction>0)node=gGhostFiles.head;
         else node=limboGhosts+2;

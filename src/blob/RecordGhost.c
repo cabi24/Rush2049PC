@@ -63,15 +63,15 @@ void RecordGhost(void)
                         for (n = 4; n > k; n--) {
                             r->scores[GHOST_SCORES][n] = r->scores[GHOST_SCORES][n - 1];
                             if (j == 1) {
-                                gNewTotalScore[n + 10] = gNewTotalScore[n + 9];
-                                gTotalNames[track].who[n] = gTotalNames[track].who[n - 1];
+                                gNewTotalScore[GHOST_SCORES][n] = gNewTotalScore[GHOST_SCORES][n - 1];
+                                gTotalNames[track][GHOST_SCORES][n] = gTotalNames[track][GHOST_SCORES][n - 1];
                             }
                         }
                         r->scores[GHOST_SCORES][k] = time;
                         if (j == 1) {
-                            gNewTotalScore[n + 10] = i;
+                            gNewTotalScore[GHOST_SCORES][n] = i;
                             if ((*gPlayers[i].profile)->fileh)
-                                gTotalNames[track].who[k] = gPlayers[i].profile;
+                                gTotalNames[track][GHOST_SCORES][k].profile = gPlayers[i].profile;
                         }
                         break;
                     }

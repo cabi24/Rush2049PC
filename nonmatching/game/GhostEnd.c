@@ -1,19 +1,6 @@
 /* GhostEnd: a ghost race's end (MAT3 ghost.c). */
 #include "game/game.h"
 
-typedef struct Ghost {            /* GC __anon_49a9c; N64 layout 0x2C */
-    void *ll;                     /* 0x00 */
-    void **fileh;                 /* 0x04 */
-    s8 track;                     /* 0x08 */
-    u8 backward;                  /* 0x09 */
-    u8 name[13];                  /* 0x0A */
-    u8 pad17;
-    u32 playerId[2];              /* 0x18 */
-    f32 finish;                   /* 0x20 */
-    u8 **datah;                   /* 0x24 */
-    tGhostHeader **header;        /* 0x28 */
-} Ghost;
-
 /* Ends a ghost race (MAT3 GhostEnd): each player's ghost stops; a ghost played back drops its data
  * (PurgeGhostData); a recording of a car that finished keeps its time and length and becomes the ghost to save
  * (gGhostToSave, which the high score screen compresses); one that didn't finish is dropped. */
@@ -29,7 +16,7 @@ void GhostEnd(void)
     gEndingGhosts = 1;
     for (i = 0; i < gNumPlayers; i++) {
         if (gGhosts[i] != 0) {
-            Ghost **ghost = gGhosts[i];
+            tGhostFile **ghost = gGhosts[i];
             gGhosts[i] = 0;
             PC_MODEL_MODELRUN(i) = 0;
             g = *(*ghost)->header;

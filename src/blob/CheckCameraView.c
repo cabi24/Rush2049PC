@@ -40,9 +40,6 @@ typedef struct Model {
     s8 f2015;           /* 2015 */
     u8 other2016[40];
 } Model;                /* 0x808 */
-/* A player's profile (SaveSlot, host layout: pc_prelude.h), and its handle. */
-typedef struct { void *next, *prev, *fileh; u8 other0C[32]; void *resource; } HObject;
-typedef struct Handle { HObject *object; } Handle;
 /* A player's input record (gPlayers): the fields this reads. */
 typedef struct {
     u8 index;
@@ -51,7 +48,7 @@ typedef struct {
     u8 other8[44];
     s32 edges;          /* 52 */
     u8 other56[16];
-    Handle *handle;     /* 72 */
+    tProfile **handle;  /* 72 */
 } Player76;
 
 extern Player76 gPlayers[];
@@ -135,7 +132,7 @@ void CheckCameraView(void)
         } else if (view != 4 && (pl->edges & pl->mask)) {
             view++;
             if (view >= 4) view = 0;
-            if (pl->handle->object->resource) {
+            if ((*pl->handle)->datah) {
                 SavePlayerCarView(pl->handle, view);
             }
             if (view == 1) {

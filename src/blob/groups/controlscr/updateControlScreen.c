@@ -4,23 +4,13 @@
  * with A. */
 #include "game/game.h"
 
-/* PC: the pak file record's and the profile's host layouts (pc_prelude.h, docs/port/POINTERS.md 9.10) */
-typedef struct { void *next, *prev; void (*RemoveFile)(void *); void (*MoveFile)(void *, void *); u8 pak; } PSFile;
-typedef struct Profile {
-    void *next, *prev;
-    PSFile **fileh;
-    u8 padC[21];
-    s8 controls[10];
-    s8 rumble;
-    void *data;
-} Profile;
 typedef struct {
     u8 slot;
     u8 controller;       /* 0x01 */
     u8 pad2[2];
     u32 edges;           /* 0x04 */
     u8 pad8[64];
-    Profile **save;      /* 0x48 */
+    tProfile **save;     /* 0x48 */
 } PadState;              /* tPadState, 0x4C */
 
 void *memcpy(void *, const void *, u32);
@@ -224,7 +214,7 @@ void updateControlScreen(void) {
         }
         forcedExit = 0;
         if ((gGameState & GS_FRONTEND_MASK) && gPlayers[p].save && (*gPlayers[p].save)->fileh &&
-            !PS_PakInserted((*(*gPlayers[p].save)->fileh)->pak)) forcedExit = 1;
+            !PS_PakInserted((*gPlayers[p].save)->fileh->file->pak)) forcedExit = 1;
         if (forcedExit) {
             controlScrActive[p] = 0;
             controls_uninitButtons(p);

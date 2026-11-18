@@ -19,9 +19,6 @@ struct MultiBlit { const char *texname; s16 dulx, duly, width, height, top, bot,
 VIEW(ButtonInfo[18], startscr_buttonInfo);
 #define startscr_buttonInfo startscr_buttonInfo_view
 
-VIEW(Egg *, gEgg);
-#define gEgg gEgg_view
-
 extern f32 fabsf(f32);
 extern void *memcpy(void *, const void *, u32);
 

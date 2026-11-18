@@ -1,53 +1,25 @@
 /* GhostStart: a ghost race's ghosts, recorded and raced against (MAT3 ghost.c). */
 #include "game/game.h"
 
-typedef struct Ghost {            /* GC __anon_49a9c; N64 layout 0x2C */
-    void *ll;                     /* 0x00 */
-    void **fileh;                 /* 0x04 */
-    s8 track;                     /* 0x08 */
-    u8 backward;                  /* 0x09 */
-    u8 name[13];                  /* 0x0A */
-    u8 pad17;
-    u32 playerId[2];              /* 0x18 */
-    f32 finish;                   /* 0x20 */
-    u8 **datah;                   /* 0x24 */
-    tGhostHeader **header;        /* 0x28 */
-} Ghost;
-
-typedef struct PlayerRec {        /* GC player record (0x4C); N64 0x30 */
-    void *next; void *prev; void *fileh;
-    u32 playerId[2];              /* 0x0C */
-    u8 name[13];                  /* 0x14 */
-    u8 pad21[44 - 33];
-    u8 **datah;                   /* 0x2C */
-} PlayerRec;
-
 typedef struct Player {           /* GC gPlayers (0x50); N64 0x4C */
     u8 node;                      /* 0x00 */
     u8 slot;                      /* 0x01 */
     u8 pad2[66 - 2];
     u8 carTrans;                  /* 0x42 */
     u8 pad43[72 - 67];
-    PlayerRec **handle;           /* 0x48 */
+    tProfile **handle;            /* 0x48 */
 } Player;
-
-/* A profile's save data (the player's tSaveData): its cars' settings, from +1860, and its tracks' records, from
- * +224 (forward ones, then backward from the seventh). */
-typedef struct CarCfg { u8 s[16]; } CarCfg;
-typedef struct TrackRec { u16 time; u8 pad[94]; } TrackRec;
 
 void *memset(void *, s32, u32);
 void *memcpy(void *, const void *, u32);
 
-VIEW(Ghost **[], gGhosts);
-#define gGhosts gGhosts_view
 extern Player gPlayers[];                                 /* GC gPlayers */
 
 /* Sets a ghost race's ghosts up (only in a ghost race): each player gets a new ghost to record, its header from the
- * player (best time for the track, name, id, car, transmission and settings, the frame time) and, but on a restart,
- * room for the race's time and 10 seconds of steps (3 bytes each). Then each saved ghost (2 of them, 4 with the
- * Expansion Pak) is read (ReadGhostData; one that can't be read drops out) and becomes a player driving its car
- * with its settings, colours and frame time, in a car slot after the humans. */
+ * player (its number: the profile's ghost races on the track; name, id, car, transmission and settings, the frame
+ * time) and, but on a restart, room for the race's time and 10 seconds of steps (3 bytes each). Then each saved
+ * ghost (2 of them, 4 with the Expansion Pak) is read (ReadGhostData; one that can't be read drops out) and becomes
+ * a player driving its car with its settings, colours and frame time, in a car slot after the humans. */
 void GhostStart(void) {
     tGhostHeader *g;
     s32 i;
@@ -55,7 +27,7 @@ void GhostStart(void) {
     s32 np;
     s32 car;
     s32 n;
-    Ghost *ghost;
+    tGhostFile *ghost;
     s32 bk;
     s32 size;
 
@@ -82,13 +54,13 @@ void GhostStart(void) {
         gRealNewGhosts[i].header = &gNewGhostHeaders[i];
         g->flag = -1;
         bk = gBackwards ? 6 : 0;
-        g->bestTime = ((TrackRec *)(*(*gPlayers[i].handle)->datah + 224) + bk)[gTrackNum].time;
+        g->id = (*(*gPlayers[i].handle)->datah)->raceStats[gTrackNum + bk].totalGhosts;
         g->track = gTrackNum;
         g->backward = gBackwards;
         memcpy(g->name, (*gPlayers[i].handle)->name, 13);
-        memcpy(g->playerId, (*gPlayers[i].handle)->playerId, 8);
+        memcpy(g->playerId, (*gPlayers[i].handle)->id, 8);
         g->carTrans = GetPlayerCarTrans(gPlayers[i].handle);
-        memcpy(g->settings, ((CarCfg *)(*(*gPlayers[i].handle)->datah + 1860))[PC_LINK_CAR(i)].s, 12);
+        memcpy(g->settings, (*(*gPlayers[i].handle)->datah)->carSettings[PC_LINK_CAR(i)].settings, 12);
         g->car = PC_LINK_CAR(i);
         g->frameTime = gRetraceTime;
         if (!gRestartGame) {
@@ -116,7 +88,7 @@ void GhostStart(void) {
         car = g->car;
         memset(&gPlayers[i], 0, 76);
         gPlayers[i].handle = &gGhostPlayers[i];
-        memset(gGhostPlayers[i], 0, PROFILE_OFS(48));
+        memset(gGhostPlayers[i], 0, sizeof(tProfile));
         memcpy((*gPlayers[i].handle)->name, g->name, 13);
         gPlayers[i].node = i;
         gPlayers[i].slot = i;

@@ -10,9 +10,6 @@ typedef struct MultiBlit {
     u32 animid;
 } MultiBlit;
 
-VIEW(u8, gBlocksNeeded);
-#define gBlocksNeeded gBlocksNeeded_view
-
 /* PC: both runtime images are linked in, and image B has a function at 0x8038A400 too (findDamageSlot, worlddam.c),
  * which the loader's tables name for both. Image A's is updateWarningScreen, which updateFrontEnd calls in
  * state 0x40000000 and port/data's function table gives image A's data (docs/port/SYNTH.md). Its two file statics
@@ -69,6 +66,6 @@ done:
         RemoveBlit(warningscr_blit);
         warningscr_blit = 0;
     }
-    gBlocksNeeded = PS_GetBlocks(0x810);
+    gBlocksNeeded = PS_GetBlocks(PROFILE_BYTES);
     setGameState(gPakScr ? 0x4000000 : 4);
 }

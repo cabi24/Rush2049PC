@@ -2,23 +2,14 @@
  * text over its 3D buttons, by the window's state. playerscr_animText is the screen's text blit callback. */
 #include "game/game.h"
 
-/* A pak file record (MAT3 tPS_File) in its PC layout (pc_prelude.h PSF_OFS, docs/port/POINTERS.md 9.10): pak is
- * the pak it is on. */
-typedef struct FileInfo { void *next, *prev; void (*RemoveFile)(void *), (*MoveFile)(void *, void *); u8 pak; } FileInfo;
-/* A profile (MAT3 tPlayerProfile) in its PC layout (pc_prelude.h PROFILE_OFS): the links of gPlayerFiles, its pak
- * file (NULL for a guest), its id, its name. */
-typedef struct Profile Profile;
-struct Profile { Profile **next,**previous; FileInfo **fileh; u8 id[8]; u8 name[1]; };
 /* A player's pad record (MAT3 tPadState, gPlayers): 76 bytes, 80 on the PC. */
-typedef struct Player { u8 unknown00[4];u32 edges;u8 unknown08[4];u32 autoEdges;u8 unknown10[56]; Profile **owner; } Player;
+typedef struct Player { u8 unknown00[4];u32 edges;u8 unknown08[4];u32 autoEdges;u8 unknown10[56]; tProfile **owner; } Player;
 typedef struct FiveParts FiveParts;
 
 extern Player gPlayers[];
 
 VIEW(tRGBA, flashColors_at_1);
 #define flashColors_at_1 flashColors_at_1_view
-VIEW(Profile **[], gSelectedPlayer);
-#define gSelectedPlayer gSelectedPlayer_view
 
 /* How many profile rows away from the selected one a row is. */
 #define PROFILE_DISTANCE(x) ((x)>=0 ? (x) : -(x))
@@ -45,7 +36,7 @@ VIEW(Profile **[], gSelectedPlayer);
 #define TEXT_SELECT_ROWS 21             /* tab[]: the select menu's rows' names */
 
 /* 1 if profile `owner` is held by a player other than `skip`, else 0 (also for no profile). */
-s32 playerClaimed(s32 skip,Profile **owner)
+s32 playerClaimed(s32 skip,tProfile **owner)
 {
     s8 i;
     s32 found=0;
@@ -67,12 +58,12 @@ void playerscr_drawSelect(s32 player)
 {
     s32 draw_x,y,x;
     f32 scale=playerscr_gButtonScale;
-    Profile *profile;
+    tProfile *profile;
     u8 *label,text[32];
     s16 limit,point[2];
     s32 i,seen;
     f32 position[3];
-    Profile **node;
+    tProfile **node;
     if(gNumPlayers>=2)scale*=0.5f;
     ChangePaneSize(playerscr_pane[player],-20,0,-10,10);
     if(gNumPlayers==1)HAL_SetFont(13);
@@ -151,11 +142,11 @@ void playerscr_drawSelect(s32 player)
             if(node) {
                 do {
                     profile=*node;
-                    if(profile->fileh && (*profile->fileh)->pak==playerscr_gSelectPakIdx[player]) {
+                    if(profile->fileh && profile->fileh->file->pak==playerscr_gSelectPakIdx[player]) {
                         if(PROFILE_DISTANCE(i-playerscr_gSelectMenuSelect[player])==seen)break;
                         seen++;
                     }
-                    if(i<playerscr_gSelectMenuSelect[player])node=profile->previous;else node=profile->next;
+                    if(i<playerscr_gSelectMenuSelect[player])node=profile->prev;else node=profile->next;
                 } while(node);
             }
             if(!node) {
@@ -163,12 +154,12 @@ void playerscr_drawSelect(s32 player)
                 else node=gPlayerFiles.tail;
                 while(node) {
                     profile=*node;
-                    if(profile->fileh && (*profile->fileh)->pak==playerscr_gSelectPakIdx[player]) {
+                    if(profile->fileh && profile->fileh->file->pak==playerscr_gSelectPakIdx[player]) {
                         if(PROFILE_DISTANCE(i-((playerscr_gSelectMenuSelect[player]<i || gSelectPlayerNum[player]<SELECT_MENU_PROFILES) ? kSelectMenuSelectPlayer : kSelectMenuLastPlayer))==seen) {seen++;break;}
                         seen++;
                     }
                     if(playerscr_gSelectMenuSelect[player]<i || gSelectPlayerNum[player]<SELECT_MENU_PROFILES)node=profile->next;
-                    else node=profile->previous;
+                    else node=profile->prev;
                 }
             }
             if(node) {
@@ -321,7 +312,7 @@ void drawDeletePlayer(s32 player)
     s16 point[2],top,lines,limit;
     s8 selected;
     f32 delta;
-    Profile **node;
+    tProfile **node;
     if(gNumPlayers>=2)scale*=0.5f;
     if(gNumPlayers>=2)HAL_SetFont(12);else HAL_SetFont(13);
     label=gText.single[140];
@@ -421,11 +412,11 @@ void drawDeletePlayer(s32 player)
                 if(node) {
                     selected=gDeleteMenuSelect[player];
                     do {
-                        if((*node)->fileh && (*(*node)->fileh)->pak==playerscr_gSelectPakIdx[player]) {
+                        if((*node)->fileh && (*node)->fileh->file->pak==playerscr_gSelectPakIdx[player]) {
                             if(PROFILE_DISTANCE(i-selected)==seen)break;
                             seen++;
                         }
-                        if(i<selected)node=(*node)->previous;else node=(*node)->next;
+                        if(i<selected)node=(*node)->prev;else node=(*node)->next;
                     } while(node);
                 }
                 if(!node) {
@@ -433,12 +424,12 @@ void drawDeletePlayer(s32 player)
                     if(selected<i || gSelectPlayerNum[player]<SELECT_MENU_PROFILES)node=gPlayerFiles.head;
                     else node=gPlayerFiles.tail;
                     while(node) {
-                        if((*node)->fileh && (*(*node)->fileh)->pak==playerscr_gSelectPakIdx[player]) {
+                        if((*node)->fileh && (*node)->fileh->file->pak==playerscr_gSelectPakIdx[player]) {
                             if(PROFILE_DISTANCE(i-((selected<i || gSelectPlayerNum[player]<SELECT_MENU_PROFILES) ? kSelectMenuSelectPlayer : kSelectMenuLastPlayer))==seen) {seen++;break;}
                             seen++;
                         }
                         if(selected<i || gSelectPlayerNum[player]<SELECT_MENU_PROFILES)node=(*node)->next;
-                        else node=(*node)->previous;
+                        else node=(*node)->prev;
                     }
                 }
                 if(node) {

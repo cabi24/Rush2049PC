@@ -8,10 +8,8 @@ float sqrtf(float);
 typedef struct V3 { float x, y, z; } V3;
 
 
-/* A player's profile (SaveSlot, host layout: pc_prelude.h): its save data handle. */
-typedef struct HN { void *next, *prev, *fileh; u8 p[0x2C - 0xC]; void *f2c; } HN;
 /* A player's input record (gPlayers): its profile's handle. */
-typedef struct Q { u8 p[0x48]; HN **h; } Q;
+typedef struct Q { u8 p[0x48]; tProfile **h; } Q;
 /* The car record (MAT3 tCarData; the PC's pc_car, host layout): the fields these read and set. */
 typedef struct Cr {
     u8 p0[8];
@@ -99,7 +97,7 @@ void steady_move_cam(s16 mode, Cr *car, f32 *pos, void *uvs) {
         init_view3(car);
         if (!(gGameState & GS_DEMO)) {
             s32 v;
-            if (car->q->h[0]->f2c != 0)
+            if ((*car->q->h)->datah != 0)
                 v = GetPlayerCarView(car->q->h);
             else
                 v = 2;

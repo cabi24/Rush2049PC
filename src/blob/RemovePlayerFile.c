@@ -17,7 +17,7 @@ void RemovePlayerFile(tPakHandle *fileh) {
    for(i=0;i<gNumPlayers;i++) {
     if(gPlayers[i].profile==profile)gPlayers[i].profile=0;
    }
-   RemovePlayerScores((intptr_t)profile);   /* the tables keep their owners' handles as numbers */
+   RemovePlayerScores(profile);
    RemoveLLE(&gPlayerFiles,profile);
    return;
   }

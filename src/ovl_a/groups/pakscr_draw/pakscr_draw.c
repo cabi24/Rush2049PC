@@ -2,25 +2,9 @@
  * a pak's note list, the delete question, and the Rumble Pak and damaged pak notices. */
 #include "game/game.h"
 
-/* A pak file record (MAT3 tPS_File) in its PC layout (pc_prelude.h PSF_OFS, docs/port/POINTERS.md 9.10). The array
- * extents are the fields' room, not a promise of a terminator (tools/port/capacity.py has the producers' bounds). */
-typedef struct Record { void *next, *prev; void (*RemoveFile)(void *), (*MoveFile)(void *, void *); u8 pak, fileNo;
-    char name[35]; char suffix[15]; u32 blocks; } Record;
-
 #define TEXT_DELETE_ACTION 47       /* gText.tab[]: the two lines of the delete combination's instructions */
 
-VIEW(u8, gBlocksNeeded);
-#define gBlocksNeeded gBlocksNeeded_view
-
 extern s32 game_sprintf(char *,const char *,...);
-
-/* A pak file record (MAT3 tPS_File) in its PC layout: only the pak it is on. */
-typedef struct Owner { void *next, *prev; void (*RemoveFile)(void *), (*MoveFile)(void *, void *); u8 slot; } Owner;
-/* A profile's and a ghost's list node: what they keep of their pak file. */
-typedef struct OpenRecord OpenRecord;
-struct OpenRecord { OpenRecord **next; void *previous; Owner **owner; };
-typedef struct SavedRecord SavedRecord;
-struct SavedRecord { SavedRecord **next; Owner **owner; };
 
 /* The note list: the delete combination's instructions (while the selected slot has a note), the columns' heads,
  * the 8 rows shown (number, name with its suffix or "empty", pages; the selected one flashing, its name also
@@ -31,7 +15,7 @@ void DrawFileDel(void)
     s32 y;
     s32 row;
     s32 index;
-    Record **record;
+    tPakHandle *record;
     s16 x;
     s16 row_y;
     char text[76];
@@ -63,15 +47,15 @@ void DrawFileDel(void)
         row_y=y;
         TB_DrawText(x,row_y,text);
         if (record) {
-            TB_Strcpy(text,(*record)->name);
-            TB_Strcpy(suffix,(*record)->suffix);
+            TB_Strcpy(text,record->file->name);
+            TB_Strcpy(suffix,record->file->ext);
             if (suffix[0]) {
                 TB_Strcat(text,pakscr_name_suffix_separator);
                 TB_Strcat(text,suffix);
             }
         } else TB_Strcpy(text,gText.single[149]);
         TB_DrawText(35,row_y,text);
-        TB_Sprintf(suffix,pakscr_file_blocks_format,record ? (*record)->blocks : 0);
+        TB_Sprintf(suffix,pakscr_file_blocks_format,record ? record->file->blocks : 0);
         x=TB_CenterText(suffix,255);
         TB_DrawText(x,row_y,suffix);
         if (index==gDeleteSelect && record) {
@@ -101,18 +85,18 @@ void DrawFileDel(void)
  * profile or a ghost of it is open), room for a profile, or full. */
 void GetPakStatusStr(s32 player,char *str)
 {
-    OpenRecord **open;
-    SavedRecord **saved;
+    tProfile **open;
+    tGhostFile **saved;
     if (!gControllerData[player].attached) TB_Sprintf(str,pakscr_status_no_controller_format,gText.single[165]);
     else if (!PS_PakInserted(player)) TB_Sprintf(str,pakscr_status_no_pak_format,gText.single[168]);
     else if (PS_PakDamaged(player)) TB_Sprintf(str,pakscr_status_damaged_format,gText.single[166]);
     else if (PS_PakRumble(player)) TB_Sprintf(str,pakscr_status_rumble_format,gText.single[169]);
     else {
         for (open=gPlayerFiles.head;open;open=(*open)->next) {
-            if ((*open)->owner && (*(*open)->owner)->slot==player) break;
+            if ((*open)->fileh && (*open)->fileh->file->pak==player) break;
         }
         for (saved=gGhostFiles.head;saved;saved=(*saved)->next) {
-            if ((*saved)->owner && (*(*saved)->owner)->slot==player) break;
+            if ((*saved)->fileh && (*saved)->fileh->file->pak==player) break;
         }
         if (open || saved) TB_Sprintf(str,pakscr_status_in_use_format,gText.single[159]);
         else if (PS_GetFreeFiles(player) && PS_GetFreeBlocks(player)>=gBlocksNeeded)

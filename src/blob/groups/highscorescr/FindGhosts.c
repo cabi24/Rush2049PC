@@ -2,11 +2,6 @@
  * ghost already on it, for the high score screen. */
 #include "game/game.h"
 
-/* PC: the pak file record's and the profile's host layouts (pc_prelude.h, docs/port/POINTERS.md 9.10) */
-typedef struct Q { void *next, *prev; void (*RemoveFile)(void *), (*MoveFile)(void *, void *); u8 id; u8 pad17;
-    s8 name[14]; } Q;
-typedef struct Ghost { struct Ghost **next; Q **q; s8 track; u8 backwards; s8 pos[14]; s32 id0; s32 id1; } Ghost;
-
 /* Sets gGhostStatus[pak]: -4 no controller, -1 no pak the pak system has read, -2 a damaged pak, -3 a Rumble Pak
  * (the messages playerscr_draw shows for PAK_NO_CONTROLLER, PAK_NOT_INSERTED, PAK_DAMAGED and PAK_RUMBLE; MAT3
  * _FindGhosts asks PS_PakInserted and PS_PakDamaged too), else 0; in a ghost race (gRace 2) 1
@@ -15,9 +10,9 @@ typedef struct Ghost { struct Ghost **next; Q **q; s8 track; u8 backwards; s8 po
 void FindGhosts(s32 pak)
 {
     tProfile *player;
-    Ghost ***ghosth;
-    Ghost **node;
-    Ghost *ghost;
+    tGhostFile ***ghosth;
+    tGhostFile **node;
+    tGhostFile *ghost;
 
     player = *gPlayers_save[0].profile;
     ghosth = &gPakGhosts[pak];
@@ -35,12 +30,12 @@ void FindGhosts(s32 pak)
         if (gRace == kGhost) {
             for (node = gGhostFiles.head; node != 0; node = ghost->next) {
                 ghost = *node;
-                if (ghost->q != 0 && (*ghost->q)->id == pak && ghost->track == gTrackNum &&
-                    ghost->backwards == gBackwards &&
-                    game_strncmp((*ghost->q)->name, player->fileh->file->name, 14) == 0) {
+                if (ghost->fileh != 0 && ghost->fileh->file->pak == pak && ghost->track == gTrackNum &&
+                    ghost->backward == gBackwards &&
+                    game_strncmp(ghost->fileh->file->name, player->fileh->file->name, 14) == 0) {
                     *ghosth = node;
-                    if (game_strcmp(ghost->pos, player->name) != 0 || player->id[0] != ghost->id0 ||
-                        player->id[1] != ghost->id1) {
+                    if (game_strcmp(ghost->name, player->name) != 0 || player->id[0] != ghost->playerId[0] ||
+                        player->id[1] != ghost->playerId[1]) {
                         gGhostStatus[pak] = 2;
                     } else {
                         gGhostStatus[pak] = 1;

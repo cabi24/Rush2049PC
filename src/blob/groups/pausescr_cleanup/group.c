@@ -2,13 +2,8 @@
  * updatePauseState does the same in its uninit part). */
 #include "game/game.h"
 
-/* A profile (MAT3 tPlayerProfile) in its PC layout: datah (PC 0x38, N64 0x2C) is its save data, NULL for a
- * guest. */
-typedef struct SaveData SaveData;
-typedef struct Profile { void *next; void *prev; void *fileh; u8 opaque_C[0x2C - 0xC]; SaveData *datah; } Profile;
-typedef struct Handle { Profile *object; } Handle;
 /* A player's pad record (MAT3 tPadState, gPlayers): only its profile. */
-typedef struct Player { u8 opaque[72]; Handle *handle; } Player;
+typedef struct Player { u8 opaque[72]; tProfile **handle; } Player;
 
 extern Player gPlayers[];
 
@@ -27,7 +22,7 @@ void updatePauseStateCleanup(void)
         }
         player=gPlayers;
         for(i=0;i<gNumPlayers;i++,player++) {
-            if(player->handle->object->datah)SaveSelectPlayer(player->handle);
+            if((*player->handle)->datah)SaveSelectPlayer(player->handle);
         }
         /* fall through: the pages' blits go too */
     case kPauseMainScreen: case kPauseAudioScreen: case kPauseVideoScreen: case kPauseControlsScreen:

@@ -38,6 +38,25 @@
 
 /* ---------------------------------------------------------------- the PC layouts */
 
+/* The save records' PC layouts (include/game/save.h) against the N64's they were made from: each is RAM-only and
+ * starts with pointers, so on the PC the rest of it is later. X_OFS(n) is the PC offset of N64 offset n (the N64
+ * size gives the PC size). The test's mirrors of the records below are checked against them.
+ * - The pak file record (PakFileRecord; N64 76 bytes, PC 96): next, prev, RemoveFile and MoveFile at +0/4/8/12 are
+ *   pointers, then pak, fileNo, name[35], ext[11], size, blocks and the data handle. */
+#define PC_PSFILE_SIZE 96
+#define PC_PSFILE_REL(r) ((r) < 4 ? (r) : (r) < 8 ? (r) + 4 : (r) < 12 ? (r) + 8 : (r) < 16 ? (r) + 12 : (r) + 16)
+#define PSF_OFS(n) ((n) / 76 * PC_PSFILE_SIZE + PC_PSFILE_REL((n) % 76))
+/* - The profile (tProfile; N64 48 bytes, PC 64): next, prev and the pak file handle at +0/4/8, the id, name and
+ *   controls from +12, and the save data handle at +0x2C. */
+#define PC_PROFILE_SIZE 64
+#define PC_PROFILE_REL(r) ((r) < 4 ? (r) : (r) < 8 ? (r) + 4 : (r) < 12 ? (r) + 8 : (r) + 12)
+#define PROFILE_OFS(n) ((n) / 48 * PC_PROFILE_SIZE + PC_PROFILE_REL((n) % 48))
+/* - A ghost (tGhostFile; N64 0x2C bytes, PC 64): the link and the file handle at +0/4, the data and header handles
+ *   at +0x24/0x28. */
+#define PC_GHOST_SIZE 64
+#define PC_GHOST_REL(r) ((r) < 4 ? (r) : (r) < 8 ? (r) + 4 : (r) < 0x24 ? (r) + 8 : (r) < 0x28 ? (r) + 12 : (r) + 16)
+#define GHOST_OFS(n) ((n) / 0x2C * PC_GHOST_SIZE + PC_GHOST_REL((n) % 0x2C))
+
 /* The pak file record (paksys' tPS_File). */
 struct psfile {
     void **next, **prev;

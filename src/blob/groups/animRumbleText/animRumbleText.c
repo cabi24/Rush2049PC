@@ -20,10 +20,8 @@ typedef struct Player {   /* gPlayers' record (tPadState) */
     u8 b0;
     u8 control;
     u8 pad2[70];
-    intptr_t *name;     /* the profile handle: its first word is the profile record, a pointer (POINTERS.md 10) */
+    tProfile **profile; /* the player's profile (a handle) */
 } Player;
-/* The profile record (save.c's SaveSlot) is 64 bytes on the PC, its name at +0x20 (PROFILE_OFS, pc_prelude.h;
- * docs/port/POINTERS.md 9.10). */
 
 extern Player gPlayers[];
 
@@ -64,7 +62,7 @@ s32 animRumbleText(Blit *blt)
         x = pause_gPlayerRects[gNumPlayers - 1][i].cx;
         y = pause_gPlayerRects[gNumPlayers - 1][i].cy - TB_GetFontLineHeight();
         TB_SetTextColor(playerTextColor[i]);
-        str = (char *)(*gPlayers[i].name + PROFILE_OFS(20));
+        str = (*gPlayers[i].profile)->name;
         TB_DrawText(TB_CenterText(str, x), y, str);
         y += TB_GetFontLineHeight();
         ctl = gPlayers[i].control;

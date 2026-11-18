@@ -70,7 +70,7 @@ extern volatile ControllerState gControllerData[EXTENT(4)];
 extern s8 gSoftReset;
 
 /* Functions */
-s32 CheckAndRepairPlayer(void **h, s32 repair);
+s32 CheckAndRepairPlayer(tProfile **h, s32 repair);
 void ClearControls(void);
 void ClearRushControls(void);
 void ControlIRQ(void);
