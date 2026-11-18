@@ -3,21 +3,11 @@
  * audiomgr/audiomgr_thread.c. */
 #include "game/game.h"
 #include "game/audiomgr.h"
-#define OSMesgQueue OSMesgQueueView   /* this file's own OSMesgQueue: include/game's OSMesgQueue is another type */
-#define OSThread OSThreadView   /* this file's own OSThread: include/game's OSThread is another type */
-
-typedef struct OSMesgQueue { u8 opaque[0x18]; } OSMesgQueue;
-typedef struct OSThread { u8 opaque[0x1B0]; } OSThread;
 
 /* PC: the sound manager's messages are PC data, PC_SND_MSG_SLOTS long, with no N64 address (pc_game_types.h,
  * docs/port/DECOUPLE.md 9, AUDIO.md 10.4), seen here as messages; PC_SND_MSG_LOOP(128) is the run's count: 128 at
  * original. */
 #define audiomgr_gCmds (*(tAudioMsg (*)[PC_SND_MSG_SLOTS])pc_snd_msgs)
-
-void osCreateMesgQueue(OSMesgQueue *mq, OSMesg *msg, s32 count);
-s32 osSendMesg(OSMesgQueue *mq, OSMesg msg, s32 flags);
-void osCreateThread(OSThread *thread, s32 id, void (*entry)(void *), void *arg, void *sp, s32 priority);
-void osStartThread(OSThread *thread);
 
 /* InitLL (MAT3 ll.c), the sound manager's copy. */
 void sound_list_init(AudioList *list, s8 handle, s8 dbl) {
@@ -55,15 +45,16 @@ void AudioInit(u8 numVoices, u8 maxSfx, u8 maxMusic, s32 numListeners, s32 numEm
     }
     if (!queueCreated) {
         queueCreated = 1;
-        osCreateMesgQueue(&audio_lock_queue, audio_lock_msg, 1);
-        osSendMesg(&audio_lock_queue, 0, 0);
+        queue_init(&audio_lock_queue, audio_lock_msg, 1);
+        lock_give(&audio_lock_queue);
     }
     AudioInitSys(numVoices, maxSfx, maxMusic);
     if (!reinit) {
         /* The thread's storage is the N64's OSThread, 0x1B0 bytes (OSThreadBytes): the PC's osCreateThread keeps
          * only its address, as the thread's key (port/ultra/sched.c). */
-        osCreateThread((OSThread *) &audio_manager_thread, 10, audio_manager_thread_entry, 0, audio_manager_thread_stack_top, 10);
-        osStartThread((OSThread *) &audio_manager_thread);
+        thread_create((OSThread *) &audio_manager_thread, THREAD_ID_AUDIO_MANAGER, audio_manager_thread_entry, 0,
+                      audio_manager_thread_stack_top, THREAD_PRI_AUDIO_MANAGER);
+        thread_start((OSThread *) &audio_manager_thread);
     }
     if (gMaxSfx * 2 < 64) {
         gNumFxTags = gMaxSfx * 2;

@@ -880,6 +880,50 @@ than `same` for the records (objsame, Debug and RelWithDebInfo; data.c, the symb
 | tags declared in more than one file | 4 (`z_stream_s`, `tree_desc_s`, `internal_state`, `OSPfs`) | 0 |
 | `VIEW()` lines, pad arrays | 0 | 0 |
 
+### 5.2 Threads, queues and the scheduler (agent D2)
+
+The game's threads, queues, locks and events are `game/threads.h`'s API now, and its OS records are declared once
+([ULTRA.md](ULTRA.md) 11).
+
+| Record | Declared in | What it holds | Its other tags and copies (gone) |
+|---|---|---|---|
+| `OSMesgQueue` | types.h (libultra's section; other records embed it) | a message queue: port/ultra keeps its messages and waiting threads under its address; libultra's fields, unused | 44 files' own: `struct OSMesgQueue` in 13 (InitControlSys.c, init_controllers.c, PS_RumbleStop.c, InitWaves.c, ControllerUpdate.c, waves.c, loadwave.c, audiomgr_thread.c, AudioInit.c, modelthread.c, paksysdc/group.c, PS_ReadPartialFile.c, pak_file_unchanged.c), anonymous 24-byte stand-ins (`s32 pad[6]`, `u8 opaque[0x18]`, `u32 opaque[6]`) or incomplete tags in 31 more; types.h's `OSMesgQueueBytes`, `OSMesgQueueWords` |
+| `OSThread` | types.h | a thread: port/ultra runs it on a host thread, keyed by its address; libultra's fields, unused | 13 files' own (`OSThreadView`, `OSThread_s`, `u8 opaque[0x1B0]`, a 0x1B0-byte word array), sample_dma_thread's `__OSThreadContext` copy; types.h's `OSThreadBytes`; `u8[432]` for three threads |
+| `OSScMsg` | threads.h | a scheduler message: its type (`OS_SC_RETRACE_MSG`, `_DONE_MSG`, `_PRE_NMI_MSG`, `GAME_MSG_END_FRAME`) | modelthread.c's; UpdateFrame.c's `SchedMsg`; boot.c's `MainThreadSchedulerMessage`; PcSched's `s16 state`/`priority` and pads, FrameRecord's `doneMsgType` + `doneMsgRest[30]`, EndGraphics.c's `doneMsg[0x20]` bytes |
+| `OSScClient` | threads.h | a scheduler client: its queue, in the scheduler's list | `struct OSScClient` in audiomgr_thread.c and modelthread.c, anonymous copies in rumble/group.c and audio_retrace_thread_entry.c (all with `msgQ`), m2c_types.h's |
+| `OSScTask` | threads.h | a task for the RSP and RDP: its list link, state and flags, frame buffer, the RSP task in place (`OSTask_t list`), whom to tell when done | m2c_types.h's (the RSP task flattened into `pad18`... fields), types.h's `PcScTaskShape`, EndGraphics.c's `Frame` head, musyx_submit_audio_task.c's |
+| `PcSched` | threads.h | the scheduler (`gScheduler`): libultra's `OSSched` with the PC's types | types.h's and scheduler.c's (N64 offsets: `pad02`, `pad22`, the queues as `u8[24]`, `padB0[432]`, `pad260[28]`), m2c_types.h's `OSSched`, boot.c's `MainThreadScheduler`; the asm aliases `scheduler_interrupt_queue`, `scheduler_task_queue`, `scheduler_thread`, `scheduler_retrace_count`, `scheduler_current_rsp_task` |
+| `FrameRecord` | system.h | a frame: its task, its command buffer, its done message, its frame buffer | EndGraphics.c's `Frame` view (`VIEW(Frame[], frame_records)`) |
+
+**Fields that disagreed.** The scheduler's `curRSPTask` was at 0x274 in m2c_types.h's copy and at 0x2B0 in the PC's;
+the clients' copies named the queue `msgQ`, the scheduler `msgQueue`; the task's done queue sat at `msgQ` (N64 0x50)
+in the game's copies and m2c's flattened copy, with its `output_buff_size` an `s32 *` read as `*(u64 *)`. One
+declaration settles them as libultra has them: `OSScTask.list.output_buff_size` is a `u64 *`, the queue `msgQueue`.
+`PcSched` now has libultra's real order (the two messages, the event queue, the task queue, the thread, the lists, the
+retrace count), 648 bytes on the N64 and 792 on the PC, where it kept N64 offsets the game no longer reads.
+
+**Data typed.** Twelve data were byte stand-ins for an OS record: the queues `model_thread_queue`,
+`audio_retrace_queue`, `rumble_queue`, `bg_load_request_queue`; the threads `audio_manager_thread`,
+`audio_retrace_thread`, `sample_dma_thread`, `rumble_thread`; the message slots `heap_lock_msg`,
+`bg_load_request_messages`, `sample_dma_pi_msg`, `musyx_task_done_msg`. Each is its record now, and moved from
+N64-layout storage to own storage: the one change to the data's layout in this part, harmless because nothing reads
+or writes these bytes (port/ultra keys queues and threads by address and keeps the messages itself).
+
+**VIEW lines removed.** `EndGraphics.c`'s `VIEW(Frame[], frame_records)` (it builds the frame's task in
+`frame_records[n].task`) and `AudioInit.c`'s `VIEW(OSThread, audio_manager_thread)` (the datum is an `OSThread`).
+
+**Numbers, in the game's files (src/blob, src/ovl_*, nonmatching, src/rom's boot.c and scheduler.c).** Local
+declarations of the OS records: 72 (44 queues, 14 threads, 4 clients, 3 messages, 2 tasks, scheduler.c's and
+boot.c's schedulers, m2c_types.h's 3) to 0; duplicated tags (`struct OSMesgQueue` 13, `struct OSScClient` 2)
+to 0; VIEW lines 2 to 0; pads and byte stand-ins in the scheduler's, tasks' and frames' copies 35 to 0; local
+prototypes of libultra's thread and queue calls 176 lines in 86 files to 0; lines calling them 474 to 0 (the
+libraries' own C keeps them).
+
+**Units not `same` under objsame**: the 90 that call the API (Debug: the `static inline` functions are local copies
+in the unit; RelWithDebInfo: inlined into the same libultra calls), the scheduler's and the boot's, and the 6 that
+read `gScheduler.retraceCount` (its offset moved): get_input_idle_seconds.c, animDot.c, animCountdownTimer.c,
+pakerr/group.c, save/group.c, SetPakError.c. ULTRA.md 11.4 has the proof.
+
 ## 6. The proof
 
 (The lead's, after the merge.)

@@ -19,10 +19,8 @@ static void tlut_copy_in(u16 *dst, const u8 *src, u32 size)
 extern s32 sprintf(char *, char *, ...);
 extern void *memcpy(void *, const void *, u32);
 
-int osRecvMesg(OSMesgQueue *, void **, int);
-int osSendMesg(OSMesgQueue *, void *, int);
-#define heap_lock() osRecvMesg(&heap_lock_queue, 0, 1)
-#define heap_unlock() osSendMesg(&heap_lock_queue, 0, 0)
+#define heap_lock() lock_take(&heap_lock_queue)
+#define heap_unlock() lock_give(&heap_lock_queue)
 
 /* The RGBA 5551 colour `ratio`/255 of the way from `left` to `right` (0 gives left, 255 or more right), each of red,
  * green and blue blended apart; alpha 1. */

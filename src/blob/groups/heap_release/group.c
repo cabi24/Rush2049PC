@@ -3,11 +3,6 @@
  * tables. include/game/heap.h has the headers; memsys/group.c allocates. */
 #include "game/game.h"
 #include "game/heap.h"
-#define OSMesgQueue OSMesgQueueView   /* this file's own OSMesgQueue: include/game's OSMesgQueue is another type */
-
-typedef struct OSMesgQueue OSMesgQueue;
-
-s32 osRecvMesg(OSMesgQueue *,void **,s32);s32 osSendMesg(OSMesgQueue *,void *,s32);
 
 /* PC: the free's first fill poisons the freed data (chunk + 32, size). Whatever the asset layer had registered in
  * it in big-endian form (a wave's file) goes with it (port/assets). The other two fills clear merged headers. */
@@ -48,24 +43,24 @@ void DeallocateMemoryInternal(void *ptr, s32 internal) {
 
 /* Frees the chunk whose data is at ptr, under the heap lock (MAT3 DeallocateMemory). */
 __inline void DeallocateMemory(void *ptr) {
-    osRecvMesg(&heap_lock_queue, NULL, 1);
+    lock_take(&heap_lock_queue);
     DeallocateMemoryInternal(ptr, 0);
-    osSendMesg(&heap_lock_queue, NULL, 0);
+    lock_give(&heap_lock_queue);
 }
 
 /* The sound library's free (its allocator hook), the same as DeallocateMemory. */
 void musyx_free(void *ptr) {
-    osRecvMesg(&heap_lock_queue, NULL, 1);
+    lock_take(&heap_lock_queue);
     DeallocateMemoryInternal(ptr, 0);
-    osSendMesg(&heap_lock_queue, NULL, 0);
+    lock_give(&heap_lock_queue);
 }
 
 /* Frees runtime image B (the race extras) if it is loaded: its block (runtime_image_block). */
 void unload_extra_overlay(void) {
     if (extra_overlay_loaded) {
-        osRecvMesg(&heap_lock_queue, NULL, 1);
+        lock_take(&heap_lock_queue);
         DeallocateMemoryInternal(runtime_image_block(), 0);
-        osSendMesg(&heap_lock_queue, NULL, 0);
+        lock_give(&heap_lock_queue);
         extra_overlay_loaded = 0;
     }
 }
@@ -74,9 +69,9 @@ void unload_extra_overlay(void) {
  * image itself. */
 void unload_start_overlay(void) {
     if (start_overlay_loaded) {
-        osRecvMesg(&heap_lock_queue, NULL, 1);
+        lock_take(&heap_lock_queue);
         DeallocateMemoryInternal(runtime_image_block(), 0);
-        osSendMesg(&heap_lock_queue, NULL, 0);
+        lock_give(&heap_lock_queue);
         start_overlay_loaded = 0;
     }
 }
@@ -99,7 +94,7 @@ void ReallocateMemory(void *ptr, u32 desired) {
     u32 size;
     u32 nextSize;
 
-    osRecvMesg(&heap_lock_queue, NULL, 1);
+    lock_take(&heap_lock_queue);
     desired = (desired + 31) & ~31U;
     heap = FindHeap(ptr);
     chunk = FindChunk(heap, ptr, 0);
@@ -175,7 +170,7 @@ void ReallocateMemory(void *ptr, u32 desired) {
         }
         chunk->size = desired;
     }
-    pc_heap_allocated(heap); osSendMesg(&heap_lock_queue, NULL, 0);
+    pc_heap_allocated(heap); lock_give(&heap_lock_queue);
 }
 
 /* Frees the 3D sound tables (the listeners and the emitters), if they are allocated (MAT3 audiomgr.c AudFree3D). */

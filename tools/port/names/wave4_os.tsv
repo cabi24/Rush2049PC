@@ -1,0 +1,17 @@
+# Wave 4's names for the scheduler (docs/port/ULTRA.md 11): libultra's sched.c as the game has it (src/rom/scheduler.c),
+# named for what each function does. The game's own calls into the OS (osRecvMesg ...) became game/threads.h's API by
+# hand: their arguments changed with them.
+old	new	kind	source	confidence	note
+osCreateScheduler	sched_create	func	code	sure	makes the scheduler: its queues, the video mode, the events as commands, its thread
+osScAddClient	sched_add_client	func	code	sure	adds a client queue to the scheduler's list (its retrace and pre-NMI messages)
+__scMain	sched_main	func	code	sure	the scheduler thread's body: serves the commands on its event queue for ever
+__scSchedule	sched_schedule	func	code	sure	takes the tasks the game sent and starts what the RSP and RDP can run
+__scHandleRetrace	sched_handle_retrace	func	code	sure	a retrace: counts it, swaps a pending frame buffer, tells every client
+__scHandleRSP	sched_handle_rsp	func	code	sure	the RSP finished or yielded its task
+__scHandleRDP	sched_handle_rdp	func	code	sure	the RDP finished its task
+__scTaskReady	sched_task_ready	func	code	sure	whether a graphics task may run (its frame buffer free)
+__scExecTask	sched_task_done	func	code	sure	a task done on both processors: its message sent, a frame counted out and swapped
+__scAppendList	sched_append_task	func	code	sure	appends a task to the audio or the graphics list
+__scExec	sched_start_tasks	func	code	sure	starts the chosen tasks on the RSP and the RDP
+__scHandlePreNMI	sched_yield_gfx	func	code	sure	asks the graphics task on the RSP to yield (for an audio task); m2c's name was a guess
+__scScheduleCore	sched_choose_tasks	func	code	sure	chooses the next RSP and RDP tasks for the free processors

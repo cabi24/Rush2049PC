@@ -4,9 +4,7 @@
  * (sample_dma_list) and starts its first request, the sample DMA thread (sample_dma_thread_entry) starts the next each
  * time one completes and signals the list's done queue after the last. */
 #include "game/game.h"
-#define OSMesgQueue OSMesgQueueView   /* this file's own OSMesgQueue: include/game's OSMesgQueue is another type */
 
-typedef struct OSMesgQueue OSMesgQueue;
 
 /* PC: the list (game/audio.h's SampleDmaList) also holds the done queue musyx_start_dma_list stores at +0xC on the
  * N64. With two host pointers it is 24 bytes, and the N64's 16 bytes before gPathWave can't hold it, so it has its

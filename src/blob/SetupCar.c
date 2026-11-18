@@ -3,12 +3,6 @@
  * Gives the car's frame the definition of its body (the car itself, or the burnt-out wreck after a crash), shows
  * or hides the hood, tires and sparks for the view, and sets the hulk flag. */
 #include "game/game.h"
-#define OSThread OSThreadView   /* this file's own OSThread: include/game's OSThread is another type */
-
-typedef struct OSThread OSThread;
-
-extern void osStopThread(OSThread *);
-extern void osStartThread(OSThread *);
 
 /* Show car `slot` with body `type` (13: the burnt-out wreck). In a race (`for_game`), a car that was a hulk and now
  * gets a body back loses the hulk flag (APPEAR_HULK), unless a human drives it with the "drive the hulk" cheat
@@ -26,13 +20,13 @@ void SetupCar(s16 slot, u8 type, int for_game)
  s16 i;
  if(for_game && type!=13) {
   if(pc_cars[slot].appearance&APPEAR_HULK) {
-   osStopThread(&model_thread);
+   thread_stop(&model_thread);
    if(PC_LINK_OWNER(slot)!=6 || gDriveHulk[slot]==0)mask=~APPEAR_HULK;   /* owner 6: LINK_OWNER_HUMAN */
    else if(gDriveHulk[slot]==2)mask=~APPEAR_WRECK_SMOKE;
    else mask=-1;
    pc_models[slot].appearance&=mask;
    pc_cars[slot].appearance&=mask;
-   osStartThread(&model_thread);
+   thread_start(&model_thread);
   }
  }
  car=&pc_cars[slot];
@@ -59,10 +53,10 @@ void SetupCar(s16 slot, u8 type, int for_game)
    for(i=0;i<4;i++)MBOX_HideObject(gCarParts[slot].tires[i],1,15);
    if(type==13) {
     MBOX_HideObject(parts->hood,1,15);
-    osStopThread(&model_thread);
+    thread_stop(&model_thread);
     pc_models[slot].appearance|=APPEAR_HULK;
     car->appearance|=APPEAR_HULK;
-    osStartThread(&model_thread);
+    thread_start(&model_thread);
    }
   }
  }

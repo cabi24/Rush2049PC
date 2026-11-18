@@ -3,11 +3,7 @@
  * (initGameState): which runtime image, which waves and sounds are loaded, which controllers count. The states are
  * system.h's GAME_STATE_* bits. */
 #include "game/game.h"
-#define OSMesgQueue OSMesgQueueView   /* this file's own OSMesgQueue: include/game's OSMesgQueue is another type */
 
-typedef struct { u32 opaque[6]; } OSMesgQueue;
-s32 osRecvMesg(OSMesgQueue *mq, void **msg, s32 flag);
-s32 osSendMesg(OSMesgQueue *mq, void *msg, s32 flag);
 
 
 /* Loads runtime image A, the front end (load set), freeing image B first if it is in; or frees image A (load
@@ -18,9 +14,9 @@ void LoadFrontEndOverlay(s32 load)
     if (load) {
         if (!loaded) {
             if (extra_overlay_loaded) {
-                osRecvMesg(&heap_lock_queue, (void **)0, 1);
+                lock_take(&heap_lock_queue);
                 DeallocateMemoryInternal(runtime_image_block(), 0);
-                osSendMesg(&heap_lock_queue, (void *)0, 0);
+                lock_give(&heap_lock_queue);
                 extra_overlay_loaded = 0;
             }
             load_start_overlay();
@@ -28,9 +24,9 @@ void LoadFrontEndOverlay(s32 load)
         }
     } else if (loaded) {
         if (start_overlay_loaded) {
-            osRecvMesg(&heap_lock_queue, (void **)0, 1);
+            lock_take(&heap_lock_queue);
             DeallocateMemoryInternal(runtime_image_block(), 0);
-            osSendMesg(&heap_lock_queue, (void *)0, 0);
+            lock_give(&heap_lock_queue);
             start_overlay_loaded = 0;
         }
         loaded = 0;

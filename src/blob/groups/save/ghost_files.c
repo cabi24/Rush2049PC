@@ -1,9 +1,5 @@
 /* Ghost files: SaveGhost, reading, decoding and dropping a ghost's data, PS_PurgeFile (MAT3 save.c and ghost.c). */
 #include "game/game.h"
-#define OSMesgQueue OSMesgQueueView   /* this file's own OSMesgQueue: include/game's OSMesgQueue is another type */
-
-typedef struct OSMesgQueue OSMesgQueue;
-s32 osRecvMesg(OSMesgQueue *,void **,s32);s32 osSendMesg(OSMesgQueue *,void *,s32);
 
 s32 sprintf(char *, const char *, ...);
 void *memcpy(void *, const void *, u32);
@@ -18,9 +14,9 @@ void PS_PurgeFile(tPakHandle *fileh) {
 
     if (s->data != NULL) {
         u8 **data = s->data;
-        osRecvMesg(&heap_lock_queue, NULL, 1);
+        lock_take(&heap_lock_queue);
         DeallocateMemoryInternal(data, 0);
-        osSendMesg(&heap_lock_queue, NULL, 0);
+        lock_give(&heap_lock_queue);
         s->data = NULL;
         gPaks[s->pak].files[s->fileNo].flag2 = 0;
     }
@@ -32,9 +28,9 @@ void PurgeGhostData(tGhostFile **h) {
 
     if (o->datah != NULL) {
         u8 **old = o->datah;
-        osRecvMesg(&heap_lock_queue, NULL, 1);
+        lock_take(&heap_lock_queue);
         DeallocateMemoryInternal(old, 0);
-        osSendMesg(&heap_lock_queue, NULL, 0);
+        lock_give(&heap_lock_queue);
         o->datah = NULL;
         (*o->header)->hasSamples = 0;
         if (o->fileh != NULL) {
@@ -65,11 +61,11 @@ void DecodeGhost(tGhostFile **h) {
 
 /* The heap lock (MAT3's DeallocateMemory, inline in SaveGhost: take, free, give back). */
 void ghost_heap_lock(void) {
-    osRecvMesg(&heap_lock_queue, NULL, 1);
+    lock_take(&heap_lock_queue);
 }
 /* Gives the heap lock back. */
 void ghost_heap_unlock(void) {
-    osSendMesg(&heap_lock_queue, NULL, 0);
+    lock_give(&heap_lock_queue);
 }
 /* Frees the heap block at address, under the heap lock. */
 void cart_free(void **address) {
@@ -91,9 +87,9 @@ void slot_forget(tGhostFile **node) {
 
 /* Frees the heap block at address, under the heap lock (cart_free written out). */
 void cart_free_direct(void **address) {
-    osRecvMesg(&heap_lock_queue, NULL, 1);
+    lock_take(&heap_lock_queue);
     DeallocateMemoryInternal(address, 0);
-    osSendMesg(&heap_lock_queue, NULL, 0);
+    lock_give(&heap_lock_queue);
 }
 /* Deletes the ghost's file from its pak, if it has one. */
 void DeleteGhost(tGhostFile **ghosth) {

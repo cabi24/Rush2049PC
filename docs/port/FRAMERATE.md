@@ -10,15 +10,15 @@ itself can also draw a frame every retrace, 60 a second, with its per-frame step
 
 ## 1. How the game paces and times itself
 
-**Retraces.** The game creates its scheduler with one field per message: `osCreateScheduler(&gScheduler, ..., 12,
-tvType, 1)` (`src/rom/boot.c:88`), so `osViSetEvent(&scheduler->cmdQueue, 666, numFields)`
-(`src/rom/scheduler.c:122`) gets a message at every 60 Hz retrace. `__scHandleRetrace` counts it
-(`retraceCount`, at 0x27C: the game reads it as `scheduler_retrace_count`, `frameCount`, `tick`) and sends every client a
+**Retraces.** The game creates its scheduler with one field per message: `sched_create(&gScheduler, ..., 12,
+tvType, 1)` (`src/rom/boot.c`), so `osViSetEvent(&scheduler->eventQueue, MESG_NUMBER(SCHED_CMD_RETRACE), numFields)`
+(`src/rom/scheduler.c`) gets a command at every 60 Hz retrace. `sched_handle_retrace` counts it
+(`gScheduler.retraceCount`, the game's clock, which some files call `frameCount` or `tick`) and sends every client a
 message.
 
 **At most one frame every two retraces.** The scheduler swaps a finished frame only if two retraces have passed since
-the last swap: `__scExecTask` swaps at once when `retraceCount - __osScSwapCount >= 2U`, else leaves it pending, and
-`__scHandleRetrace` swaps the pending one when that becomes true; `__scTaskReady` holds the next graphics task until
+the last swap: `sched_task_done` swaps at once when `retraceCount - __osScSwapCount >= 2U`, else leaves it pending, and
+`sched_handle_retrace` swaps the pending one when that becomes true; `sched_task_ready` holds the next graphics task until
 the swapped buffer is on screen and the two retraces have passed. The game's own main-thread step
 (`process_scheduler_message`, MAT3's main loop, `src/blob/groups/mainloop/mainloop.c`) starts a frame only at a retrace
 message, when the next framebuffer is the current one, no frame is in flight (`frame_start_pending/71/72`) and fewer than two
@@ -449,7 +449,7 @@ physics was per retrace already (section 1) and stays as it is. `original`, the 
   starts at the retrace after the one it was swapped in. The game's two frame records and its two framebuffers
   alternate as before.
 - **The frame's task.** EndGraphics puts the frame's task in the scheduler's task queue, which the scheduler drains
-  only at a message on its command queue (`__scMain`). In real time on the PC the RSP finishes the retrace's audio task
+  only at a message on its command queue (`sched_main`). In real time on the PC the RSP finishes the retrace's audio task
   at once, before the frame is done, so that message was the next retrace, and every frame was shown two retraces
   after it began (rocky, the synthetic race in real time: 1,210 to 1,487 of the game's frames in 1,800 retraces,
   however it was presented). At 60 EndGraphics also sends the scheduler 670, as the audio task's sender does
@@ -518,7 +518,7 @@ display-list building, text layout and init code are counted in the last row of 
 | file:line | function | what it steps | verdict | change |
 |---|---|---|---|---|
 | **The frame and the scheduler** | | | | |
-| src/rom/scheduler.c:254, 331, 353 | __scHandleRetrace, __scTaskReady, __scExecTask | the swap after two retraces | changed | `PC_SWAP_RETRACES`: 1 at 60 |
+| src/rom/scheduler.c:254, 331, 353 | sched_handle_retrace, sched_task_ready, sched_task_done | the swap after two retraces | changed | `PC_SWAP_RETRACES`: 1 at 60 |
 | src/rom/timer.c:74 | UpdateFrameTimer | the frame's retraces and time | delta | notes the frame's length (`pc_game_frame_note`) |
 | src/blob/groups/front_end/GameLoop.c:87 | GameLoop | a state change | changed | latches the setting, and tells the race watch the state it changes to (`pc_game_fps_state`, 7.7) |
 | src/blob/groups/front_end/GameLoop.c:92 | GameLoop | the idle overlay after 300 s, retraces × seconds a retrace | delta | |

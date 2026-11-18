@@ -3,9 +3,6 @@
  * menu and the race's standings; the score page the race's full table: lap by lap for a race, the stunt points or
  * the battle points. Each player's cells are tinted in the player's colour (blue, red, yellow, green). */
 #include "game/game.h"
-#define OSMesgQueue OSMesgQueueView   /* this file's own OSMesgQueue: include/game's OSMesgQueue is another type */
-
-typedef struct OSMesgQueue OSMesgQueue;
 
 /* Fill the screen rectangle (x, y, w, h) with color (r, g, b, a) straight into the blit display list. */
 void drawRect(s32 x, s32 y, s32 w, s32 h, u8 *color)
@@ -20,8 +17,6 @@ void drawRect(s32 x, s32 y, s32 w, s32 h, u8 *color)
 
 
 #define TEXT_STUNT_RECORDS 37       /* gText.tab[]: the stunt score page's record rows */
-
-extern s32 osRecvMesg(OSMesgQueue *,void **,s32),osSendMesg(OSMesgQueue *,void *,s32);
 
 /* Draw text at (x, y), cut to w pixels with an ellipsis if it is wider. */
 void rs_DrawEllipseText(s16 x, s16 y, s16 w, char *text)
@@ -197,14 +192,14 @@ void drawBattleStandings(void)
     }
     HAL_SetTextDepth(0.0f);
     gJust.h=kTB_JustCenter;gJust.v=kTB_JustCenter;
-    osRecvMesg(&text_lock_queue,0,1); previous = HAL_SetFontInternal(11); osSendMesg(&text_lock_queue,0,0); if (previous) {}
+    lock_take(&text_lock_queue); previous = HAL_SetFontInternal(11); lock_give(&text_lock_queue); if (previous) {}
     for(row=0;row<rows;row++) {
         for(column=0;column<columns;column++) {
             if(row!=0 || column!=0) {
                 if(column==0) {
                     x=column*60+100;
                     y=row*14+43;
-                    osRecvMesg(&text_lock_queue,0,1); previous = HAL_SetFontInternal(11); osSendMesg(&text_lock_queue,0,0); if (previous) {}
+                    lock_take(&text_lock_queue); previous = HAL_SetFontInternal(11); lock_give(&text_lock_queue); if (previous) {}
                     if(gRankedPlayer[row-1]<gNumPlayers) {
                         TB_SetTextColor(playerTextColor[gCarTeam[gRankedPlayer[row-1]]]);
                         text=(*gPlayers[gRankedPlayer[row-1]].save)->name;
@@ -281,7 +276,7 @@ void drawStuntStandings(void)
     }
     HAL_SetTextDepth(0.0f);
     gJust.h=kTB_JustCenter;gJust.v=kTB_JustCenter;
-    osRecvMesg(&text_lock_queue,0,1); previous = HAL_SetFontInternal(11); osSendMesg(&text_lock_queue,0,0); if (previous) {}
+    lock_take(&text_lock_queue); previous = HAL_SetFontInternal(11); lock_give(&text_lock_queue); if (previous) {}
     for(row=0;row<rows;row++) {
         for(column=0;column<columns;column++) {
             if(row!=0 || column!=0) {
@@ -318,7 +313,7 @@ void drawStuntStandings(void)
                     TB_Sprintf(value,stunt_standings_best_format,gStuntPlayer[gRankedPlayer[row-1]].maxStuntPoints);
                 }
                 if(column!=0) TB_DrawText((s16)(column*60+100),(s16)(row*14+43),text);
-                osRecvMesg(&text_lock_queue,0,1); previous = HAL_SetFontInternal(11); osSendMesg(&text_lock_queue,0,0); if (previous) {}
+                lock_take(&text_lock_queue); previous = HAL_SetFontInternal(11); lock_give(&text_lock_queue); if (previous) {}
             }
         }
     }
@@ -374,7 +369,7 @@ void drawStuntScore(void)
     }
     HAL_SetTextDepth(0.0f);
     gJust.h=kTB_JustCenter;gJust.v=kTB_JustCenter;
-    osRecvMesg(&text_lock_queue,0,1); previous = HAL_SetFontInternal(11); osSendMesg(&text_lock_queue,0,0); if (previous) {}
+    lock_take(&text_lock_queue); previous = HAL_SetFontInternal(11); lock_give(&text_lock_queue); if (previous) {}
     for(row=0;row<rows;row++) {
         for(column=0;column<columns;column++) {
             if(row!=0 || column!=0) {
@@ -524,7 +519,7 @@ void drawBattleScore(void)
     }
     HAL_SetTextDepth(0.0f);
     gJust.h=kTB_JustCenter;gJust.v=kTB_JustCenter;
-    text_lock(); previous = HAL_SetFontInternal(11); osSendMesg(&text_lock_queue,0,0); if (previous) {}
+    text_lock(); previous = HAL_SetFontInternal(11); lock_give(&text_lock_queue); if (previous) {}
     for(row=0;row<rows;row++) {
         for(column=0;column<columns;column++) {
             if(row!=0 || column!=0) {

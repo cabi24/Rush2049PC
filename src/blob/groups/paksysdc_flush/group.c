@@ -1,29 +1,22 @@
 /* Writing pak files back (MAT3 paksysdc.c, the N64's libultra form of it): the dirty maps, PS_WriteFile,
  * PS_FlushFile and PS_FlushPak, and the serial bus lock they take. */
 #include "game/game.h"
-#define OSThread OSThreadView   /* this file's own OSThread: include/game's OSThread is another type */
 
-typedef struct OSThread_s OSThread;
-
-extern void osCreateMesgQueue(OSMesgQueue *, OSMesg *, s32);
-extern s32 osRecvMesg(OSMesgQueue *, OSMesg *, s32);
-extern s32 osSendMesg(OSMesgQueue *, OSMesg, s32);
 
 #define DIRTY_RUN 32   /* the dirty map's grain: one bit for each 32 bytes of a file */
 
 /* Makes the serial bus lock (a one-message queue) the first time it is needed. */
 void pfs_queue_init(void) {
     if (!si_lock_inited) {
-        si_lock_inited = 1; osCreateMesgQueue(&si_lock_queue, &si_lock_msg, 1);
-        osSendMesg(&si_lock_queue, 0, 0);
+        si_lock_inited = 1; queue_init(&si_lock_queue, &si_lock_msg, 1);
+        lock_give(&si_lock_queue);
     }
 }
 
 /* Takes the serial bus lock (si_lock's twin); si_unlock gives it back. */
 void pfs_lock(void) {
-    OSMesg message;
     pfs_queue_init();
-    osRecvMesg(&si_lock_queue, &message, 1);
+    lock_take(&si_lock_queue);
 }
 
 /* Clears pak index's flush flag when none of its open files is dirty any more. */

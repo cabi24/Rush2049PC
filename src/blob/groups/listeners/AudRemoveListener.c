@@ -3,8 +3,6 @@
 #include "game/game.h"
 #include "game/audiomgr.h"
 
-s32 osRecvMesg(OSMesgQueue *queue, OSMesg *message, s32 flags);
-s32 osSendMesg(OSMesgQueue *queue, OSMesg message, s32 flags);
 
 /* Gives listener back (MAT3's _FreeListener, inlined): off the active list, onto the free list. -1 (none) is
  * ignored. */
@@ -13,7 +11,7 @@ __inline void AudRemoveListener(tSfxListener *listener)
     if (listener == (tSfxListener *)-1) {
         return;
     }
-    osRecvMesg(&audio_lock_queue, 0, 1);
+    lock_take(&audio_lock_queue);
     ValidateListener(listener);
     if (listener->active != 0) {
         RemoveLLE(&gActiveListeners, listener);
@@ -21,7 +19,7 @@ __inline void AudRemoveListener(tSfxListener *listener)
     }
     InsertLLE(&gFreeListeners, listener, gFreeListeners.head);
     listener->free = 1;
-    osSendMesg(&audio_lock_queue, 0, 0);
+    lock_give(&audio_lock_queue);
 }
 
 /* Gives back every player's listener (StartListeners') and forgets it. */

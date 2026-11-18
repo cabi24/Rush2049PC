@@ -4,8 +4,7 @@
  * scheduler's messages forever (process_scheduler_message). On the PC the threads are host threads, and the game
  * image, which the N64's main thread inflated from the cartridge, is part of the program (its data port/data's). The
  * threads' ids and priorities are game/threads.h's THREAD_*. */
-#include "static_debug_context.h"
-#include "game/threads.h"
+#include "static_debug_context.h"   /* rom_tu.h, and with it game/threads.h */
 
 /* The game threads' FPU control: flush denormals to zero (FS) and trap invalid operations, divide by zero and
  * overflow. port/ultra records it. */
@@ -15,37 +14,27 @@
  * (The N64's also read 64 bytes of the cartridge, past the ROM's end, that nothing used.) */
 void main(void *argument) {
     __osInitialize_common();
-    osCreateThread(&gIdleThread, THREAD_ID_IDLE, idle_thread_entry, argument, gStackIdle + 0x190, THREAD_PRI_IDLE_START);
-    osStartThread(&gIdleThread);
+    thread_create(&gIdleThread, THREAD_ID_IDLE, idle_thread_entry, argument, gStackIdle + 0x190, THREAD_PRI_IDLE_START);
+    thread_start(&gIdleThread);
 }
 
 /* The idle thread: drops to priority 0, starts the main thread and then idles for good. (The N64's started the
  * cartridge's DMA manager first; the PC reads the cartridge at once, pc_cart_read.) */
 void idle_thread_entry(void *argument) {
-    osSetThreadPri(NULL, 0);
-    osCreateThread(&main_thread, THREAD_ID_MAIN, main_thread_entry, argument, main_thread_stack + 0x960, THREAD_PRI_MAIN);
-    osStartThread(&main_thread);
+    thread_set_priority(NULL, THREAD_PRI_IDLE);
+    thread_create(&main_thread, THREAD_ID_MAIN, main_thread_entry, argument, main_thread_stack + 0x960, THREAD_PRI_MAIN);
+    thread_start(&main_thread);
     for (;;) { pc_os_idle(); }
 }
 
-typedef struct { s16 type; } MainThreadSchedulerMessage;
-typedef struct MainThreadScheduler MainThreadScheduler;
 extern OSMesgQueue rom_dma_queue, unzip_dma_queue, main_thread_queue, game_thread_queue, bg_load_idle_queue;
 extern OSMesg gDmaMesgBuf[], gInflateMesgBuf[], gRetraceMesgBuf[], gEventMesgBuf[], gSyncMesgBuf[];
-extern MainThreadScheduler gScheduler;
 extern u8 gSchedulerStack[], bg_load_thread_stack[], model_thread_stack[], game_thread_stack[];
 extern OSThread bg_load_thread, model_thread, game_thread;
 extern s16 frame_start_msg;
 extern s8 gInitFlag;
 extern s8 frame_end_requested;
 extern void __setfpcsr(u32 value);
-extern void osCreateMesgQueue(OSMesgQueue *mq, OSMesg *msg, s32 count);
-extern s32 osSendMesg(OSMesgQueue *mq, OSMesg msg, s32 flags);
-extern s32 osRecvMesg(OSMesgQueue *mq, OSMesg *msg, s32 flags);
-extern void osCreateThread(OSThread *thread, OSId id, void (*entry)(void *), void *arg, void *sp, OSPri pri);
-extern void osStartThread(OSThread *thread);
-extern void osCreateScheduler(MainThreadScheduler *, void *, OSPri, u8, u8);
-extern void osScAddClient(MainThreadScheduler *, OSScClient *, OSMesgQueue *);
 extern void bzero(void *s, s32 n);
 extern s32 video_mode_base_index(void);
 extern void BGLoadWaveMain(void *);
@@ -62,32 +51,31 @@ extern void process_scheduler_message(void);
  * the game thread's first end of frame, ends the boot screen and serves the scheduler's messages forever. */
 void main_thread_entry(void *arg) {
     OSScClient client;
-    OSMesg msg = 0;
     register s32 tvType;
 
     __setfpcsr(FPCSR_GAME);
-    osCreateMesgQueue(&rom_dma_queue, gDmaMesgBuf, 8);
-    osCreateMesgQueue(&unzip_dma_queue, gInflateMesgBuf, 8);
-    osCreateMesgQueue(&main_thread_queue, gRetraceMesgBuf, 60);
-    osCreateMesgQueue(&game_thread_queue, gEventMesgBuf, 8);
-    tvType = video_mode_base_index(), osCreateScheduler(&gScheduler, gSchedulerStack + 0x640, THREAD_PRI_SCHEDULER, tvType, 1);
-    osScAddClient(&gScheduler, &client, &main_thread_queue);
-    osCreateThread(&bg_load_thread, THREAD_ID_BG_LOAD, BGLoadWaveMain, 0, bg_load_thread_stack + 0x960, THREAD_PRI_BG_LOAD);
-    osCreateMesgQueue(&bg_load_idle_queue, gSyncMesgBuf, 1);
-    osSendMesg(&bg_load_idle_queue, 0, 1);
-    osStartThread(&bg_load_thread);
-    osCreateThread(&model_thread, THREAD_ID_MODEL, ModelThread, 0, model_thread_stack + 0x960, THREAD_PRI_MODEL);
-    osStartThread(&model_thread);
+    queue_init(&rom_dma_queue, gDmaMesgBuf, 8);
+    queue_init(&unzip_dma_queue, gInflateMesgBuf, 8);
+    queue_init(&main_thread_queue, gRetraceMesgBuf, 60);
+    queue_init(&game_thread_queue, gEventMesgBuf, 8);
+    tvType = video_mode_base_index(), sched_create(&gScheduler, gSchedulerStack + 0x640, THREAD_PRI_SCHEDULER, tvType, 1);
+    sched_add_client(&gScheduler, &client, &main_thread_queue);
+    thread_create(&bg_load_thread, THREAD_ID_BG_LOAD, BGLoadWaveMain, 0, bg_load_thread_stack + 0x960, THREAD_PRI_BG_LOAD);
+    queue_init(&bg_load_idle_queue, gSyncMesgBuf, 1);
+    queue_send(&bg_load_idle_queue, NULL);   /* the loader's idle token */
+    thread_start(&bg_load_thread);
+    thread_create(&model_thread, THREAD_ID_MODEL, ModelThread, 0, model_thread_stack + 0x960, THREAD_PRI_MODEL);
+    thread_start(&model_thread);
     InitSystem();
     BlitInit();
-    osCreateThread(&game_thread, THREAD_ID_GAME, (void (*)(void *))game_thread_entry, arg, game_thread_stack + 0x12C0, THREAD_PRI_GAME);
+    thread_create(&game_thread, THREAD_ID_GAME, (void (*)(void *))game_thread_entry, arg, game_thread_stack + 0x12C0, THREAD_PRI_GAME);
     frame_start_msg = GAME_MSG_START_FRAME;
     if (!gInitFlag) {
-        osStartThread(&game_thread);
+        thread_start(&game_thread);
     }
     while (1) {
-        osRecvMesg(&main_thread_queue, &msg, 1);
-        if (((MainThreadSchedulerMessage *)msg)->type == GAME_MSG_END_FRAME) {
+        OSScMsg *msg = queue_recv(&main_thread_queue);
+        if (msg->type == GAME_MSG_END_FRAME) {
             break;
         }
     }

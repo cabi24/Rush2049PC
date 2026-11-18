@@ -1,24 +1,6 @@
 /* EndGraphics: end a frame's display list and hand it to the scheduler (MAT3 gfx.c; the N64 side of it). */
 #include "game/game.h"
-#define OSMesgQueue OSMesgQueueView   /* this file's own OSMesgQueue: include/game's OSMesgQueue is another type */
 
-typedef struct { u32 opaque[6]; } OSMesgQueue;
-
-typedef struct OSScTask {
-    struct OSScTask *next;  /* 0x00 */
-    u32 state;              /* 0x04 */
-    u32 flags;              /* 0x08 */
-    void *framebuffer;      /* 0x0C */
-    OSTask_t t;             /* 0x10 */
-    OSMesgQueue *msgQ;      /* 0x50 */
-    OSMesg msg;             /* 0x54 */
-    void *pad58;            /* the DL base pointer (other views) */
-    u8 doneMsg[0x7C - 0x5C];/* 0x5C */
-    void *buffer;           /* 0x7C */
-} Frame;                    /* 0x80 */
-
-VIEW(Frame[], frame_records);
-#define frame_records frame_records_view
 
 /* PC: the frame's buffer as pc_game_types.h lays it out, PC_GLIST_LEN commands from PC_GLIST_OFFSET; at the end of
  * its list pc_frame_pools checks the list, the frame's matrices (frame_matrix_cursor) and its lookats, which the SDK's empty
@@ -31,23 +13,14 @@ typedef struct Dynamic {
     Gfx glist[GLIST_LEN];
 } Dynamic;
 
-extern OSMesgQueue scheduler_task_queue;
-extern u8 scheduler_thread[];                  /* thread */
-
 /* PC, game.frame_rate 60 (docs/port/FRAMERATE.md 7): the frame's task waits in the scheduler's task queue until a
- * message on its command queue wakes it (__scMain, 670: schedule). In real time on the PC the RSP finishes the
+ * command on its event queue wakes it (sched_main, SCHED_CMD_SCHEDULE). In real time on the PC the RSP finishes the
  * retrace's audio task at once, before the frame is done, so the next message was the next retrace: the frame's
  * task ran a retrace late and was shown two after the frame began, every frame. At 60 the frame's task wakes the
  * scheduler itself, as the audio task's sender does (musyx_submit_audio_task). Original keeps the N64's messages. */
-extern OSMesgQueue scheduler_interrupt_queue;
-
-void osStopThread(void *);
-void osStartThread(void *);
-s32 osSendMesg(OSMesgQueue *, OSMesg, s32);
 
 #define M_GFXTASK 1                 /* OSTask type: a graphics task */
 #define OS_TASK_DP_WAIT 2           /* OSTask flag: wait for the RDP to finish the last task's output */
-#define OS_SC_SWAP_AND_LAST 99      /* the frame record's scheduler flags (OS_SC_NEEDS_RSP | RDP | LAST_TASK | SWAPBUFFER) */
 
 /* Ends the frame StartGraphics began: the text drawn (HAL_FinishText) and the blitter's list ended (BlitFinish) and
  * called from the frame's list, which is closed with a full sync; then fills in the frame record's graphics task
@@ -56,7 +29,7 @@ s32 osSendMesg(OSMesgQueue *, OSMesg, s32);
  * the frame's and the blitter's lists stay in last_frame_dl_end and last_frame_text_dl_end. */
 void EndGraphics(void)
 {
-    Frame *f;
+    FrameRecord *f;
     Gfx *dl;
 
     f = &frame_records[frame_record_index];
@@ -68,34 +41,35 @@ void EndGraphics(void)
     gDPFullSync(frame_dl++);
     gSPEndDisplayList(frame_dl++);
     if (PC_FRAME_OVER) {}
-    f->t.data_ptr = (u64 *)frame_dynamic->glist;
-    f->t.data_size = (u32)((frame_dl - frame_dynamic->glist) * sizeof(Gfx));
-    f->t.type = M_GFXTASK;
-    f->t.ucode_boot = rspbootTextStart;
-    f->t.ucode_boot_size = (u8 *)rspbootTextEnd - (u8 *)rspbootTextStart;
-    f->t.ucode_data_size = 2048;
-    f->t.dram_stack = rsp_dram_stack;
-    f->t.dram_stack_size = 1024;
+    f->task.list.data_ptr = (u64 *)frame_dynamic->glist;
+    f->task.list.data_size = (u32)((frame_dl - frame_dynamic->glist) * sizeof(Gfx));
+    f->task.list.type = M_GFXTASK;
+    f->task.list.ucode_boot = rspbootTextStart;
+    f->task.list.ucode_boot_size = (u8 *)rspbootTextEnd - (u8 *)rspbootTextStart;
+    f->task.list.ucode_data_size = 2048;
+    f->task.list.dram_stack = rsp_dram_stack;
+    f->task.list.dram_stack_size = 1024;
     if (gfx_tasks_pending == 0) {
-        f->t.flags = 0;
+        f->task.list.flags = 0;
     } else {
-        f->t.flags = OS_TASK_DP_WAIT;
+        f->task.list.flags = OS_TASK_DP_WAIT;
     }
     if (frame_dl - frame_dynamic->glist > GLIST_LEN) {}
-    f->t.ucode = gspF3DEX2_NoN_fifoTextStart;
-    f->t.ucode_data = gspF3DEX2_NoN_fifoDataStart;
-    f->t.output_buff = rdp_fifo_buffer;
-    f->t.output_buff_size = rdp_fifo_buffer_end;
-    f->t.yield_data_ptr = rsp_yield_buffer;
-    f->t.yield_data_size = 3072;
-    f->next = 0;
-    f->flags = OS_SC_SWAP_AND_LAST;
-    f->msgQ = &main_thread_queue;
-    f->msg = &f->doneMsg;
-    f->framebuffer = f->buffer;
-    osStopThread(scheduler_thread);
+    f->task.list.ucode = gspF3DEX2_NoN_fifoTextStart;
+    f->task.list.ucode_data = gspF3DEX2_NoN_fifoDataStart;
+    f->task.list.output_buff = rdp_fifo_buffer;
+    f->task.list.output_buff_size = rdp_fifo_buffer_end;
+    f->task.list.yield_data_ptr = rsp_yield_buffer;
+    f->task.list.yield_data_size = 3072;
+    f->task.next = 0;
+    f->task.flags = OS_SC_NEEDS_RDP | OS_SC_NEEDS_RSP | OS_SC_LAST_TASK | OS_SC_SWAPBUFFER;
+    f->task.msgQueue = &main_thread_queue;
+    f->task.msg = &f->doneMsg;
+    f->task.framebuffer = f->colorBuffer;
+    thread_stop(&gScheduler.thread);
     gRenderInProgress++;
-    osStartThread(scheduler_thread);
-    osSendMesg(&scheduler_task_queue, f, 1); if (pc_fps60) osSendMesg(&scheduler_interrupt_queue, (OSMesg)670, 0);
+    thread_start(&gScheduler.thread);
+    queue_send(&gScheduler.taskQueue, &f->task);
+    if (pc_fps60) queue_try_send(&gScheduler.eventQueue, MESG_NUMBER(SCHED_CMD_SCHEDULE));
     gLastFrameCount = gScheduler.retraceCount;
 }

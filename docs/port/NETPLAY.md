@@ -233,8 +233,8 @@ no game state, except for one thing: with a real device, the AI's queue level is
   2. sets the pads;
   3. sends the VI event;
   4. presents a swapped frame.
-- The scheduler swaps a frame only two retraces after the last swap. `__scHandleRetrace`, `__scTaskReady` and
-  `__scExecTask` test `retraceCount - __osScSwapCount >= PC_SWAP_RETRACES` (`scheduler.c:263, 340, 362`).
+- The scheduler swaps a frame only two retraces after the last swap. `sched_handle_retrace`, `sched_task_ready` and
+  `sched_task_done` test `retraceCount - __osScSwapCount >= PC_SWAP_RETRACES` (`scheduler.c:263, 340, 362`).
   FRAMERATE.md 1 says how the main thread starts a frame only at a retrace message.
 - The model thread runs once per retrace. ControllerUpdate, then model_iteration
   (`src/blob/groups/modelthread/modelthread.c:63`) steps the cars by ticks × 1/60.

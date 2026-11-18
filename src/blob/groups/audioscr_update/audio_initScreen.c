@@ -4,7 +4,6 @@
 
 void *memcpy(void *,const void *,u32);
 
-s32 osSendMesg(OSMesgQueue *, void *, s32);
 
 /* Opens the audio screen: keeps the globals (SaveGlobals), sizes the menu; in the front end makes the background,
  * the 3D buttons (the lines' pairs, the cursor and three decorations) and the front end's blit, in the pause

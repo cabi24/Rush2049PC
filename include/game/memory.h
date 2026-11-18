@@ -35,11 +35,11 @@ extern u8 length_code[EXTENT(256)];
 extern s32 base_length[EXTENT(29)];
 extern s32 base_dist[EXTENT(30)];
 extern OSMesgQueue heap_lock_queue;
-extern s32 heap_lock_msg;
+extern OSMesg heap_lock_msg;
 extern struct Heap *gMainHeap;
 extern s32 bg_load_request;
-extern OSMesgQueueWords bg_load_request_queue;
-extern s32 bg_load_request_messages;
+extern OSMesgQueue bg_load_request_queue;
+extern OSMesg bg_load_request_messages;
 extern anon_loaded_ready_14 gWaveInstance[EXTENT(64)];
 /* pc_extra_blbits: declared by its files (src/blob/groups/zlib_deflate/group.c: defines it) */
 

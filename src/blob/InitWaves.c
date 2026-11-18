@@ -1,22 +1,17 @@
 /* InitWaves (MAT3 waves.c): frees every wave but the locked ones, between game states (waves/group.c has the
  * waves). */
 #include "game/game.h"
-#define OSMesgQueue OSMesgQueueView   /* this file's own OSMesgQueue: include/game's OSMesgQueue is another type */
-
-typedef struct OSMesgQueue { s32 pad[6]; } OSMesgQueue;
-s32 osRecvMesg(OSMesgQueue *, OSMesg *, s32);
-s32 osSendMesg(OSMesgQueue *, OSMesg, s32);
 
 /* Whether the background loader is idle: without wait, 0 when it is busy; with wait, blocks until it is idle. Gives
  * the idle token back either way, so it returns 1 (MAT3 _BGLoadWaveCheck). */
 static int _BGLoadWaveCheck(int wait)
 {
     OSMesg msg;
-    if (osRecvMesg(&bg_load_idle_queue, &msg, 0) == -1) {
+    if (!queue_try_recv(&bg_load_idle_queue, &msg)) {
         if (!wait) return 0;
-        osRecvMesg(&bg_load_idle_queue, &msg, 1);
+        msg = queue_recv(&bg_load_idle_queue);
     }
-    osSendMesg(&bg_load_idle_queue, 0, 1);
+    queue_send(&bg_load_idle_queue, NULL);
     return 1;
 }
 

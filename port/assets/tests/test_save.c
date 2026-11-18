@@ -196,7 +196,7 @@ void *gRealLimboGhosts, **gLimboGhosts;
 uint8_t gGlobalsSet, save_gInited;
 int8_t gTrackNum, gOptions[64], gCheatActive[24], gSaveGhostFiles;   /* gCheatActive[21]: the cheats menu */
 int16_t gCheatState[32], gLang;
-int32_t gScheduler[160];
+int32_t gScheduler[198];   /* game/threads.h's PcSched, 792 bytes: retraceCount is word 196 */
 /* the file names' parts and formats (the test's own) */
 char cheat_profile_name[] = "CHEATS", player_file_prefix[9] = "RUSH2049", player_file_ext_match[] = "P", player_file_ext[] = "P",
      player_file_digits_format[] = "%0*d", save_file_name_prefix[] = "RUSH2049", player_file_ext_prefix[] = "P";
@@ -498,7 +498,7 @@ static void test_create(void)
     /* the save file on the pak, in its N64 layout: written whole by CreatePlayer */
     CHECK(n->data[12] == 16 && !strcmp((char *)n->data + 13, "ALICE"));
     CHECK(U32(n->data, 0) == CalcChecksumInternal(n->data + 4, 24));
-    CHECK(U32(n->data, 4) == (uint32_t)gScheduler[159] && (U32(n->data, 8) & 7) == PAK);
+    CHECK(U32(n->data, 4) == (uint32_t)gScheduler[196] && (U32(n->data, 8) & 7) == PAK);
     CHECK(!memcmp(p->id, n->data + 4, 8));
     CHECK(n->data[32] == 1 && n->data[32 + 20] == 21);                     /* options 0 and 20 */
     CHECK(U32(n->data, 28) == CalcChecksumInternal(n->data + 32, 21));
@@ -729,7 +729,7 @@ int main(void)
         pak_charset[16 + i] = (uint16_t)('0' + i);
     for (i = 0; i < 26; i++)
         pak_charset[26 + i] = (uint16_t)('A' + i);
-    gScheduler[159] = 0x2049;
+    gScheduler[196] = 0x2049;
     InitMemory(64, 64);
     test_handles();
     test_init();

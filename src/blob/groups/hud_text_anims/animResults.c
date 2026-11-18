@@ -1,14 +1,10 @@
 /* The HUD's race results (MAT3 hud.c animResults): an animation function, run each frame at the end of a race,
  * that draws each finished player's result in their window and, with two or more windows, the winner. */
 #include "game/game.h"
-#define OSMesgQueue OSMesgQueueView   /* this file's own OSMesgQueue: include/game's OSMesgQueue is another type */
 
-typedef struct OSMesgQueue OSMesgQueue;
 #define TEXT_PLACE_SUFFIXES 55            /* gText.tab[]: the places' suffixes ("st", "nd" ...) */
 
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-
-extern s32 osRecvMesg(OSMesgQueue *, void **, s32), osSendMesg(OSMesgQueue *, void *, s32);
 
 /* HAL_SetFont without its result. */
 void ar_SetFont(s32 font)
@@ -121,9 +117,9 @@ s32 animResults(s32 unused)
 s32 ar_font_set(s32 font)
 {
     s32 old;
-    osRecvMesg(&text_lock_queue, 0, 1);
+    lock_take(&text_lock_queue);
     old = HAL_SetFontInternal(font);
-    osSendMesg(&text_lock_queue, 0, 0);
+    lock_give(&text_lock_queue);
     return old;
 }
 

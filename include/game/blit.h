@@ -70,7 +70,7 @@ extern tBlitInstance gBlitInstanceList[EXTENT(200)];
 extern tBlit *BlitPtrs[EXTENT(200)];
 extern s32 NumBlits;
 extern s32 blitMode;
-extern OSMesgQueueWords rumble_queue;
+extern OSMesgQueue rumble_queue;
 extern OSMesg rumble_msg;
 extern s32 gNumBlitInsts;
 /* The blitter's two display lists, filled in turn (src/blob/groups/blit/init.c defines them). */

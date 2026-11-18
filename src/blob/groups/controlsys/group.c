@@ -7,8 +7,6 @@
  * d-pad presses, is set here too. */
 #include "game/game.h"
 
-s32 osRecvMesg(OSMesgQueue *mq, OSMesg *msg, s32 flags);
-s32 osSendMesg(OSMesgQueue *mq, OSMesg msg, s32 flags);
 
 /* The scheduler's retrace count (gScheduler.retraceCount), the controls' clock. */
 #define gTick gScheduler.retraceCount
@@ -35,7 +33,7 @@ void UpdateControls(void)
     f32 x;
     f32 y;
 
-    osRecvMesg(&controlsys_lock_queue, NULL, 1);
+    lock_take(&controlsys_lock_queue);
     if (gResetLastKeyTime != 0) {
         gResetLastKeyTime = 0;
         gLastKeyTime = gTick;
@@ -51,7 +49,7 @@ void UpdateControls(void)
             gContLevels[i] = 0;
             gContEdges[i] = 0;
         }
-        osSendMesg(&controlsys_lock_queue, NULL, 0);
+        lock_give(&controlsys_lock_queue);
         return;
     }
     for (i = 0; i < 4; i++) {
@@ -93,7 +91,7 @@ void UpdateControls(void)
             gActiveAutoEdges |= gAutoEdges[i];
         }
     }
-    osSendMesg(&controlsys_lock_queue, NULL, 0);
+    lock_give(&controlsys_lock_queue);
 }
 
 /* A raw stick value scaled by the calibration calib to -range..range (MAT3 _PotRange, its arguments reordered). */
@@ -128,7 +126,7 @@ void ControlIRQ(void)
     if (gInitControls == 0) {
         InitControlSys();
     }
-    osRecvMesg(&controlsys_lock_queue, NULL, 1);
+    lock_take(&controlsys_lock_queue);
     for (i = 0; i < 4; i++) {
         buttons = 0;
         if (gControllerData[i].attached == 0) {
@@ -178,7 +176,7 @@ void ControlIRQ(void)
         rawY = gNewStick[i][1];
         gRealStick[i][1] = PotRange(1.0f, gContStickRange[i][1], rawY);
     }
-    osSendMesg(&controlsys_lock_queue, NULL, 0);
+    lock_give(&controlsys_lock_queue);
 }
 
 /* Whether controller player (-1: all four) turns its stick into d-pad presses. */

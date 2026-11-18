@@ -3,9 +3,7 @@
  * records (built beside the file by its converter, port/assets/wad.c) go into gRomObjDefPtrs, gTexDefPtrs and
  * gPalDefPtrs, and its display lists are relocated (waves/group.c has the waves). */
 #include "game/game.h"
-#define OSMesgQueue OSMesgQueueView   /* this file's own OSMesgQueue: include/game's OSMesgQueue is another type */
 
-typedef struct OSMesgQueue { void *mtqueue; void *fullqueue; s32 validCount; s32 first; s32 msgCount; OSMesg *msg; } OSMesgQueue;
 
 /* A handle wave's ptr is a heap master slot (a handle): its block is the address the slot holds. */
 #define HANDLE_BLOCK(h) (*(u8 **)(h))
@@ -19,7 +17,6 @@ typedef struct OSMesgQueue { void *mtqueue; void *fullqueue; s32 validCount; s32
 #define DL_KEEP_FORWARD 8           /* the track run the usual way */
 #define DL_KEEP_BACKWARD 0x10       /* the track run backwards */
 
-s32 osRecvMesg(OSMesgQueue *mq, OSMesg *msg, s32 flags);
 
 /* Sets up wave instance idx once its file is in (MAT3 _SetupWaveModel): for a model WAD, points the instance's
  * entries of the model, texture and palette tables (and, for a track wave, the target paths) at the WAD's records,
@@ -97,7 +94,7 @@ void SetupWaveModel(s32 idx, s32 first) {
 /* Reads size bytes at ROM offset rom into dst, and waits for the read's message. */
 void wave_rom_read(u8 *dst, s32 rom, s32 size) {
     pc_cart_read(rom, dst, size, &rom_dma_queue);
-    osRecvMesg(&rom_dma_queue, NULL, 1);
+    queue_recv(&rom_dma_queue);
 }
 
 /* Reads wave instance slot's wave from the cartridge into its block, as the wave is stored (wave_storage_kinds: 0

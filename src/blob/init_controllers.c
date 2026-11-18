@@ -3,36 +3,21 @@
  * Makes the serial interface's event queue, initialises the controllers through libultra (osContInit, under the
  * serial-bus lock the Controller Pak and Rumble Pak code share) and clears each controller's Rumble Pak state. */
 #include "game/game.h"
-#define OSMesgQueue OSMesgQueueView   /* this file's own OSMesgQueue: include/game's OSMesgQueue is another type */
-#define OSThread OSThreadView   /* this file's own OSThread: include/game's OSThread is another type */
-
-typedef struct OSThread OSThread;
-typedef struct OSMesgQueue {OSThread *mtqueue,*fullqueue;s32 validCount,first,msgCount;OSMesg *msg;} OSMesgQueue;
-
-extern void osCreateMesgQueue(OSMesgQueue *,OSMesg *,s32);
-extern s32 osSendMesg(OSMesgQueue *,OSMesg,s32),osRecvMesg(OSMesgQueue *,OSMesg *,s32);
-extern void osSetEventMesg(s32,OSMesgQueue *,OSMesg);  /* SDK osSetEventMesg */
-
-/* libultra's event of a serial interface transfer done (OS_EVENT_SI). */
-#define OS_EVENT_SI 5
-
 
 /* Make the serial-bus lock the first time: a queue of one message, the token, posted at once (free). */
 static void pak_queue_init(void)
 {
     if (!si_lock_inited) {
-        si_lock_inited = 1; osCreateMesgQueue(&si_lock_queue,&si_lock_msg,1);
-        osSendMesg(&si_lock_queue,0,0);
+        si_lock_inited = 1; queue_init(&si_lock_queue, &si_lock_msg, 1);
+        lock_give(&si_lock_queue);
     }
 }
 
 /* Take the serial-bus lock (wait for its token); si_unlock gives it back. */
 static void pak_lock(void)
 {
-    OSMesg message;
-
     pak_queue_init();
-    osRecvMesg(&si_lock_queue,&message,1);
+    lock_take(&si_lock_queue);
 }
 
 /* Start the controllers: the serial interface's event queue (8 messages, the message for a finished transfer
@@ -43,9 +28,9 @@ void init_controllers(void)
     static s16 si_message;
     s32 i;
 
-    osCreateMesgQueue(&si_event_queue, si_event_msgs, 8);
+    queue_init(&si_event_queue, si_event_msgs, 8);
     si_message = 5;
-    osSetEventMesg(OS_EVENT_SI, &si_event_queue, &si_message);
+    event_notify(EVENT_SI, &si_event_queue, &si_message);
     pak_lock();
     osContInit(&si_event_queue, &cont_bit_pattern, cont_status);
     si_unlock();

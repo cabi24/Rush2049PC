@@ -142,7 +142,7 @@ extern f32 resurrectTime;
 extern volatile s16 gNumCars;
 extern f32 gModelTime;
 extern s16 cur_demo_ppoint[EXTENT(12)];
-extern OSMesgQueueBytes model_thread_queue;
+extern OSMesgQueue model_thread_queue;
 extern OSMesg model_thread_msgs[EXTENT(8)];
 extern s8 gNoCarCollisions;
 extern s8 gSuicideMode;

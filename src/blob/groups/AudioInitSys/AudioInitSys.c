@@ -3,9 +3,6 @@
 #include "game/game.h"
 
 
-extern void osCreateMesgQueue(void *,void *,s32);
-extern void osCreateThread(void *,s32,void (*)(void *),void *,void *,s32);
-extern void osStartThread(void *);
 
 /* MusyX's output rate. */
 #define AUDIO_FREQUENCY 22050
@@ -37,11 +34,13 @@ void AudioInitSys(s32 maxVoices,s32 maxSfx,s32 maxMusic)
     if(music_disabled) flags=SOUND_CACHE_CLASS_LARGE;
     else flags=SOUND_CACHE_CLASS_SMALL;
     if(!audio_driver_started) {
-        osCreateMesgQueue(&musyx_task_done_queue,musyx_task_done_msg,1);
-        osCreateThread(sample_dma_thread,3,sample_dma_thread_entry,0,sample_dma_thread_stack_top,10);
-        osStartThread(sample_dma_thread);
-        osCreateThread(audio_retrace_thread,9,audio_retrace_thread_entry,0,audio_retrace_thread_stack_top,9);
-        osStartThread(audio_retrace_thread);
+        queue_init(&musyx_task_done_queue, &musyx_task_done_msg, 1);
+        thread_create(&sample_dma_thread, THREAD_ID_SAMPLE_DMA, sample_dma_thread_entry, 0, sample_dma_thread_stack_top,
+                      THREAD_PRI_SAMPLE_DMA);
+        thread_start(&sample_dma_thread);
+        thread_create(&audio_retrace_thread, THREAD_ID_AUDIO_RETRACE, audio_retrace_thread_entry, 0,
+                      audio_retrace_thread_stack_top, THREAD_PRI_AUDIO_RETRACE);
+        thread_start(&audio_retrace_thread);
         InitWaves();
         handle=LoadWave(WAVE_MUSYX_PROJECT,0,0,0,0);
         LockWaveInstance(handle);

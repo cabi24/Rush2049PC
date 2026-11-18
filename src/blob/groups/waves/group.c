@@ -4,15 +4,6 @@
  * replacewave.c swaps one for another, slot_sound/ locks and looks them up, heap_release/UnloadWaveInstance.c and
  * UnloadWaveAll/ free them, InitWaves.c frees all but the locked ones. */
 #include "game/game.h"
-#define OSMesgQueue OSMesgQueueView   /* this file's own OSMesgQueue: include/game's OSMesgQueue is another type */
-
-typedef struct OSMesgQueue OSMesgQueue;
-void osCreateMesgQueue(OSMesgQueue *mq, OSMesg *msg, s32 count);
-
-s32 osRecvMesg(OSMesgQueue *mq, OSMesg *msg, s32 flags);
-s32 osSendMesg(OSMesgQueue *mq, OSMesg msg, s32 flags);
-
-extern void osSetThreadPri(OSThread *thread, OSPri priority);
 
 /* The background loader thread (MAT3 BGLoadWaveMain; main_thread_entry starts it). Waits for a request from
  * _BGLoadWave (the wave instance to read, in bg_load_request), reads the wave (ReadWave) and says it is done on
@@ -20,12 +11,12 @@ extern void osSetThreadPri(OSThread *thread, OSPri priority);
 void BGLoadWaveMain(void *arg) {
     OSMesg msg;
 
-    osCreateMesgQueue((OSMesgQueue *) &bg_load_request_queue, (void **) &bg_load_request_messages, 1);
-    osSetThreadPri(&bg_load_thread, THREAD_PRI_BG_LOAD);
+    queue_init(&bg_load_request_queue, &bg_load_request_messages, 1);
+    thread_set_priority(&bg_load_thread, THREAD_PRI_BG_LOAD);
     for (;;) {
-        osRecvMesg((OSMesgQueue *) &bg_load_request_queue, &msg, 1);
+        msg = queue_recv(&bg_load_request_queue);
         ReadWave(bg_load_request);
-        osSendMesg((OSMesgQueue *) &bg_load_idle_queue, NULL, 1);
+        queue_send(&bg_load_idle_queue, NULL);
     }
 }
 

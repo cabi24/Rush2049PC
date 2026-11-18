@@ -108,7 +108,6 @@ void audio_updateButtons(void) {
     audio_buttonsJustInited = 0;
 }
 
-s32 osSendMesg(OSMesgQueue *mq, OSMesg msg, s32 flags);
 
 /* Each frame of the audio screen: reads the controller (the first in the front end, the pausing player's in the
  * pause screen); A or start leaves, B restarts the chosen song, up and down move between the lines, left and right

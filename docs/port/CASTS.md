@@ -203,9 +203,9 @@ probability of about 1 - 8 MB / 4 GB.
 | `src/blob/ClearPlayerRecords.c` | `ClearPlayerRecords` | 1 (0) | **bug**, fixed | passed the profile handle (host storage) to `RemovePlayerScores` as `s32` |
 | `src/blob/SkyUpdate.c` | `SkyUpdate` | 2 | **bug**, fixed | read a window address (camera matrix in the arena) through an `s32`: sign-extended; a u32 now, its 2 warnings stay |
 | `src/blob/musyx_alloc.c` | `musyx_alloc` | 1 | harmless | heap: `PurgeableMemory` of an `AllocateMemoryHeap` block |
-| `src/rom/scheduler.c` | `__scExecTask` | 1 | harmless | window: a frame buffer (heap) into `__osScPendingSwap`, read back zero-extended |
-| `src/rom/scheduler.c` | `__scHandleRetrace` | 1 | harmless | window: `(void *)(u32)` zero-extends |
-| `src/rom/scheduler.c` | `__scMain` | 1 | harmless | small integer: scheduler message codes |
+| `src/rom/scheduler.c` | `sched_task_done` | 1 | harmless | window: a frame buffer (heap) into `__osScPendingSwap`, read back zero-extended |
+| `src/rom/scheduler.c` | `sched_handle_retrace` | 1 | harmless | window: `(void *)(u32)` zero-extends |
+| `src/rom/scheduler.c` | `sched_main` | 1 | harmless | small integer: scheduler message codes |
 | `src/rom/sound/hardware.c` | `sound_hw_reset_dma_list` | 1 | harmless | D-cache cursor (no-op writebacks) over a heap block |
 | `src/rom/sound/hardware.c` | `sound_hw_submit_task` | 2 | harmless | small integer: the ucode boot size, a difference of two arena addresses |
 | `src/rom/sound/hardware.c` | `sound_hw_build_voice_command` | 9 | harmless | cart address: the `V->flags & 1` path, which `sound_hw_set_voice_sample`'s PC test keeps for 32-bit cart addresses |

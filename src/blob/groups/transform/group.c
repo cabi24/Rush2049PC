@@ -3,8 +3,6 @@
 #include "game/game.h"
 #include "game/audiomgr.h"
 
-s32 osRecvMesg(void *,void *,s32);
-s32 osSendMesg(void *,void *,s32);
 /* PC: the message pool (128) and the manager's queue (128) can run out, which the N64's even retraces never
  * let happen: on a loaded host the manager thread falls behind, and each retrace message it then finds queues
  * another change per sound source. A change that finds no message, or no room in the queue, is dropped (the
@@ -35,27 +33,27 @@ void AudChangeEffect(s32 tag,f32 volume,f32 lrpan,f32 fbpan,f32 pitch) {
 }
 /* Sets the volume of the sound of fx tag handle tag (clamped to 0..1). */
 void AudChangeEffectVol(s32 tag,f32 volume) {
-    osRecvMesg(&audio_lock_queue,0,1);
+    lock_take(&audio_lock_queue);
     AudChangeEffect(tag,volume<0.0f ? 0.0f : volume>1.0f ? 1.0f : volume,
                           -2.0f,-2.0f,-2.0f);
-    osSendMesg(&audio_lock_queue,0,0);
+    lock_give(&audio_lock_queue);
 }
 /* Sets the pitch of the sound of fx tag handle tag (1: its own pitch). */
 void AudChangeEffectPitch(s32 tag,f32 pitch) {
-    osRecvMesg(&audio_lock_queue,0,1);
+    lock_take(&audio_lock_queue);
     AudChangeEffect(tag,-2.0f,-2.0f,-2.0f,pitch);
-    osSendMesg(&audio_lock_queue,0,0);
+    lock_give(&audio_lock_queue);
 }
 
 /* Sets the left/right pan of the sound of fx tag handle tag (clamped to -1..1). */
 void change_effect_lr_pan(s32 tag,f32 lrpan) {
-    osRecvMesg(&audio_lock_queue,0,1);
+    lock_take(&audio_lock_queue);
     AudChangeEffect(tag,-2.0f,lrpan<-1.0f ? -1.0f : lrpan>1.0f ? 1.0f : lrpan,-2.0f,-2.0f);
-    osSendMesg(&audio_lock_queue,0,0);
+    lock_give(&audio_lock_queue);
 }
 /* Sets the front/back pan of the sound of fx tag handle tag (clamped to -1..1). */
 void change_effect_fb_pan(s32 tag,f32 fbpan) {
-    osRecvMesg(&audio_lock_queue,0,1);
+    lock_take(&audio_lock_queue);
     AudChangeEffect(tag,-2.0f,-2.0f,fbpan<-1.0f ? -1.0f : fbpan>1.0f ? 1.0f : fbpan,-2.0f);
-    osSendMesg(&audio_lock_queue,0,0);
+    lock_give(&audio_lock_queue);
 }

@@ -2,7 +2,6 @@
  * circuit's progress, and the first page to show. */
 #include "game/game.h"
 
-extern s32 osSendMesg(OSMesgQueue *, void *, s32);
 
 extern void *memcpy(void *dst, const void *src, s32 n);
 

@@ -5,7 +5,18 @@
 
 #include "game/types.h"
 
-#include "game/threads.h"   /* the threads' ids and priorities, the main thread's messages (the boot code's too) */
+#include "game/threads.h"   /* threads, queues, locks, events, the scheduler (the boot code's too) */
+
+/* A frame's record (frame_records[2]: the frame being built and the one being drawn, frame_record_index; MAT3's
+ * GameCube build has no such record). StartGraphics starts a frame in its command buffer; EndGraphics ends its
+ * display list and sends its task to the scheduler, which runs it and then sends the main thread doneMsg. */
+typedef struct FrameRecord {
+    OSScTask task;           /* the frame's RSP task */
+    u8 *commands;            /* its command buffer (pc_frame_dl): dynamic data, matrices from +1728, the display list
+                              * from PC_GLIST_OFFSET */
+    OSScMsg doneMsg;         /* what the task sends the main thread when done: type OS_SC_DONE_MSG */
+    void *colorBuffer;       /* the frame buffer it draws into (framebuffer_a or framebuffer_b) */
+} FrameRecord;
 
 /* The frame command buffers (pc_frame_dl: heap_release/ctx_initsystem.c has their storage and their sizes), and the
  * frame buffers' and z-buffer's size: 320 x 220 16-bit pixels, and 32 bytes to align them to 64. */
@@ -223,16 +234,16 @@ void __osSiCreateAccessQueue(void);
 void __osSiGetAccess(void);
 void __osSiRelAccess(void);
 u16 __osSumcalc(u8 *ptr, s32 length);
-void __scAppendList(PcSched *scheduler, struct OSScTask_s *task);
-void __scExec(PcSched *scheduler, struct OSScTask_s *sp, struct OSScTask_s *dp);
-s32 __scExecTask(PcSched *scheduler, struct OSScTask_s *task);
-void __scHandlePreNMI(PcSched *scheduler);
-void __scHandleRDP(PcSched *scheduler);
-void __scHandleRetrace(PcSched *scheduler);
-void __scHandleRSP(PcSched *scheduler);
-void __scMain(void *arg);
-void __scSchedule(PcSched *scheduler);
-s32 __scScheduleCore(PcSched *scheduler, struct OSScTask_s **sp, struct OSScTask_s **dp, s32 availRCP);
+void sched_append_task(PcSched *scheduler, OSScTask *task);
+void sched_start_tasks(PcSched *scheduler, OSScTask *sp, OSScTask *dp);
+s32 sched_task_done(PcSched *scheduler, OSScTask *task);
+void sched_yield_gfx(PcSched *scheduler);
+void sched_handle_rdp(PcSched *scheduler);
+void sched_handle_retrace(PcSched *scheduler);
+void sched_handle_rsp(PcSched *scheduler);
+void sched_main(void *arg);
+void sched_schedule(PcSched *scheduler);
+s32 sched_choose_tasks(PcSched *scheduler, OSScTask **sp, OSScTask **dp, s32 availRCP);
 u64 __ull_div(u64 a0, u64 a1);
 void __ull_divremi(u64 *div, u64 *rem, u64 a2, u16 a3);
 u64 __ull_rem(u64 a0, u64 a1);
@@ -316,7 +327,6 @@ void osContGetReadData(struct OSContPad *data);
 s32 osContInit(OSMesgQueue *mq, u8 *bitpattern, OSContStatus *data);
 s32 osContStartQuery(OSMesgQueue *mq);
 s32 osContStartReadData(OSMesgQueue *mq);
-void osCreateScheduler(PcSched *scheduler, void *stack, OSPri priority, u8 mode, u8 numFields);
 s32 osMotorInit(OSMesgQueue *mq, struct OSPfs *pfs, s32 channel);
 s32 osPfsAllocateFile(struct OSPfs *pfs, u16 company_code, u32 game_code, u8 *game_name, u8 *ext_name, s32 file_size_in_bytes, s32 *file_no);
 s32 osPfsChecker(struct OSPfs *pfs);
@@ -328,7 +338,6 @@ s32 osPfsInitPak(OSMesgQueue *queue, struct OSPfs *pfs, s32 channel);
 s32 osPfsIsPlug(OSMesgQueue *mq, u8 *pattern);
 s32 osPfsReadWriteFile(struct OSPfs *pfs, s32 file_no, u8 flag, s32 offset, s32 size_in_bytes, u8 *data_buffer);
 s32 osPfsRepairId(struct OSPfs *pfs);
-void osScAddClient(PcSched *scheduler, struct OSScClient_s *client, OSMesgQueue *queue);
 void osSyncPrintf(s32 fmt, s32 value1, s32 value2, s32 value3);
 void other_user(s32 x);
 void paksys_lock(void);

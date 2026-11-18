@@ -493,7 +493,7 @@ Every synthetic path runs moved; these are the sites they don't reach, by class 
 - **The rest of the live compiler sites**: 39 `cc.ptr_to_int`, 8 `cc.int_to_ptr`, 23 and 12 implicit; most of what
   is left is an N64 value that stays one (a display-list word, `displaylist_set_texture_image`'s value, the texture lists of
   `particle_knot`, an id or index: `blast.c:340`, `UpdateCarSounds.c:290`, `StartCarSounds.c:101`, `targetpaths/group.c:3895`,
-  `__scMain`'s message), each to read and mark; `heap_release/initsystem_start.c`'s 4 are a context copy's statics that
+  `sched_main`'s message), each to read and mark; `heap_release/initsystem_start.c`'s 4 are a context copy's statics that
   only a weak `InitSystem` calls.
 - **`src.zext` (42) and `src.trunc` (3)**: 30 of the zext are `(T *)(uintptr_t)&D_x` or `PC_CAR`/`PC_MODEL` (host
   pointers through `uintptr_t`, no truncation) and `targets/group.c:188`'s GTLD keys (comparison values,

@@ -1,31 +1,18 @@
 #include "game/game.h"
-#define OSMesgQueue OSMesgQueueView   /* this file's own OSMesgQueue: include/game's OSMesgQueue is another type */
-#define OSThread OSThreadView   /* this file's own OSThread: include/game's OSThread is another type */
 
-typedef struct OSThread OSThread;
-typedef struct OSMesgQueue {
-    OSThread *mtqueue, *fullqueue;
-    s32 validCount, first, msgCount;
-    OSMesg *msg;
-} OSMesgQueue;
-
-extern void osCreateMesgQueue(OSMesgQueue *, OSMesg *, s32);
-extern s32 osSendMesg(OSMesgQueue *, OSMesg, s32);
-extern s32 osRecvMesg(OSMesgQueue *, OSMesg *, s32);
 
 extern void *memset(void *, s32, u32);
 
 /* the inlined pak lock helpers (bodies as group pak_write_cluster pfs_*; own names: the unit renames duplicated internal names) */
 void paksys_queue_init(void) {
     if (!si_lock_inited) {
-        si_lock_inited = 1; osCreateMesgQueue(&si_lock_queue, &si_lock_msg, 1);
-        osSendMesg(&si_lock_queue, 0, 0);
+        si_lock_inited = 1; queue_init(&si_lock_queue, &si_lock_msg, 1);
+        lock_give(&si_lock_queue);
     }
 }
 void paksys_lock(void) {
-    OSMesg message;
     paksys_queue_init();
-    osRecvMesg(&si_lock_queue, &message, 1);
+    lock_take(&si_lock_queue);
 }
 
 /* Takes a file handle off the free list (pak_free_handles). The empty test of the list's head is what is left of the
@@ -41,11 +28,11 @@ tPakHandle *pfs_get_node(void)
 
 void pdf_heap_lock(void)
 {
-    osRecvMesg(&heap_lock_queue, 0, 1);
+    lock_take(&heap_lock_queue);
 }
 void pdf_heap_unlock(void)
 {
-    osSendMesg(&heap_lock_queue, 0, 0);
+    lock_give(&heap_lock_queue);
 }
 void pdf_dealloc(void *ptr)
 {

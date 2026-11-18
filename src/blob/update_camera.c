@@ -1,13 +1,8 @@
 /* update_camera: a window's camera follows its car in its view (MAT3 camera.c). */
 #include "game/game.h"
-#define OSThread OSThreadView   /* this file's own OSThread: include/game's OSThread is another type */
 
 typedef f32 Vec3[3];
 typedef f32 Mat3[3][3];
-typedef struct { s32 opaque[0x1B0 / 4]; } OSThread;
-
-extern void osStopThread(OSThread *);
-extern void osStartThread(OSThread *);
 
 /* game.frame_rate 60 (docs/port/FRAMERATE.md 7): the driver's eye smooths the car's peak forces once a frame, a filter
  * tuned to a frame of two retraces (PC_FILTER, pc_game_fps.h); the vertical one also takes the spring each frame, which
@@ -51,7 +46,7 @@ void update_camera(tCarData *object)
         CAM.mat.pos[2] = CAM.mat.pos[2] + pos_out[2];
         break;
     case 1:
-        osStopThread(&model_thread);
+        thread_stop(&model_thread);
         for (j = 0; j != 4; j += 2) {
             if (m->peak_center_force[0][j] > 100000.0f) m->peak_center_force[0][j] = 100000.0f;
             if (m->peak_center_force[1][j] < -100000.0f) m->peak_center_force[1][j] = -100000.0f;
@@ -66,7 +61,7 @@ void update_camera(tCarData *object)
             m->peak_body_force[0][j] = 0.0f;
             m->peak_body_force[1][j] = 0.0f;
         }
-        osStartThread(&model_thread);
+        thread_start(&model_thread);
         for (i = 0; i != 4; i += 2) {
             cur_acc[slot][i] = cur_acc[slot][i] * PC_FILTER(view1_accel_filter) + pos_in[i] * (1.0f - PC_FILTER(view1_accel_filter));
         }

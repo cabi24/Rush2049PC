@@ -3,8 +3,6 @@
 #include "game/game.h"
 #include "game/audiomgr.h"
 
-s32 osRecvMesg(void *, void *, s32);
-s32 osSendMesg(void *, void *, s32);
 
 /* src/blob/ValidateEmitter.c has the empty ValidateEmitter that the function tables reach; this file's calls go
  * to its own empty copy, which gets its own name (docs/port/PROTOTYPES.md). */
@@ -40,14 +38,14 @@ void AudStopEmitter(s32 tag)
 {
     tFxSequence *fx_tag;
 
-    osRecvMesg(&audio_lock_queue, 0, 1);
+    lock_take(&audio_lock_queue);
     fx_tag = ConvertTag(tag);
     if (fx_tag == 0) {
-        osSendMesg(&audio_lock_queue, 0, 0);
+        lock_give(&audio_lock_queue);
         return;
     }
     ValidateEmitter(fx_tag->data);
-    osSendMesg(&audio_lock_queue, 0, 0);
+    lock_give(&audio_lock_queue);
     AudStopEffect(tag);
 }
 
@@ -57,14 +55,14 @@ s32 AudEmitterPlaying(s32 tag)
 {
     tFxSequence *fx_tag;
 
-    osRecvMesg(&audio_lock_queue, 0, 1);
+    lock_take(&audio_lock_queue);
     fx_tag = ConvertTag(tag);
     if (fx_tag == 0) {
-        osSendMesg(&audio_lock_queue, 0, 0);
+        lock_give(&audio_lock_queue);
         return 0;
     }
     ValidateEmitter(fx_tag->data);
-    osSendMesg(&audio_lock_queue, 0, 0);
+    lock_give(&audio_lock_queue);
     return AudEffectPlaying(tag);
 }
 
@@ -77,7 +75,7 @@ void AudUpdateEmitter(s32 tag, f32 *pos, void *dir_unused, f32 maxVol, f32 pitch
     tSfxEmitter *emitter;
     f32 clamped;
 
-    osRecvMesg(&audio_lock_queue, 0, 1);
+    lock_take(&audio_lock_queue);
     fx_tag = ConvertTag(tag);
     if (fx_tag != 0) {
         emitter = fx_tag->data;
@@ -94,5 +92,5 @@ void AudUpdateEmitter(s32 tag, f32 *pos, void *dir_unused, f32 maxVol, f32 pitch
         }
         emitter->basePitch = pitch;
     }
-    osSendMesg(&audio_lock_queue, 0, 0);
+    lock_give(&audio_lock_queue);
 }

@@ -3,8 +3,6 @@
 #include "game/audiomgr.h"
 
 
-s32 osRecvMesg(void *,void **,s32);
-s32 osSendMesg(void *,void *,s32);
 
 /* PC: the audio manager's message pool and queue can run out (docs/port/QA.md "Integration soak", fix 6;
  * transform/group.c's AudChangeEffect says when). Abandoning a race then drops its stop of every effect,
@@ -12,7 +10,7 @@ s32 osSendMesg(void *,void *,s32);
  * listeners and the next state are set as before; a message the full queue refuses is given back. */
 static tAudioMsg pc_scratch_msg;
 #define PC_CMD_OR_SCRATCH(m) if((m)==0)(m)=&pc_scratch_msg;
-#define PC_CMD_SEND_UNLESS_SCRATCH(q,m) if((m)!=&pc_scratch_msg&&osSendMesg(q,m,0)!=0)(m)->hdr.used=0
+#define PC_CMD_SEND_UNLESS_SCRATCH(q,m) if((m)!=&pc_scratch_msg&&!queue_try_send(q, m))(m)->hdr.used=0
 /* Abandons the race: the countdown, the HUD and the multiplayer blit go, every car's model stops (End_MDrive), the
  * model thread and the listeners stop, the environment visuals and skid marks go and every sound effect stops. A
  * restart sets the race up again (GS_GAME_INIT); a quit ends the ghost, unloads the track and goes back to the
@@ -33,11 +31,11 @@ void AbortGame(void)
     StopListeners();
     while((node=gEnvList)!=0) ReleaseEnviron(node,1);
     InitSkids();
-    osRecvMesg(&audio_lock_queue,0,1);
+    lock_take(&audio_lock_queue);
     node=GetCmd();PC_CMD_OR_SCRATCH(node)
     ((tAudioMsg *)node)->hdr.cmd=kAudioCmdStopAllEffects;
     message=node;
-    osSendMesg(&audio_lock_queue,0,0);
+    lock_give(&audio_lock_queue);
     PC_CMD_SEND_UNLESS_SCRATCH(&audio_command_queue,message);
     if(gRestartGame) gNewGameState=GS_GAME_INIT;
     else {

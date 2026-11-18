@@ -1321,17 +1321,15 @@ local block_state deflate_slow(s)
 }
 
 #define DeallocateMemoryInternal(opaque, ptr, flag) DeallocateMemoryInternal((ptr), (flag))   /* zlib's opaque goes */
-extern int osRecvMesg(void *mq, void *msg, int flag);
-extern int osSendMesg(void *mq, void *msg, int flag);
 
 /* Frees ptr's heap chunk under the heap lock (zlib's TRY_FREE). */
 __inline void zfree_locked(voidpf ptr)
 {
     voidpf heap; /* never set; unused (the free takes ptr's address) */
 
-    osRecvMesg(&heap_lock_queue, Z_NULL, 1);
+    lock_take(&heap_lock_queue);
     DeallocateMemoryInternal(heap, ptr, 0);
-    osSendMesg(&heap_lock_queue, Z_NULL, 0);
+    lock_give(&heap_lock_queue);
 }
 #define TRY_FREE(ptr) { if (ptr) zfree_locked(ptr); }
 

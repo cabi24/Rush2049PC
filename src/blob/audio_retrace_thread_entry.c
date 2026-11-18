@@ -4,15 +4,8 @@
  * A scheduler client: each retrace it runs the sound library's retrace callback (which builds the next audio task)
  * and advances the audio clock gAudioSeconds; on the reset button's pre-NMI it silences the audio. */
 #include "game/game.h"
-#define OSMesgQueue OSMesgQueueView   /* this file's own OSMesgQueue: include/game's OSMesgQueue is another type */
-
-typedef struct { s32 w[6]; } OSMesgQueue;
 
 /* A scheduler client (libultra's OSScClient): the scheduler sends its messages to msgQ. */
-typedef struct { void *next; OSMesgQueue *msgQ; } OSScClient;
-
-void osCreateMesgQueue(OSMesgQueue *mq, OSMesg *msg, s32 count);
-s32 osRecvMesg(OSMesgQueue *mq, OSMesg *msg, s32 flags);
 
 /* The scheduler's message kinds (the first s16 of its message) are system.h's: OS_SC_RETRACE_MSG, a retrace, and
  * OS_SC_PRE_NMI_MSG, the reset button's pre-NMI. */
@@ -25,11 +18,11 @@ void audio_retrace_thread_entry(void *arg) {
     OSScClient client;
     s16 *msg = 0;
 
-    osCreateMesgQueue(&audio_retrace_queue, audio_retrace_msgs, 8);
-    osScAddClient(&gScheduler, &client, &audio_retrace_queue);
+    queue_init(&audio_retrace_queue, audio_retrace_msgs, 8);
+    sched_add_client(&gScheduler, &client, &audio_retrace_queue);
     gAudioSeconds = 0.0f;
     while (1) {
-        osRecvMesg(&audio_retrace_queue, (OSMesg *) &msg, 1);
+        msg = queue_recv(&audio_retrace_queue);
         switch (*msg) {
         case OS_SC_RETRACE_MSG:
             if (musyx_retrace_callback != 0) {

@@ -33,8 +33,8 @@ with a `<name>_stack_top`; their bodies are `<name>_entry` in the game image (r1
 
 | Part | File (new path) | What it does |
 |---|---|---|
-| Frame timer | `timer.c` | MAT3's `timer.c`, function for function: `InitializeTimer`, `UpdateFrameTimer`, `PauseTimer`/`ResumeTimer`, the countdown (`SetCountdownTimer`, `AddCountdownTime`, `GetCountdownTimeRemaining`, `CountdownTimeOut`). `gSeconds` is the time since the countdown started, `gFrameSeconds` the last frame's time (at most 5 retraces), `gRetraceRate`/`gRetraceTime` 60 Hz or 50 Hz. It counts retraces from `scheduler_retrace_count`. |
-| Scheduler | `scheduler.c` | The SDK-style scheduler (`osCreateScheduler`, `osScAddClient`, `__scMain` and the `__sc*` handlers): audio and graphics tasks on the RSP, retrace messages to clients. `gScheduler` is its state; `scheduler_task_queue`, `scheduler_interrupt_queue`, `scheduler_thread`, `scheduler_current_rsp_task` and `scheduler_retrace_count` are names inside it. |
+| Frame timer | `timer.c` | MAT3's `timer.c`, function for function: `InitializeTimer`, `UpdateFrameTimer`, `PauseTimer`/`ResumeTimer`, the countdown (`SetCountdownTimer`, `AddCountdownTime`, `GetCountdownTimeRemaining`, `CountdownTimeOut`). `gSeconds` is the time since the countdown started, `gFrameSeconds` the last frame's time (at most 5 retraces), `gRetraceRate`/`gRetraceTime` 60 Hz or 50 Hz. It counts retraces from `gScheduler.retraceCount`. |
+| Scheduler | `scheduler.c` | The SDK-style scheduler (`sched_create`, `sched_add_client`, `sched_main` and the `sched_*` handlers): audio and graphics tasks on the RSP, retrace messages to clients. `gScheduler` is its state (`PcSched`, game/threads.h): its event and task queues, its thread, its lists, `retraceCount`. |
 | Video mode | `video_mode.c` | Chooses the VI mode for the TV type (`video_set_mode`, which also sets the retrace rate), and moves the picture for the options screen's screen position (`video_set_offset`, `video_get_offset`, `video_get_default_offset`): it builds an adjusted copy of the mode (`video_build_adjusted_mode`) and applies it two retraces later (`video_apply_pending_mode`). The mode is the N64 video interface's registers: on the PC nothing takes it, and what the game still uses of it is when it unblacks the screen (`pc_vi_black`). |
 | Decompression | `decompress.c`, `unzip.c` | A lock (`acquire_decompress_lock`, `release_decompress_lock`) around the two decompressors: `lzss_decompress` and the inflater. `unzip.c` is MAT3's `unzip.c` (a gzip-derived inflater: `huft_build`, `inflate_codes`, `inflate_block`, ...), with an N64 input path (`get_buffer`) that DMAs the compressed stream from the cartridge in 4 KB halves (`unzip_input_a`, `unzip_input_b`). |
 | libultra | `libultra/*.c` | Nintendo's OS: threads, message queues, timers, VI/PI/SI/AI managers, the controller and Controller Pak file system, Rumble Pak, the RSP task calls, `gu*` matrix helpers. Named after ultralib's files; [SYMBOL_NOTES.md](../SYMBOL_NOTES.md) has the evidence for every name. |
@@ -127,7 +127,7 @@ Things a reader may trip on:
 
 - Several globals have two names at one address, and the map merges them: `gSeconds` (its other name looked like a
   libultra scheduler variable), `gFrameSeconds`,
- `gLastFrameCount`, `gRetraceRate`, `gRetraceTime`, `scheduler_retrace_count`, `model_thread`,
+ `gLastFrameCount`, `gRetraceRate`, `gRetraceTime`, `model_thread`,
   the queues. None of the `__osSc*` names is libultra's.
 - The boot segment's symbol tables (`asm/us/boot_tail/symbols.json`) still list about 140 invented names that no
   code uses (`gCameraMatrix`, `gHudEnabled`, `gTrackWeather`, `gSpeedometerValue`, ...). They describe nothing in

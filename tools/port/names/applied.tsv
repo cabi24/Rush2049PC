@@ -7101,3 +7101,16 @@ func	tire_sound_off	wing_sound_off
 func	tire_sound_on	wing_sound_on
 func	update_player_visibility	UpdateArrowVis
 func	relocate_model_dl	prepare_model_dl
+func	__scAppendList	sched_append_task
+func	__scExec	sched_start_tasks
+func	__scExecTask	sched_task_done
+func	__scHandlePreNMI	sched_yield_gfx
+func	__scHandleRDP	sched_handle_rdp
+func	__scHandleRSP	sched_handle_rsp
+func	__scHandleRetrace	sched_handle_retrace
+func	__scMain	sched_main
+func	__scSchedule	sched_schedule
+func	__scScheduleCore	sched_choose_tasks
+func	__scTaskReady	sched_task_ready
+func	osCreateScheduler	sched_create
+func	osScAddClient	sched_add_client

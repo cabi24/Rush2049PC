@@ -4,7 +4,6 @@
 #include "game/game.h"
 #include "game/audiomgr.h"
 
-s32 osRecvMesg(OSMesgQueue *queue,OSMesg *message,s32 flags);s32 osSendMesg(OSMesgQueue *queue,OSMesg message,s32 flags);
 
 #define PC_TAGS_MOST() pc_snd_most(PC_SND_MOST_TAGS, gNumFxTags - (s32)gFreeFxTags.count);
 #define PC_EMITTERS_MOST(list) pc_snd_most(PC_SND_MOST_EMITTERS, (s32)(list).count);
@@ -29,23 +28,23 @@ tFxSequence *GetFxTag(void) {
 /* PC: the message pool and queue can run out (docs/port/QA.md "Integration soak", fix 6; transform/group.c's
  * AudChangeEffect says when): a request that finds no message gives the lock back and returns -1 (an emitter's
  * also gives its emitter back), and a message the full queue refuses is given back. */
-#define PC_OBJ_OR_UNLOCK(o) if((o)==0){osSendMesg(&audio_lock_queue,0,0);return (u32)-1;}
+#define PC_OBJ_OR_UNLOCK(o) if((o)==0){lock_give(&audio_lock_queue);return (u32)-1;}
 #define PC_OBJ_OR_UNLOCK_CAM(o,c) \
-    if((o)==0){InsertLLE(&gFreeEmitters,(struct Link*)(c),gFreeEmitters.head);osSendMesg(&audio_lock_queue,0,0);return -1;}
+    if((o)==0){InsertLLE(&gFreeEmitters,(struct Link*)(c),gFreeEmitters.head);lock_give(&audio_lock_queue);return -1;}
 /* So can the tags (gFreeFxTags: 80 with the Expansion Pak, 16 without, as AudioInit makes them), which
  * GetFxTag takes from the list's head unchecked: in a race of more cars than the N64's 6 their engines can take
  * the last one (docs/port/MORECARS.md 6). A start that finds none gives its message back and is not started
  * either. */
-#define PC_TAG_OR_UNLOCK(o) if(gFreeFxTags.head==0){(o)->hdr.used=0;osSendMesg(&audio_lock_queue,0,0);return (u32)-1;}
+#define PC_TAG_OR_UNLOCK(o) if(gFreeFxTags.head==0){(o)->hdr.used=0;lock_give(&audio_lock_queue);return (u32)-1;}
 #define PC_TAG_OR_UNLOCK_CAM(o,c) if(gFreeFxTags.head==0){(o)->hdr.used=0; \
-    InsertLLE(&gFreeEmitters,(struct Link*)(c),gFreeEmitters.head);osSendMesg(&audio_lock_queue,0,0);return -1;}
+    InsertLLE(&gFreeEmitters,(struct Link*)(c),gFreeEmitters.head);lock_give(&audio_lock_queue);return -1;}
 
 /* Asks for effect fxid at full volume, centred: subId tells the caller's instances apart (a car's slot ...),
  * replace says what happens to a playing one with the same fxid and subId (kFxIndividual, kFxReplace,
  * kFxNoReplace), priority ranks it (WeightedPriority). Returns the fx tag handle, or -1 (PC: the pools ran out). */
 u32 AudPlayEffect(u32 fxid,u32 subId,u32 replace,u8 priority) {
  tAudioMsg *msg;u32 result;
- osRecvMesg(&audio_lock_queue,0,1);
+ lock_take(&audio_lock_queue);
  msg=GetCmd();PC_OBJ_OR_UNLOCK(msg)PC_TAG_OR_UNLOCK(msg)msg->hdr.cmd=kAudioCmdPlayEffect;msg->playEffect.replace=replace;
  msg->playEffect.tag=GetFxTag();msg->playEffect.tag->type=kFxStandalone;
  msg->playEffect.tag->fxid=fxid;msg->playEffect.tag->subId=subId;msg->playEffect.tag->priority=priority;
@@ -56,14 +55,14 @@ u32 AudPlayEffect(u32 fxid,u32 subId,u32 replace,u8 priority) {
  msg->playEffect.lrpan=0.0f;
  msg->playEffect.fbpan=-2.0f;
  result=msg->playEffect.tag->id;
- osSendMesg(&audio_lock_queue,0,0);
+ lock_give(&audio_lock_queue);
  PC_CMD_SEND(&audio_command_queue,msg);
  return result;
 }
 /* AudPlayEffect with a volume (clamped to 0..1), a left/right and a front/back pan (each clamped to -1..1). */
 u32 AudPlayEffectVP(u32 fxid,u32 subId,u32 replace,u8 priority,f32 volume,f32 lrpan,f32 fbpan) {
  tAudioMsg *msg;u32 result;
- osRecvMesg(&audio_lock_queue,0,1);
+ lock_take(&audio_lock_queue);
  msg=GetCmd();PC_OBJ_OR_UNLOCK(msg)PC_TAG_OR_UNLOCK(msg)msg->hdr.cmd=kAudioCmdPlayEffect;msg->playEffect.replace=replace;
  msg->playEffect.tag=GetFxTag();msg->playEffect.tag->type=kFxStandalone;
  msg->playEffect.tag->fxid=fxid;msg->playEffect.tag->subId=subId;msg->playEffect.tag->priority=priority;
@@ -74,7 +73,7 @@ u32 AudPlayEffectVP(u32 fxid,u32 subId,u32 replace,u8 priority,f32 volume,f32 lr
  msg->playEffect.lrpan=(lrpan<-1.0f)?-1.0f:((1.0f<lrpan)?1.0f:lrpan);
  msg->playEffect.fbpan=(fbpan<-1.0f)?-1.0f:((1.0f<fbpan)?1.0f:fbpan);
  result=msg->playEffect.tag->id;
- osSendMesg(&audio_lock_queue,0,0);
+ lock_give(&audio_lock_queue);
  PC_CMD_SEND(&audio_command_queue,msg);
  return result;
 }
@@ -88,9 +87,9 @@ u32 AudPlayEffectVP(u32 fxid,u32 subId,u32 replace,u8 priority,f32 volume,f32 lr
 s32 AudEmitEffect(const f32 *pos,void *dir,f32 fadeDistance,f32 fadeCompression,f32 maxVol,f32 minVol,u32 fxid,u32 subId,u32 replace,u8 priority) {
  tAudioMsg *msg;tSfxEmitter *emitter;char unused_buf[4];u32 result;
  if(gEmitters==0)return -1;
- osRecvMesg(&audio_lock_queue,0,1);
+ lock_take(&audio_lock_queue);
  emitter=NewEmitter();
- if(emitter==0){pc_snd_count(PC_SND_NO_EMITTER);osSendMesg(&audio_lock_queue,0,0);return -1;}
+ if(emitter==0){pc_snd_count(PC_SND_NO_EMITTER);lock_give(&audio_lock_queue);return -1;}
  emitter->pos[0]=pos[0];
  emitter->pos[1]=pos[1];
  emitter->pos[2]=pos[2];
@@ -109,11 +108,11 @@ s32 AudEmitEffect(const f32 *pos,void *dir,f32 fadeDistance,f32 fadeCompression,
  msg->playEffect.fbpan=-2.0f;
  msg->playEffect.tag->data=emitter;
  result=emitter->sndTag=msg->playEffect.tag->id;
- osSendMesg(&audio_lock_queue,0,0);
+ lock_give(&audio_lock_queue);
  PC_CMD_SEND(&audio_command_queue,msg);
- osRecvMesg(&audio_lock_queue,0,1);
+ lock_take(&audio_lock_queue);
  /* MAT3's _ActivateEmitter, unless the play message has already freed the emitter (free again) */
  if(emitter->free==0){InsertLLE(&gActiveEmitters,&emitter->ll,gActiveEmitters.head);emitter->active=1;PC_EMITTERS_MOST(gActiveEmitters)}
- osSendMesg(&audio_lock_queue,0,0);
+ lock_give(&audio_lock_queue);
  return result;
 }

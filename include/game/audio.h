@@ -105,9 +105,9 @@ extern u8 audio_ucode_data[EXTENT(560)];
 extern u8 audio_retrace_thread_stack_top[EXTENT(32)];
 extern u8 audio_manager_thread_stack_top[EXTENT(1200)];
 extern u8 sample_dma_thread_stack_top[EXTENT(1600)];
-extern OSThreadBytes audio_manager_thread;
-extern u8 audio_retrace_thread[EXTENT(432)];
-extern u8 sample_dma_thread[EXTENT(432)];
+extern OSThread audio_manager_thread;
+extern OSThread audio_retrace_thread;
+extern OSThread sample_dma_thread;
 extern volatile u8 sound_dma_request_count;
 extern TransferRequest sound_dma_requests[EXTENT(4)];
 extern u8 sound_dma_waiting;
@@ -327,7 +327,7 @@ extern u32 musyx_samples;   /* the sample bank: its ROM offset (AudioInitSys) */
 extern void *musyx_sdir;
 extern void *musyx_pool;
 extern f32 gAudioSeconds;
-extern u8 musyx_task_done_msg[EXTENT(4)];
+extern OSMesg musyx_task_done_msg;
 /* The function the audio retrace thread calls each retrace (audio_retrace_thread_entry): MusyX's, which its retrace
  * service musyx_set_retrace_callback installs; 0 for none. */
 extern void (*musyx_retrace_callback)();

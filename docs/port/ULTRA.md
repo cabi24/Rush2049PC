@@ -52,11 +52,11 @@ retrace once that task is done, waited for ever: the game hung at the start prom
 real-time runs on the Pi 5, more often when the main loop sends late retraces in a burst. The log names the first
 event of each kind held (`event N held`).
 
-**Side tables, not the game's structs.** The game's `OSThread`, `OSMesgQueue` and `OSTimer` are N64-sized in the BSS
-arenas (port/data), and the native structs are larger, so nothing is written into them. Threads, queues and timers
-are kept in tables keyed by the game's object address. Message buffers are host-side too: the game's `OSMesg`
-arrays have 4-byte slots. A queue used before `osCreateMesgQueue` acts as a zero-capacity queue, as a zeroed one
-does, and is logged.
+**Side tables, not the game's structs.** Threads, queues and timers are kept in tables keyed by the game's record's
+address (its `OSThread`, `OSMesgQueue`, `OSTimer`), and nothing is written into the record, which keeps libultra's
+fields unused (section 11 says why). Message buffers are host-side too: the game's `OSMesg` arrays are not used. A
+queue used before it is made (`queue_init`, `osCreateMesgQueue`) acts as a zero-capacity queue, as a zeroed one does,
+and is logged.
 
 **Idle and busy-waits.** `pc_os_idle` (the game's idle loop, `boot.c`) waits until any thread can run.
 `pc_os_spin_yield(site)` hands the baton to a runnable thread of equal or higher priority. Otherwise it waits up to
@@ -414,7 +414,7 @@ gcc's preprocessor against main; the IDO build itself was not run):
 | File | Edit |
 |---|---|
 | `boot.c` | the idle loop calls `pc_os_idle`; `main_thread_entry`'s game-BSS `bzero` is skipped (zero at startup; the BSS with pointers lives outside that range) |
-| `scheduler.c` | the scheduler's layout and its N64 names (below); the retraces between two swaps, `PC_SWAP_RETRACES`: 2, or 1 with `game.frame_rate` 60 ([FRAMERATE.md](FRAMERATE.md) 7) |
+| `scheduler.c` | the retraces between two swaps, `PC_SWAP_RETRACES`: 2, or 1 with `game.frame_rate` 60 ([FRAMERATE.md](FRAMERATE.md) 7) |
 | `timer.c` | UpdateFrameTimer gives each frame's retraces to `pc_game_frame_note` (`game.frame_rate`'s steps) |
 | `hardware.c` | `__unaligned`; the native task records (`unknown44` a pointer, the real types in `sound_hw_build_subframe`, `sizeof` for the SFD and delay sizes); the DMA caches registered big-endian; host pointers count as RAM (`sound_hw_set_voice_sample`, `sound_hw_translate_address`); two busy-waits; the renderer's wrapping range goes on where the cap stopped it (`sound_hw_service_frame`, [AUDIO.md](AUDIO.md) §7) |
 | `groups.c`, `sequencer.c` | `sound_start_song_in_group`/`sound_start_song` take pointer-sized integers (a stack address passed through a u32) |
@@ -422,22 +422,12 @@ gcc's preprocessor against main; the IDO build itself was not run):
 | `pfsdeletefile.c` | `__osPfsReleasePages` builds its first link through the byte fields, like every other link |
 | `rom_tu.h` | declarations of `pc_mem_register_samples`/`unregister_samples` |
 
-**The scheduler at the game's offsets.** port/data gave the game's N64 names for the scheduler's storage their own
-storage, apart from `gScheduler`. The game sent its graphics tasks to `scheduler_task_queue`, stopped `scheduler_thread`, and
-polled `gRenderInProgress`; all three missed the scheduler. Under `TARGET_PC`, `scheduler.c` lays `gScheduler` out with
-the offsets the game reads it at:
-- `retraceCount` at 0x27C: the game's frame clock, read as `frameCount`, `tick`, `[159]`, `scheduler_retrace_count`;
-- storage-only queues and thread at 0x40, 0x78 and 0xB0;
-- host-sized pointers after them.
-
-It defines those names as aliases into its own storage: `gScheduler`, `scheduler_interrupt_queue`, `scheduler_task_queue`, `scheduler_thread`,
-`scheduler_retrace_count`, `scheduler_retrace_count`, `scheduler_current_rsp_task` (`curRSPTask`), `gRenderInProgress`, and
-`gSeconds`/`94`/`98`.
-
-The scheduler reads tasks through `include/m2c_types.h`'s `OSScTask`. Its PC version has the OSTask in place with
-host-sized pointers, as the game builds its tasks (`EndGraphics.c`'s `Frame`, `musyx_submit_audio_task`'s
-audio task). Before that, the scheduler read a task's done queue at its `output_buff` and blocked after the first
-graphics task ([MUSYX_DATA.md](MUSYX_DATA.md) §8.4).
+**The scheduler's record.** `gScheduler` (src/rom/scheduler.c) is `game/threads.h`'s `PcSched`, libultra's `OSSched`
+field for field with the PC's types: its two messages, its event and task queues, its thread, its client and task
+lists, `retraceCount` (the game's frame clock) and `doAudio`. The game reaches its queues and its thread through it
+(`gScheduler.taskQueue`, `gScheduler.thread`), and its tasks are `OSScTask`s with the RSP task in place
+(`FrameRecord.task`, `musyx_submit_audio_task`'s). Until wave 4 (section 11) it kept the N64's offsets, which the game
+read by names placed inside it (`scheduler_task_queue` at `gScheduler + 0x78` ...), and `retraceCount` at 0x27C.
 
 **The names missing from the symbol file.** By `rom_symbol_aliases.ld`, `osEPiRawReadIo`, `osEPiRawStartDma`,
 `osEPiRawWriteIo`, `__osPiDeviceBusy`, `__osPiGetCmdQueue` and `__osTLBLookup` are the decomp's names for other
@@ -547,10 +537,6 @@ the libgsm kernels, now `gsm.c` (§8).
 
 - **Game code (agent D)** on the boot path:
   - `InitPlayer`'s handles (above), then whatever follows.
-  - `audio_retrace_thread_entry`'s scheduler view reads `cur` at 0x274 as a native pointer. The scheduler's `curRSPTask` is
-    at native offset 0x2B0 (`scheduler_current_rsp_task`); the view needs `TARGET_PC`.
-  - The scheduler's `OSScTask`/`Frame` records in the arenas (`frame_records`) are larger natively than their N64
-    slots.
   - `TB_Sprintf` passes a pointer into its own frame as an IDO va_list. Natively it needs a real `va_list`;
     until then `fcvt` copies the format unformatted and logs once.
 - **Preemption.** Events never take the baton from a computing thread. A busy-wait not in the list above would hang.
@@ -765,3 +751,111 @@ them. While a hold stops the clock, port/input's UI timers that read `pc_host_ns
 timeout, menu repeat, a status line's fade, the cursor's hide) stand still too, as with `--fast`; a session's overlay
 won't hold the game, and otherwise they want a clock of their own. Without SDL's audio (headless builds) the tap is
 never on: `--audio null` is `--fast`'s null output.
+
+## 11. The game's OS interface: threads, queues, locks, events (wave 4, 2026-11-18)
+
+The game's C called libultra by its N64 names and conventions: `osRecvMesg(&heap_lock_queue, 0, 1)` to take a lock,
+`osSendMesg(&scheduler_task_queue, f, 1)` to send a frame to a queue placed inside the scheduler by its N64 offset,
+`(OSMesg)670` for a number, thread ids and priorities as bare numbers; and 44 files declared an `OSMesgQueue` of their
+own (a struct, or a 24-byte stand-in) to make those calls. It now calls `include/game/threads.h`, whose names say
+what each call does, with the records declared once.
+
+### 11.1 What the game calls
+
+| Use | libultra's calls | Where |
+|---|---|---|
+| locks: a queue of one message, the token, in it while the lock is free | `osRecvMesg(&q, x, OS_MESG_BLOCK)` takes, `osSendMesg(&q, 0, OS_MESG_NOBLOCK)` gives back: 195 calls | the heap (`heap_lock_queue`), the sound manager (`audio_lock_queue`), text (`text_lock_queue`), the controls (`controlsys_lock_queue`), the serial bus (`si_lock_queue`), the decompressor (`decompress_lock_queue`) |
+| messages between threads | the same calls with a message, blocking or not | the scheduler to its clients (the main, model, audio manager, audio retrace and rumble threads); the frame's end and start (game thread to main thread and back); the audio manager's commands; the serial bus's and the cartridge's completions; the background loader's requests and its idle token; the sound library's sample loads and audio task |
+| making queues | `osCreateMesgQueue` | 28 places |
+| events | `osSetEventMesg` | the serial bus (init_controllers.c); the RSP, the RDP, the reset button and the software interrupt (the scheduler) |
+| threads | `osCreateThread`, `osStartThread` (the boot's five, the scheduler, the audio manager, the sample loader, the audio retrace and rumble threads); `osStopThread`/`osStartThread` around changes the model thread or the scheduler must not see half made; `osSetThreadPri`, `osGetThreadId` | boot.c, scheduler.c, the sound's and the pak's start-up, SetupCar.c, update_camera.c, update_game_data.c, EndGraphics.c, PS_ErrorFunc.c |
+| the scheduler | `osCreateScheduler`, `osScAddClient`; its queues and thread by names placed inside `gScheduler` (`scheduler_task_queue` at +0x78, `scheduler_interrupt_queue` at +0x40, `scheduler_thread` at +0xB0, `scheduler_retrace_count` at +0x27C, `scheduler_current_rsp_task`) | boot.c, the clients, EndGraphics.c, musyx_submit_audio_task.c, timer.c |
+| time | `osGetTime` | the scheduler's frame and audio times |
+
+### 11.2 What replaces it
+
+| libultra | threads.h |
+|---|---|
+| `osCreateThread(t, id, entry, arg, sp, pri)`, `osStartThread`, `osStopThread`, `osSetThreadPri`, `osGetThreadId`, `osYieldThread` | `thread_create(t, THREAD_ID_*, entry, arg, stack_top, THREAD_PRI_*)`, `thread_start`, `thread_stop`, `thread_set_priority`, `thread_id`, `thread_yield` |
+| `osCreateMesgQueue(q, buf, n)` | `queue_init(q, slots, n)` |
+| `osSendMesg(q, m, OS_MESG_BLOCK)` / `OS_MESG_NOBLOCK` (0, or -1 when full) | `queue_send(q, m)` / `queue_try_send(q, m)` (1 sent, 0 full) |
+| `osJamMesg(q, m, OS_MESG_BLOCK)` | `queue_jam(q, m)` |
+| `osRecvMesg(q, &m, OS_MESG_BLOCK)` / `OS_MESG_NOBLOCK` (0, or -1 when empty) | `m = queue_recv(q)` / `queue_try_recv(q, &m)` (1 taken, 0 empty) |
+| a lock's `osRecvMesg(q, 0, 1)`, `osRecvMesg(q, 0, 0) != -1`, `osSendMesg(q, 0, 0)` | `lock_take(q)`, `lock_try(q)`, `lock_give(q)` |
+| `osSetEventMesg(OS_EVENT_SI, q, m)` | `event_notify(EVENT_SI, q, m)` (`EVENT_SCHEDULE`, `_SP`, `_SI`, `_AI`, `_DP`, `_PRE_NMI`) |
+| `(OSMesg)670`, `switch ((intptr_t)m)` | `MESG_NUMBER(SCHED_CMD_SCHEDULE)`, `switch (MESG_TO_NUMBER(m))` |
+| `osGetTime()` | `time_ticks()` |
+| `osCreateScheduler`, `osScAddClient`, `__scMain` and the other `__sc*` | `sched_create`, `sched_add_client`, `sched_main`, `sched_schedule`, `sched_handle_retrace`/`_rsp`/`_rdp`, `sched_task_ready`, `sched_task_done`, `sched_append_task`, `sched_start_tasks`, `sched_yield_gfx`, `sched_choose_tasks` (the names map `tools/port/names/wave4_os.tsv`) |
+| `scheduler_task_queue`, `scheduler_interrupt_queue`, `scheduler_thread`, `scheduler_retrace_count`, `scheduler_current_rsp_task` | `gScheduler.taskQueue`, `.eventQueue`, `.thread`, `.retraceCount`, `.curRSPTask` |
+
+A message keeps its value and gets a type: a client takes an `OSScMsg *` (the scheduler's `retraceMsg` or `prenmiMsg`, a
+frame's `doneMsg`, UpdateFrame's end-of-frame request) and reads its `type`; the scheduler's event queue carries
+`SCHED_CMD_*` numbers through `MESG_NUMBER`; its task queue `OSScTask` pointers. The ids and priorities of every thread
+the game makes are `THREAD_ID_*` and `THREAD_PRI_*`.
+
+**The records, one each.** `OSMesgQueue` and `OSThread` stay in `game/types.h`'s libultra section, which other
+records embed them from (the audio manager's, the speech streams'). `game/threads.h` declares the scheduler's:
+`OSScMsg`, `OSScClient`, `OSScTask` (the RSP task in place, as `OSTask_t list`) and `PcSched`; `game/system.h` the
+frame's, `FrameRecord` (its task, its command buffer, its `doneMsg`, its frame buffer). The boot code includes
+threads.h through `src/rom/rom_tu.h`, so boot.c and scheduler.c use the same records as the game; `m2c_types.h`'s
+copies, `scheduler_declarations.h` and boot.c's `MainThreadScheduler` are gone. Twelve data that were byte stand-ins
+for an OS record have their type: the queues `model_thread_queue`, `audio_retrace_queue`, `rumble_queue` and
+`bg_load_request_queue` (`OSMesgQueue`), the threads `audio_manager_thread`, `audio_retrace_thread`,
+`sample_dma_thread` and `rumble_thread` (`OSThread`), and the message slots `heap_lock_msg`, `bg_load_request_messages`,
+`sample_dma_pi_msg` and `musyx_task_done_msg` (`OSMesg`). Each moved from N64-layout storage to own storage
+(24 to 40, 432 to 456, 4 to 8 bytes); nothing ever read or wrote their bytes (port/ultra keys them by address), so
+nothing the game does changed with them.
+
+### 11.3 What stays, and why
+
+- **port/ultra's tables.** A queue's messages and waiting threads and a thread's state stay in sched.c's tables,
+  keyed by the record's address, and the records keep libultra's fields, unused. Keeping them in the record would put
+  host pointers (threads, message buffers) into the game's data, which the state hash reads (LOCKSTEP.md 5), for no
+  change in what the game does.
+- **libultra's entry points.** sched.c and timer.c still implement `osSendMesg` and the rest, and threads.h's API is
+  `static inline` functions over them: each call is one libultra call with the same arguments, so the blocking, the
+  waking and the moves of the baton are the ones before, call for call. The libraries the game links call them by
+  libultra's names as their own C does: libultra's controller and pak file system (src/rom/libultra), the MusyX
+  driver (src/rom/sound) and the speech decoder (src/rom/speech); so do port/ultra's self-test and the test programs
+  of port/assets/tests, which stand in for them by those names.
+- **No thread became a function call, no queue a callback.** A run's course is the order in which the threads take
+  the baton (section 1, LOCKSTEP.md). The model thread, for one, is a client woken at each retrace that runs at
+  priority 7, after the scheduler (12) has told every client and before the game thread (5) goes on; a call from the
+  scheduler would step the cars on the scheduler's thread, before the other clients had their retrace. No such change
+  was shown to keep the order of events, so none was made.
+- **The RCP's and the VI's calls** (`osSpTaskLoad`, `osSpTaskStartGo`, `osSpTaskYield`, `osDpSetNextBuffer`;
+  `osViSwapBuffer` and the rest, agent D1's) keep libultra's names: they are the scheduler's device interface, which
+  port/ultra implements as the hardware.
+- **The scheduler's code** is libultra's algorithm unchanged: the same lists, the same yields, the same tests, the
+  same `PC_SWAP_RETRACES`.
+
+### 11.4 Proof
+
+
+The change is proven by running the game, with the reference build of the wave's start (d224beab):
+
+- **objsame**: 90 units differ in Debug, 45 in RelWithDebInfo, and no others: the units that call the API (in Debug
+  each `static inline` function is a local copy in the unit; with -O2 it is inlined, and the code differs only where
+  a result is tested against -1 rather than 0 (`osSendMesg` returns nothing else), where `queue_recv` keeps the
+  message in a slot of its own, and in the registers chosen), boot.c, scheduler.c, timer.c, and six units that read
+  `gScheduler.retraceCount` at its new offset (get_input_idle_seconds.c, animDot.c, animCountdownTimer.c,
+  pakerr/group.c, save/group.c, SetPakError.c).
+- **The data**: `data_symbols.txt` differs from the reference's in the twelve data of 11.2 (N64-layout storage to own
+  storage) and in `gScheduler` (648 bytes on the N64, 792 on the PC, libultra's layout; it was 672 and 704 with the
+  N64 offsets), whose five names placed inside it are gone; nothing else.
+- **The layout tools**: `view_check.py` agrees on every view of the OS records (`--tag OSMesgQueue` 112 views,
+  `OSThread` 117, `OSScClient` 18, `OSScTask` 22, `OSScMsg` 23; `--sym frame_records`, `gScheduler`); `layout_check`
+  finds nothing new (its open findings are the reference's: the heap's and the sound sequencer's), `offset_check
+  --strict` no open finding, `alias_check` none open, `bounds_check` none new. `n64_audit` grows only in its context
+  class `symbols.own` (405 to 417: the twelve data), which its baseline now says.
+- **ctest** (Debug): 572 of 572 (`assets_rom` skipped without a ROM); the 60 realtime-labelled tests under the
+  realtime lock, two of them (`hfr_paced_60`: retraces dropped; `paced_audio`: one underrun of the device's tap, its
+  trace and sound `--fast`'s) passing when run again on a quieter host. The determinism tests among them:
+  `hash_aslr`, `replay_same_*`, the `net_session_*` and lockstep tests, `paced_audio`.
+- **The gate** (`pconly_gate.sh --base` the reference `--data-moved`): every one of the 64 synthetic paths `same`
+  as the reference's, its state changes, the first car's exact position and speed every second, every screenshot
+  and every sound byte for byte (three of them, `membig8`, `mods_conflict` and `mods_off`, run again alone on a
+  loaded host, as the gate does). The optimized build against the optimized reference, on the synthetic cartridge and
+  on the audible one: 64 of 64 the same, shots and sound.
+- **The sanitizers**: an ASan + UBSan build ran every synthetic path to its end with no report, and CI's ASan ctest set
+  (the sanitize job's x86-64 skip list) passed: 399 of 399 (`assets_rom` skipped) and its 21 realtime ones.

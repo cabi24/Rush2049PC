@@ -1,13 +1,5 @@
 /* InitControlSys (MAT3 controlsys.c): starts the controller system (controlsys/group.c has it). */
 #include "game/game.h"
-#define OSMesgQueue OSMesgQueueView   /* this file's own OSMesgQueue: include/game's OSMesgQueue is another type */
-#define OSThread OSThreadView   /* this file's own OSThread: include/game's OSThread is another type */
-
-typedef struct OSThread OSThread;
-typedef struct OSMesgQueue {OSThread *mtqueue,*fullqueue;s32 validCount,first,msgCount;OSMesg *msg;} OSMesgQueue;
-
-extern void osCreateMesgQueue(OSMesgQueue *, OSMesg *, s32);
-extern s32 osSendMesg(OSMesgQueue *, OSMesg, s32);
 
 /* The first time, makes every controller active and stick-driven; each time, resets the sticks' calibration
  * (70, where MAT3's GameCube pads have 110), makes the controls' lock once, waits until the model thread's
@@ -28,8 +20,8 @@ void InitControlSys(void)
     }
     if (queueCreated == 0) {
         queueCreated = 1;
-        osCreateMesgQueue(&controlsys_lock_queue, &controlsys_lock_msg, 1);
-        osSendMesg(&controlsys_lock_queue, 0, 0);
+        queue_init(&controlsys_lock_queue, &controlsys_lock_msg, 1);
+        lock_give(&controlsys_lock_queue);
     }
     while (*(volatile u8 *)&cont_bit_pattern == 0x80) { pc_os_spin_yield("InitControlSys");
     }

@@ -4,12 +4,7 @@
  * frame (EndGraphics), whose RSP task the scheduler runs; a finished task frees a slot. At most two frames are in
  * flight. */
 #include "game/game.h"
-#define OSMesgQueue OSMesgQueueView   /* this file's own OSMesgQueue: include/game's OSMesgQueue is another type */
 
-typedef struct { u32 opaque[6]; } OSMesgQueue;
-
-s32 osRecvMesg(OSMesgQueue *, OSMesg *, s32);
-s32 osSendMesg(OSMesgQueue *, OSMesg, s32);
 
 /* The reset button was pressed (the scheduler's pre-NMI message): silences the sound, blacks the screen, stops the
  * car simulation, the rumble and the pak polls, and waits for the reset. */
@@ -45,11 +40,11 @@ void process_scheduler_message(void)
 {
     static s32 task_done_parity = 0;
     s16 type;
-    OSMesg msg = 0;
+    OSScMsg *msg;
     intptr_t cur;
 
-    osRecvMesg(&main_thread_queue, &msg, 1);
-    type = *(s16 *)msg;
+    msg = queue_recv(&main_thread_queue);
+    type = msg->type;
     switch (type) {
     case OS_SC_PRE_NMI_MSG:
         MainPreNMI();
@@ -61,7 +56,7 @@ void process_scheduler_message(void)
             retraces_since_frame = 0;
             StartGraphics();
             frame_start_pending = 1;
-            osSendMesg(&game_thread_queue, &frame_start_msg, 1);
+            queue_send(&game_thread_queue, &frame_start_msg);
         }
         cur = retraces_since_frame;
         retraces_since_frame = cur + 1;

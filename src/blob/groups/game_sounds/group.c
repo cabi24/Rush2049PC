@@ -3,8 +3,6 @@
 #include "game/game.h"
 #include "game/audiomgr.h"
 
-s32 osRecvMesg(OSMesgQueue *queue, OSMesg *message, s32 flags);
-s32 osSendMesg(OSMesgQueue *queue, OSMesg message, s32 flags);
 
 /* Asks the audio manager thread to fade the music (music nonzero) and/or the effects (sfx nonzero) to volume
  * (clamped to 0..1) over time seconds (not below 0). */
@@ -12,7 +10,7 @@ void AudSetMasterVol(f32 volume,f32 time,s32 music,s32 sfx) {
     f32 clamped;
     tAudioMsg *msg;
 
-    osRecvMesg(&audio_lock_queue, NULL, 1);
+    lock_take(&audio_lock_queue);
     msg = GetCmd(); PC_CMD_OR_UNLOCK(msg)
     msg->hdr.cmd = kAudioCmdSetMasterVol;
     if (volume < 0.0f) {
@@ -32,7 +30,7 @@ void AudSetMasterVol(f32 volume,f32 time,s32 music,s32 sfx) {
     }
     msg->setMasterVol.music = (s8) music;
     msg->setMasterVol.sfx = (s8) sfx;
-    osSendMesg(&audio_lock_queue, NULL, 0);
+    lock_give(&audio_lock_queue);
     PC_CMD_SEND(&audio_command_queue, msg);
 }
 

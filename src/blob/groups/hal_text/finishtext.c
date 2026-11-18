@@ -1,10 +1,5 @@
 /* HAL_FinishText: draw the frame's buffered text (MAT3 HAL_text.c). */
 #include "game/game.h"
-#define OSMesgQueue OSMesgQueueView   /* this file's own OSMesgQueue: include/game's OSMesgQueue is another type */
-
-typedef struct { s32 opaque[6]; } OSMesgQueue;
-extern s32 osRecvMesg(OSMesgQueue *, void **, s32);
-extern s32 osSendMesg(OSMesgQueue *, void *, s32);
 
 /* Runs the text commands HAL_DrawText buffered since HAL_StartText (TEXT_CMD_*), drawing the strings with DrawText,
  * from the default font, colour and position; under the text lock. end becomes gFinished (HAL_StartText clears it
@@ -16,7 +11,7 @@ void HAL_FinishText(s8 end)
     u32 aLong;
 
     if (gBufferInited) {
-        osRecvMesg(&text_lock_queue, (void **)0, 1);
+        lock_take(&text_lock_queue);
         gFinished = end;
         SetDefaults((u8 *)&gFontColor, &gTrans, &gFontXpos, &gFontYpos, &gFontIndex, &gLeading, &gSpacing);
         HAL_SetFontInternal(gFontIndex);
@@ -53,6 +48,6 @@ void HAL_FinishText(s8 end)
                     break;
             }
         }
-        osSendMesg(&text_lock_queue, (void *)0, 0);
+        lock_give(&text_lock_queue);
     }
 }

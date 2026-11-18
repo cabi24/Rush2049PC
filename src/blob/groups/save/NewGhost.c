@@ -2,8 +2,6 @@
  * a ghost record behind a heap handle, ready to save to a Controller Pak. */
 #include "game/game.h"
 
-s32 osRecvMesg(OSMesgQueue *mq, OSMesg *msg, s32 flags);
-s32 osSendMesg(OSMesgQueue *mq, OSMesg msg, s32 flags);
 
 extern void *memset(void *s, s32 c, u32 n);
 
@@ -91,9 +89,9 @@ tGhostFile **CompressGhost(tGhostHeader *header, u8 *blocks) {
     (*ghost->header)->zippedChecksum = CalcChecksumInternal(gdata, dataSize);
     (*ghost->header)->unzippedChecksum = unzippedChecksum;
     memcpy((u8 *)*ghost->header + 88, gdata, dataSize);
-    osRecvMesg((OSMesgQueue *)&heap_lock_queue, NULL, 1);
+    lock_take(&heap_lock_queue);
     DeallocateMemoryInternal(gdata, 0);
-    osSendMesg((OSMesgQueue *)&heap_lock_queue, NULL, 0);
+    lock_give(&heap_lock_queue);
     gh = ghost->header;
     ghost->track = (*gh)->track;
     ghost->backward = (*gh)->backward;
@@ -112,8 +110,8 @@ void ghost_free_start(tGhostHeader *header) {
     u8 **recording = ghost_recording(header);
     u8 *p = *recording;
 
-    osRecvMesg((OSMesgQueue *)&heap_lock_queue, NULL, 1);
+    lock_take(&heap_lock_queue);
     DeallocateMemoryInternal(p, 0);
-    osSendMesg((OSMesgQueue *)&heap_lock_queue, NULL, 0);
+    lock_give(&heap_lock_queue);
     *recording = NULL;
 }

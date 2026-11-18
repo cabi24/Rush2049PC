@@ -5,8 +5,6 @@
 
 /* PC: the block taken is reported (port/ultra/heap.c, docs/port/MEMORY.md 4). */
 
-s32 osRecvMesg(void *mq, void **msg, s32 flags);
-s32 osSendMesg(void *mq, void *msg, s32 flags);
 
 /* Takes size bytes (rounded up to 32) of the heap at ptr, which must lie in a free chunk: the chunk is split there
  * (the part before stays free, or joins the chunk before when under HEAP_MIN_SPLIT bytes) and after the size (when
@@ -22,7 +20,7 @@ void *allocate_memory_at(void *ptr, u32 size) {
     u8 *addr = ptr;
     void *result;
 
-    osRecvMesg(&heap_lock_queue, 0, 1);
+    lock_take(&heap_lock_queue);
     heap = FindHeap(addr);
     size = (size + 31) & ~31;
     for (b = heap->chunks; b != NULL; b = b->next) {
@@ -80,6 +78,6 @@ void *allocate_memory_at(void *ptr, u32 size) {
     b->master = NULL;
     b->used = 1;
     b->internal = 0; pc_heap_allocated(heap);
-    osSendMesg(&heap_lock_queue, 0, 0);
+    lock_give(&heap_lock_queue);
     return result;
 }

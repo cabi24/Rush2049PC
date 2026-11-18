@@ -22,7 +22,7 @@ heap's own headers, for the heap's files only), and these sections of
 |---|---|---|---|
 | idle | 1, 2 then 0 | `idle_thread_entry` (src/rom/boot.c) | starts the PI manager (150) and the main thread, then idles |
 | main | 6, 4 | `main_thread_entry` (boot.c) | start-up, then serves the scheduler (`process_scheduler_message`, mainloop.c) |
-| scheduler | 4 (its own id), 12 | `__scMain` (src/rom/scheduler.c) | retraces, RSP and RDP interrupts, task scheduling |
+| scheduler | 4 (its own id), 12 | `sched_main` (src/rom/scheduler.c) | retraces, RSP and RDP interrupts, task scheduling |
 | background loader | 8, 3 | `BGLoadWaveMain` (waves/group.c) | reads a wave when `_BGLoadWave` asks |
 | model | 5, 7 | `ModelThread` (modelthread/modelthread.c) | each retrace: the controllers (`ControllerUpdate`), then the car simulation step |
 | game | 7, 5 | `game_thread_entry` (boot.c) | `GameLoop` forever, one frame a call |
@@ -31,7 +31,7 @@ heap's own headers, for the heap's files only), and these sections of
 
 `main` (the N64's entry) starts libultra and the idle thread. `main_thread_entry` sets the FPU mode
 (`FPCSR_GAME`), makes the queues (`rom_dma_queue`, `unzip_dma_queue`, `main_thread_queue`, `game_thread_queue`),
-the scheduler (`osCreateScheduler`: the video mode from `video_mode_base_index`), inflates the game image from the
+the scheduler (`sched_create`: the video mode from `video_mode_base_index`), inflates the game image from the
 cartridge (`unzipdata_from_rom`; on the PC the data loader fills the image's blocks), subscribes to the scheduler, starts
 the background loader and the model thread, runs **`InitSystem`** (heap_release/initsystem.c), shows the boot
 screen (`BlitInit`), starts the game thread, waits for its first end of frame and then serves the scheduler
@@ -51,11 +51,11 @@ docs/port/ULTRA.md). The game's priorities are kept as an order.
 
 Three threads take part:
 
-1. **The scheduler** (`__scMain`) gets the VI's retrace (`VIDEO_MSG`), counts it (`gScheduler.retraceCount`, which
-   the game reads as `scheduler_retrace_count`: the game's clock), swaps in a finished frame's buffer when enough
-   retraces have passed (`PC_SWAP_RETRACES`), and sends every client a retrace message (`OS_SC_RETRACE_MSG`). It runs
-   the tasks the game sends on `scheduler_task_queue`: audio first (`doAudio`, `audioListHead`), then graphics
-   (`gfxListHead`), asking a graphics task to yield for audio.
+1. **The scheduler** (`sched_main`) gets the VI's retrace (`SCHED_CMD_RETRACE`), counts it (`gScheduler.retraceCount`:
+   the game's clock), swaps in a finished frame's buffer when enough retraces have passed (`PC_SWAP_RETRACES`), and
+   sends every client its retrace message (`OS_SC_RETRACE_MSG`). It runs the tasks the game sends on
+   `gScheduler.taskQueue`: audio first (`doAudio`, `audioListHead`), then graphics (`gfxListHead`), asking a graphics
+   task to yield for audio. The threads, queues and locks are `game/threads.h`'s ([ULTRA.md](../port/ULTRA.md) 11).
 2. **The main thread** (`process_scheduler_message`, groups/mainloop/mainloop.c): on a retrace, if the screen shows
    the last frame, nothing is being built or ended, and fewer than two frames are in flight, it starts a frame
    (`StartGraphics`) and wakes the game thread (`frame_start_msg`, `GAME_MSG_START_FRAME`). When the game thread
@@ -190,20 +190,20 @@ same input.
   and its memory a block of PC memory since step 12 (`pc_heap_memory`: osMemSize less the N64's room below the heap,
   its first byte as far past a 64 KiB boundary as on the N64), with the N64's accounting; nothing kept in its blocks
   holds a 32-bit address since step 11. The WAD's records and the
-  font's letters are native beside the file since step 7, its display lists since step 10. Every heap file still
-  declares its own `osRecvMesg`/`osSendMesg` and views `heap_lock_queue` its own way.
+  font's letters are native beside the file since step 7, its display lists since step 10. The heap's lock is
+  `lock_take(&heap_lock_queue)`/`lock_give` since wave 4 ([ULTRA.md](../port/ULTRA.md) 11).
 - **The WADs' display lists and texture loads** are native beside the file since NATIVE.md step 10: the WAD converter
   builds them command for command as records (`Gfx`, GFX.md "The command records"; a host pointer where a command
   carries an address) and the
   vertices they load in the host's byte order; `prepare_model_dl` keeps the race's sections, and
   `display_list_traverse`, `mirror_vertex_texcoords` and the texture animation read and write them as they are. The
   texels and the palettes' colours stay in the file in the N64's formats.
-- **The frame**: `frame_records`' tasks are `PcScTaskShape`, the N64 OSScTask in host form; the frame buffers and
+- **The frame**: `frame_records`' tasks are `OSScTask`s (game/threads.h) with the RSP task in place; the frame buffers and
   the z-buffer are pointers into the heap (`framebuffer_a`, `zbuffer`); a frame's colour buffer is
   `frame_records[n].colorBuffer` (until [NATIVE.md](../port/NATIVE.md) 18 the label `frame_color_buffers`, 0xC8
   bytes in).
-- **The scheduler's** queues and thread keep N64-sized storage at their N64 offsets in `PcSched`, because the game
-  takes their addresses (`scheduler_task_queue` ...) and reads the retrace count at 0x27C.
+- **The scheduler** is libultra's `OSSched` with the PC's types (`PcSched`, game/threads.h) since wave 4; the game
+  reaches its queues and thread by field (`gScheduler.taskQueue` ...), no longer by names placed at N64 offsets.
 - **The input data's types** are MAT3's: `gNewLevels` (volatile u32[4], since wave 4: it was one s32 to the data
   loader and controlsys/group.c's view), `gNewStick` (volatile s8[4][2]), `gNewEdges`, `gContStickRange`,
   `gAutoEdgeTimes` (u32[4][32]) and the frame's words (`gContLevels` ... u32, `gContStick` f32[4][2]) since wave 2c.

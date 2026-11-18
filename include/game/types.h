@@ -67,9 +67,6 @@ struct Node;
 struct Node16;
 struct Node68;
 struct OSContPad;
-struct OSScClient_s;
-struct OSScTask_s;
-struct OSThread_s;
 struct Obj;
 struct Object;
 struct Outer;
@@ -192,22 +189,17 @@ typedef struct OSContStatus { /* 0x4 bytes */
     u8 errno;  /* 0x3 */
 } OSContStatus;
 
-typedef struct OSMesgQueue_s { /* 0x28 bytes */
-    struct OSThread_s *mtqueue;   /* 0x0 */
-    struct OSThread_s *fullqueue; /* 0x8 */
-    s32 validCount;               /* 0x10 */
-    s32 first;                    /* 0x14 */
-    s32 msgCount;                 /* 0x18 */
-    OSMesg *msg;                  /* 0x20 */
+/* A message queue (game/threads.h's queue_* and lock_*). port/ultra keeps a queue's messages and waiting threads in
+ * its own table, under the record's address, and never reads or writes the record: these are libultra's fields,
+ * unused on the PC. */
+typedef struct OSMesgQueue_s {
+    struct OSThread *mtqueue;     /* (the threads waiting to receive) */
+    struct OSThread *fullqueue;   /* (the threads waiting to send) */
+    s32 validCount;               /* (the messages in it) */
+    s32 first;                    /* (the first one's slot) */
+    s32 msgCount;                 /* (its slots) */
+    OSMesg *msg;                  /* (the slots) */
 } OSMesgQueue;
-
-typedef struct OSMesgQueueBytes { /* 0x18 bytes */
-    u8 opaque[24]; /* 0x0 */
-} OSMesgQueueBytes;
-
-typedef struct OSMesgQueueWords { /* 0x18 bytes */
-    s32 w[6]; /* 0x0 */
-} OSMesgQueueWords;
 
 typedef struct OSPifRam { /* 0x40 bytes */
     u32 ramarray[15]; /* 0x0 */
@@ -236,10 +228,6 @@ typedef struct OSTask_t { /* 0x78 bytes */
 typedef struct OSTask { /* 0x78 bytes */
     OSTask_t t; /* 0x0 */
 } OSTask;
-
-typedef struct OSThreadBytes { /* 0x1B0 bytes */
-    u8 opaque[432]; /* 0x0 */
-} OSThreadBytes;
 
 typedef struct OSViCommonRegs { /* 0x24 bytes */
     u32 ctrl;     /* 0x0 */
@@ -340,17 +328,20 @@ typedef struct __OSThreadContext { /* 0x190 bytes */
     u64 fp30;     /* 0x188 */
 } __OSThreadContext;
 
-typedef struct OSThread { /* 0x1C8 bytes */
-    struct OSThread *next;              /* 0x0 */
-    s32 priority;                       /* 0x8 */
-    struct OSThread **queue;            /* 0x10 */
-    struct OSThread *tlnext;            /* 0x18 */
-    u16 state;                          /* 0x20 */
-    u16 flags;                          /* 0x22 */
-    s32 id;                             /* 0x24 */
-    s32 fp;                             /* 0x28 */
-    struct __OSThreadprofile_s *thprof; /* 0x30 */
-    __OSThreadContext context;          /* 0x38 */
+/* A thread (game/threads.h's thread_*). port/ultra runs it on a host thread and keeps its state in its own table,
+ * under the record's address, and never reads or writes the record: these are libultra's fields (the scheduling
+ * links and the saved registers), unused on the PC. */
+typedef struct OSThread {
+    struct OSThread *next;
+    s32 priority;
+    struct OSThread **queue;
+    struct OSThread *tlnext;
+    u16 state;
+    u16 flags;
+    s32 id;
+    s32 fp;
+    struct __OSThreadprofile_s *thprof;
+    __OSThreadContext context;
 } OSThread;
 
 /* ---- system: start-up, threads, the scheduler, timers, the frame pipeline, video, decompression, the overlays */
@@ -441,61 +432,6 @@ typedef struct PcRespawn { /* 0x10 bytes */
     f32 pos[3]; /* 0x4 */
 } PcRespawn;
 
-typedef struct PcScTaskShape { /* 0xA0 bytes */
-    void *next;     /* 0x0 */
-    u32 state;      /* 0x8 */
-    u32 flags;      /* 0xC */
-    void *fb;       /* 0x10 */
-    u32 type;       /* 0x18 */
-    u32 tflags;     /* 0x1C */
-    void *boot;     /* 0x20 */
-    u32 boot_size;  /* 0x28 */
-    void *ucode;    /* 0x30 */
-    u32 ucode_size; /* 0x38 */
-    void *udata;    /* 0x40 */
-    u32 udata_size; /* 0x48 */
-    void *stack;    /* 0x50 */
-    u32 stack_size; /* 0x58 */
-    void *out;      /* 0x60 */
-    void *out_size; /* 0x68 */
-    void *data;     /* 0x70 */
-    u32 data_size;  /* 0x78 */
-    void *yield;    /* 0x80 */
-    u32 yield_size; /* 0x88 */
-    void *msgQ;     /* 0x90 */
-    void *msg;      /* 0x98 */
-} PcScTaskShape;
-
-typedef struct FrameBuffer { /* 0xD0 bytes */
-    void *buf;          /* 0x0 */
-    PcScTaskShape task; /* 0x8 */
-    u8 *commands;       /* 0xA8 */
-    s16 n;              /* 0xB0 */
-    u8 pad[30];         /* 0xB2 */
-} FrameBuffer;
-
-typedef struct PcSched { /* 0x2C0 bytes */
-    s16 state;                       /* 0x0 */
-    u8 pad02[30];                    /* 0x2 */
-    s16 priority;                    /* 0x20 */
-    u8 pad22[30];                    /* 0x22 */
-    u8 cmdQueue[24];                 /* 0x40 */
-    u8 cmdMsgs[32];                  /* 0x58 */
-    u8 retQueue[24];                 /* 0x78 */
-    u8 retMsgs[32];                  /* 0x90 */
-    u8 padB0[432];                   /* 0xB0 */
-    u8 pad260[28];                   /* 0x260 */
-    volatile s32 retraceCount;       /* 0x27C: the retraces since start-up (the scheduler's thread counts them) */
-    s32 doAudio;                     /* 0x280 */
-    struct OSScClient_s *clientList; /* 0x288 */
-    struct OSScTask_s *audioListHead; /* 0x290 */
-    struct OSScTask_s *gfxListHead;  /* 0x298 */
-    struct OSScTask_s *audioListTail; /* 0x2A0 */
-    struct OSScTask_s *gfxListTail;  /* 0x2A8 */
-    struct OSScTask_s *volatile curRSPTask; /* 0x2B0: the task on the RSP (scheduler_current_rsp_task) */
-    struct OSScTask_s *curRDPTask;   /* 0x2B8 */
-} PcSched;
-
 typedef struct __attribute__((packed)) RecordFields { /* 0xC bytes */
     u16 id;                         /* 0x0 */
     u16 count;                      /* 0x2 */
@@ -531,17 +467,6 @@ typedef struct TextJust { /* 0x8 bytes */
     s32 h; /* 0x0 */
     s32 v; /* 0x4 */
 } TextJust;
-
-/* A frame's record (frame_records[2]: the frame being built and the one being drawn, frame_record_index). The PC's
- * layout: the scheduler's task is the PC's OSScTask. */
-typedef struct FrameRecord { /* 0xD0 bytes */
-    PcScTaskShape task;     /* 0x0: the frame's RSP task (StartGraphics, EndGraphics) */
-    u8 *commands;           /* 0xA0: its command buffer (pc_frame_dl): dynamic data, matrices from +1728, the
-                             * display list from PC_GLIST_OFFSET */
-    s16 doneMsgType;        /* 0xA8: the message the task sends the main thread when done: OS_SC_DONE_MSG */
-    u8 doneMsgRest[30];     /* 0xAA */
-    void *colorBuffer;      /* 0xC8: the frame buffer it draws into (framebuffer_a or framebuffer_b) */
-} FrameRecord;
 
 typedef struct SequenceSlotTrack { /* 0x18 bytes */
     void *start;  /* 0x0 */
