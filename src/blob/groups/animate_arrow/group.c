@@ -49,13 +49,6 @@ typedef struct tModelData {
     s8 drone_type;          /* 1996: 1 a drone, 2 a human (MAT3 DRONE_TYPE_AI, DRONE_TYPE_HUMAN) */
     u8 pad7CD[2056 - 1997];
 } tModelData;
-/* A view's window (ZoidWinInfo[view], MAT3 tWindowInfo): its view angles. PC: the two pointers are host ones. */
-typedef struct tWindowInfo {
-    void *vp; void *s; u8 pad8[0xC - 0x8];
-    f32 whviewang;          /* 12: the horizontal view angle, radians */
-    f32 wvviewang;          /* 16: the vertical one */
-    u8 pad14[72 - 20];
-} tWindowInfo;
 /* A scene polygon (PolyInstanceList, MAT3 tPoly): four vertices. */
 typedef struct Vertex20 {f32 x,y,z;s16 s,t;u32 color;} Vertex20;
 typedef struct tPoly {s16 count;u16 flags,parameter,unknown;Vertex20 verts[4];} tPoly;

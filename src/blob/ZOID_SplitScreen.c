@@ -3,9 +3,9 @@
 #include "game/game.h"
 
 /* Gives window k the viewport vp and the scissor box r (left, top, right, bottom); returns the window. */
-ArbEntry *view_bind(s32 k, void *vp, s16 *r) {
+tWindowInfo *view_bind(s32 k, void *vp, s16 *r) {
     ZoidWinInfo[k].vp = vp;
-    ZoidWinInfo[k].s = r;
+    ZoidWinInfo[k].s = (u16 *)r;   /* the scissor tables are s16 (scissor0 ...); the window reads them unsigned */
     return &ZoidWinInfo[k];
 }
 

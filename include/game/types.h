@@ -266,7 +266,6 @@ struct tSfxVoice;
 struct tTexture;
 struct tUVMatrix;
 struct tVisual;
-struct tWindowInfo;
 struct tree_desc_s;
 struct z_stream_s;
 union Color;
@@ -1055,16 +1054,6 @@ typedef struct tOrderedList { /* 0x18 bytes */
 } tOrderedList;
 
 /* ---- scene: the scene objects (mbox and zoid), models, textures, windows, the sky and the world */
-
-/* A window (MAT3 tWindowInfo, ZoidWinInfo[4]; 0x48 bytes on the N64, 0x50 on the PC, whose two pointers are 8 bytes):
- * its viewport and scissor rectangle, then as bytes the flags, the view angles and their tangents, the size and
- * centre, the aspect, the clip planes and the fog (min, max, colour), which the window files read through their own
- * tWindowInfo: the data loader keeps this declaration's field runs for the own-BSS datum (docs/code/race.md 6). */
-typedef struct ArbEntry { /* 0x50 bytes */
-    void *vp;    /* 0x0 its viewport (vp0 ...) */
-    void *s;     /* 0x8 its scissor rectangle (scissor0 ...) */
-    u8 rest[64]; /* 0x10 */
-} ArbEntry;
 
 typedef struct DmaList { /* 0x18 bytes */
     u16 pad0;                   /* 0x0 */

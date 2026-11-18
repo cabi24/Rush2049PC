@@ -392,7 +392,6 @@ s32 video_mode_base_index(void);
 void video_restore_base_mode(void);
 void video_set_mode(s32 tv, s32 mode, s32 width, s32 height);
 void video_set_offset(s32 x, s32 y);
-ArbEntry *view_bind(s32 k, void *vp, s16 *r);
 void vs_drawColorBars(void);
 void vs_SetFont(s32 font);
 void vs_setWidth(s16 *width);

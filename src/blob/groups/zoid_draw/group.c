@@ -919,27 +919,6 @@ s32 Traverse(Gfx **gp, ObjectInstance *parent, ObjectInstance *node, s32 view, s
     return drawn;
 }
 
-/* A window (MAT3 tWindowInfo; 0x48 bytes on the N64, 0x50 on the PC, whose two pointers are 8 bytes; offsets
- * N64's). */
-typedef struct tWindowInfo {
-    Vp *vp;                     /* 0x00 its viewport */
-    u16 *s;                     /* 0x04 its scissor rectangle: left, top, right, bottom */
-    s32 flags;                  /* 0x08 1: orthographic (no field of view given) */
-    u8 pad0C[4];
-    f32 wvviewang;              /* 0x10 the vertical field of view, radians */
-    u8 pad14[0x10];
-    f32 wwidth;                 /* 0x24 the size, pixels */
-    f32 wheight;                /* 0x28 */
-    f32 whcenter;               /* 0x2C the centre, pixels */
-    f32 wvcenter;               /* 0x30 */
-    f32 aspect;                 /* 0x34 */
-    f32 frontclip;              /* 0x38 the near and far planes, feet */
-    f32 backclip;               /* 0x3C */
-    u16 fogmin;                 /* 0x40 the fog's range */
-    u16 fogmax;                 /* 0x42 */
-    u8 fogcolor[4];             /* 0x44 */
-} tWindowInfo;
-
 /* A flat polygon's vertex (20 bytes): position (scene units, 16 a foot, or screen pixels), texture coordinates,
  * colour. */
 typedef struct {

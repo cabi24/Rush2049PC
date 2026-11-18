@@ -73,6 +73,34 @@
 #define POLY_SCREEN           0x4000      /* a filled rectangle in screen coordinates */
 #define POLY_HIDDEN           0x8000      /* not drawn (ZOID_HidePoly) */
 
+/* Types */
+
+/* A window of the scene (MAT3 tWindowInfo; ZoidWinInfo, one a player in split screen): where on the screen it
+ * draws, its projection (ZOID_SetWindow), its clip planes and its fog (ZOID_SetFog, WorldFogDensity). The scene
+ * draw (zoid_draw_window) builds each view from it; ZOID_ProjectWindow and ZOID_WindowTo3D map between the world
+ * and its pixels. */
+typedef struct tWindowInfo {
+    PcViewport *vp;     /* its viewport (vp0 ...) */
+    u16 *s;             /* its scissor rectangle (scissor0 ...): left, top, right, bottom, pixels */
+    u32 flags;          /* 1: drawn orthographic (ZOID_SetWindow was given no field of view), 0 in perspective */
+    f32 whviewang;      /* the horizontal field of view, radians */
+    f32 wvviewang;      /* the vertical one */
+    f32 whvangtan;      /* the tangent of half the horizontal one */
+    f32 wvvangtan;      /* the tangent of half the vertical one */
+    f32 wihvangtan;     /* 0.5 / whvangtan: a point's screen x is wwidth * wihvangtan * x / z + whcenter */
+    f32 wivvangtan;     /* 0.5 / wvvangtan */
+    f32 wwidth;         /* its size, pixels */
+    f32 wheight;
+    f32 whcenter;       /* its centre on the screen, pixels */
+    f32 wvcenter;
+    f32 aspect;         /* wwidth / wheight (half the height in the N64's interlaced modes) */
+    f32 frontclip;      /* the near clip plane, feet */
+    f32 backclip;       /* the far one */
+    u16 fogmin;         /* the fog's range in the RDP's depth units (0-1000): it starts at fogmin and is full at */
+    u16 fogmax;         /* fogmax. MAT3 has fogmin signed; every reader takes it unsigned */
+    u8 fogcolor[4];     /* the fog's colour: red, green, blue, alpha */
+} tWindowInfo;
+
 /* Data */
 extern ModelDefTable gRomObjDefPtrs[EXTENT(64)];
 extern Item12 texture_swap_shared_frames[EXTENT(400)];
@@ -171,7 +199,7 @@ extern s32 gMatrices[EXTENT(560)];
 extern s32 gNumPolyInsts;
 extern f32 gGlobalCameraFacingScale;
 extern OSIoMesg sample_dma_io;
-extern ArbEntry ZoidWinInfo[EXTENT(4)];
+extern tWindowInfo ZoidWinInfo[EXTENT(4)];   /* the scene's windows (gNumZoidWindows in use) */
 extern s8 gSplitScreen;
 /* pc_sample_dma_list: declared by its files (src/blob/groups/sample_dma_next/sample_dma_next.c: defines it) */
 
@@ -212,6 +240,7 @@ s32 texcmp(u8 *ta, u8 *tb);
 void TextureAnimation(void);
 s32 Traverse(Gfx **gp, ObjectInstance *parent, ObjectInstance *node, s32 view, s32 depth,
              s32 more_after, s32 use_parent_distance, struct tPaletteDef *palette);
+tWindowInfo *view_bind(s32 k, void *vp, s16 *r);
 s32 world_name_compare(void *name, void *entry);
 void WorldClear(void);
 void WorldCullObjects(s32 unused, f32 *pos, s32 show);
@@ -227,11 +256,11 @@ struct tUVMatrix *ZOID_FindMatrix(s16 node);
 s16 ZOID_FindObjInstance(void *name);
 void *ZOID_GetColor(s16 node);
 void ZOID_GetFog(u16 *min, u16 *max, u8 *red, u8 *green, u8 *blue, u8 *alpha, s32 winidx);
-void *ZOID_GetWindow(s32 winidx);
+tWindowInfo *ZOID_GetWindow(s32 winidx);
 void ZOID_HidePoly(PolyInstance *poly);
 void ZOID_Init(void);
-struct tWindowInfo *ZOID_InitializeWindow(s32 idx, void *vp, void *s, f32 hang, f32 vang, f32 width, f32 height,
-                                          f32 hcenter, f32 vcenter);
+tWindowInfo *ZOID_InitializeWindow(s32 idx, void *vp, void *s, f32 hang, f32 vang, f32 width, f32 height,
+                                   f32 hcenter, f32 vcenter);
 void ZOID_InsertObject(s16 node, s16 parent);
 s16 ZOID_LastSibling(s16 node);
 void zoid_load_palette(Gfx **gfxp, struct tPaletteDef *pal);
@@ -257,7 +286,7 @@ s32 zoid_set_window_count(s32 count);
 void ZOID_SetBGColor(u16 rgba5551);
 void ZOID_SetColor(s16 node, tRGBA *col);
 void ZOID_SetEnvColor(s16 node, tRGBA *col);
-struct tWindowInfo *ZOID_SetFog(s16 min, s16 max, u8 red, u8 green, u8 blue, u8 alpha, u32 winidx);
+tWindowInfo *ZOID_SetFog(s16 min, s16 max, u8 red, u8 green, u8 blue, u8 alpha, u32 winidx);
 void ZOID_SetObjectDef(s16 node, u16 def);
 void ZOID_SetObjectFlags(s32 node, u32 flags);
 void ZOID_SetObjectParent(s16 node, s16 newparent);
@@ -267,8 +296,8 @@ void ZOID_SetPolyZ(PolyInstance *poly, s16 z);
 void ZOID_SetScissor(u16 *s, u16 ulx, u16 uly, u16 lrx, u16 lry);
 void ZOID_SetTexture(s16 node, void *tex, s32 lod);
 void ZOID_SetViewport(s32 winidx, void *vp, void *s);
-struct tWindowInfo *ZOID_SetWindow(s32 winidx, f32 hangle, f32 vangle, f32 width, f32 height, f32 hcenter,
-                                   f32 vcenter);
+tWindowInfo *ZOID_SetWindow(s32 winidx, f32 hangle, f32 vangle, f32 width, f32 height, f32 hcenter,
+                            f32 vcenter);
 void ZOID_ShowPoly(PolyInstance *poly);
 s32 ZOID_SplitMenuScreen(s32 num);
 s32 zoid_subtree_visible(ObjectInstance *node, s32 view);

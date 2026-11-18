@@ -1,25 +1,6 @@
 /* ZOID_SetWindow.c: set a window's size, centre and field of view (MAT3 zoidwindow.c, ZOID_SetWindow()). */
 #include "game/game.h"
 
-/* A window (MAT3 tWindowInfo; 0x48 bytes on the N64, 0x50 on the PC, whose two pointers are 8 bytes). */
-typedef struct tWindowInfo {
-    void *vp;                   /* its viewport */
-    void *s;                    /* its scissor rectangle */
-    s32 flags;                  /* 1: no field of view given, 90 degrees taken */
-    f32 whviewang;              /* the horizontal field of view, radians */
-    f32 wvviewang;              /* the vertical one */
-    f32 whvangtan;              /* the tangent of half the horizontal one */
-    f32 wvvangtan;              /* the tangent of half the vertical one */
-    f32 wihvangtan;             /* 0.5 / whvangtan: screen x = width * wihvangtan * x / z + hcenter */
-    f32 wivvangtan;             /* 0.5 / wvvangtan */
-    f32 wwidth;                 /* the size in screen pixels */
-    f32 wheight;
-    f32 whcenter;               /* the centre on the screen, pixels */
-    f32 wvcenter;
-    f32 aspect;                 /* width / height */
-    s32 pad[4];                 /* the clip planes and the fog */
-} tWindowInfo;
-
 /* Set window `winidx`: `width` by `height` pixels centred at (hcenter, vcenter), with a horizontal field of view of
  * `hangle` degrees and a vertical one of `vangle` degrees, or the vertical one that keeps the pixels square when
  * `vangle` is 0. With `hangle` 0 both are 90 degrees (flags 1). In the N64's high-resolution modes (more than 240

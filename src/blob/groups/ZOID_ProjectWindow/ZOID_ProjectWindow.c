@@ -6,19 +6,6 @@
 /* A matrix (MAT3 tUVMatrix, as its mat3 view): the rotation's three rows, then the position. */
 typedef struct tUVMatrix { f32 uvs[3][3]; f32 pos[3]; } tUVMatrix;
 
-/* A window (MAT3 tWindowInfo; 0x48 bytes on the N64, 0x50 on the PC, whose two pointers are 8 bytes): the
- * projection's numbers. */
-typedef struct tWindowInfo {
-    void *vp; void *s; u8 pad08[0x1C - 0x8];
-    f32 wihvangtan;             /* 0.5 / tan(half the horizontal field of view) */
-    f32 wivvangtan;             /* 0.5 / tan(half the vertical one) */
-    f32 wwidth;                 /* the size, pixels */
-    f32 wheight;
-    f32 whcenter;               /* the centre, pixels */
-    f32 wvcenter;
-    u8 pad34[0x14];
-} tWindowInfo;
-
 /* Project world point point[3] through camera matrix `mat` (its rotation and position) into window `widx`: the
  * screen position into screen[2], pixels, clamped to the s16 range; the point in the camera's frame (x right, y up,
  * z ahead, feet) into body[3] if given. A point nearer than 2.5 feet ahead (MAT3: 0.01), behind the camera
