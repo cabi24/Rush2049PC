@@ -768,12 +768,14 @@ The change is proven by running the game, with the reference build of the wave's
   finds nothing new (its open findings are the reference's: the heap's and the sound sequencer's), `offset_check
   --strict` no open finding, `alias_check` none open, `bounds_check` none new. `n64_audit` grows only in its context
   class `symbols.own` (405 to 417: the twelve data), which its baseline now says.
-- **ctest** (Debug): 572 of 572 (`assets_rom` skipped without a ROM); the realtime-labelled tests under the realtime
-  lock.
+- **ctest** (Debug): 572 of 572 (`assets_rom` skipped without a ROM); the 60 realtime-labelled tests under the
+  realtime lock, two of them (`hfr_paced_60`: retraces dropped; `paced_audio`: one underrun of the device's tap, its
+  trace and sound `--fast`'s) passing when run again on a quieter host. The determinism tests among them:
+  `hash_aslr`, `replay_same_*`, the `net_session_*` and lockstep tests, `paced_audio`.
 - **The gate** (`pconly_gate.sh --base` the reference `--data-moved`): every one of the 64 synthetic paths `same`
   as the reference's, its state changes, the first car's exact position and speed every second, every screenshot
   and every sound byte for byte (three of them, `membig8`, `mods_conflict` and `mods_off`, run again alone on a
   loaded host, as the gate does). The optimized build against the optimized reference, on the synthetic cartridge and
   on the audible one: 64 of 64 the same, shots and sound.
 - **The sanitizers**: an ASan + UBSan build ran every synthetic path to its end with no report, and CI's ASan ctest set
-  (the sanitize job's x86-64 skip list) passed, 399 of 399 (`assets_rom` skipped).
+  (the sanitize job's x86-64 skip list) passed: 399 of 399 (`assets_rom` skipped) and its 21 realtime ones.
