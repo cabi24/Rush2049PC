@@ -124,13 +124,12 @@ the selection).
 
 - `gPlayers[4]` (MAT3 `tPadState`, 76 bytes, 80 on the PC): a player's controller (`CONTROLLER_NONE` 5 without one),
   its button words, and at 0x48 a pointer to its profile handle. Files declare their own view of it.
-- The **profile** (MAT3 `tPlayerProfile`, save.c's record; 48 bytes, 64 on the PC): links, its pak file handle
-  (`fileh`, NULL for a guest), its id, `name[13]`, `controls[10]`, `rumble`, `datah`. On the PC its pointers are 8
-  bytes, so its fields are later than on the N64 (`PROFILE_OFS` in pc_prelude.h); the files read it through a
-  `PlayerProfile` view in its PC layout. `gPlayers_save` is the label of `gPlayers[0].profile`
+- The **profile** (`tProfile`, MAT3 `tPlayerProfile`, in save.h): links, its pak file handle (`fileh`, NULL for a
+  guest), its id, `name[13]`, `controls[10]`, `rumble`, `datah`. Every screen reads it through save.h's declaration
+  (RECORDS.md 4.2). `gPlayers_save` is the label of `gPlayers[0].profile`
   (the data loader makes it an alias into gPlayers' storage); the high-score files now write the field.
-- The **pak file record** (MAT3 `tPS_File`; 76 bytes, 96 on the PC): links and two functions, then `pak`,
-  `fileNo`, the note's name and suffix, its pages (`PSF_OFS`).
+- The **pak file record** (`PakFileRecord`, MAT3 `tPS_File`, in save.h, reached through a `tPakHandle`): links and
+  two functions, then `pak`, `fileNo`, the note's name and extension, its size and pages, its data.
 - Each screen's `buttonInfo[]` (`MenuButton` or a file view of it), its `MultiBlit` table (the texture name, place,
   z, alpha and the callback; the data loader turns the N64 callback address into the function) and its state
   variables (`gModeMenuSelect`, `gPlayerState[]`, `gHighScoreState`, `gGameOverState`, `gState` ...), with MAT3's
@@ -207,9 +206,8 @@ because the library is the same.
   `collVal`, `startSnd`, `moveSnd`, `stopSnd`, `replace`, `fadeDist` (StartCone.c has a view with them).
 - **Image A's data** is an arena at its N64 addresses, refilled on each "load" (docs/port/DATA.md 5); its
   `MultiBlit` tables hold N64 callback addresses the loader resolves.
-- **Records with pointers** (the profile, the pak file record, a ghost) are in their PC layout, but the code still
-  reaches some of them through `PROFILE_OFS`/`PSF_OFS`-style views per file; the shared definitions in types.h
-  (`PlayerSaveSlot`, `ProfileRec`) disagree with each other and should become one `PlayerProfile`.
+- **Records with pointers** (the profile, the pak file record, a ghost) have one declaration each, save.h's, which
+  every screen uses (wave 4, [RECORDS.md](../port/RECORDS.md) 4.2).
 - **gPlayers** has no shared type; each file has a view (`PadState`, `InputRecord`, `Player76` ...).
 - **The controller pak**: the pak manager, the warning screen, `gBlocksNeeded`, the licence screen's pak gate and
   the pak status strings are N64 only; on the PC the paks are files (docs/port/SAVES.md).
@@ -231,6 +229,5 @@ because the library is the same.
 - **Stale names** the screens called until wave 2c: `player_mode_set` (`SetControllerStickEdges`) and
   `sound_handles_array_clear` (`RemovePane`), image A's symbol table's names; the screens call them by the game's
   names now.
-- **The profile's statistics** (MAT3 `tSaveData`): recordscr_draw.c and circuitscr.c have the first typed views
-  (race, stunt, battle, obstacle and circuit records, the circuit state at 0x6F4); save.h's `StatsB` ... `StatsE`
-  and `WeightRecord` are the same tables under guessed names.
+- **The profile's statistics** (MAT3 `tSaveData`, save.h): the records screen and the circuit screen read save.h's
+  `tRaceStats` ... `tCircuitStats` and the circuit in progress (`tSaveData.circuit`).

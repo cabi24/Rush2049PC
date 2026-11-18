@@ -491,7 +491,9 @@ profile's views put its file handle where the list keeps `prev`.
   (`ghost_recording`, NewGhost.c). The save data has no pointers.
 - **`pc_prelude.h`**: `PSF_OFS(n)`, `PROFILE_OFS(n)`, `GHOST_OFS(n)` (the PC offset of N64 offset n; the N64 size
   gives the PC size, as `CAR_OFS` does) and `PC_PSFILE_SIZE`, `PC_PROFILE_SIZE`, `PC_GHOST_SIZE`. Game files that use
-  one define the N64 side, `#define PSF_OFS(n) n`; `SLOT_DATA` is `PROFILE_OFS(0x2C)` in its eleven files.
+  one define the N64 side, `#define PSF_OFS(n) n`; `SLOT_DATA` is `PROFILE_OFS(0x2C)` in its eleven files. Since
+  wave 4 ([RECORDS.md](RECORDS.md) 4.2) the records are save.h's, every file reads them by their fields, and the
+  macros are test_save.c's alone (its mirrors of the records checked against the N64's layouts).
 - **The file-function table.** `RemoveFile` is `RemovePlayerFile` for profiles and ghosts and `MoveFile` is
   `MovePlayerFile`; CreatePlayer, `_ReadPlayer` (`ReadPlayer`), `_ReadGhostHeader` and SaveGhost set them,
   PS_CreateFile and PS_PakServer clear them, PS_DeleteFile and `_RemovePak` (`RemovePak`) call `RemoveFile`.
@@ -562,7 +564,7 @@ profile's views put its file handle where the list keeps `prev`.
   through overlay A's screens and a race (GhostStart, the recording, `GhostEnd`, CompressGhost's zip), the
   rumble request with a rumble pak, and a pak image with the game's saves on it (that needs the converter above).
 - **Left:** the weak context copies keep their N64 views. The ghost record's views (`Ghost`, `Obj`) are each file's
-  own, in the PC's layout (`tGhostFile`'s).
+  own, in the PC's layout (`tGhostFile`'s); since wave 4 every file uses save.h's `tGhostFile`.
 
 ## 10. Race-time records (2026-10-27)
 

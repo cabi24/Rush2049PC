@@ -332,7 +332,7 @@ It uses layout_check's analysis (the same compile cache; a run takes about 15 s 
      offset and the access fits that N64 field, not the PC's field at the offset it uses: 5 for a write or an
      8-byte access, 4 for a read;
    - a PC macro on the line or the two before (one defined under `TARGET_PC` in the unit, `pc_prelude.h` or
-     `include/`: `CAR_OFS`, `PROFILE_OFS`, `EMITTER_ACTIVE`, ...) makes it a PC offset when the access fits the PC
+     `include/`: `CAR_OFS`, `EMITTER_ACTIVE`, ...; `PROFILE_OFS` until wave 4) makes it a PC offset when the access fits the PC
      field there;
    - a typed access through a view with the PC layout counts only where it fits neither that view's field nor the
      record's (`M2C_FIELD(&sym, T *, off)` on a symbol declared as the record); through a struct view that keeps the
@@ -382,8 +382,8 @@ no word of a non-pointer field points at code.
 | `NewListener` (1-byte write at N64 +8 of a list element: the PC's `link.prev`, the N64's flag after the links) | unreachable (reviewed) | no C calls it, no asm references it (only its definition in `blob_800d1004.s`), no C takes its address, and no table in the ROM's data holds it (above). `AudAddListener` (packet_alloc), which takes from the same list, has the PC layout |
 | `NewEmitter` (`_GetSource`, a byte at `EMITTER_ACTIVE`) | false positive (reviewed) | by design, as in section 7: the source's active byte, which `Source` names as the first byte of a u32 flags word |
 | the text bank's string table (`pc_text_strings()`, 10 functions in the front end and the results) | false positive (reviewed) | an index (`strs[22]`) of the host pointers, read 8 bytes wide: PC code |
-| the profile's name passed to the text functions (`drawBattleScore`, `drawStuntScore`, `gameover_animText`) | false positive (reviewed) | the pointer is made with `PROFILE_OFS(20)` three lines before the call (POINTERS.md 9.10) |
-| `animBattlePoints` (overlay B), the same name | false positive (reviewed) | `NameData`, a PC-only view padded to the name at +0x20 |
+| the profile's name passed to the text functions (`drawBattleScore`, `drawStuntScore`, `gameover_animText`) | false positive (reviewed) | the pointer is made with `PROFILE_OFS(20)` three lines before the call (POINTERS.md 9.10); since wave 4 the files read `tProfile.name` and the review is gone ([RECORDS.md](RECORDS.md) 4.2) |
+| `animBattlePoints` (overlay B), the same name | false positive (reviewed) | `NameData`, a PC-only view padded to the name at +0x20; gone since (the review with it) |
 | the flat polygons `PolyInstanceList` (`ZOID_NewPoly`, `ZOID_UpdatePoly`, `zoid_draw_window`), since NATIVE.md step 3 | false positive (reviewed) | typed through `FreeStatLLE`'s `tDLLE` view, which the flow joins over every list: a hit poly (`gHitPolyList`'s element) holds its polygon where a doubly linked element has its link back, but that list is singly linked, so the back-link branch never reaches a polygon; `tPoly` keeps its N64 layout (no pointer) |
 | MBSetupWad and `MBFindInWad` (the WAD table), the packets (`AudAddListener`, `ProcessEmitters`), the 3D-sound sources (`AudEmitEffect`, `FreeFxTag`), the skid marks (`StopSkid`), `FindGhosts`, `StartSmoke`, `initTargetStructs` | false positive | typed accesses through views with the PC layout that fit their own fields (the first run counted them through another view of the same record family); layout_check compares those views |
 

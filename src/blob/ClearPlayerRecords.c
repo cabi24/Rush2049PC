@@ -29,7 +29,7 @@ s32 ClearPlayerRecords(tProfile **profile) {
         PurgePlayerData(profile);
         return 0;
     }
-    RemovePlayerScores((intptr_t) profile);
+    RemovePlayerScores(profile);
     PS_FlushPak((*profile)->fileh->file->pak, 1);
     return 1;
 }

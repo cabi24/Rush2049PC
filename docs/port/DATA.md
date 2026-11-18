@@ -542,7 +542,7 @@ All resolved from the image symbol tables. Data (each is placed like any other s
 | `gRomObjDefPtrs` | 0x801161F4 | data | own (also gRomObjDefPtrs) | `ModelList[]` |
 | `gSkipToGameState` | 0x801174BC | data | arena (also gSkipToGameState) | `u32` |
 | `gTexDefPtrs` | 0x80151AE8 | BSS | own (also gTexDefPtrs) | `TextureList8[]` |
-| `gTotalNames` | 0x80151690 | BSS | own | `Owner[]` |
+| `gTotalNames` | 0x80151690 | BSS | own | `tScoreOwner[12][3][5]` |
 | `gWaveInstance` | 0x80156D38 | BSS | own (also D_80156D38) | 64 × 0x14 records |
 | `codePane` | 0x80146208 | BSS | own | `s8 *` |
 | `namePanes` | 0x80149418 | BSS | own | `s8 *[]` |

@@ -81,8 +81,9 @@ player to player, `AddBattlePoint`).
 
 ### The pak system (MAT3 `paksysdc.c`)
 
-`gPaks` (`tPak`, one a controller) holds each pak's state flags, its libultra handle (`pfs`), its free space, the
-rumble motor's state and its 16 directory entries (`tPakFile`). The files the game has open are `PakFileRecord`s
+The records are declared in [save.h](../../include/game/save.h) ([RECORDS.md](../port/RECORDS.md) 4.2). `gPaks`
+(`tPak`, one a controller) holds each pak's state flags, its libultra handle (`pfs`), its free space, the rumble
+motor's state and its 16 directory entries (`tPakFile`). The files the game has open are `PakFileRecord`s
 (`pak_file_records`, 64, reached through handles, `tPakHandle`), listed per pak in `gPS_Files`.
 
 - `PS_PakServer` (`groups/paksysdc/group.c`), called by `SaveServer` each frame, notices paks put in and taken out:
@@ -100,11 +101,11 @@ rumble motor's state and its 16 directory entries (`tPakFile`). The files the ga
 
 ### Profiles, records, ghosts (MAT3 `save.c`, `gamerecords.c`, `ghost.c`)
 
-A **profile** in memory is a `tProfile` (`player_profile_records`, through handles); its file on the pak is a
-`tSaveData` (2064 bytes, a file format: the layout is the file's): name and id, the 21 game options, the controls,
-each race type's settings, each track's race stats (12: six tracks forwards and backwards, `tRaceStats` with the
-best laps, averages and ghost times), the stunt, battle, obstacle and circuit stats, the circuit in progress and 13
-cars' settings, each part with its own checksum (`CalcChecksumInternal`).
+A **profile** in memory is a `tProfile` (MAT3 `tPlayerProfile`; `player_profile_records`, through handles); its
+file on the pak is a `tSaveData` (2064 bytes, a file format: the layout is the file's): name and id, the 21 game
+options, the controls, each race type's settings, each track's race stats (12: six tracks forwards and backwards,
+`tRaceStats` with the best laps, averages and ghost times), the stunt, battle, obstacle and circuit stats, the
+circuit in progress and 13 cars' settings, each part with its own checksum (`CalcChecksumInternal`).
 
 | Piece | Files |
 |---|---|
@@ -122,12 +123,11 @@ the circuit before). A player without a profile plays on a "just play" profile (
 
 ## 5. What is still N64-shaped (for wave 3)
 
-- **Layouts by N64 offsets.** `PROFILE_OFS`, `PSF_OFS` and `GHOST_OFS` (pc_prelude.h) map the N64's offsets of the
-  profile, pak file and ghost records to the PC's: `groups/save/group.c` (CheckAndRepairPlayer, CreatePlayer,
-  ReadPlayer ...) and `groups/save/ghost_files.c` still read them so; `tProfile`, `PakFileRecord` and `tGhostFile` are
-  the structures to use instead. Several files still read a record through a view of their own with N64-sized
-  padding (`groups/save/ghost_files.c`'s `Slot` and `Obj`; the HUD's input records `gPlayers`, 0x4C bytes on the N64).
-  The ghost header has one type, `tGhostHeader`, in every file since [NATIVE.md](../port/NATIVE.md) step 11.
+- **One type per record** (wave 4, [RECORDS.md](../port/RECORDS.md) 4.2): every file reads the profiles, pak files,
+  ghosts and save data through save.h's `tProfile`, `PakFileRecord`, `tGhostFile`, `tSaveData` and `tGhostHeader`,
+  by their fields; the save code's byte offsets and pc_prelude.h's `PROFILE_OFS`, `PSF_OFS` and `GHOST_OFS` are gone.
+  The high score tables keep a profile's handle or a typed name's index in a union (`tScoreOwner`). Still each
+  file's own: the players' input records (`gPlayers`, 0x4C bytes on the N64).
 - **Window addresses in data: none left here.** The heap functions (`ClearMemoryHeap`, `allocate_memory_at`,
   `heap_move_block_low`) and the overlay loader (`load_overlay`, `runtime_image_block`) work in host pointers since
   [NATIVE.md](../port/NATIVE.md) step 6, as do the heap's links and its handle slots; a font letter's kerning row
