@@ -1,19 +1,5 @@
 /* BlitDraw: one textured rectangle of the blitter (MAT3 blit_pc.c; the N64 side of it, an RDP texture rectangle). */
 #include "game/game.h"
-#define Gfx GfxView   /* this file's own Gfx: include/game's Gfx is another type */
-
-typedef union Gfx {struct {u32 w0; uintptr_t w1;} words;double align;} Gfx;
-
-/* SDK forms from reference/repos/ultralib/include/PR/gbi.h: _SHIFTL,
-   gImmp1 and gSPTextureRectangle, F3DEX2 command values. */
-#define _SHIFTL(v,s,w) ((u32)(((u32)(v)&((0x01U<<(w))-1))<<(s)))
-#define gImmp1(pkt,c,p0) {Gfx *_g=(Gfx *)(pkt);_g->words.w0=_SHIFTL((c),24,8);_g->words.w1=(u32)(p0);}
-#define gSPTextureRectangle(pkt,xl,yl,xh,yh,tile,s,t,dsdx,dtdy) { \
- Gfx *_g=(Gfx *)(pkt); \
- _g->words.w0=(_SHIFTL(0xE4,24,8)|_SHIFTL(xh,12,12)|_SHIFTL(yh,0,12)); \
- _g->words.w1=(_SHIFTL(tile,24,3)|_SHIFTL(xl,12,12)|_SHIFTL(yl,0,12)); \
- gImmp1(pkt,0xE1,(_SHIFTL(s,16,16)|_SHIFTL(t,0,16))); \
- gImmp1(pkt,0xF1,(_SHIFTL(dsdx,16,16)|_SHIFTL(dtdy,0,16))); }
 
 /* Draws the texture loaded last (blit_load_texture) into the screen rectangle x..right, y..bottom, its top left
  * texel at (s, t). The rectangle is clipped to the scissor box, the texture coordinates moving with the clipped edge

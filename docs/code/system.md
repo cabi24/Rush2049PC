@@ -193,7 +193,8 @@ same input.
   font's letters are native beside the file since step 7, its display lists since step 10. Every heap file still
   declares its own `osRecvMesg`/`osSendMesg` and views `heap_lock_queue` its own way.
 - **The WADs' display lists and texture loads** are native beside the file since NATIVE.md step 10: the WAD converter
-  builds them command for command in the PC's form (`Gfx`, w1 a host pointer where it carries an address) and the
+  builds them command for command as records (`Gfx`, GFX.md "The command records"; a host pointer where a command
+  carries an address) and the
   vertices they load in the host's byte order; `prepare_model_dl` keeps the race's sections, and
   `display_list_traverse`, `mirror_vertex_texcoords` and the texture animation read and write them as they are. The
   texels and the palettes' colours stay in the file in the N64's formats.

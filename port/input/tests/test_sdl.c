@@ -194,7 +194,7 @@ static void axis(Pad *p, SDL_GameControllerAxis a, int v)
 /* ---------------------------------------------------------------- a frame to show */
 
 static uint16_t s_fb[320 * 240];
-static PcGfxWords s_list[64];
+static Gfx s_list[64];
 
 static void show_frame(void)
 {

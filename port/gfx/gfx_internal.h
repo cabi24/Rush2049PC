@@ -23,9 +23,6 @@ extern "C" {
 uint16_t pcgfx_rd16(const void *p, int high_first);
 uint32_t pcgfx_rd32(const void *p, int high_first);
 int pcgfx_is_texel_memory(const void *p);   /* pc_mem_is_texel_memory, tolerating NULL */
-/* An address from a command's w1 or an API argument: a host pointer, or a segment's offset where a list set the
- * segment's base (GFX.md "Addresses"). */
-const uint8_t *pcgfx_resolve(uintptr_t addr);
 
 /* ---------------------------------------------------------------- RSP state */
 
@@ -84,9 +81,6 @@ typedef struct {
     uint8_t proj_depth, dz_on, dz_dirty;
     uint16_t tex_scale_s, tex_scale_t;
     uint8_t tex_level, tex_tile, tex_on;
-    uintptr_t seg[16];
-    uintptr_t half1;
-    uint32_t half2;
 
     /* RDP */
     uint32_t om_h, om_l;

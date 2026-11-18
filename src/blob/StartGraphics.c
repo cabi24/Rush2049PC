@@ -1,73 +1,5 @@
 /* StartGraphics: begin a frame's display list (MAT3 gfx.c; the N64 side, the RDP set-up of every frame). */
 #include "game/game.h"
-#define Gfx GfxView   /* this file's own Gfx: include/game's Gfx is another type */
-
-typedef union {
-    Gwords words;
-    long long int force_structure_alignment;
-} Gfx;
-
-#define _SHIFTL(v, s, w) ((u32)(((u32)(v) & ((0x01 << (w)) - 1)) << (s)))
-
-#define gSetImage(pkt, cmd, fmt, siz, width, i) \
-{ \
-    Gfx *_g = (Gfx *)(pkt); \
-    _g->words.w0 = _SHIFTL(cmd, 24, 8) | _SHIFTL(fmt, 21, 3) | _SHIFTL(siz, 19, 2) | _SHIFTL((width) - 1, 0, 12); \
-    _g->words.w1 = (uintptr_t)(i); \
-}
-#define gDPSetColorImage(pkt, f, s, w, i) gSetImage(pkt, G_SETCIMG, f, s, w, i)
-#define gDPNoParam(pkt, cmd) \
-{ \
-    Gfx *_g = (Gfx *)(pkt); \
-    _g->words.w0 = _SHIFTL(cmd, 24, 8); \
-    _g->words.w1 = 0; \
-}
-#define gDPPipeSync(pkt) gDPNoParam(pkt, G_RDPPIPESYNC)
-#define gDPSetColor(pkt, c, d) \
-{ \
-    Gfx *_g = (Gfx *)(pkt); \
-    _g->words.w0 = _SHIFTL(c, 24, 8); \
-    _g->words.w1 = (unsigned int)(d); \
-}
-#define gDPSetFillColor(pkt, d) gDPSetColor(pkt, G_SETFILLCOLOR, d)
-#define gDPFillRectangle(pkt, ulx, uly, lrx, lry) \
-{ \
-    Gfx *_g = (Gfx *)(pkt); \
-    _g->words.w0 = (_SHIFTL(G_FILLRECT, 24, 8) | _SHIFTL((lrx), 14, 10) | _SHIFTL((lry), 2, 10)); \
-    _g->words.w1 = (_SHIFTL((ulx), 14, 10) | _SHIFTL((uly), 2, 10)); \
-}
-
-#define gDPSetDepthImage(pkt, i) gSetImage(pkt, G_SETZIMG, 0, 0, 1, i)
-#define gMoveWd(pkt, index, offset, data) \
-{ \
-    Gfx *_g = (Gfx *)(pkt); \
-    _g->words.w0 = _SHIFTL(G_MOVEWORD, 24, 8) | _SHIFTL(offset, 0, 16) | _SHIFTL(index, 16, 8); \
-    _g->words.w1 = (uintptr_t)(data); \
-}
-#define gSPSegment(pkt, segment, base) gMoveWd(pkt, G_MW_SEGMENT, (segment) * 4, base)
-#define gDma1p(pkt, c, s, l, p) \
-{ \
-    Gfx *_g = (Gfx *)(pkt); \
-    _g->words.w0 = (_SHIFTL((c), 24, 8) | _SHIFTL((p), 16, 8) | _SHIFTL((l), 0, 16)); \
-    _g->words.w1 = (uintptr_t)(s); \
-}
-#define gSPDisplayList(pkt, dl) gDma1p(pkt, G_DL, dl, 0, G_DL_PUSH)
-#define gSPSetOtherMode(pkt, cmd, sft, len, data) \
-{ \
-    Gfx *_g = (Gfx *)(pkt); \
-    _g->words.w0 = (_SHIFTL(cmd, 24, 8) | _SHIFTL(32 - (sft) - (len), 8, 8) | _SHIFTL((len) - 1, 0, 8)); \
-    _g->words.w1 = (unsigned int)(data); \
-}
-#define gDPSetCycleType(pkt, type) gSPSetOtherMode(pkt, G_SETOTHERMODE_H, G_MDSFT_CYCLETYPE, 2, type)
-#define gDPSetTextureFilter(pkt, type) gSPSetOtherMode(pkt, G_SETOTHERMODE_H, G_MDSFT_TEXTFILT, 2, type)
-#define gDPSetColorDither(pkt, mode) gSPSetOtherMode(pkt, G_SETOTHERMODE_H, G_MDSFT_RGBDITHER, 2, mode)
-#define gSPGeometryMode(pkt, c, s) \
-{ \
-    Gfx *_g = (Gfx *)(pkt); \
-    _g->words.w0 = _SHIFTL(G_GEOMETRYMODE, 24, 8) | _SHIFTL(~(u32)(c), 0, 24); \
-    _g->words.w1 = (u32)(s); \
-}
-#define gSPSetGeometryMode(pkt, word) gSPGeometryMode((pkt), 0, word)
 
 VIEW(u8 *, frame_dynamic);
 #define frame_dynamic frame_dynamic_view
@@ -82,6 +14,14 @@ void osViSetSpecialFeatures(u32);
 #define ZBUFFER_CLEAR 0xFFFCFFFC   /* the depth buffer's far value, twice (a fill colour covers two pixels) */
 #define SPLIT_LINE_COLOR 0x00010001 /* near black, the lines between the windows of a split screen */
 
+/* The cartridge's two set-up lists, the RSP's and the RDP's state at a frame's start (rsp_init_dl, rdp_init_dl: the
+ * N64's form, which the data loader fills from the cartridge), read into records the first time a frame starts
+ * (pc_gfx_list_from_n64); every frame's list calls those. */
+#define RSP_INIT_COMMANDS 11
+#define RDP_INIT_COMMANDS 17
+static Gfx rsp_init_list[RSP_INIT_COMMANDS], rdp_init_list[RDP_INIT_COMMANDS];
+static s32 init_lists_read;
+
 /* Starts the frame's display list in the frame buffer of frame_record_index: the RSP and RDP set-up lists, the depth
  * buffer cleared to far, the colour buffer filled with gBgColor, the lines between the windows of a split screen
  * (gSplitScreen, which ZOID_SplitMenuScreen(0) returns: 2 the grid of quarters, the fourth one black with three
@@ -95,12 +35,16 @@ void StartGraphics(void) {
     frame_dynamic=frame->commands;
     frame_matrix_cursor=frame_dynamic+FRAME_MATRIX_OFFSET;
     frame_dl=(Gfx *)(frame_dynamic+PC_GLIST_OFFSET);
-    gSPSegment(frame_dl++, 0, 0);
-    gSPDisplayList(frame_dl++, rsp_init_dl);
-    gSPDisplayList(frame_dl++, rdp_init_dl);
+    if (!init_lists_read) {
+        pc_gfx_list_from_n64(rsp_init_list, rsp_init_dl, RSP_INIT_COMMANDS);
+        pc_gfx_list_from_n64(rdp_init_list, rdp_init_dl, RDP_INIT_COMMANDS);
+        init_lists_read = 1;
+    }
+    gSPDisplayList(frame_dl++, rsp_init_list);
+    gSPDisplayList(frame_dl++, rdp_init_list);
     /* The depth and colour images are the buffers' pointers, which the renderer draws into. The N64 gives the RDP
      * their physical addresses (osVirtualToPhysical), as the PC did through the RDRAM window until
-     * docs/port/NATIVE.md step 4 (docs/port/GFX.md "Command formats and addresses"). */
+     * docs/port/NATIVE.md step 4. */
     gDPSetDepthImage(frame_dl++, zbuffer);
     gDPPipeSync(frame_dl++);
     gDPSetCycleType(frame_dl++, G_CYC_FILL);

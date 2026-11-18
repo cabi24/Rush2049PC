@@ -5,280 +5,19 @@
  * projection, walks the scene tree from ObjHead (Traverse: a node's matrix, its culling box, its lights, then its
  * object at the level of detail its distance picks, zoid_draw_object, then its children), draws the flat polygons
  * (PolyInstanceList: shadows, arrows, skid marks) and the nodes held back for the two late passes; then it draws the
- * 2D blit instances through the blitter. What it writes are N64 display lists (F3DEX2 microcode, RDP commands), as
- * libultra's gbi.h macros below build them; on the PC port/gfx renders them. Also here: the arcsine and the
- * quaternion interpolation the camera paths use. */
+ * 2D blit instances through the blitter. What it writes are display lists of command records, which libultra's
+ * macros build (include/game/gbi.h); port/gfx renders them. Also here: the arcsine and the quaternion interpolation
+ * the camera paths use. */
 #include "game/game.h"
-
-/* ---- libultra's display-list macros (PR/gbi.h), the forms this file uses ---- */
-#define _SHIFTL(v, s, w) ((u32)(((u32)(v) & ((0x01 << (w)) - 1)) << (s)))
-#define MAX(a, b) ((a) > (b) ? (a) : (b))
-#define MIN(a, b) ((a) < (b) ? (a) : (b))
-#define TXL2WORDS(txls, b_txl) MAX(1, ((txls)*(b_txl)/8))
-#define CALC_DXT(width, b_txl) \
-    (((1 << G_TX_DXT_FRAC) + TXL2WORDS(width, b_txl) - 1) / TXL2WORDS(width, b_txl))
-#define TXL2WORDS_4b(txls) MAX(1, ((txls)/16))
-#define CALC_DXT_4b(width) \
-    (((1 << G_TX_DXT_FRAC) + TXL2WORDS_4b(width) - 1) / TXL2WORDS_4b(width))
-
-#define gSPSetOtherMode(pkt, cmd, sft, len, data) \
-{ \
-    Gfx *_g = (Gfx *)(pkt); \
-    _g->words.w0 = (_SHIFTL(cmd, 24, 8) | _SHIFTL(32 - (sft) - (len), 8, 8) | _SHIFTL((len) - 1, 0, 8)); \
-    _g->words.w1 = (unsigned int)(data); \
-}
-#define gDPSetTextureLUT(pkt, type) gSPSetOtherMode(pkt, G_SETOTHERMODE_H, G_MDSFT_TEXTLUT, 2, type)
-#define gSetImage(pkt, cmd, fmt, siz, width, i) \
-{ \
-    Gfx *_g = (Gfx *)(pkt); \
-    _g->words.w0 = _SHIFTL(cmd, 24, 8) | _SHIFTL(fmt, 21, 3) | _SHIFTL(siz, 19, 2) | _SHIFTL((width)-1, 0, 12); \
-    _g->words.w1 = (uintptr_t)(i); \
-}
-#define gDPSetTextureImage(pkt, f, s, w, i) gSetImage(pkt, G_SETTIMG, f, s, w, i)
-#define gDPLoadTileGeneric(pkt, c, tile, uls, ult, lrs, lrt) \
-{ \
-    Gfx *_g = (Gfx *)(pkt); \
-    _g->words.w0 = _SHIFTL(c, 24, 8) | _SHIFTL(uls, 12, 12) | _SHIFTL(ult, 0, 12); \
-    _g->words.w1 = _SHIFTL(tile, 24, 3) | _SHIFTL(lrs, 12, 12) | _SHIFTL(lrt, 0, 12); \
-}
-#define gDPSetTileSize(pkt, t, uls, ult, lrs, lrt) gDPLoadTileGeneric(pkt, G_SETTILESIZE, t, uls, ult, lrs, lrt)
-#define gDPLoadTile(pkt, t, uls, ult, lrs, lrt) gDPLoadTileGeneric(pkt, G_LOADTILE, t, uls, ult, lrs, lrt)
-#define gDPSetTile(pkt, fmt, siz, line, tmem, tile, palette, cmt, maskt, shiftt, cms, masks, shifts) \
-{ \
-    Gfx *_g = (Gfx *)(pkt); \
-    _g->words.w0 = _SHIFTL(G_SETTILE, 24, 8) | _SHIFTL(fmt, 21, 3) | _SHIFTL(siz, 19, 2) | _SHIFTL(line, 9, 9) | _SHIFTL(tmem, 0, 9); \
-    _g->words.w1 = _SHIFTL(tile, 24, 3) | _SHIFTL(palette, 20, 4) | _SHIFTL(cmt, 18, 2) | _SHIFTL(maskt, 14, 4) | \
-                   _SHIFTL(shiftt, 10, 4) | _SHIFTL(cms, 8, 2) | _SHIFTL(masks, 4, 4) | _SHIFTL(shifts, 0, 4); \
-}
-#define gDPLoadBlock(pkt, tile, uls, ult, lrs, dxt) \
-{ \
-    Gfx *_g = (Gfx *)(pkt); \
-    _g->words.w0 = (_SHIFTL(G_LOADBLOCK, 24, 8) | _SHIFTL(uls, 12, 12) | _SHIFTL(ult, 0, 12)); \
-    _g->words.w1 = (_SHIFTL(tile, 24, 3) | _SHIFTL((MIN(lrs,G_TX_LDBLK_MAX_TXL)), 12, 12) | _SHIFTL(dxt, 0, 12)); \
-}
-#define gDPNoParam(pkt, cmd) \
-{ \
-    Gfx *_g = (Gfx *)(pkt); \
-    _g->words.w0 = _SHIFTL(cmd, 24, 8); \
-    _g->words.w1 = 0; \
-}
-#define gDPPipeSync(pkt) gDPNoParam(pkt, G_RDPPIPESYNC)
-#define gDPLoadSync(pkt) gDPNoParam(pkt, G_RDPLOADSYNC)
-
-#define gDPLoadTextureTile(pkt, timg, fmt, siz, width, height, uls, ult, lrs, lrt, pal, cms, cmt, masks, maskt, shifts, shiftt) \
-{ \
-    gDPSetTextureImage(pkt, fmt, siz, width, timg); \
-    gDPSetTile(pkt, fmt, siz, (((((lrs)-(uls)+1) * siz##_TILE_BYTES)+7)>>3), 0, G_TX_LOADTILE, 0 , cmt, maskt, shiftt, cms, masks, shifts); \
-    gDPLoadSync(pkt); \
-    gDPLoadTile(pkt, G_TX_LOADTILE, (uls)<<G_TEXTURE_IMAGE_FRAC, (ult)<<G_TEXTURE_IMAGE_FRAC, (lrs)<<G_TEXTURE_IMAGE_FRAC, (lrt)<<G_TEXTURE_IMAGE_FRAC); \
-    gDPPipeSync(pkt); \
-    gDPSetTile(pkt, fmt, siz, (((((lrs)-(uls)+1) * siz##_LINE_BYTES)+7)>>3), 0, G_TX_RENDERTILE, pal, cmt, maskt, shiftt, cms, masks, shifts); \
-    gDPSetTileSize(pkt, G_TX_RENDERTILE, (uls)<<G_TEXTURE_IMAGE_FRAC, (ult)<<G_TEXTURE_IMAGE_FRAC, (lrs)<<G_TEXTURE_IMAGE_FRAC, (lrt)<<G_TEXTURE_IMAGE_FRAC) \
-}
-#define gDPLoadTextureTile_4b(pkt, timg, fmt, width, height, uls, ult, lrs, lrt, pal, cms, cmt, masks, maskt, shifts, shiftt) \
-{ \
-    gDPSetTextureImage(pkt, fmt, G_IM_SIZ_8b, ((width)>>1), timg); \
-    gDPSetTile(pkt, fmt, G_IM_SIZ_8b, (((((lrs)-(uls)+1)>>1)+7)>>3), 0, G_TX_LOADTILE, 0 , cmt, maskt, shiftt, cms, masks, shifts); \
-    gDPLoadSync(pkt); \
-    gDPLoadTile(pkt, G_TX_LOADTILE, (uls)<<(G_TEXTURE_IMAGE_FRAC-1), (ult)<<(G_TEXTURE_IMAGE_FRAC), (lrs)<<(G_TEXTURE_IMAGE_FRAC-1), (lrt)<<(G_TEXTURE_IMAGE_FRAC)); \
-    gDPPipeSync(pkt); \
-    gDPSetTile(pkt, fmt, G_IM_SIZ_4b, (((((lrs)-(uls)+1)>>1)+7)>>3), 0, G_TX_RENDERTILE, pal, cmt, maskt, shiftt, cms, masks, shifts); \
-    gDPSetTileSize(pkt, G_TX_RENDERTILE, (uls)<<G_TEXTURE_IMAGE_FRAC, (ult)<<G_TEXTURE_IMAGE_FRAC, (lrs)<<G_TEXTURE_IMAGE_FRAC, (lrt)<<G_TEXTURE_IMAGE_FRAC) \
-}
-#define gDPLoadTextureBlock(pkt, timg, fmt, siz, width, height, pal, cms, cmt, masks, maskt, shifts, shiftt) \
-{ \
-    gDPSetTextureImage(pkt, fmt, siz##_LOAD_BLOCK, 1, timg); \
-    gDPSetTile(pkt, fmt, siz##_LOAD_BLOCK, 0, 0, G_TX_LOADTILE, 0 , cmt, maskt, shiftt, cms, masks, shifts); \
-    gDPLoadSync(pkt); \
-    gDPLoadBlock(pkt, G_TX_LOADTILE, 0, 0, (((width)*(height) + siz##_INCR) >> siz##_SHIFT) -1, CALC_DXT(width, siz##_BYTES)); \
-    gDPPipeSync(pkt); \
-    gDPSetTile(pkt, fmt, siz, (((width) * siz##_LINE_BYTES)+7)>>3, 0, G_TX_RENDERTILE, pal, cmt, maskt, shiftt, cms, masks, shifts); \
-    gDPSetTileSize(pkt, G_TX_RENDERTILE, 0, 0, ((width)-1) << G_TEXTURE_IMAGE_FRAC, ((height)-1) << G_TEXTURE_IMAGE_FRAC) \
-}
-#define gDPLoadTextureBlock_4b(pkt, timg, fmt, width, height, pal, cms, cmt, masks, maskt, shifts, shiftt) \
-{ \
-    gDPSetTextureImage(pkt, fmt, G_IM_SIZ_16b, 1, timg); \
-    gDPSetTile(pkt, fmt, G_IM_SIZ_16b, 0, 0, G_TX_LOADTILE, 0 , cmt, maskt, shiftt, cms, masks, shifts); \
-    gDPLoadSync(pkt); \
-    gDPLoadBlock(pkt, G_TX_LOADTILE, 0, 0, (((width)*(height)+3)>>2)-1, CALC_DXT_4b(width)); \
-    gDPPipeSync(pkt); \
-    gDPSetTile(pkt, fmt, G_IM_SIZ_4b, ((((width)>>1)+7)>>3), 0, G_TX_RENDERTILE, pal, cmt, maskt, shiftt, cms, masks, shifts); \
-    gDPSetTileSize(pkt, G_TX_RENDERTILE, 0, 0, ((width)-1) << G_TEXTURE_IMAGE_FRAC, ((height)-1) << G_TEXTURE_IMAGE_FRAC) \
-}
-#define gDma1p(pkt, c, s, l, p) \
-{ \
-    Gfx *_g = (Gfx *)(pkt); \
-    _g->words.w0 = (_SHIFTL((c), 24, 8) | _SHIFTL((p), 16, 8) | _SHIFTL((l), 0, 16)); \
-    _g->words.w1 = (uintptr_t)(s); \
-}
-#define gSPDisplayList(pkt,dl) gDma1p(pkt,G_DL,dl,0,G_DL_PUSH)
 
 /* The model files' records the draw reads (the texture, palette and object definitions: tTexture, tPaletteDef,
  * tModelDef) are the WAD's records, built beside the file with host pointers to its texels, colours and display lists
  * (pc_game_types.h, port/assets/wad.c); on the N64 they were the file's, with 32-bit addresses. */
+
 /* A texture tile, the part of a texture a node draws (MAT3 anon_uls_ult_8), in 10.5 fixed point (32 a texel). */
 typedef struct TexTile {
     u16 uls, ult, lrs, lrt;
 } TexTile;
-#define gDPTileSync(pkt) gDPNoParam(pkt, G_RDPTILESYNC)
-#define gDPLoadTLUTCmd(pkt, tile, count) \
-{ \
-    Gfx *_g = (Gfx *)pkt; \
-    _g->words.w0 = _SHIFTL(G_LOADTLUT, 24, 8); \
-    _g->words.w1 = _SHIFTL((tile), 24, 3) | _SHIFTL((count), 14, 10); \
-}
-#define gDPLoadTLUT(pkt, count, tmemaddr, dram) \
-{ \
-    gDPSetTextureImage(pkt, G_IM_FMT_RGBA, G_IM_SIZ_16b, 1, dram); \
-    gDPTileSync(pkt); \
-    gDPSetTile(pkt, 0, 0, 0, tmemaddr, G_TX_LOADTILE, 0, 0, 0, 0, 0, 0, 0); \
-    gDPLoadSync(pkt); \
-    gDPLoadTLUTCmd(pkt, G_TX_LOADTILE, ((count) - 1)); \
-    gDPPipeSync(pkt); \
-}
-
-/* ---- the F3DEX2 microcode's forms (PR/gbi.h with F3DEX_GBI_2) ---- */
-#define NUML(n) ((n) * 24)
-#define NUMLIGHTS_0 1
-#define NUMLIGHTS_1 1
-#define NUMLIGHTS_2 2
-#define BOWTIE_VAL 0
-
-#define gDma2p(pkt, c, adrs, len, idx, ofs) \
-{ \
-    Gfx *_g = (Gfx *)(pkt); \
-    _g->words.w0 = (_SHIFTL((c), 24, 8) | _SHIFTL(((len) - 1) / 8, 19, 5) | _SHIFTL((ofs) / 8, 8, 8) | _SHIFTL((idx), 0, 8)); \
-    _g->words.w1 = (uintptr_t)(adrs); \
-}
-#define gSPBranchList(pkt, dl) gDma1p(pkt, G_DL, dl, 0, G_DL_NOPUSH)
-#define gSPEndDisplayList(pkt) \
-{ \
-    Gfx *_g = (Gfx *)(pkt); \
-    _g->words.w0 = _SHIFTL(G_ENDDL, 24, 8); \
-    _g->words.w1 = 0; \
-}
-#define gSPMatrix(pkt, m, p) gDma2p((pkt), G_MTX, (m), sizeof(Mtx), (p) ^ G_MTX_PUSH, 0)
-#define gSPPopMatrixN(pkt, n, num) gDma2p((pkt), G_POPMTX, (num) * 64, 64, 2, 0)
-#define gSPPopMatrix(pkt, n) gSPPopMatrixN((pkt), (n), 1)
-#define gSPViewport(pkt, v) gDma2p((pkt), G_MOVEMEM, (v), sizeof(Vp), G_MV_VIEWPORT, 0)
-#define gSPVertex(pkt, v, n, v0) \
-{ \
-    Gfx *_g = (Gfx *)(pkt); \
-    _g->words.w0 = _SHIFTL(G_VTX, 24, 8) | _SHIFTL((n), 12, 8) | _SHIFTL((v0) + (n), 1, 7); \
-    _g->words.w1 = (uintptr_t)(v); \
-}
-#define gSPCullDisplayList(pkt, vstart, vend) \
-{ \
-    Gfx *_g = (Gfx *)(pkt); \
-    _g->words.w0 = _SHIFTL(G_CULLDL, 24, 8) | _SHIFTL((vstart) * 2, 0, 16); \
-    _g->words.w1 = _SHIFTL((vend) * 2, 0, 16); \
-}
-#define __gsSP1Triangle_w1(v0, v1, v2) (_SHIFTL((v0) * 2, 16, 8) | _SHIFTL((v1) * 2, 8, 8) | _SHIFTL((v2) * 2, 0, 8))
-#define __gsSP1Triangle_w1f(v0, v1, v2, flag) \
-    (((flag) == 0) ? __gsSP1Triangle_w1(v0, v1, v2) : \
-     ((flag) == 1) ? __gsSP1Triangle_w1(v1, v2, v0) : \
-                     __gsSP1Triangle_w1(v2, v0, v1))
-#define gSP1Triangle(pkt, v0, v1, v2, flag) \
-{ \
-    Gfx *_g = (Gfx *)(pkt); \
-    _g->words.w0 = _SHIFTL(G_TRI1, 24, 8) | __gsSP1Triangle_w1f(v0, v1, v2, flag); \
-    _g->words.w1 = 0; \
-}
-#define gSP2Triangles(pkt, v00, v01, v02, flag0, v10, v11, v12, flag1) \
-{ \
-    Gfx *_g = (Gfx *)(pkt); \
-    _g->words.w0 = (_SHIFTL(G_TRI2, 24, 8) | __gsSP1Triangle_w1f(v00, v01, v02, flag0)); \
-    _g->words.w1 = __gsSP1Triangle_w1f(v10, v11, v12, flag1); \
-}
-#define gMoveWd(pkt, index, offset, data) gDma1p((pkt), G_MOVEWORD, data, offset, index)
-#define gSPNumLights(pkt, n) gMoveWd(pkt, G_MW_NUMLIGHT, G_MWO_NUMLIGHT, NUML(n))
-#define gSPLight(pkt, l, n) gDma2p((pkt), G_MOVEMEM, (l), sizeof(Light), G_MV_LIGHT, (n) * 24 + 24)
-#define gSPSetLights0(pkt, name) \
-{ \
-    gSPNumLights(pkt, NUMLIGHTS_0); \
-    gSPLight(pkt, &name.l[0], 1); \
-    gSPLight(pkt, &name.a, 2); \
-}
-#define gSPSetLights1(pkt, name) \
-{ \
-    gSPNumLights(pkt, NUMLIGHTS_1); \
-    gSPLight(pkt, &name.l[0], 1); \
-    gSPLight(pkt, &name.a, 2); \
-}
-#define gSPSetLights2(pkt, name) \
-{ \
-    gSPNumLights(pkt, NUMLIGHTS_2); \
-    gSPLight(pkt, &name.l[0], 1); \
-    gSPLight(pkt, &name.l[1], 2); \
-    gSPLight(pkt, &name.a, 3); \
-}
-#define gSPLookAtX(pkt, l) gDma2p((pkt), G_MOVEMEM, (l), sizeof(Light), G_MV_LIGHT, G_MVO_LOOKATX)
-#define gSPLookAtY(pkt, l) gDma2p((pkt), G_MOVEMEM, (l), sizeof(Light), G_MV_LIGHT, G_MVO_LOOKATY)
-#define gSPLookAt(pkt, la) \
-{ \
-    gSPLookAtX(pkt, la) \
-    gSPLookAtY(pkt, (char *)(la) + 16) \
-}
-#define gSPGeometryMode(pkt, c, s) \
-{ \
-    Gfx *_g = (Gfx *)(pkt); \
-    _g->words.w0 = _SHIFTL(G_GEOMETRYMODE, 24, 8) | _SHIFTL(~(u32)(c), 0, 24); \
-    _g->words.w1 = (u32)(s); \
-}
-#define gSPSetGeometryMode(pkt, word) gSPGeometryMode((pkt), 0, (word))
-#define gSPClearGeometryMode(pkt, word) gSPGeometryMode((pkt), (word), 0)
-#define gSPTexture(pkt, s, t, level, tile, on) \
-{ \
-    Gfx *_g = (Gfx *)(pkt); \
-    _g->words.w0 = (_SHIFTL(G_TEXTURE, 24, 8) | _SHIFTL(BOWTIE_VAL, 16, 8) | _SHIFTL((level), 11, 3) | \
-                    _SHIFTL((tile), 8, 3) | _SHIFTL((on), 1, 7)); \
-    _g->words.w1 = (_SHIFTL((s), 16, 16) | _SHIFTL((t), 0, 16)); \
-}
-#define gSPPerspNormalize(pkt, s) gMoveWd(pkt, G_MW_PERSPNORM, 0, (s))
-#define gSPFogFactor(pkt, fm, fo) gMoveWd(pkt, G_MW_FOG, G_MWO_FOG, (_SHIFTL(fm, 16, 16) | _SHIFTL(fo, 0, 16)))
-#define gSPFogPosition(pkt, min, max) \
-    gSPFogFactor(pkt, (500 * 256 / ((max) - (min))), (500 - (min)) * 256 / ((max) - (min)))
-#define gDPSetCycleType(pkt, type) gSPSetOtherMode(pkt, G_SETOTHERMODE_H, G_MDSFT_CYCLETYPE, 2, type)
-#define gDPSetDepthSource(pkt, src) gSPSetOtherMode(pkt, G_SETOTHERMODE_L, G_MDSFT_ZSRCSEL, 1, src)
-#define gDPSetRenderMode(pkt, c0, c1) gSPSetOtherMode(pkt, G_SETOTHERMODE_L, G_MDSFT_RENDERMODE, 29, (c0) | (c1))
-#define gDPSetCombine(pkt, muxs0, muxs1) \
-{ \
-    Gfx *_g = (Gfx *)(pkt); \
-    _g->words.w0 = _SHIFTL(G_SETCOMBINE, 24, 8) | _SHIFTL(muxs0, 0, 24); \
-    _g->words.w1 = (unsigned int)(muxs1); \
-}
-#define gDPSetColor(pkt, c, d) \
-{ \
-    Gfx *_g = (Gfx *)(pkt); \
-    _g->words.w0 = _SHIFTL(c, 24, 8); \
-    _g->words.w1 = (unsigned int)(d); \
-}
-#define DPRGBColor(pkt, cmd, r, g, b, a) \
-    gDPSetColor(pkt, cmd, (_SHIFTL(r, 24, 8) | _SHIFTL(g, 16, 8) | _SHIFTL(b, 8, 8) | _SHIFTL(a, 0, 8)))
-#define gDPSetEnvColor(pkt, r, g, b, a) DPRGBColor(pkt, G_SETENVCOLOR, r, g, b, a)
-#define gDPSetFogColor(pkt, r, g, b, a) DPRGBColor(pkt, G_SETFOGCOLOR, r, g, b, a)
-#define gDPSetPrimColor(pkt, m, l, r, g, b, a) \
-{ \
-    Gfx *_g = (Gfx *)(pkt); \
-    _g->words.w0 = (_SHIFTL(G_SETPRIMCOLOR, 24, 8) | _SHIFTL(m, 8, 8) | _SHIFTL(l, 0, 8)); \
-    _g->words.w1 = (_SHIFTL(r, 24, 8) | _SHIFTL(g, 16, 8) | _SHIFTL(b, 8, 8) | _SHIFTL(a, 0, 8)); \
-}
-#define gDPSetPrimDepth(pkt, z, dz) gDPSetColor(pkt, G_SETPRIMDEPTH, _SHIFTL(z, 16, 16) | _SHIFTL(dz, 0, 16))
-#define gDPSetScissor(pkt, mode, ulx, uly, lrx, lry) \
-{ \
-    Gfx *_g = (Gfx *)pkt; \
-    _g->words.w0 = _SHIFTL(G_SETSCISSOR, 24, 8) | _SHIFTL((int)((float)(ulx) * 4.0F), 12, 12) | \
-                   _SHIFTL((int)((float)(uly) * 4.0F), 0, 12); \
-    _g->words.w1 = _SHIFTL(mode, 24, 2) | _SHIFTL((int)((float)(lrx) * 4.0F), 12, 12) | \
-                   _SHIFTL((int)((float)(lry) * 4.0F), 0, 12); \
-}
-#define gDPFillRectangle(pkt, ulx, uly, lrx, lry) \
-{ \
-    Gfx *_g = (Gfx *)(pkt); \
-    _g->words.w0 = (_SHIFTL(G_FILLRECT, 24, 8) | _SHIFTL((lry), 2, 10) | _SHIFTL((lrx), 14, 10)); \
-    _g->words.w1 = (_SHIFTL((uly), 2, 10) | _SHIFTL((ulx), 14, 10)); \
-}
-
 /* ---- libultra's types (gbi.h, mbi.h) ---- */
 typedef s32 Mtx_t[4][4];
 typedef union {
@@ -347,14 +86,6 @@ VIEW(Mtx *, frame_matrix_cursor);
 
 float sqrtf(float);
 float fabsf(float);
-
-/* gDPSetTileSize with its coordinates masked to their 12 bits (the coordinates here are already 10.2) */
-#define gDPSetTileSizeS(pkt, t, uls, ult, lrs, lrt) \
-{ \
-    Gfx *_g = (Gfx *)(pkt); \
-    _g->words.w0 = (G_SETTILESIZE << 24) | (((uls) & 0xFFF) << 12) | ((ult) & 0xFFF); \
-    _g->words.w1 = (((t) & 7) << 24) | (((lrs) & 0xFFF) << 12) | ((lrt) & 0xFFF); \
-}
 
 /* Load palette `pal` into the TLUT (colours start..end, at TMEM 0x100 + start), unless it is the one loaded already
  * (zoid_current_tlut). Inside a culled branch (zoid_branch_slot) it always loads: the branch may be skipped, and
@@ -495,10 +226,10 @@ void zoid_load_texture(Gfx **gp, tTexture *tex, TexTile *rect, TexTile *clip, tP
     }
     if (clip != NULL) {
         gfx--;
-        gDPSetTileSizeS(gfx++, G_TX_RENDERTILE, clip->uls >> 3, clip->ult >> 3, clip->lrs >> 3, clip->lrt >> 3);
+        gDPSetTileSize(gfx++, G_TX_RENDERTILE, clip->uls >> 3, clip->ult >> 3, clip->lrs >> 3, clip->lrt >> 3);
     } else if (rect != NULL) {
         gfx--;
-        gDPSetTileSizeS(gfx++, G_TX_RENDERTILE, rect->uls >> 3, rect->ult >> 3, rect->lrs >> 3, rect->lrt >> 3);
+        gDPSetTileSize(gfx++, G_TX_RENDERTILE, rect->uls >> 3, rect->ult >> 3, rect->lrs >> 3, rect->lrt >> 3);
     }
     if (tex->palIndex >= 0 && !(tex->flags & TEX_NOPALETTE) && palettes != NULL) {
         zoid_load_palette(&gfx, &palettes[tex->palIndex]);
@@ -890,7 +621,7 @@ s32 Traverse(Gfx **gp, ObjectInstance *parent, ObjectInstance *node, s32 view, s
                 gfx = zoid_branch_slot - 2;
             } else {
                 gSPEndDisplayList(gfx++);
-                zoid_branch_slot[-1].words.w1 = (uintptr_t)gfx;
+                zoid_branch_slot[-1].list.list = gfx;
             }
             zoid_branch_slot = NULL;
             drawn += drawn_before;
@@ -1115,7 +846,7 @@ void zoid_draw_window(s32 view, tCamera *eye)
             if (mode != 0) {
                 mode = 0;
                 gDPSetRenderMode(frame_dl++, 0x00504240, 0);
-                gDPSetCombine(frame_dl++, 0xFFFFFF, 0xFFFDF6FB);
+                gDPSetCombineMode(frame_dl++, G_CC_PRIMITIVE, G_CC_PRIMITIVE);
             }
             gDPSetPrimColor(frame_dl++, 0, 0, poly->u.screen.col[0], poly->u.screen.col[1], poly->u.screen.col[2],
                             poly->u.screen.col[3]);
@@ -1176,30 +907,30 @@ void zoid_draw_window(s32 view, tCamera *eye)
                     mode = 2;
                     if (!fog) {
                         gDPSetRenderMode(frame_dl++, 0x00504A70, 0);
-                        gDPSetCombine(frame_dl++, 0x121824, 0xFF33FFFF);
+                        gDPSetCombineMode(frame_dl++, G_CC_MODULATERGBA, G_CC_MODULATERGBA);
                     } else {
                         gDPSetRenderMode(frame_dl++, 0xC8104A50, 0);
-                        gDPSetCombine(frame_dl++, 0x1217FF, 0xFFFFFE38);
+                        gDPSetCombineMode(frame_dl++, G_CC_MODULATERGB_PRIMA, G_CC_PASS2);
                     }
                 }
             } else if (mode != 3) {
                 mode = 3;
                 if (!fog) {
                     gDPSetRenderMode(frame_dl++, 0x00504240, 0);
-                    gDPSetCombine(frame_dl++, 0x121824, 0xFF33FFFF);
+                    gDPSetCombineMode(frame_dl++, G_CC_MODULATERGBA, G_CC_MODULATERGBA);
                 } else {
                     gDPSetRenderMode(frame_dl++, 0xC8104240, 0);
-                    gDPSetCombine(frame_dl++, 0x1217FF, 0xFFFFFE38);
+                    gDPSetCombineMode(frame_dl++, G_CC_MODULATERGB_PRIMA, G_CC_PASS2);
                 }
             }
         } else if (mode != 1) {
             mode = 1;
             if (!fog) {
                 gDPSetRenderMode(frame_dl++, 0x00504A50, 0);
-                gDPSetCombine(frame_dl++, 0xFFFFFF, 0xFFFE793C);
+                gDPSetCombineMode(frame_dl++, G_CC_SHADE, G_CC_SHADE);
             } else {
                 gDPSetRenderMode(frame_dl++, 0xC8104A70, 0);
-                gDPSetCombine(frame_dl++, 0xFFFFFF, 0xFFFE7638);
+                gDPSetCombineMode(frame_dl++, G_CC_SHADE_PRIMA, G_CC_PASS2);
             }
         }
         gSPVertex(frame_dl++, zoid_poly_vertices, poly->nverts, 0);
@@ -1257,7 +988,6 @@ void zoid_draw_window(s32 view, tCamera *eye)
 }
 
 /* ---- ZOID_EndFrame: the frame's scene and its 2D blits ---- */
-#define gDPSetTextureFilter(pkt, type) gSPSetOtherMode(pkt, G_SETOTHERMODE_H, G_MDSFT_TEXTFILT, 2, type)
 
 
 /* Draw the frame's scene into frame_dl: the scene's lights, every window (zoid_draw_window), then, unless

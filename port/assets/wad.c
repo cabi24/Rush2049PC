@@ -39,6 +39,7 @@
 
 #include "assets.h"
 #include "pc_game_types.h"
+#include "pc_gfx_n64.h"
 
 #define TAG(a, b, c, d) ((uint32_t)(a) << 24 | (uint32_t)(b) << 16 | (uint32_t)(c) << 8 | (uint32_t)(d))
 #define TAG_OBHD TAG('O', 'B', 'H', 'D')
@@ -358,16 +359,20 @@ static void build_paths(int wave, struct pc_wad_records *w, uint8_t *buf, size_t
  * command that carries an address an offset: from the file's start in the models' lists (OBJS), from IMAG's in the
  * texture loads (TXLD). On the N64 SetupWaveModel added the file's or IMAG's address to those offsets in place, in 24
  * bits (prepare_model_dl, relocate_texture_loads). Here the lists are built again beside the file in the PC's own
- * form (PcGfxWords: w0, and a pointer-sized w1; docs/port/GFX.md "Command formats"), command for command: w0 as it is,
- * w1 a host pointer in a command that carries an address and the value in the rest. The records point at them (a
- * level of detail's displayList, a listed texture's texBase), so the game's frame list calls them (gSPDisplayList).
+ * form, a record for each command (Gfx, pc_gfx_list.h; docs/port/GFX.md "The command records"): pc_gfx_from_n64
+ * (gfx_n64.c) reads the command into its record, and the record's pointer, where it has one, is a host pointer. The
+ * records point at them (a level of detail's displayList, a listed texture's texBase), so the game's frame list calls
+ * them (gSPDisplayList).
  *
  * Which bytes are commands: the lists are reached from the records (each level's list, each listed texture's load
  * list) and from each other (G_DL, G_RDPHALF_1 before G_BRANCH_Z, the LOD markers), and every walk of them, the
  * game's and the renderer's, goes on a command at a time to a G_ENDDL. So every command some walk comes to is built,
  * each from its 8 bytes, in the file's order: the command after a built one is the next built one, as in the file,
  * and a walk of the native lists comes to the commands its walk of the file came to. The bytes between the lists (the
- * vertices) are none. One G_ENDDL after the last command stops a walk that ran to the file's end.
+ * vertices) are none. An end of list after the last command stops a walk that ran to the file's end. A command that
+ * the N64 split over two is one record, in the first's place: a G_BRANCH_Z holds the list its G_RDPHALF_1 names (the
+ * half's record is a no-op), and a texture rectangle's coordinates (its G_RDPHALF_1 and G_RDPHALF_2) are the record
+ * after it (the second half's a no-op), as the game's macros make them.
  *
  * The addresses: the N64's relocation is played on the file's offsets (relocate_texture_loads over TXLD, then
  * prepare_model_dl's walk of each model's levels, in SetupWaveModel's order) to know what each word became: an
@@ -393,7 +398,7 @@ static void build_paths(int wave, struct pc_wad_records *w, uint8_t *buf, size_t
  * else (a light: bytes) points into the file. The texels and TLUTs stay in the file, in the formats the N64's RDP
  * reads, which the renderer decodes: the file's texel memory (the texels' section below). */
 
-/* The F3DEX2 opcodes the walks know (port/gfx/gfx_gbi.h has them all). */
+/* The F3DEX2 opcodes the walks know (gfx_n64.c has them all). */
 #define OP_VTX 0x01
 #define OP_BRANCH_Z 0x04
 #define OP_MTX 0xDA
@@ -455,6 +460,8 @@ typedef struct {
     Span *runs;                 /* the vertices the lists use: [start, end) in the file */
     size_t nruns, runs_room;
     uint8_t *data;              /* where the next matrix or viewport copy goes (kept->data) */
+    uint32_t half_at;           /* the last G_RDPHALF_1 built that names a list, and that list (build_command) */
+    Gfx *half_list;
     Span loads;                 /* the places the lists' SETTIMGs load texels from: the lowest, the highest + 1 */
 } Lists;
 
@@ -687,7 +694,7 @@ static int run_cmp(const void *a, const void *b)
  * viewports they point at. */
 typedef struct {
     struct pc_wad_records r;    /* first: pc_wad_records hands out its address */
-    PcGfxWords *commands;       /* the lists' commands in the file's order, then one G_ENDDL */
+    Gfx *commands;              /* the lists' commands' records in the file's order, then an end of list */
     size_t numCommands;
     uint8_t *vertices;          /* the vertices the lists load, native */
     size_t verticesSize;
@@ -758,7 +765,7 @@ static void *vertices_for(Lists *L, WadKept *kept, const uint32_t *native, uint3
 }
 
 /* The native command a list at file offset `to` starts with; NULL (said) when no walk came there. */
-static PcGfxWords *command_for(Lists *L, WadKept *kept, uint32_t to)
+static Gfx *command_for(Lists *L, WadKept *kept, uint32_t to)
 {
     if (to >= L->size || (to & 7) || !L->slot[to / 8].command)
         return NULL;
@@ -819,19 +826,60 @@ static void note_load(Lists *L, uint32_t to)
         L->loads.end = to + 1;
 }
 
-/* The native command for the file's command at off. */
-static void build_command(Lists *L, WadKept *kept, const uint32_t *native, uint32_t off, PcGfxWords *cmd)
+/* The command at off as the N64 holds it (w0, and w1 as it is in the file). */
+static GfxWords words_at(const Lists *L, uint32_t off)
+{
+    GfxWords w = {pc_be32(L->buf + off), w1_at(L, off)};
+    return w;
+}
+
+/* Puts p in the record's pointer, where its op has one. */
+static void set_address(Gfx *cmd, void *p)
+{
+    switch (cmd->op) {
+    case GFX_OP_VERTICES: cmd->vertices.vertices = p; break;
+    case GFX_OP_CALL_LIST:
+    case GFX_OP_BRANCH_LIST: cmd->list.list = p; break;
+    case GFX_OP_SECTION: cmd->section.end = p; break;
+    case GFX_OP_BRANCH_Z: cmd->branch_z.list = p; break;
+    case GFX_OP_MATRIX:
+    case GFX_OP_FORCE_MATRIX: cmd->matrix.matrix = p; break;
+    case GFX_OP_VIEWPORT: cmd->viewport.viewport = p; break;
+    case GFX_OP_LIGHT: cmd->light.light = p; break;
+    case GFX_OP_TEXTURE_IMAGE:
+    case GFX_OP_DEPTH_IMAGE:
+    case GFX_OP_COLOR_IMAGE: cmd->image.image = p; break;
+    default: break;
+    }
+}
+
+/* The record for the file's command at off (pc_gfx_from_n64, with the commands beside it in the file), its pointer
+ * the host's: the native vertices, list, matrix or viewport copy, or the place in the file, the N64's relocation made
+ * of its word; NULL where it made none. A G_BRANCH_Z's list is the one the G_RDPHALF_1 before it names (built just
+ * before it: L->half). */
+static void build_command(Lists *L, WadKept *kept, const uint32_t *native, uint32_t off, Gfx *cmd)
 {
     uint32_t w0 = pc_be32(L->buf + off), to = 0;
     unsigned op = w0 >> 24, next = op_at(L, off + 8);
     const Slot *s = &L->slot[off / 8];
+    GfxWords before, here = words_at(L, off), after;
+    int has_before = off >= 8, has_after = off + 16 <= L->size;   /* the file's 8 bytes beside it */
     void *p = NULL;
 
-    cmd->w0 = w0;
-    cmd->w1 = w1_at(L, off);
+    if (has_before)
+        before = words_at(L, off - 8);
+    if (has_after)
+        after = words_at(L, off + 8);
+    pc_gfx_from_n64(cmd, has_before ? &before : NULL, &here, has_after ? &after : NULL);
+    if (op == OP_BRANCH_Z) {
+        set_address(cmd, L->half_at == off - 8 ? L->half_list : NULL);
+        return;
+    }
     if (op == OP_SPNOOP) {
-        if ((w0 >> 16 & 0xFF) != LOD_MARKER || !s->marker_walks)
+        if ((w0 >> 16 & 0xFF) != LOD_MARKER || !s->marker_walks) {
+            set_address(cmd, NULL);
             return;
+        }
         if (s->marker_walks > 1)
             problem(L, "the LOD marker at 0x%X is walked by %u relocations: on the N64 the first's branch would be "
                     "relocated again", off, s->marker_walks);
@@ -841,11 +889,17 @@ static void build_command(Lists *L, WadKept *kept, const uint32_t *native, uint3
         if (address_at(L, off, &to) != 0) {
             problem(L, "the %s at 0x%X: the N64 made its word an address %u times, so it pointed into no file",
                     op_name(op), off, s->by_file + s->by_imag);
-            cmd->w1 = 0;
+            set_address(cmd, NULL);
+            if (op == OP_RDPHALF_1) {
+                L->half_at = off;
+                L->half_list = NULL;
+            }
             return;
         }
-    } else
+    } else {
+        set_address(cmd, NULL);
         return;
+    }
     if (op == OP_VTX)
         p = vertices_for(L, kept, native, off, to);
     else if (op == OP_DL || op == OP_SPNOOP || (op == OP_RDPHALF_1 && next == OP_BRANCH_Z))
@@ -859,7 +913,11 @@ static void build_command(Lists *L, WadKept *kept, const uint32_t *native, uint3
     }
     if (!p && op != OP_VTX)
         problem(L, "the %s at 0x%X names 0x%X, beyond the file", op_name(op), off, to);
-    cmd->w1 = (uintptr_t)p;
+    if (op == OP_RDPHALF_1) {   /* its record is a no-op: the G_BRANCH_Z after it holds the list */
+        L->half_at = off;
+        L->half_list = p;
+    }
+    set_address(cmd, p);
 }
 
 /* The display lists and their vertices, matrices and viewports built native for the file, and the records pointed at
@@ -867,7 +925,7 @@ static void build_command(Lists *L, WadKept *kept, const uint32_t *native, uint3
 static void build_lists(int wave, WadKept *kept, uint8_t *buf, size_t size, Chunk imag, Chunk txld, Span *loads)
 {
     struct pc_wad_records *w = &kept->r;
-    Lists L = {wave, buf, size, imag, NULL, 0, 0, NULL, 0, 0, NULL, 0, 0, NULL, {UINT32_MAX, 0}};
+    Lists L = {wave, buf, size, imag, NULL, 0, 0, NULL, 0, 0, NULL, 0, 0, NULL, UINT32_MAX, NULL, {UINT32_MAX, 0}};
     uint32_t *native = NULL, to;
     char what[40];
     size_t n = 0, copies = 0;
@@ -919,7 +977,7 @@ static void build_lists(int wave, WadKept *kept, uint8_t *buf, size_t size, Chun
     for (uint32_t off = 0; off + 8 <= size; off += 8)
         if (L.slot[off / 8].command)
             build_command(&L, kept, native, off, &kept->commands[L.slot[off / 8].index]);
-    kept->commands[n].w0 = (uint32_t)OP_ENDDL << 24;
+    kept->commands[n] = (Gfx){.bytes = {GFX_OP_END_LIST}};
     /* The records point at them. */
     for (int i = 0; i < w->numModels; i++)
         for (int k = 0; k < w->models[i].lodCount; k++)

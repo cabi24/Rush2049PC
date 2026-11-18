@@ -1,6 +1,6 @@
-/* port/gfx/tests/test_gbi.h: test-local F3DEX2 command encoders, written from the SDK's documented formats
- * (independent of the renderer's decoder). Commands go to the current emitter, a list in the PC's form (PcGfxWords):
- * the only form the renderer reads since the files' lists are built native (docs/port/NATIVE.md step 10). */
+/* port/gfx/tests/test_gbi.h: test-local display-list encoders: each writes the command records
+ * (port/include/pc_gfx_list.h) the SDK's macro of its name stands for, with the values the SDK's documented formats
+ * give the command (coordinates in 10.2, texture coordinates in s10.5 ...). Records go to the current emitter, gp. */
 #ifndef TEST_GBI_H
 #define TEST_GBI_H
 
@@ -9,16 +9,16 @@
 
 #include "pc_port.h"
 
-#define SHL(v, s, w) ((uint32_t)(((uint32_t)(v) & ((1u << (w)) - 1)) << (s)))
-
 /* ---------------------------------------------------------------- emitter */
 
-static PcGfxWords *gp;
+static Gfx *gp;
 
-static void cmd(uint32_t w0, uintptr_t w1) {
-    gp->w0 = w0;
-    gp->w1 = w1;
-    gp++;
+/* The next record, zeroed, with its op. */
+static Gfx *put(GfxOp op) {
+    Gfx *g = gp++;
+    memset(g, 0, sizeof(*g));
+    g->op = (uint8_t)op;
+    return g;
 }
 
 /* ---------------------------------------------------------------- constants */
@@ -118,108 +118,161 @@ enum { AC_COMBINED = 0, AC_TEXEL0 = 1, AC_TEXEL1 = 2, AC_PRIMITIVE = 3, AC_SHADE
 /* ---------------------------------------------------------------- RSP */
 
 static void gsSPVertex(uintptr_t v, int n, int v0) {
-    cmd(SHL(0x01, 24, 8) | SHL(n, 12, 8) | SHL(v0 + n, 1, 7), v);
+    Gfx *g = put(GFX_OP_VERTICES);
+    g->vertices.count = (uint8_t)n;
+    g->vertices.first = (uint8_t)v0;
+    g->vertices.vertices = (void *)v;
 }
-static uint32_t tri_w(int a, int b, int c) {
-    return SHL(a * 2, 16, 8) | SHL(b * 2, 8, 8) | SHL(c * 2, 0, 8);
+static void triangles(GfxOp op, int a, int b, int c, int d, int e, int f) {
+    Gfx *g = put(op);
+    g->triangles.v[0] = (uint8_t)a;
+    g->triangles.v[1] = (uint8_t)b;
+    g->triangles.v[2] = (uint8_t)c;
+    g->triangles.v[3] = (uint8_t)d;
+    g->triangles.v[4] = (uint8_t)e;
+    g->triangles.v[5] = (uint8_t)f;
 }
 static void gsSP1Triangle(int a, int b, int c) {
-    cmd(SHL(0x05, 24, 8) | tri_w(a, b, c), 0);
+    triangles(GFX_OP_TRIANGLE, a, b, c, 0, 0, 0);
 }
 static void gsSP2Triangles(int a, int b, int c, int d, int e, int f) {
-    cmd(SHL(0x06, 24, 8) | tri_w(a, b, c), tri_w(d, e, f));
+    triangles(GFX_OP_TRIANGLES, a, b, c, d, e, f);
 }
 static void gsSPQuadrangle(int a, int b, int c, int d) {
-    cmd(SHL(0x07, 24, 8) | tri_w(a, b, c), tri_w(a, c, d));
+    triangles(GFX_OP_TRIANGLES, a, b, c, a, c, d);
 }
-static void gDma2p(int c, uintptr_t adrs, int len, int idx, int ofs) {
-    cmd(SHL(c, 24, 8) | SHL((len - 1) / 8, 19, 5) | SHL(ofs / 8, 8, 8) | SHL(idx, 0, 8), adrs);
+static void matrix(GfxOp op, uintptr_t m, int p) {
+    Gfx *g = put(op);
+    g->matrix.projection = (p & G_MTX_PROJECTION) != 0;
+    g->matrix.load = (p & G_MTX_LOAD) != 0;
+    g->matrix.push = (p & G_MTX_PUSH) != 0;
+    g->matrix.matrix = (void *)m;
 }
 static void gsSPMatrix(uintptr_t m, int p) {
-    gDma2p(0xDA, m, 64, p ^ G_MTX_PUSH, 0);
+    matrix(GFX_OP_MATRIX, m, p);
+}
+static void gsSPForceMatrix(uintptr_t m) {   /* MP itself */
+    matrix(GFX_OP_FORCE_MATRIX, m, 0);
+}
+static void gsSPInsertMatrix(int offset, uint32_t value) {   /* one word of MP */
+    Gfx *g = put(GFX_OP_INSERT_MATRIX);
+    g->insert_matrix.offset = (uint16_t)offset;
+    g->insert_matrix.value = value;
 }
 static void gsSPPopMatrixN(int n) {
-    gDma2p(0xD8, (uintptr_t)(n * 64), 64, 2, 0);
+    put(GFX_OP_POP_MATRIX)->pop_matrix.count = (uint32_t)n;
 }
 static void gsSPViewport(uintptr_t v) {
-    gDma2p(0xDC, v, 16, 8, 0);
+    put(GFX_OP_VIEWPORT)->viewport.viewport = (void *)v;
 }
-static void gsSPLight(uintptr_t l, int n) {
-    gDma2p(0xDC, l, 16, 10, n * 24 + 24);
+static void light(uintptr_t l, int slot) {
+    Gfx *g = put(GFX_OP_LIGHT);
+    g->light.slot = (uint8_t)slot;
+    g->light.light = (void *)l;
+}
+static void gsSPLight(uintptr_t l, int n) {   /* light n (from 1): slot n + 1, after the look-at's two */
+    light(l, n + 1);
 }
 static void gsSPLookAtX(uintptr_t l) {
-    gDma2p(0xDC, l, 16, 10, 0);
+    light(l, 0);
 }
 static void gsSPLookAtY(uintptr_t l) {
-    gDma2p(0xDC, l, 16, 10, 24);
-}
-static void gMoveWd(int index, int offset, uint32_t data) {
-    cmd(SHL(0xDB, 24, 8) | SHL(index, 16, 8) | SHL(offset, 0, 16), data);
+    light(l, 1);
 }
 static void gsSPNumLights(int n) {
-    gMoveWd(2, 0, (uint32_t)(n * 24));
-}
-static void gsSPSegment(int seg, uintptr_t base) {
-    cmd(SHL(0xDB, 24, 8) | SHL(6, 16, 8) | SHL(seg * 4, 0, 16), base);
+    put(GFX_OP_NUM_LIGHTS)->num_lights.count = (uint32_t)n;
 }
 static void gsSPFogPosition(int min, int max) {
     int fm = 128000 / (max - min), fo = (500 - min) * 256 / (max - min);
-    gMoveWd(8, 0, SHL(fm, 16, 16) | SHL(fo, 0, 16));
+    Gfx *g = put(GFX_OP_FOG);
+    g->fog.multiplier = (int16_t)fm;
+    g->fog.offset = (int16_t)fo;
 }
 static void gsSPTexture(int s, int t, int level, int tile, int on) {
-    cmd(SHL(0xD7, 24, 8) | SHL(0, 16, 8) | SHL(level, 11, 3) | SHL(tile, 8, 3) | SHL(on, 1, 7),
-        SHL(s, 16, 16) | SHL(t, 0, 16));
+    Gfx *g = put(GFX_OP_TEXTURE);
+    g->texture.scale_s = (uint16_t)s;
+    g->texture.scale_t = (uint16_t)t;
+    g->texture.level = (uint8_t)(level & 7);
+    g->texture.tile = (uint8_t)(tile & 7);
+    g->texture.on = (uint8_t)(on & 0x7F);
 }
-static void gsSPGeometryMode(uint32_t c, uint32_t s) {
-    cmd(SHL(0xD9, 24, 8) | SHL(~c, 0, 24), s);
+static void gsSPGeometryMode(uint32_t c, uint32_t s) {   /* clear c, then set s */
+    Gfx *g = put(GFX_OP_GEOMETRY_MODE);
+    g->geometry_mode.keep = ~c & 0xFFFFFF;
+    g->geometry_mode.set = s;
 }
 static void gsSPDisplayList(uintptr_t dl) {
-    cmd(SHL(0xDE, 24, 8) | SHL(0, 16, 8), dl);
+    put(GFX_OP_CALL_LIST)->list.list = (Gfx *)dl;
 }
 static void gsSPBranchList(uintptr_t dl) {
-    cmd(SHL(0xDE, 24, 8) | SHL(1, 16, 8), dl);
+    put(GFX_OP_BRANCH_LIST)->list.list = (Gfx *)dl;
 }
 static void gsSPEndDisplayList(void) {
-    cmd(SHL(0xDF, 24, 8), 0);
+    put(GFX_OP_END_LIST);
 }
 static void gsSPCullDisplayList(int v0, int vn) {
-    cmd(SHL(0x03, 24, 8) | SHL(v0 * 2, 0, 16), SHL(vn * 2, 0, 16));
+    Gfx *g = put(GFX_OP_CULL_LIST);
+    g->cull.first = (uint16_t)v0;
+    g->cull.last = (uint16_t)vn;
 }
 static void gsSPBranchLessZraw(uintptr_t dl, int v, uint32_t zval) {
-    cmd(SHL(0xE1, 24, 8), dl);
-    cmd(SHL(0x04, 24, 8) | SHL(v * 5, 12, 12) | SHL(v * 2, 0, 12), zval);
+    Gfx *g = put(GFX_OP_BRANCH_Z);
+    g->branch_z.vertex = (uint16_t)v;
+    g->branch_z.z = (int32_t)zval;
+    g->branch_z.list = (Gfx *)dl;
 }
 static void gsSPModifyVertex(int vtx, int where, uint32_t val) {
-    cmd(SHL(0x02, 24, 8) | SHL(where, 16, 8) | SHL(vtx * 2, 0, 16), val);
+    Gfx *g = put(GFX_OP_MODIFY_VERTEX);
+    g->modify_vertex.what = (uint8_t)where;
+    g->modify_vertex.vertex = (uint16_t)vtx;
+    g->modify_vertex.value = val;
 }
-static void gsSPNoOp(uint32_t low) {
-    cmd(SHL(0xE0, 24, 8) | (low & 0xFFFFFF), 0x1234);
+static void gsSPSection(int bit, uintptr_t end) {   /* a level-of-detail marker: a no-op to the renderer */
+    Gfx *g = put(GFX_OP_SECTION);
+    g->section.bit = (uint16_t)bit;
+    g->section.end = (Gfx *)end;
 }
-static void gsSPSetOtherMode(int c, int sft, int len, uint32_t data) {
-    cmd(SHL(c, 24, 8) | SHL(32 - sft - len, 8, 8) | SHL(len - 1, 0, 8), data);
+/* the other modes: word GFX_OP_OTHER_MODE_HIGH or _LOW, the field's bits sft..sft+len-1 in place in data */
+static void gsSPSetOtherMode(GfxOp word, int sft, int len, uint32_t data) {
+    Gfx *g = put(word);
+    g->other_mode.shift = (uint8_t)sft;
+    g->other_mode.length = (uint8_t)len;
+    g->other_mode.bits = data;
 }
 
 /* ---------------------------------------------------------------- RDP */
 
-static void gsDPPipeSync(void) { cmd(SHL(0xE7, 24, 8), 0); }
-static void gsDPLoadSync(void) { cmd(SHL(0xE6, 24, 8), 0); }
-static void gsDPTileSync(void) { cmd(SHL(0xE8, 24, 8), 0); }
-static void gsDPFullSync(void) { cmd(SHL(0xE9, 24, 8), 0); }
-static void gsDPSetCycleType(uint32_t t) { gsSPSetOtherMode(0xE3, 20, 2, t); }
-static void gsDPSetTextureLUT(uint32_t t) { gsSPSetOtherMode(0xE3, 14, 2, t); }
-static void gsDPSetTextureFilter(uint32_t t) { gsSPSetOtherMode(0xE3, 12, 2, t); }
-static void gsDPSetTexturePersp(uint32_t t) { gsSPSetOtherMode(0xE3, 19, 1, t); }
-static void gsDPSetTextureLOD(uint32_t t) { gsSPSetOtherMode(0xE3, 16, 1, t); }
-static void gsDPSetAlphaCompare(uint32_t t) { gsSPSetOtherMode(0xE2, 0, 2, t); }
-static void gsDPSetDepthSource(uint32_t t) { gsSPSetOtherMode(0xE2, 2, 1, t); }
-static void gsDPSetRenderMode(uint32_t c0, uint32_t c1) { gsSPSetOtherMode(0xE2, 3, 29, c0 | c1); }
+static void gsDPPipeSync(void) { put(GFX_OP_NOOP); }
+static void gsDPLoadSync(void) { put(GFX_OP_NOOP); }
+static void gsDPTileSync(void) { put(GFX_OP_NOOP); }
+static void gsDPFullSync(void) { put(GFX_OP_NOOP); }
+static void gsDPSetCycleType(uint32_t t) { gsSPSetOtherMode(GFX_OP_OTHER_MODE_HIGH, 20, 2, t); }
+static void gsDPSetTextureLUT(uint32_t t) { gsSPSetOtherMode(GFX_OP_OTHER_MODE_HIGH, 14, 2, t); }
+static void gsDPSetTextureFilter(uint32_t t) { gsSPSetOtherMode(GFX_OP_OTHER_MODE_HIGH, 12, 2, t); }
+static void gsDPSetTexturePersp(uint32_t t) { gsSPSetOtherMode(GFX_OP_OTHER_MODE_HIGH, 19, 1, t); }
+static void gsDPSetTextureLOD(uint32_t t) { gsSPSetOtherMode(GFX_OP_OTHER_MODE_HIGH, 16, 1, t); }
+static void gsDPSetAlphaCompare(uint32_t t) { gsSPSetOtherMode(GFX_OP_OTHER_MODE_LOW, 0, 2, t); }
+static void gsDPSetDepthSource(uint32_t t) { gsSPSetOtherMode(GFX_OP_OTHER_MODE_LOW, 2, 1, t); }
+static void gsDPSetRenderMode(uint32_t c0, uint32_t c1) { gsSPSetOtherMode(GFX_OP_OTHER_MODE_LOW, 3, 29, c0 | c1); }
 static void gsDPSetCombineLERP(int a0, int b0, int c0, int d0, int Aa0, int Ab0, int Ac0, int Ad0,
                                int a1, int b1, int c1, int d1, int Aa1, int Ab1, int Ac1, int Ad1) {
-    uint32_t w0 = SHL(0xFC, 24, 8) | SHL(a0, 20, 4) | SHL(c0, 15, 5) | SHL(Aa0, 12, 3) | SHL(Ac0, 9, 3) |
-                  SHL(a1, 5, 4) | SHL(c1, 0, 5);
-    uint32_t w1 = SHL(b0, 28, 4) | SHL(d0, 15, 3) | SHL(Ab0, 12, 3) | SHL(Ad0, 9, 3) | SHL(b1, 24, 4) |
-                  SHL(Aa1, 21, 3) | SHL(Ac1, 18, 3) | SHL(d1, 6, 3) | SHL(Ab1, 3, 3) | SHL(Ad1, 0, 3);
-    cmd(w0, w1);
+    Gfx *g = put(GFX_OP_COMBINE);   /* each selector cut to its field's width, as the RDP's */
+    g->combine.cycle[0].rgb_a = (unsigned)a0;
+    g->combine.cycle[0].rgb_b = (unsigned)b0;
+    g->combine.cycle[0].rgb_c = (unsigned)c0;
+    g->combine.cycle[0].rgb_d = (unsigned)d0;
+    g->combine.cycle[0].alpha_a = (unsigned)Aa0;
+    g->combine.cycle[0].alpha_b = (unsigned)Ab0;
+    g->combine.cycle[0].alpha_c = (unsigned)Ac0;
+    g->combine.cycle[0].alpha_d = (unsigned)Ad0;
+    g->combine.cycle[1].rgb_a = (unsigned)a1;
+    g->combine.cycle[1].rgb_b = (unsigned)b1;
+    g->combine.cycle[1].rgb_c = (unsigned)c1;
+    g->combine.cycle[1].rgb_d = (unsigned)d1;
+    g->combine.cycle[1].alpha_a = (unsigned)Aa1;
+    g->combine.cycle[1].alpha_b = (unsigned)Ab1;
+    g->combine.cycle[1].alpha_c = (unsigned)Ac1;
+    g->combine.cycle[1].alpha_d = (unsigned)Ad1;
 }
 /* one mode for both cycles */
 static void cc1(int a, int b, int c, int d, int Aa, int Ab, int Ac, int Ad) {
@@ -230,58 +283,122 @@ static void cc_prim(void) { cc1(CC_0, CC_0, CC_0, CC_PRIMITIVE, AC_0, AC_0, AC_0
 static void cc_decalrgba(void) { cc1(CC_0, CC_0, CC_0, CC_TEXEL0, AC_0, AC_0, AC_0, AC_TEXEL0); }
 static void cc_texalpha(void) { cc1(CC_1, CC_0, CC_TEXEL0_ALPHA, CC_0, AC_0, AC_0, AC_0, AC_1); }
 
-static void setcolor(int c, uint32_t w0low, uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
-    cmd(SHL(c, 24, 8) | w0low, (uint32_t)r << 24 | (uint32_t)g << 16 | (uint32_t)b << 8 | a);
+static void setcolor(GfxOp op, int m, int l, uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
+    Gfx *c = put(op);
+    c->color.min_level = (uint8_t)(m & 0x1F);
+    c->color.lod_fraction = (uint8_t)l;
+    c->color.r = r;
+    c->color.g = g;
+    c->color.b = b;
+    c->color.a = a;
 }
 static void gsDPSetPrimColor(int m, int l, uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
-    setcolor(0xFA, SHL(m, 8, 8) | SHL(l, 0, 8), r, g, b, a);
+    setcolor(GFX_OP_PRIM_COLOR, m, l, r, g, b, a);
 }
-static void gsDPSetEnvColor(uint8_t r, uint8_t g, uint8_t b, uint8_t a) { setcolor(0xFB, 0, r, g, b, a); }
-static void gsDPSetFogColor(uint8_t r, uint8_t g, uint8_t b, uint8_t a) { setcolor(0xF8, 0, r, g, b, a); }
-static void gsDPSetBlendColor(uint8_t r, uint8_t g, uint8_t b, uint8_t a) { setcolor(0xF9, 0, r, g, b, a); }
-static void gsDPSetFillColor(uint32_t c) { cmd(SHL(0xF7, 24, 8), c); }
-static void gsDPSetPrimDepth(int z, int dz) { cmd(SHL(0xEE, 24, 8), SHL(z, 16, 16) | SHL(dz, 0, 16)); }
-static void setimg(int c, int fmt, int siz, int width, uintptr_t img) {
-    cmd(SHL(c, 24, 8) | SHL(fmt, 21, 3) | SHL(siz, 19, 2) | SHL(width - 1, 0, 12), img);
+static void gsDPSetEnvColor(uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
+    setcolor(GFX_OP_ENV_COLOR, 0, 0, r, g, b, a);
 }
-static void gsDPSetColorImage(int fmt, int siz, int w, uintptr_t img) { setimg(0xFF, fmt, siz, w, img); }
-static void gsDPSetTextureImage(int fmt, int siz, int w, uintptr_t img) { setimg(0xFD, fmt, siz, w, img); }
-static void gsDPSetDepthImage(uintptr_t img) { cmd(SHL(0xFE, 24, 8), img); }
-static void gsDPSetScissor(int ulx, int uly, int lrx, int lry) {
-    cmd(SHL(0xED, 24, 8) | SHL(ulx * 4, 12, 12) | SHL(uly * 4, 0, 12), SHL(lrx * 4, 12, 12) | SHL(lry * 4, 0, 12));
+static void gsDPSetFogColor(uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
+    setcolor(GFX_OP_FOG_COLOR, 0, 0, r, g, b, a);
 }
-static void gsDPFillRectangle(int ulx, int uly, int lrx, int lry) {
-    cmd(SHL(0xF6, 24, 8) | SHL(lrx, 14, 10) | SHL(lry, 2, 10), SHL(ulx, 14, 10) | SHL(uly, 2, 10));
+static void gsDPSetBlendColor(uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
+    setcolor(GFX_OP_BLEND_COLOR, 0, 0, r, g, b, a);
+}
+static void gsDPSetFillColor(uint32_t c) { put(GFX_OP_FILL_COLOR)->fill_color.pattern = c; }
+static void gsDPSetPrimDepth(int z, int dz) {
+    Gfx *g = put(GFX_OP_PRIM_DEPTH);
+    g->prim_depth.z = (uint16_t)z;
+    g->prim_depth.dz = (uint16_t)dz;
+}
+static void setimg(GfxOp op, int fmt, int siz, int width, uintptr_t img) {
+    Gfx *g = put(op);
+    g->image.format = (uint8_t)fmt;
+    g->image.size = (uint8_t)siz;
+    g->image.width = (uint16_t)(((width - 1) & 0xFFF) + 1);
+    g->image.image = (void *)img;
+}
+static void gsDPSetColorImage(int fmt, int siz, int w, uintptr_t img) { setimg(GFX_OP_COLOR_IMAGE, fmt, siz, w, img); }
+static void gsDPSetTextureImage(int fmt, int siz, int w, uintptr_t img) {
+    setimg(GFX_OP_TEXTURE_IMAGE, fmt, siz, w, img);
+}
+static void gsDPSetDepthImage(uintptr_t img) { setimg(GFX_OP_DEPTH_IMAGE, 0, 0, 1, img); }
+static void gsDPSetScissor(int ulx, int uly, int lrx, int lry) {   /* pixels, to 10.2 */
+    Gfx *g = put(GFX_OP_SCISSOR);
+    g->scissor.ulx = (uint16_t)((ulx * 4) & 0xFFF);
+    g->scissor.uly = (uint16_t)((uly * 4) & 0xFFF);
+    g->scissor.lrx = (uint16_t)((lrx * 4) & 0xFFF);
+    g->scissor.lry = (uint16_t)((lry * 4) & 0xFFF);
+}
+static void gsDPFillRectangle(int ulx, int uly, int lrx, int lry) {   /* pixels, to 10.2 */
+    Gfx *g = put(GFX_OP_FILL_RECTANGLE);
+    g->rectangle.ulx = (uint16_t)((ulx & 0x3FF) << 2);
+    g->rectangle.uly = (uint16_t)((uly & 0x3FF) << 2);
+    g->rectangle.lrx = (uint16_t)((lrx & 0x3FF) << 2);
+    g->rectangle.lry = (uint16_t)((lry & 0x3FF) << 2);
 }
 static void gsDPSetTile(int fmt, int siz, int line, int tmem, int tile, int palette, int cmt, int maskt,
                         int shiftt, int cms, int masks, int shifts) {
-    cmd(SHL(0xF5, 24, 8) | SHL(fmt, 21, 3) | SHL(siz, 19, 2) | SHL(line, 9, 9) | SHL(tmem, 0, 9),
-        SHL(tile, 24, 3) | SHL(palette, 20, 4) | SHL(cmt, 18, 2) | SHL(maskt, 14, 4) | SHL(shiftt, 10, 4) |
-        SHL(cms, 8, 2) | SHL(masks, 4, 4) | SHL(shifts, 0, 4));
+    Gfx *g = put(GFX_OP_SET_TILE);
+    g->set_tile.format = (uint8_t)(fmt & 7);
+    g->set_tile.size = (uint8_t)(siz & 3);
+    g->set_tile.line = (uint16_t)(line & 0x1FF);
+    g->set_tile.tmem = (uint16_t)(tmem & 0x1FF);
+    g->set_tile.tile = (uint8_t)(tile & 7);
+    g->set_tile.palette = (uint8_t)(palette & 0xF);
+    g->set_tile.cmt = (uint8_t)(cmt & 3);
+    g->set_tile.maskt = (uint8_t)(maskt & 0xF);
+    g->set_tile.shiftt = (uint8_t)(shiftt & 0xF);
+    g->set_tile.cms = (uint8_t)(cms & 3);
+    g->set_tile.masks = (uint8_t)(masks & 0xF);
+    g->set_tile.shifts = (uint8_t)(shifts & 0xF);
+}
+static void tile_rect(GfxOp op, int t, int uls, int ult, int lrs, int lrt) {   /* 10.2 */
+    Gfx *g = put(op);
+    g->tile_rect.tile = (uint8_t)(t & 7);
+    g->tile_rect.uls = (uint16_t)(uls & 0xFFF);
+    g->tile_rect.ult = (uint16_t)(ult & 0xFFF);
+    g->tile_rect.lrs = (uint16_t)(lrs & 0xFFF);
+    g->tile_rect.lrt = (uint16_t)(lrt & 0xFFF);
 }
 static void gsDPSetTileSize(int t, int uls, int ult, int lrs, int lrt) {
-    cmd(SHL(0xF2, 24, 8) | SHL(uls, 12, 12) | SHL(ult, 0, 12), SHL(t, 24, 3) | SHL(lrs, 12, 12) | SHL(lrt, 0, 12));
+    tile_rect(GFX_OP_TILE_SIZE, t, uls, ult, lrs, lrt);
 }
 static void gsDPLoadTile(int t, int uls, int ult, int lrs, int lrt) {
-    cmd(SHL(0xF4, 24, 8) | SHL(uls, 12, 12) | SHL(ult, 0, 12), SHL(t, 24, 3) | SHL(lrs, 12, 12) | SHL(lrt, 0, 12));
+    tile_rect(GFX_OP_LOAD_TILE, t, uls, ult, lrs, lrt);
 }
 static void gsDPLoadBlock(int t, int uls, int ult, int lrs, int dxt) {
-    cmd(SHL(0xF3, 24, 8) | SHL(uls, 12, 12) | SHL(ult, 0, 12), SHL(t, 24, 3) | SHL(lrs, 12, 12) | SHL(dxt, 0, 12));
+    Gfx *g = put(GFX_OP_LOAD_BLOCK);
+    g->load_block.tile = (uint8_t)(t & 7);
+    g->load_block.uls = (uint16_t)(uls & 0xFFF);
+    g->load_block.ult = (uint16_t)(ult & 0xFFF);
+    g->load_block.lrs = (uint16_t)(lrs & 0xFFF);
+    g->load_block.dxt = (uint16_t)(dxt & 0xFFF);
 }
-static void gsDPLoadTLUTCmd(int t, int count) {
-    cmd(SHL(0xF0, 24, 8), SHL(t, 24, 3) | SHL(count, 14, 10));
+static void gsDPLoadTLUTCmd(int t, int count) {   /* entries 0..count */
+    Gfx *g = put(GFX_OP_LOAD_TLUT);
+    g->load_tlut.tile = (uint8_t)(t & 7);
+    g->load_tlut.last = (uint16_t)(count & 0x3FF);
 }
-/* xl..xh in 10.2; s, t s10.5; dsdx, dtdy s5.10 */
-static void texrect(int op, int xl, int yl, int xh, int yh, int tile, int s, int t, int dsdx, int dtdy) {
-    cmd(SHL(op, 24, 8) | SHL(xh, 12, 12) | SHL(yh, 0, 12), SHL(tile, 24, 3) | SHL(xl, 12, 12) | SHL(yl, 0, 12));
-    cmd(SHL(0xE1, 24, 8), SHL(s, 16, 16) | SHL(t, 0, 16));
-    cmd(SHL(0xF1, 24, 8), SHL(dsdx, 16, 16) | SHL(dtdy, 0, 16));
+/* xl..xh in 10.2; s, t s10.5; dsdx, dtdy s5.10: the rectangle, then its texture coordinates */
+static void texrect(int flip, int xl, int yl, int xh, int yh, int tile, int s, int t, int dsdx, int dtdy) {
+    Gfx *g = put(GFX_OP_TEXTURE_RECTANGLE);
+    g->rectangle.tile = (uint8_t)(tile & 7);
+    g->rectangle.flip = (uint8_t)flip;
+    g->rectangle.ulx = (uint16_t)(xl & 0xFFF);
+    g->rectangle.uly = (uint16_t)(yl & 0xFFF);
+    g->rectangle.lrx = (uint16_t)(xh & 0xFFF);
+    g->rectangle.lry = (uint16_t)(yh & 0xFFF);
+    g = put(GFX_OP_RECTANGLE_TEXTURE);
+    g->rectangle_texture.s = (int16_t)s;
+    g->rectangle_texture.t = (int16_t)t;
+    g->rectangle_texture.dsdx = (int16_t)dsdx;
+    g->rectangle_texture.dtdy = (int16_t)dtdy;
 }
 static void gsSPTextureRectangle(int xl, int yl, int xh, int yh, int tile, int s, int t, int dsdx, int dtdy) {
-    texrect(0xE4, xl, yl, xh, yh, tile, s, t, dsdx, dtdy);
+    texrect(0, xl, yl, xh, yh, tile, s, t, dsdx, dtdy);
 }
 static void gsSPTextureRectangleFlip(int xl, int yl, int xh, int yh, int tile, int s, int t, int dsdx, int dtdy) {
-    texrect(0xE5, xl, yl, xh, yh, tile, s, t, dsdx, dtdy);
+    texrect(1, xl, yl, xh, yh, tile, s, t, dsdx, dtdy);
 }
 
 /* ---------------------------------------------------------------- SDK load sequences */

@@ -3,12 +3,16 @@
 #ifndef PC_PRELUDE_H
 #define PC_PRELUDE_H
 
-/* What is left of the N64's memory map: the cartridge's bus addresses and the display lists' segments. */
+/* What is left of the N64's memory map: the cartridge's bus addresses. */
 #include "pc_n64_map.h"
 
 /* Pointer-sized integers. */
 typedef __UINTPTR_TYPE__ uintptr_t;
 typedef __INTPTR_TYPE__ intptr_t;
+
+/* Display lists: Gfx, a command's record, which the game builds and port/gfx renders (pc_gfx_list.h); GfxWords, a
+ * command in the N64's form, which the cartridge's two set-up lists hold (pc_gfx_n64.h). */
+#include "pc_gfx_n64.h"
 
 /* A palette's colour (a TLUT entry, RGBA 5551) where a file holds it: the files' texels and TLUTs keep the N64's texel
  * formats, which the renderer decodes, and a 16-bit texel there is high byte first (docs/port/NATIVE.md 4.4). The

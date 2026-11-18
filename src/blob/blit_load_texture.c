@@ -1,96 +1,15 @@
 /* blit_load_texture: load a texture, or a part of it, into the RDP's texture memory for the blitter (the N64 side of
  * MAT3 blit_pc.c, which MAT3's GameCube build has no need of). */
 #include "game/game.h"
-#define Gfx GfxView   /* this file's own Gfx: include/game's Gfx is another type */
 
-typedef union {
-    Gwords words;
-    long long int force_structure_alignment;
-} Gfx;
-
-/* SDK forms, reference/repos/ultralib/include/PR/gbi.h */
-#define _SHIFTL(v, s, w) ((u32)(((u32)(v) & ((0x01 << (w)) - 1)) << (s)))
-#define MAX(a, b) ((a) > (b) ? (a) : (b))
-#define MIN(a, b) ((a) < (b) ? (a) : (b))
-#define TXL2WORDS(txls, b_txl) MAX(1, ((txls)*(b_txl)/8))
-#define CALC_DXT(width, b_txl) \
-    (((1 << G_TX_DXT_FRAC) + TXL2WORDS(width, b_txl) - 1) / TXL2WORDS(width, b_txl))
-#define TXL2WORDS_4b(txls) MAX(1, ((txls)/16))
-#define CALC_DXT_4b(width) \
-    (((1 << G_TX_DXT_FRAC) + TXL2WORDS_4b(width) - 1) / TXL2WORDS_4b(width))
-
-#define gSPSetOtherMode(pkt, cmd, sft, len, data) \
-{ \
-    Gfx *_g = (Gfx *)(pkt); \
-    _g->words.w0 = (_SHIFTL(cmd, 24, 8) | _SHIFTL(32 - (sft) - (len), 8, 8) | _SHIFTL((len) - 1, 0, 8)); \
-    _g->words.w1 = (unsigned int)(data); \
-}
-#define gDPSetTextureLUT(pkt, type) gSPSetOtherMode(pkt, G_SETOTHERMODE_H, G_MDSFT_TEXTLUT, 2, type)
-#define gSetImage(pkt, cmd, fmt, siz, width, i) \
-{ \
-    Gfx *_g = (Gfx *)(pkt); \
-    _g->words.w0 = _SHIFTL(cmd, 24, 8) | _SHIFTL(fmt, 21, 3) | _SHIFTL(siz, 19, 2) | _SHIFTL((width)-1, 0, 12); \
-    _g->words.w1 = (uintptr_t)(i); \
-}
-#define gDPSetTextureImage(pkt, f, s, w, i) gSetImage(pkt, G_SETTIMG, f, s, w, i)
-#define gDPLoadTileGeneric(pkt, c, tile, uls, ult, lrs, lrt) \
-{ \
-    Gfx *_g = (Gfx *)(pkt); \
-    _g->words.w0 = _SHIFTL(c, 24, 8) | _SHIFTL(uls, 12, 12) | _SHIFTL(ult, 0, 12); \
-    _g->words.w1 = _SHIFTL(tile, 24, 3) | _SHIFTL(lrs, 12, 12) | _SHIFTL(lrt, 0, 12); \
-}
-#define gDPSetTileSize(pkt, t, uls, ult, lrs, lrt) gDPLoadTileGeneric(pkt, G_SETTILESIZE, t, uls, ult, lrs, lrt)
-#define gDPLoadTile(pkt, t, uls, ult, lrs, lrt) gDPLoadTileGeneric(pkt, G_LOADTILE, t, uls, ult, lrs, lrt)
-#define gDPSetTile(pkt, fmt, siz, line, tmem, tile, palette, cmt, maskt, shiftt, cms, masks, shifts) \
-{ \
-    Gfx *_g = (Gfx *)(pkt); \
-    _g->words.w0 = _SHIFTL(G_SETTILE, 24, 8) | _SHIFTL(fmt, 21, 3) | _SHIFTL(siz, 19, 2) | _SHIFTL(line, 9, 9) | _SHIFTL(tmem, 0, 9); \
-    _g->words.w1 = _SHIFTL(tile, 24, 3) | _SHIFTL(palette, 20, 4) | _SHIFTL(cmt, 18, 2) | _SHIFTL(maskt, 14, 4) | \
-                   _SHIFTL(shiftt, 10, 4) | _SHIFTL(cms, 8, 2) | _SHIFTL(masks, 4, 4) | _SHIFTL(shifts, 0, 4); \
-}
-#define gDPLoadBlock(pkt, tile, uls, ult, lrs, dxt) \
-{ \
-    Gfx *_g = (Gfx *)(pkt); \
-    _g->words.w0 = (_SHIFTL(G_LOADBLOCK, 24, 8) | _SHIFTL(uls, 12, 12) | _SHIFTL(ult, 0, 12)); \
-    _g->words.w1 = (_SHIFTL(tile, 24, 3) | _SHIFTL((MIN(lrs,G_TX_LDBLK_MAX_TXL)), 12, 12) | _SHIFTL(dxt, 0, 12)); \
-}
-#define gDPNoParam(pkt, cmd) \
-{ \
-    Gfx *_g = (Gfx *)(pkt); \
-    _g->words.w0 = _SHIFTL(cmd, 24, 8); \
-    _g->words.w1 = 0; \
-}
-#define gDPPipeSync(pkt) gDPNoParam(pkt, G_RDPPIPESYNC)
-#define gDPLoadSync(pkt) gDPNoParam(pkt, G_RDPLOADSYNC)
-
-#define gDPLoadTextureTile(pkt, timg, fmt, siz, width, height, uls, ult, lrs, lrt, pal, cms, cmt, masks, maskt, shifts, shiftt) \
-{ \
-    gDPSetTextureImage(pkt, fmt, siz, width, timg); \
-    gDPSetTile(pkt, fmt, siz, (((((lrs)-(uls)+1) * siz##_TILE_BYTES)+7)>>3), 0, G_TX_LOADTILE, 0 , cmt, maskt, shiftt, cms, masks, shifts); \
-    gDPLoadSync(pkt); \
-    gDPLoadTile(pkt, G_TX_LOADTILE, (uls)<<G_TEXTURE_IMAGE_FRAC, (ult)<<G_TEXTURE_IMAGE_FRAC, (lrs)<<G_TEXTURE_IMAGE_FRAC, (lrt)<<G_TEXTURE_IMAGE_FRAC); \
-    gDPPipeSync(pkt); \
-    gDPSetTile(pkt, fmt, siz, (((((lrs)-(uls)+1) * siz##_LINE_BYTES)+7)>>3), 0, G_TX_RENDERTILE, pal, cmt, maskt, shiftt, cms, masks, shifts); \
-    gDPSetTileSize(pkt, G_TX_RENDERTILE, (uls)<<G_TEXTURE_IMAGE_FRAC, (ult)<<G_TEXTURE_IMAGE_FRAC, (lrs)<<G_TEXTURE_IMAGE_FRAC, (lrt)<<G_TEXTURE_IMAGE_FRAC) \
-}
-#define gDPLoadTextureTile_4b(pkt, timg, fmt, width, height, uls, ult, lrs, lrt, pal, cms, cmt, masks, maskt, shifts, shiftt) \
-{ \
-    gDPSetTextureImage(pkt, fmt, G_IM_SIZ_8b, ((width)>>1), timg); \
-    gDPSetTile(pkt, fmt, G_IM_SIZ_8b, (((((lrs)-(uls)+1)>>1)+7)>>3), 0, G_TX_LOADTILE, 0 , cmt, maskt, shiftt, cms, masks, shifts); \
-    gDPLoadSync(pkt); \
-    gDPLoadTile(pkt, G_TX_LOADTILE, (uls)<<(G_TEXTURE_IMAGE_FRAC-1), (ult)<<(G_TEXTURE_IMAGE_FRAC), (lrs)<<(G_TEXTURE_IMAGE_FRAC-1), (lrt)<<(G_TEXTURE_IMAGE_FRAC)); \
-    gDPPipeSync(pkt); \
-    gDPSetTile(pkt, fmt, G_IM_SIZ_4b, (((((lrs)-(uls)+1)>>1)+7)>>3), 0, G_TX_RENDERTILE, pal, cmt, maskt, shiftt, cms, masks, shifts); \
-    gDPSetTileSize(pkt, G_TX_RENDERTILE, (uls)<<G_TEXTURE_IMAGE_FRAC, (ult)<<G_TEXTURE_IMAGE_FRAC, (lrs)<<G_TEXTURE_IMAGE_FRAC, (lrt)<<G_TEXTURE_IMAGE_FRAC) \
-}
-/* Game variants of gDPLoadTextureBlock / _4b: identical to the SDK macros except that the render tile's
- * size starts at (uls, ult) instead of (0, 0). */
+/* The game's variants of gDPLoadTextureBlock and _4b (include/game/gbi.h): the same but for the render tile's
+ * rectangle, which starts at (uls, ult) instead of (0, 0). */
 #define gDPLoadTextureBlockAt(pkt, timg, fmt, siz, width, height, uls, ult, pal, cms, cmt, masks, maskt, shifts, shiftt) \
 { \
     gDPSetTextureImage(pkt, fmt, siz##_LOAD_BLOCK, 1, timg); \
     gDPSetTile(pkt, fmt, siz##_LOAD_BLOCK, 0, 0, G_TX_LOADTILE, 0 , cmt, maskt, shiftt, cms, masks, shifts); \
     gDPLoadSync(pkt); \
-    gDPLoadBlock(pkt, G_TX_LOADTILE, 0, 0, (((width)*(height) + siz##_INCR) >> siz##_SHIFT) -1, CALC_DXT(width, siz##_BYTES)); \
+    gDPLoadBlock(pkt, G_TX_LOADTILE, 0, 0, (((width)*(height) + siz##_INCR) >> siz##_SHIFT) -1, GBI_CALC_DXT(width, siz##_BYTES)); \
     gDPPipeSync(pkt); \
     gDPSetTile(pkt, fmt, siz, (((width) * siz##_LINE_BYTES)+7)>>3, 0, G_TX_RENDERTILE, pal, cmt, maskt, shiftt, cms, masks, shifts); \
     gDPSetTileSize(pkt, G_TX_RENDERTILE, (uls) << G_TEXTURE_IMAGE_FRAC, (ult) << G_TEXTURE_IMAGE_FRAC, \
@@ -101,7 +20,7 @@ typedef union {
     gDPSetTextureImage(pkt, fmt, G_IM_SIZ_16b, 1, timg); \
     gDPSetTile(pkt, fmt, G_IM_SIZ_16b, 0, 0, G_TX_LOADTILE, 0 , cmt, maskt, shiftt, cms, masks, shifts); \
     gDPLoadSync(pkt); \
-    gDPLoadBlock(pkt, G_TX_LOADTILE, 0, 0, (((width)*(height)+3)>>2)-1, CALC_DXT_4b(width)); \
+    gDPLoadBlock(pkt, G_TX_LOADTILE, 0, 0, (((width)*(height)+3)>>2)-1, GBI_CALC_DXT_4b(width)); \
     gDPPipeSync(pkt); \
     gDPSetTile(pkt, fmt, G_IM_SIZ_4b, ((((width)>>1)+7)>>3), 0, G_TX_RENDERTILE, pal, cmt, maskt, shiftt, cms, masks, shifts); \
     gDPSetTileSize(pkt, G_TX_RENDERTILE, (uls) << G_TEXTURE_IMAGE_FRAC, (ult) << G_TEXTURE_IMAGE_FRAC, \

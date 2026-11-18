@@ -21,33 +21,34 @@ static int16_t ns16(const void *p) { int16_t v; memcpy(&v, p, 2); return v; }
 
 static uint8_t g_buf[0x1000], g_orig[0x1000];
 
-/* A level's or a listed texture's native list (the converter's: PcGfxWords, the game's Gfx). */
-#define LIST(p) ((const PcGfxWords *)(const void *)(p))
+/* A level's or a listed texture's native list (the converter's records). */
+#define LIST(p) ((const Gfx *)(const void *)(p))
 
 /* The native display lists of the WAD at b: each command the file's, its addresses host pointers. */
 static void check_lists(uint8_t *b)
 {
     const struct pc_wad_records *w = pc_wad_records(b);
-    const PcGfxWords *dl0 = LIST(w->models[0].lod[0].displayList), *dl1 = LIST(w->models[0].lod[1].displayList);
-    const PcGfxWords *m1 = LIST(w->models[1].lod[0].displayList), *txld = LIST(w->textures[1].texBase);
-    const PcGfxWords *sub, *tail;
+    const Gfx *dl0 = LIST(w->models[0].lod[0].displayList), *dl1 = LIST(w->models[0].lod[1].displayList);
+    const Gfx *m1 = LIST(w->models[1].lod[0].displayList), *txld = LIST(w->textures[1].texBase);
+    const Gfx *sub, *tail;
     const uint8_t *v;
 
     CHECK(dl0 != NULL && dl1 != NULL && m1 != NULL && txld != NULL);
     if (!dl0 || !dl1 || !m1 || !txld)
         return;
     /* model 0, level 0: VTX, TRI1, a marker naming level 1's list, a call, a marker naming the tail, ENDDL */
-    CHECK(dl0[0].w0 == 0x01003006u && dl0[1].w0 == W_TRI1_A && dl0[1].w1 == 0);
-    CHECK(dl0[2].w0 == 0xE0010001u && dl0[2].w1 == (uintptr_t)dl1);
-    CHECK(dl0[3].w0 == 0xDE000000u && dl0[4].w0 == 0xE0010002u && dl0[5].w0 == 0xDF000000u);
-    sub = LIST(dl0[3].w1);
-    tail = LIST(dl0[4].w1);
-    CHECK(sub == dl0 + 6 && sub[0].w0 == W_TRI2_0 && sub[0].w1 == W_TRI2_1 && sub[1].w0 == 0xDF000000u);
-    CHECK(tail == dl0 + 8 && tail[0].w0 == W_TRI1_B && tail[1].w0 == 0xDF000000u);
-    CHECK(dl1 == dl0 + 10 && dl1[0].w0 == W_TRI1_A && dl1[1].w0 == 0xDF000000u);
-    CHECK(m1 == dl0 + 12 && m1[0].w0 == 0xDF000000u);
+    CHECK(wad_record_is(&dl0[0], 0x01003006u, 0) && wad_record_is(&dl0[1], W_TRI1_A, 0));
+    CHECK(wad_record_is(&dl0[2], 0xE0010001u, 0) && dl0[2].section.end == dl1);
+    CHECK(wad_record_is(&dl0[3], 0xDE000000u, 0) && wad_record_is(&dl0[4], 0xE0010002u, 0));
+    CHECK(wad_record_is(&dl0[5], 0xDF000000u, 0));
+    sub = dl0[3].list.list;
+    tail = dl0[4].section.end;
+    CHECK(sub == dl0 + 6 && wad_record_is(&sub[0], W_TRI2_0, W_TRI2_1) && wad_record_is(&sub[1], 0xDF000000u, 0));
+    CHECK(tail == dl0 + 8 && wad_record_is(&tail[0], W_TRI1_B, 0) && wad_record_is(&tail[1], 0xDF000000u, 0));
+    CHECK(dl1 == dl0 + 10 && wad_record_is(&dl1[0], W_TRI1_A, 0) && wad_record_is(&dl1[1], 0xDF000000u, 0));
+    CHECK(m1 == dl0 + 12 && wad_record_is(&m1[0], 0xDF000000u, 0));
     /* the vertices: native, beside the file, model data */
-    v = (const uint8_t *)dl0[0].w1;
+    v = (const uint8_t *)dl0[0].vertices.vertices;
     CHECK(v != NULL && (v < b || v >= b + sizeof g_buf) && pc_mem_is_model_data(v) && pc_mem_is_model_data(v + 47));
     for (int k = 0; v && k < 3; k++) {
         const uint8_t *x = v + 16 * k;
@@ -55,13 +56,14 @@ static void check_lists(uint8_t *b)
         CHECK((uint16_t)ns16(x + 6) == ((k < 2 ? 0x8000 : 0) | 32) && ns16(x + 8) == k * 256 && ns16(x + 10) == k * 128);
         CHECK(x[12] == 0x11 && x[13] == 0x22 && x[14] == 0x33 && x[15] == 0x44);
     }
-    /* texture 1's load list: SETTIMG to its texels past IMAG, SETTILE, E1 + 04 to its own SETTILESIZE (before IMAG) */
-    CHECK(txld[0].w0 == 0xFD100000u && txld[0].w1 == (uintptr_t)(b + W_IMAG + 0x10));
-    CHECK(txld[1].w0 == 0xF5100000u && txld[1].w1 == 0x07000000u);
-    CHECK(txld[2].w0 == 0xE1000000u && txld[2].w1 == (uintptr_t)(txld + 4) && txld[3].w0 == 0x04000000u);
-    CHECK(txld[4].w0 == 0xF2000000u && txld[4].w1 == 0x0007C03Cu && txld[5].w0 == 0xDF000000u);
+    /* texture 1's load list: SETTIMG to its texels past IMAG, SETTILE, E1 + 04 to its own SETTILESIZE (before IMAG):
+     * the half a no-op, the branch holding the list */
+    CHECK(wad_record_is(&txld[0], 0xFD100000u, 0) && txld[0].image.image == b + W_IMAG + 0x10);
+    CHECK(wad_record_is(&txld[1], 0xF5100000u, 0x07000000u));
+    CHECK(txld[2].op == GFX_OP_NOOP && wad_record_is(&txld[3], 0x04000000u, 0) && txld[3].branch_z.list == txld + 4);
+    CHECK(wad_record_is(&txld[4], 0xF2000000u, 0x0007C03Cu) && wad_record_is(&txld[5], 0xDF000000u, 0));
     CHECK(txld + 6 == dl0);   /* the file's order: TXLD, then OBJS */
-    CHECK(dl0[13].w0 == 0xDF000000u);   /* after the last: one G_ENDDL */
+    CHECK(dl0[13].op == GFX_OP_END_LIST);   /* after the last: an end of list */
 }
 
 static void check_converted(uint8_t *b)
@@ -178,8 +180,9 @@ int main(void)
     pc_wave_loaded(101, g_buf, sizeof g_buf);
     {
         const struct pc_wad_records *w = pc_wad_records(g_buf);
-        const PcGfxWords *m1 = LIST(w->models[1].lod[0].displayList), *dl1 = LIST(w->models[0].lod[1].displayList);
-        const uint8_t *m = m1 ? (const uint8_t *)m1[0].w1 : NULL, *vp = dl1 ? (const uint8_t *)dl1[0].w1 : NULL;
+        const Gfx *m1 = LIST(w->models[1].lod[0].displayList), *dl1 = LIST(w->models[0].lod[1].displayList);
+        const uint8_t *m = m1 ? (const uint8_t *)m1[0].matrix.matrix : NULL;
+        const uint8_t *vp = dl1 ? (const uint8_t *)dl1[0].viewport.viewport : NULL;
         CHECK(m != NULL && vp != NULL && (m < g_buf || m >= g_buf + sizeof g_buf));
         for (int k = 0; m && k < 16; k++)
             CHECK(n32(m + 4 * k) == pc_be32(g_buf + W_IMAG + 4 * k));
@@ -267,8 +270,8 @@ int main(void)
     pc_wave_loaded(101, g_buf, sizeof g_buf);
     CHECK(pc_wad_records(g_buf)->paths == NULL && pc_wad_records(g_buf)->numPaths == 0);
     CHECK(pc_wad_records(g_buf)->textures[1].texBase != NULL);
-    CHECK(LIST(pc_wad_records(g_buf)->textures[1].texBase)[0].w0 == 0xFD100000u);
-    CHECK(LIST(pc_wad_records(g_buf)->textures[1].texBase)[0].w1 == 0);
+    CHECK(wad_record_is(&LIST(pc_wad_records(g_buf)->textures[1].texBase)[0], 0xFD100000u, 0));
+    CHECK(LIST(pc_wad_records(g_buf)->textures[1].texBase)[0].image.image == NULL);
     pc_wave_released(101, g_buf);
     CHECK(test_model_data_count() == 0);
     return TEST_DONE();

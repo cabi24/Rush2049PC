@@ -1,50 +1,8 @@
 /* BlitInit: start the blitter's display list for a frame (MAT3 blit_pc.c; the N64 side of it), and the PC's storage
  * for the two lists. */
 #include "game/game.h"
-#define Gfx GfxView   /* this file's own Gfx: include/game's Gfx is another type */
 
-typedef union {
-    Gwords words;
-    s64 force_structure_alignment;
-} Gfx;
-
-/* SDK GBI forms, using the same self-contained types as gfx_modes. */
-#define _SHIFTL(v, s, w) ((u32)(((u32)(v) & ((0x01 << (w)) - 1)) << (s)))
-
-#define gDPSetColor(pkt, c, d) \
-{ \
-    Gfx *_g = (Gfx *)(pkt); \
-    _g->words.w0 = _SHIFTL(c, 24, 8); \
-    _g->words.w1 = (unsigned int)(d); \
-}
-#define gDPSetBlendColor(pkt, r, g, b, a) \
-    gDPSetColor(pkt, G_SETBLENDCOLOR, \
-        _SHIFTL(r, 24, 8) | _SHIFTL(g, 16, 8) | \
-        _SHIFTL(b, 8, 8) | _SHIFTL(a, 0, 8))
-#define gDPPipeSync(pkt) \
-{ \
-    Gfx *_g = (Gfx *)(pkt); \
-    _g->words.w0 = _SHIFTL(G_RDPPIPESYNC, 24, 8); \
-    _g->words.w1 = 0; \
-}
-#define gSPSetOtherMode(pkt, cmd, sft, len, data) \
-{ \
-    Gfx *_g = (Gfx *)(pkt); \
-    _g->words.w0 = (_SHIFTL(cmd, 24, 8) | \
-        _SHIFTL(32 - (sft) - (len), 8, 8) | _SHIFTL((len) - 1, 0, 8)); \
-    _g->words.w1 = (unsigned int)(data); \
-}
-#define gDPSetTexturePersp(pkt, type) \
-    gSPSetOtherMode(pkt, G_SETOTHERMODE_H, G_MDSFT_TEXTPERSP, 1, type)
-#define gSPGeometryMode(pkt, c, s) \
-{ \
-    Gfx *_g = (Gfx *)(pkt); \
-    _g->words.w0 = _SHIFTL(G_GEOMETRYMODE, 24, 8) | _SHIFTL(~(u32)(c), 0, 24); \
-    _g->words.w1 = (u32)(s); \
-}
-#define gSPClearGeometryMode(pkt, c) gSPGeometryMode(pkt, c, 0)
-
-/* PC: the two text display lists hold 16-byte host Gfx; blit_display_lists is sized for 8-byte commands. */
+/* The two display lists the blitter fills in turn (blit_display_lists on the N64), 2,400 records each. */
 Gfx pc_text_dl[2][2400];
 #define TEXT_DL pc_text_dl
 

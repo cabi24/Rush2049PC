@@ -216,36 +216,41 @@ went with step 10.
 | Model draw `zoid_draw_object` / texture-load builder `zoid_load_texture` / TLUT load `zoid_load_palette` | 0x8009C8F0 / 0x80099BFC / 0x80099B30 (`groups/zoid_draw/group.c:822/655/640`) | Read OBHD/TXHD/PLHD fields and emit native commands: `gSPDisplayList(lod.dl)` with the relocated 24-bit address, and `gSPDisplayList(tex->image)` (`:665`) for a TXLD list. Texture and TLUT loads point at IMAG (K0 addresses). `G_SETOTHERMODE_H(TEXTLUT)` once per frame | C |
 
 The table is the N64's. **On the PC** (since [NATIVE.md](NATIVE.md) step 10) the WAD's converter (`port/assets/wad.c`)
-builds the lists again beside the file when it loads, in the PC's own form (`PcGfxWords`, the game's `Gfx`: w0, and a
-pointer-sized w1), command for command:
+builds the lists again beside the file when it loads, in the PC's own form: a command record (`Gfx`, a 16-byte record
+of named fields, [GFX.md](GFX.md) "The command records") for each command, which `pc_gfx_from_n64`
+(`port/assets/gfx_n64.c`) reads from the file's 8 bytes (until wave 4 the commands' two words, w0 and a pointer-sized
+w1):
 
 - **Which commands**: every command a walk of the file comes to, from each level's list (below `lodCount`) and each
   listed texture's load list, a command at a time to G_ENDDL (past a G_DL or a branch too: the game's own walks go on
   past them), and into each list a G_DL, a G_RDPHALF_1 before G_BRANCH_Z or a LOD marker names. They are built in the
   file's order, so the command after a built one is the next one built, and a walk of the native lists comes to the
-  commands its walk of the file came to. One G_ENDDL follows the last. The bytes between the lists (vertices) are none.
+  commands its walk of the file came to. An end of list follows the last. The bytes between the lists (vertices) are
+  none. A G_BRANCH_Z's record holds the list its G_RDPHALF_1 names (the half's record is a no-op), and a texture
+  rectangle's halves are its coordinates' record and a no-op.
 - **The addresses**: SetupWaveModel's relocation (the table's two relocators, in its order) is played on the file's
   offsets, to know whether each address-carrying command (0x01, 0xDA, 0xDC, 0xDD, 0xDE, 0xE1 before 0x04 or 0xDD,
-  ≥ 0xFD) was made an address once, by the file's origin or IMAG's. Its w1 then points at
+  ≥ 0xFD) was made an address once, by the file's origin or IMAG's. Its record's pointer then points at
   `(origin + w1) & 0xFFFFFF` in the file, where the renderer read the relocated word (the file's RDRAM address plus the offset, in 24 bits): at the
-  native command that starts there (G_DL, the E1 of a branch, a LOD marker's section end), at the native vertices
+  record of the command that starts there (G_DL, the branch's G_BRANCH_Z, a LOD marker's section end), at the native vertices
   (VTX), at a copy of the matrix or viewport in the host's byte order (MTX, and MOVEMEM of a matrix or a viewport,
   since [NATIVE.md](NATIVE.md) step 14), or into the file (SETTIMG, MOVEMEM of a light: texels and TLUTs stay in the
   file, in its texel memory; a light is bytes). A word the
   N64 made an address not exactly once (a list no relocation walked, two walks over one command) pointed into no file:
-  the converter says so (`display lists:` in the log) and leaves it NULL. Every other w1 is the file's word.
+  the converter says so (`display lists:` in the log) and leaves it NULL.
 - **The vertices**: the runs the VTX commands load, and the run `mirror_vertex_texcoords` walks from a level's first
   VTX, copied beside the file in the host's byte order (x, y, z, flag, s, t swapped; the colour's bytes as they are), each
   run of the file's bytes in one piece with 16 zero bytes after it; registered as model data
   (`pc_mem_register_model_data`) for the high frame rate.
 
-What is left of the table at run time works on those: `prepare_model_dl` keeps the race's sections (a marker whose bit
-the race doesn't keep becomes `DE010000` to the native list its w1 names) and runs the vertex pass on the first VTX's
-native vertices; `display_list_traverse`, `flip_triangle_winding` and the texture animation's helpers read and write
-`Gfx` and `Vtx` as they are; `relocate_texture_loads` is gone. `rush2049pc_assetcheck` and `assets_wad` compare the
-native lists with an independent replay of the N64's relocation of the file (`port/assets/tests/wad_lists_check.h`):
-the same commands, every address where the N64's word pointed, the vertices the file's; `assets_mods` runs that on
-every mutated WAD `check.c` passes.
+What is left of the table at run time works on those: `prepare_model_dl` keeps the race's sections (a `SECTION` record
+whose bit the race doesn't keep becomes a branch to the native list its `end` names) and runs the vertex pass on the
+first vertex load's native vertices; `display_list_traverse`, `flip_triangle_winding` and the texture animation's
+helpers read and write the records' fields and `Vtx` as they are; `relocate_texture_loads` is gone.
+`rush2049pc_assetcheck` and `assets_wad` compare the native lists with an independent replay of the N64's relocation of
+the file (`port/assets/tests/wad_lists_check.h`): each record the file's command as `pc_gfx_from_n64` reads it, every
+pointer where the N64's word pointed, the vertices the file's; `assets_mods` runs that on every mutated WAD `check.c`
+passes.
 
 ### 3.3 Text bank (waves 0–5)
 

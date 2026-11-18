@@ -75,7 +75,7 @@ static const char *g_dir;
 /* ---------------------------------------------------------------- harness */
 
 static uint16_t s_fb[320 * 240];
-static PcGfxWords s_list[64];
+static Gfx s_list[64];
 
 static void show_frame(void)
 {

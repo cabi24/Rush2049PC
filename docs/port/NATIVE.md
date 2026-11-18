@@ -1483,7 +1483,9 @@ Wave 3.4's step 10: the files' display lists, which the N64 relocated in place a
 are built again by the WAD converter when the file loads, in the PC's own form with host pointers, and the vertices
 they load beside them in the host's byte order; the game's walkers and the renderer read only those. Three commits:
 the lists and their readers; the walkers' care for a list the converter couldn't build, the synthetic cartridge's
-`--lists` and the tools' stale rules; the documents and the audit's baseline.
+`--lists` and the tools' stale rules; the documents and the audit's baseline. (Wave 4 then made every list command
+records with named fields in place of the N64's two words, and dropped the segments: [GFX.md](GFX.md) "The command
+records". This section describes the step as it was done.)
 
 | What | Before | After |
 |---|---|---|

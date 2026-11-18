@@ -13,11 +13,12 @@
 #ifndef PC_GFX_LIST_H
 #define PC_GFX_LIST_H
 
-#include <stdint.h>
+/* No system headers (the game's files include this through pc_prelude.h): char, short and int are 8, 16 and 32 bits on
+ * every host the port builds for (port/assets/gfx_n64.c checks the record's size). */
 
 /* What a command does. 0 is a no-op, as a zeroed record. */
 typedef enum GfxOp {
-    GFX_OP_NOOP = 0,            /* nothing: the RDP's pipeline syncs, a file's no-ops and the halves folded into others */
+    GFX_OP_NOOP = 0,            /* nothing: the RDP's pipeline syncs, a file's no-ops, the halves folded into others */
 
     /* The lists: calls, branches, their end */
     GFX_OP_CALL_LIST,           /* list: go into it, and on with the next record at its end */
@@ -87,180 +88,180 @@ typedef struct GfxCombineCycle {
 /* One command. Coordinates are the RDP's: the screen's in 10.2 fixed point (quarter pixels), a tile's in quarter
  * texels, a rectangle's texture coordinates in s10.5 (1/32 texel) and its steps in s5.10 (1/1024 texel a pixel). */
 typedef union Gfx {
-    uint8_t op;                         /* GfxOp, in every record */
+    unsigned char op;                   /* GfxOp, in every record */
 
     struct {                            /* CALL_LIST, BRANCH_LIST */
-        uint8_t op;
-        uint8_t unused[7];
+        unsigned char op;
+        unsigned char unused[7];
         union Gfx *list;
     } list;
     struct {                            /* CULL_LIST: vertex slots first..last (last is held to the buffer's 32) */
-        uint8_t op;
-        uint8_t unused;
-        uint16_t first, last;
-        uint8_t unused2[10];
+        unsigned char op;
+        unsigned char unused;
+        unsigned short first, last;
+        unsigned char unused2[10];
     } cull;
     struct {                            /* BRANCH_Z: when the vertex in slot `vertex` is at screen depth z or nearer
                                          * (z in 16.16: the viewport's depth units), go on at list */
-        uint8_t op;
-        uint8_t unused;
-        uint16_t vertex;
-        int32_t z;
+        unsigned char op;
+        unsigned char unused;
+        unsigned short vertex;
+        int z;
         union Gfx *list;
     } branch_z;
     struct {                            /* SECTION: a level-of-detail marker in a model's list (prepare_model_dl):
                                          * when the race doesn't keep it (bit `bit` of its keep mask, modulo 32), it
                                          * becomes a branch to end, where its section ends */
-        uint8_t op;
-        uint8_t unused;
-        uint16_t bit;
-        uint8_t unused2[4];
+        unsigned char op;
+        unsigned char unused;
+        unsigned short bit;
+        unsigned char unused2[4];
         union Gfx *end;
     } section;
 
     struct {                            /* VERTICES: Vtx records (16 bytes each) into slots first..first+count-1 */
-        uint8_t op;
-        uint8_t count, first;
-        uint8_t unused[5];
+        unsigned char op;
+        unsigned char count, first;
+        unsigned char unused[5];
         void *vertices;
     } vertices;
     struct {                            /* MODIFY_VERTEX: what is a G_MWO_POINT_* (RGBA, ST, XYSCREEN, ZSCREEN) */
-        uint8_t op;
-        uint8_t what;
-        uint16_t vertex;
-        uint32_t value;
-        uint8_t unused[8];
+        unsigned char op;
+        unsigned char what;
+        unsigned short vertex;
+        unsigned int value;
+        unsigned char unused[8];
     } modify_vertex;
     struct {                            /* TRIANGLE, TRIANGLES: the vertices' slots, counterclockwise for the front */
-        uint8_t op;
-        uint8_t v[6];
-        uint8_t unused[9];
+        unsigned char op;
+        unsigned char v[6];
+        unsigned char unused[9];
     } triangles;
     struct {                            /* TEXTURE: scale_s, scale_t in 0.16 (0xFFFF: 1), the tile, its mipmap's last
                                          * level, texturing on (nonzero) */
-        uint8_t op;
-        uint8_t level, tile, on;
-        uint16_t scale_s, scale_t;
-        uint8_t unused[8];
+        unsigned char op;
+        unsigned char level, tile, on;
+        unsigned short scale_s, scale_t;
+        unsigned char unused[8];
     } texture;
     struct {                            /* GEOMETRY_MODE: mode = (mode & keep) | set */
-        uint8_t op;
-        uint8_t unused[3];
-        uint32_t keep, set;
-        uint8_t unused2[4];
+        unsigned char op;
+        unsigned char unused[3];
+        unsigned int keep, set;
+        unsigned char unused2[4];
     } geometry_mode;
     struct {                            /* MATRIX: an Mtx (the fixed-point matrix guMtxF2L makes), to the projection or
                                          * the modelview; loaded or multiplied in; the modelview pushed first.
                                          * FORCE_MATRIX: the Mtx is the modelview x projection product (the flags 0) */
-        uint8_t op;
-        uint8_t projection, load, push;
-        uint8_t unused[4];
+        unsigned char op;
+        unsigned char projection, load, push;
+        unsigned char unused[4];
         void *matrix;
     } matrix;
     struct {                            /* POP_MATRIX */
-        uint8_t op;
-        uint8_t unused[3];
-        uint32_t count;
-        uint8_t unused2[8];
+        unsigned char op;
+        unsigned char unused[3];
+        unsigned int count;
+        unsigned char unused2[8];
     } pop_matrix;
     struct {                            /* INSERT_MATRIX: the word at byte offset `offset` of the product's Mtx */
-        uint8_t op;
-        uint8_t unused;
-        uint16_t offset;
-        uint32_t value;
-        uint8_t unused2[8];
+        unsigned char op;
+        unsigned char unused;
+        unsigned short offset;
+        unsigned int value;
+        unsigned char unused2[8];
     } insert_matrix;
     struct {                            /* VIEWPORT: a Vp (scale and translation, x and y in 10.2) */
-        uint8_t op;
-        uint8_t unused[7];
+        unsigned char op;
+        unsigned char unused[7];
         void *viewport;
     } viewport;
     struct {                            /* LIGHT: a Light into slot `slot`: 0 the look-at x direction, 1 its y, 2 on
                                          * the lights (the last of them the ambient light) */
-        uint8_t op;
-        uint8_t slot;
-        uint8_t unused[6];
+        unsigned char op;
+        unsigned char slot;
+        unsigned char unused[6];
         void *light;
     } light;
     struct {                            /* NUM_LIGHTS: the directional lights; the ambient one is the next slot */
-        uint8_t op;
-        uint8_t unused[3];
-        uint32_t count;
-        uint8_t unused2[8];
+        unsigned char op;
+        unsigned char unused[3];
+        unsigned int count;
+        unsigned char unused2[8];
     } num_lights;
     struct {                            /* LIGHT_COLOR: light `light`'s colour, or its copy (second) */
-        uint8_t op;
-        uint8_t second;
-        uint16_t light;
-        uint8_t r, g, b;
-        uint8_t unused[9];
+        unsigned char op;
+        unsigned char second;
+        unsigned short light;
+        unsigned char r, g, b;
+        unsigned char unused[9];
     } light_color;
     struct {                            /* FOG: the shade alpha is z/w x multiplier + offset (the microcode's) */
-        uint8_t op;
-        uint8_t unused;
-        int16_t multiplier, offset;
-        uint8_t unused2[10];
+        unsigned char op;
+        unsigned char unused;
+        short multiplier, offset;
+        unsigned char unused2[10];
     } fog;
     struct {                            /* PERSP_NORMALIZE */
-        uint8_t op;
-        uint8_t unused;
-        uint16_t scale;
-        uint8_t unused2[12];
+        unsigned char op;
+        unsigned char unused;
+        unsigned short scale;
+        unsigned char unused2[12];
     } persp_normalize;
 
     struct {                            /* OTHER_MODE_HIGH, OTHER_MODE_LOW: the word's bits shift..shift+length-1 become
                                          * those of bits (in place: bits holds the field shifted to `shift`) */
-        uint8_t op;
-        uint8_t shift, length;
-        uint8_t unused;
-        uint32_t bits;
-        uint8_t unused2[8];
+        unsigned char op;
+        unsigned char shift, length;
+        unsigned char unused;
+        unsigned int bits;
+        unsigned char unused2[8];
     } other_mode;
     struct {                            /* OTHER_MODES: both words */
-        uint8_t op;
-        uint8_t unused[3];
-        uint32_t high, low;
-        uint8_t unused2[4];
+        unsigned char op;
+        unsigned char unused[3];
+        unsigned int high, low;
+        unsigned char unused2[4];
     } other_modes;
     struct {                            /* COMBINE: cycle[0] runs first in 2-cycle mode; 1-cycle mode runs cycle[1] */
-        uint8_t op;
-        uint8_t unused[3];
+        unsigned char op;
+        unsigned char unused[3];
         GfxCombineCycle cycle[2];
-        uint8_t unused2[4];
+        unsigned char unused2[4];
     } combine;
     struct {                            /* FILL_COLOR: the fill pattern: two RGBA 5551 pixels, or one RGBA 8888 */
-        uint8_t op;
-        uint8_t unused[3];
-        uint32_t pattern;
-        uint8_t unused2[8];
+        unsigned char op;
+        unsigned char unused[3];
+        unsigned int pattern;
+        unsigned char unused2[8];
     } fill_color;
     struct {                            /* FOG_COLOR, BLEND_COLOR, PRIM_COLOR, ENV_COLOR; PRIM_COLOR's also the
                                          * primitive's minimum level and level-of-detail fraction (0-255) */
-        uint8_t op;
-        uint8_t min_level, lod_fraction;
-        uint8_t unused;
-        uint8_t r, g, b, a;
-        uint8_t unused2[8];
+        unsigned char op;
+        unsigned char min_level, lod_fraction;
+        unsigned char unused;
+        unsigned char r, g, b, a;
+        unsigned char unused2[8];
     } color;
     struct {                            /* PRIM_DEPTH: z and its slope, the RDP's 16-bit depth */
-        uint8_t op;
-        uint8_t unused;
-        uint16_t z, dz;
-        uint8_t unused2[10];
+        unsigned char op;
+        unsigned char unused;
+        unsigned short z, dz;
+        unsigned char unused2[10];
     } prim_depth;
     struct {                            /* SCISSOR: the box drawn in, in 10.2; mode: interlacing (none on the PC) */
-        uint8_t op;
-        uint8_t mode;
-        uint16_t ulx, uly, lrx, lry;
-        uint8_t unused[6];
+        unsigned char op;
+        unsigned char mode;
+        unsigned short ulx, uly, lrx, lry;
+        unsigned char unused[6];
     } scissor;
     struct {                            /* COLOR_IMAGE, DEPTH_IMAGE, TEXTURE_IMAGE: the image, its format and texel
                                          * size (G_IM_FMT_*, G_IM_SIZ_*) and its width in texels (1-4096) */
-        uint8_t op;
-        uint8_t format, size;
-        uint8_t unused;
-        uint16_t width;
-        uint8_t unused2[2];
+        unsigned char op;
+        unsigned char format, size;
+        unsigned char unused;
+        unsigned short width;
+        unsigned char unused2[2];
         void *image;
     } image;
 
@@ -268,55 +269,56 @@ typedef union Gfx {
                                          * and place (tmem, in 64-bit words) in texture memory, its palette (a 16-entry
                                          * bank of the TLUT), and per axis its clamp and mirror (G_TX_*), mask (the
                                          * wrap's power of two; 0 none) and shift (1-10 divide, 11-15 multiply) */
-        uint8_t op;
-        uint8_t tile, format, size;
-        uint16_t line, tmem;
-        uint8_t palette;
-        uint8_t cmt, maskt, shiftt;
-        uint8_t cms, masks, shifts;
-        uint8_t unused;
+        unsigned char op;
+        unsigned char tile, format, size;
+        unsigned short line, tmem;
+        unsigned char palette;
+        unsigned char cmt, maskt, shiftt;
+        unsigned char cms, masks, shifts;
+        unsigned char unused;
     } set_tile;
     struct {                            /* TILE_SIZE, LOAD_TILE: the tile's corners, upper left and lower right
                                          * inclusive, in quarter texels */
-        uint8_t op;
-        uint8_t tile;
-        uint16_t uls, ult, lrs, lrt;
-        uint8_t unused[6];
+        unsigned char op;
+        unsigned char tile;
+        unsigned short uls, ult, lrs, lrt;
+        unsigned char unused[6];
     } tile_rect;
     struct {                            /* LOAD_BLOCK: texels uls..lrs of row ult of the image, as one run into the
                                          * tile's place; dxt: the 1.11 step to the next row of the tile (its swapped
                                          * odd rows) */
-        uint8_t op;
-        uint8_t tile;
-        uint16_t uls, ult, lrs, dxt;
-        uint8_t unused[6];
+        unsigned char op;
+        unsigned char tile;
+        unsigned short uls, ult, lrs, dxt;
+        unsigned char unused[6];
     } load_block;
     struct {                            /* LOAD_TLUT: palette entries first..last of row `row` of the image (16-bit
                                          * colours) into the tile's place */
-        uint8_t op;
-        uint8_t tile;
-        uint16_t first, row, last;
-        uint8_t unused[8];
+        unsigned char op;
+        unsigned char tile;
+        unsigned short first, row, last;
+        unsigned char unused[8];
     } load_tlut;
 
     struct {                            /* FILL_RECTANGLE, TEXTURE_RECTANGLE: the corners in 10.2 (the lower right
                                          * exclusive in 1- and 2-cycle mode); a textured one's tile, flipped (s down,
                                          * t across) when flip is set */
-        uint8_t op;
-        uint8_t tile, flip;
-        uint8_t unused;
-        uint16_t ulx, uly, lrx, lry;
-        uint8_t unused2[4];
+        unsigned char op;
+        unsigned char tile, flip;
+        unsigned char unused;
+        unsigned short ulx, uly, lrx, lry;
+        unsigned char unused2[4];
     } rectangle;
     struct {                            /* RECTANGLE_TEXTURE: the texture coordinates at the upper left corner (s10.5)
                                          * and their steps a pixel across and down (s5.10) */
-        uint8_t op;
-        uint8_t unused;
-        int16_t s, t, dsdx, dtdy;
-        uint8_t unused2[6];
+        unsigned char op;
+        unsigned char unused;
+        short s, t, dsdx, dtdy;
+        unsigned char unused2[6];
     } rectangle_texture;
 
-    int64_t align;                      /* 8-byte alignment, for the pointers */
+    unsigned char bytes[16];            /* the record's bytes: a record of its op alone is { .bytes = { op } } */
+    long long align;                    /* 8-byte alignment, for the pointers */
 } Gfx;
 
 #endif /* PC_GFX_LIST_H */

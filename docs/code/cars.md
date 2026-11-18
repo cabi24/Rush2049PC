@@ -276,8 +276,8 @@ encodings (`G_*`, libultra's names), and so do the walkers of the files' lists, 
   the fields and accessors that were offsets or misread have MAT3's names (`camera`, `in_tunnel`, `stray_angle`,
   `crash_state`, `shoot`, `fade_state`, `catchup`, `tire_rims` ...); left: `struct pc_model`'s `speed` is MAT3's
   `magvel`, `lap` its `laps`.
-- **The scene** emits N64 display lists (libultra's gbi.h macros, F3DEX2, s15.16 `Mtx`, viewports in quarter
-  pixels) that port/gfx interprets; the WAD's records (TXHD, PLHD, OBHD, PTHD) are native beside the file since
+- **The scene** emits display lists of command records (include/game/gbi.h's macros, libultra's names; s15.16 `Mtx`,
+  viewports in quarter pixels) that port/gfx renders; the WAD's records (TXHD, PLHD, OBHD, PTHD) are native beside the file since
   [NATIVE.md](../port/NATIVE.md) step 7, with host pointers to the texels, colours and display lists, and the car
   palettes `car_palettes` are the same palette record (own storage); the texture loads and the models' display lists
   are native beside the file since step 10 (the converter's, `Gfx` with host pointers, their vertices native); the

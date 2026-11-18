@@ -73,7 +73,8 @@ extern s32 blitMode;
 extern OSMesgQueueWords rumble_queue;
 extern OSMesg rumble_msg;
 extern s32 gNumBlitInsts;
-/* pc_text_dl: declared by its files (src/blob/groups/blit/init.c: defines it) */
+/* The blitter's two display lists, filled in turn (src/blob/groups/blit/init.c defines them). */
+extern Gfx pc_text_dl[2][2400];
 
 /* Functions */
 s32 are_sound_voices_idle(void);

@@ -1,90 +1,11 @@
-/* port/gfx/gfx_gbi.h: F3DEX2 (2.08) command and mode encodings the interpreter decodes. The game's files carry
- * their own macros; this is the renderer's copy, from the SDK's documented encodings. */
+/* port/gfx/gfx_gbi.h: the values the renderer interprets in the commands' records (port/include/pc_gfx_list.h): what
+ * GFX_OP_MODIFY_VERTEX sets, the geometry mode's bits, the other modes' fields and the blender's inputs, the image
+ * formats, the tiles' clamp and mirror bits. They are the RDP's and the F3DEX2 microcode's, from the SDK's documented
+ * encodings; the game's own copy is include/game/gbi.h. */
 #ifndef GFX_GBI_H
 #define GFX_GBI_H
 
-/* RSP commands */
-#define G_NOOP 0x00
-#define G_VTX 0x01
-#define G_MODIFYVTX 0x02
-#define G_CULLDL 0x03
-#define G_BRANCH_Z 0x04
-#define G_TRI1 0x05
-#define G_TRI2 0x06
-#define G_QUAD 0x07
-#define G_LINE3D 0x08
-#define G_SPECIAL_3 0xD3
-#define G_SPECIAL_2 0xD4
-#define G_SPECIAL_1 0xD5
-#define G_DMA_IO 0xD6
-#define G_TEXTURE 0xD7
-#define G_POPMTX 0xD8
-#define G_GEOMETRYMODE 0xD9
-#define G_MTX 0xDA
-#define G_MOVEWORD 0xDB
-#define G_MOVEMEM 0xDC
-#define G_LOAD_UCODE 0xDD
-#define G_DL 0xDE
-#define G_ENDDL 0xDF
-#define G_SPNOOP 0xE0
-#define G_RDPHALF_1 0xE1
-#define G_SETOTHERMODE_L 0xE2
-#define G_SETOTHERMODE_H 0xE3
-
-/* RDP commands (passed through by the RSP) */
-#define G_TEXRECT 0xE4
-#define G_TEXRECTFLIP 0xE5
-#define G_RDPLOADSYNC 0xE6
-#define G_RDPPIPESYNC 0xE7
-#define G_RDPTILESYNC 0xE8
-#define G_RDPFULLSYNC 0xE9
-#define G_SETKEYGB 0xEA
-#define G_SETKEYR 0xEB
-#define G_SETCONVERT 0xEC
-#define G_SETSCISSOR 0xED
-#define G_SETPRIMDEPTH 0xEE
-#define G_RDPSETOTHERMODE 0xEF
-#define G_LOADTLUT 0xF0
-#define G_RDPHALF_2 0xF1
-#define G_SETTILESIZE 0xF2
-#define G_LOADBLOCK 0xF3
-#define G_LOADTILE 0xF4
-#define G_SETTILE 0xF5
-#define G_FILLRECT 0xF6
-#define G_SETFILLCOLOR 0xF7
-#define G_SETFOGCOLOR 0xF8
-#define G_SETBLENDCOLOR 0xF9
-#define G_SETPRIMCOLOR 0xFA
-#define G_SETENVCOLOR 0xFB
-#define G_SETCOMBINE 0xFC
-#define G_SETTIMG 0xFD
-#define G_SETZIMG 0xFE
-#define G_SETCIMG 0xFF
-
-/* G_MTX parameters (the command stores params ^ G_MTX_PUSH) */
-#define G_MTX_PUSH 0x01
-#define G_MTX_LOAD 0x02
-#define G_MTX_PROJECTION 0x04
-
-/* G_MOVEWORD indices */
-#define G_MW_MATRIX 0x00
-#define G_MW_NUMLIGHT 0x02
-#define G_MW_CLIP 0x04
-#define G_MW_SEGMENT 0x06
-#define G_MW_FOG 0x08
-#define G_MW_LIGHTCOL 0x0A
-#define G_MW_FORCEMTX 0x0C
-#define G_MW_PERSPNORM 0x0E
-
-/* G_MOVEMEM indices */
-#define G_MV_MMTX 2
-#define G_MV_PMTX 6
-#define G_MV_VIEWPORT 8
-#define G_MV_LIGHT 10
-#define G_MV_POINT 12
-#define G_MV_MATRIX 14
-
-/* G_MODIFYVTX targets */
+/* GFX_OP_MODIFY_VERTEX: what it sets */
 #define G_MWO_POINT_RGBA 0x10
 #define G_MWO_POINT_ST 0x14
 #define G_MWO_POINT_XYSCREEN 0x18

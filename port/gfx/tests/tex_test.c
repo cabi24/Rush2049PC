@@ -80,7 +80,7 @@ typedef struct {
 } Mtx;
 
 static uint16_t s_fb[FB_W * FB_H], s_zb[FB_W * FB_H];
-static PcGfxWords s_list[16384];
+static Gfx s_list[16384];
 static uint8_t *s_px;
 static int s_px_w, s_px_h, s_fail;
 static const char *s_case, *s_dir;

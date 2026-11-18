@@ -43,6 +43,12 @@ game C is now proven by running the game (PCONLY.md 2).
 
 ## 2. Gfx
 
+Since wave 4 a display list is an array of command records (`Gfx`, `port/include/pc_gfx_list.h`; [GFX.md](GFX.md)
+"The command records"): an op and named fields, a pointer where a command names a list, vertices, a matrix or an
+image. The game's macros are include/game/gbi.h's, the files' local `Gfx` views and macro copies are gone, and the
+cartridge's two set-up lists (`rsp_init_dl`, `rdp_init_dl`) are `GfxWords`, the N64's form, which StartGraphics reads
+into records. What follows is how the N64's two-word commands were widened before that.
+
 - Every local `Gfx`/`Gwords` typedef (444 files) carries `w1` as `uintptr_t`: on PC a command is
   `{u32 w0; uintptr_t w1;}`, 16 bytes, the `PcGfxWords` layout. One-line forms (`u32 w0, w1;`) got an
   `#ifdef TARGET_PC` copy.
@@ -73,9 +79,9 @@ game C is now proven by running the game (PCONLY.md 2).
   `TextureAnimation`). Until then they stayed N64 form (8-byte big-endian commands, 32-bit addresses relocated in place
   as `(w1 + base) & 0xFFFFFF | segment`) in registered BE ranges, walked with big-endian accessors and `pc_n64_ptr`;
   `relocate_texture_loads` and the 24-bit rule (`pc_rcp_reloc`) went with that.
-- **Static display lists in data** (`rdp_init_dl`, `rsp_init_dl`, boot data, `gSPDisplayList` targets) are `Gfx[]`, so
-  gen_data gives them host size (272 B, 176 B). Their `w1` are N64 words: an address there must be translated by
-  the data loader (B), or the lists left in N64 form and registered BE (C).
+- **Static display lists in data** (`rdp_init_dl`, `rsp_init_dl`, boot data, `gSPDisplayList` targets) are
+  `GfxWords[]` (`Gfx[]` until wave 4), so gen_data gives them host size (272 B, 176 B). Their `w1` are N64 words;
+  StartGraphics reads the two lists into records (`pc_gfx_list_from_n64`) and the frame's list calls those.
 
 ## 3. Acmd
 

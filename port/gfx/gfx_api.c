@@ -158,7 +158,7 @@ int pc_gfx_framebuffer_dims(const void *cimg, int *n64_w, int *n64_h, int *px_w,
     float sx, sy;
     if (!S.inited)
         return -1;
-    t = pcgfx_gl_find_target(pcgfx_resolve((uintptr_t)cimg));
+    t = pcgfx_gl_find_target(cimg);
     if (t == NULL)
         t = pcgfx_gl_last_target();
     if (t == NULL)
@@ -686,7 +686,7 @@ void pc_gfx_present(const void *framebuffer) {
         return;
     pcgfx_flush();
     ts = show_begin();
-    t = pcgfx_gl_find_target(pcgfx_resolve((uintptr_t)framebuffer));
+    t = pcgfx_gl_find_target(framebuffer);
     if (t == NULL)
         t = pcgfx_gl_last_target();
     S.present_vi = S.vi;
@@ -861,7 +861,7 @@ int pc_gfx_read_framebuffer(const void *cimg, uint8_t *rgba, int *w, int *h) {
     if (!S.inited)
         return -1;
     pcgfx_flush();
-    t = pcgfx_gl_find_target(pcgfx_resolve((uintptr_t)cimg));
+    t = pcgfx_gl_find_target(cimg);
     if (t == NULL)
         t = pcgfx_gl_last_target();
     return pcgfx_gl_read_target(t, rgba, w, h);

@@ -19,6 +19,7 @@
 #include <stdint.h>
 #include <string.h>
 
+#include "pc_gfx_n64.h"
 #include "support.h"
 
 enum {
@@ -38,6 +39,28 @@ enum {
 #define W_TRI1_B 0x05020406u
 #define W_TRI2_0 0x06000204u
 #define W_TRI2_1 0x00020406u
+
+/* Whether the record g is the file's command (w0, w1) as the converter reads it (pc_gfx_from_n64, with nothing beside
+ * it), the pointer aside: a record's pointer, where it has one, is its last 8 bytes, which the tests check apart. */
+static inline int wad_record_is(const Gfx *g, uint32_t w0, uint32_t w1)
+{
+    GfxWords cmd = {w0, w1};
+    Gfx want;
+    int pointer;
+
+    pc_gfx_from_n64(&want, NULL, &cmd, NULL);
+    switch (want.op) {
+    case GFX_OP_VERTICES: case GFX_OP_CALL_LIST: case GFX_OP_BRANCH_LIST: case GFX_OP_SECTION: case GFX_OP_BRANCH_Z:
+    case GFX_OP_MATRIX: case GFX_OP_FORCE_MATRIX: case GFX_OP_VIEWPORT: case GFX_OP_LIGHT: case GFX_OP_TEXTURE_IMAGE:
+    case GFX_OP_DEPTH_IMAGE: case GFX_OP_COLOR_IMAGE:
+        pointer = 1;
+        break;
+    default:
+        pointer = 0;
+        break;
+    }
+    return memcmp(&want, g, pointer ? 8 : sizeof want) == 0;
+}
 
 static void wad_name(uint8_t *p, const char *name)
 {

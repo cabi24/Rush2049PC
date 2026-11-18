@@ -110,11 +110,10 @@ address, so the state hash, the logs and the exit line give a place in it as an 
 from 1549888 bytes in"), never as a host address.
 
 **The renderer and the audio take host pointers.** The game gives the renderer its colour and depth images, its lists,
-vertices, matrices and textures as host pointers (display lists native since [NATIVE.md](NATIVE.md) step 10); the
-renderer keeps the microcode's segment table, so an address below 256 MiB (`N64_SEGMENT_SPAN`) whose segment a list
-gave a base is that base plus the offset, and any other value is a pointer (`pcgfx_resolve`, port/gfx/gfx_rsp.c). The
-4 GiB rule (a value below 4 GiB read as an N64 address), the physical and K0/K1 forms and `pc_n64_ptr` went with the
-window.
+vertices, matrices and textures as host pointers (display lists native since [NATIVE.md](NATIVE.md) step 10, command
+records with named fields since wave 4: [GFX.md](GFX.md) "The command records"). The 4 GiB rule (a value below 4 GiB
+read as an N64 address), the physical and K0/K1 forms and `pc_n64_ptr` went with the window; the microcode's segments
+(`pcgfx_resolve`) with the records.
 
 **The cartridge** stays an N64 bus: the game reads it through libultra's PI by its KSEG1 addresses
 (`0xB0000000 | offset`, osRomBase), and the MusyX library names its samples by them; port/ultra's PI takes them

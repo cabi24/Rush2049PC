@@ -231,7 +231,7 @@ static void make_models(void) {
 
 /* Two frame buffers, as the game alternates its frame records: matrices, viewports, lists and native vertices. */
 static uint16_t s_fb[2][FB_W * FB_H], s_zb[FB_W * FB_H];
-static PcGfxWords s_list[2][8192];
+static Gfx s_list[2][8192];
 static Mtx s_mtx[2][128];
 static Vp s_vp[2][MAX_VIEWS];
 static uint8_t s_dynv[2][64], s_dynv_fixed[64];
