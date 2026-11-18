@@ -1,6 +1,5 @@
 #include "game/game.h"
 
-/* PC: the car record's layout (0x510 bytes, docs/port/CARS.md): its 21 visuals and the input pointer are host-sized. */
 typedef struct Model {
     _tCar *car;
     Tune44 *tune;

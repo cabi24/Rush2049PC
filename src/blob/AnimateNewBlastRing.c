@@ -21,7 +21,6 @@ typedef struct tBlastRingStruct {
 } tBlastRingStruct;
 
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 /* On the PC the blast rings are pc_blast_rings, PC_MAX_LINKS long, with no N64 address (pc_game_types.h,
  * docs/port/DECOUPLE.md 6), seen here in this file's view. */
 #define gBlastRingObjs (*(tBlastRingStruct (*)[PC_MAX_LINKS])PC_BLAST_RINGS)

@@ -7,7 +7,7 @@ typedef struct {
     char pad1[0x48 - 0x1]; void *ref;
 } Pad;
 
-/* The car and model records are the PC's pc_cars and pc_models (pc_game_types.h, docs/port/DECOUPLE.md). */
+/* The car and model records are the PC's pc_cars (cars.h) and pc_models (pc_game_types.h, docs/port/DECOUPLE.md). */
 extern Pad gPlayers[];
 
 /* PC: races of up to PC_MAX_LINKS cars (docs/port/MORECARS.md 2.5, 7). order[] has a place for every car (the N64's

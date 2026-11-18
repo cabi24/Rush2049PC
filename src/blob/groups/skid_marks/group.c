@@ -50,7 +50,6 @@ typedef struct CarState {
     /* 0x76C */ u8 pad76C[0x808 - 0x76C];
 } CarState;                             /* 0x808 */
 
-/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 /* On the PC the skid state is pc_skids, PC_MAX_LINKS cars of four tires, with no N64 address (pc_game_types.h,
  * docs/port/DECOUPLE.md 6), with WheelSlot's field names. */

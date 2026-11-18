@@ -11,7 +11,6 @@ typedef struct PlayerRow { u8 vehicle; u8 pak; u8 other[70]; char **name; } Play
  * rumble byte at +0x37 (PROFILE_OFS, pc_prelude.h; docs/port/POINTERS.md 9.10). */
 
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-/* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 extern PlayerRow gPlayers[];                   /* gPlayers */
 
 extern s32 osRecvMesg(OSMesgQueue *, void **, s32), osSendMesg(OSMesgQueue *, void *, s32);

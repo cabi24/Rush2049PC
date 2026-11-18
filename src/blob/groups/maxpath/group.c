@@ -1,7 +1,7 @@
 /* maxpath: the drones' driving along the drone paths (MAT3 maxpath.c): which stretch of which path a drone is on,
  * the speed and the point it aims for, steering round the other cars, and the steer, gas and brake that come of it.
  * MaxPathControls runs for each drone on the model thread every step. The drone's state is its car record's
- * maxpath control (MAT3 mpctl, the PC's pc_car.nav). */
+ * maxpath control (tCarData.mpctl, MAT3's tPathPoint). */
 #include "game/game.h"
 
 /* The model record (MAT3 tModelData): the fields maxpath reads and sets. */
