@@ -5,22 +5,6 @@
  * The fireball's state is the car's pc_blasts entry. */
 #include "game/game.h"
 
-/* One of the four flame balls (MAT3 tBlastObj; PC: struct pc_blast_obj). */
-typedef struct tBlastObj {
-    int mbIdx;                  /* 0x00 its scene object, -1 none */
-    tUVMatrix mat;              /* 0x04 its matrix: its scene node points here */
-    float scale;                /* 0x34 its size */
-    float scaleInc;             /* 0x38 its growth a step (slowing by 0.002 a step) */
-    float yaw;                  /* 0x3C its turn, radians */
-    float yawInc;               /* 0x40 */
-    float pitch;                /* 0x44 */
-    float pitchInc;             /* 0x48 */
-    unsigned char alpha;        /* 0x4C */
-    unsigned char alphaInc;     /* 0x4D its fade a step at the end */
-    signed short unused;        /* 0x4E */
-    float ht;                   /* 0x50 its height above the start, feet (and its spread from the middle) */
-} tBlastObj;
-
 /* On the PC the blasts are pc_blasts, PC_MAX_LINKS long, with no N64 address (pc_game_types.h,
  * docs/port/DECOUPLE.md 6), with this view's MAT3 field names. */
 #define gBlastObjs pc_blasts

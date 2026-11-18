@@ -6,29 +6,6 @@
 float sqrtf(float);
 #pragma intrinsic (sqrtf)
 
-/* A skid's quad (gSkidList's element), the PC's layout. */
-typedef struct EffectObj {
-    struct EffectObj *next;     /* the pool's links (GetStatLLE) */
-    void *prev;
-    f32 f8;                     /* when it was last extended (gSeconds) */
-    void *dl;                   /* its polygon (ZOID_NewPoly) */
-    f32 pos[3];
-    u8 color[4];
-    s32 f20;
-} EffectObj;
-
-/* A tyre's skid (pc_skids[car][tyre]). */
-typedef struct WheelSlot {
-    EffectObj *obj;             /* the skid's quad, or 0 when the tyre isn't skidding */
-    f32 start[3];               /* where the skid started */
-    f32 pos[3];                 /* where the tyre is */
-    f32 lenSq;                  /* the skid's length squared, once it has a direction */
-    f32 dir[3];                 /* its direction */
-    f32 quad[6];                /* the quad's start edge (right, left), then its moving edge: */
-    f32 left[3];
-    f32 right[3];
-} WheelSlot;
-
 /* The car record's fields the skids read (MAT3 tModelData). */
 typedef struct CarState {
     /* 0x000 */ _tCar *car;
@@ -53,7 +30,7 @@ typedef struct CarState {
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 /* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 /* On the PC the skid state is pc_skids, PC_MAX_LINKS cars of four tires, with no N64 address (pc_game_types.h,
- * docs/port/DECOUPLE.md 6), with WheelSlot's field names. */
+ * docs/port/DECOUPLE.md 6). */
 #define gNewSkid pc_skids
 
 
@@ -63,10 +40,10 @@ extern f32 gDummyVtx[];
 /* Moves skid slot's leading edge to tyre wheel of player's car: across the axle (the direction from tyre wheel & 2
  * to tyre wheel | 1, with their heights), 0.75 to either side of the tyre and lifted by skid_lift; stamps the time
  * and the colour, and updates the quad. */
-void UpdateSkid(WheelSlot *slot, s16 player, u32 wheel, u8 *color)
+void UpdateSkid(tNewSkid *slot, s16 player, u32 wheel, u8 *color)
 {
     CarState *m = PC_MODEL(player);
-    EffectObj *obj = slot->obj;
+    tSkid *obj = slot->skid;
     s16 i;
     f32 up;
     f32 orth[3];
@@ -87,12 +64,12 @@ void UpdateSkid(WheelSlot *slot, s16 player, u32 wheel, u8 *color)
     up = skid_lift;
     slot->left[1] += up;
     slot->right[1] += up;
-    obj->f8 = gSeconds;
-    obj->color[0] = color[0];
-    obj->color[1] = color[1];
-    obj->color[2] = color[2];
-    obj->color[3] = 0xC0;
-    ZOID_UpdatePoly(obj->dl, 4, slot->quad, 0, obj->color, 0, 0);
+    obj->lastTime = gSeconds;
+    obj->color.c[0] = color[0];
+    obj->color.c[1] = color[1];
+    obj->color.c[2] = color[2];
+    obj->color.c[3] = 0xC0;
+    ZOID_UpdatePoly(obj->poly, 4, slot->quad, 0, obj->color.c, 0, 0);
 }
 
 /* The manifest owners of GetSkid and ContinueSkid are empty deleted-procedure stubs
@@ -102,11 +79,11 @@ void UpdateSkid(WheelSlot *slot, s16 player, u32 wheel, u8 *color)
 #define ContinueSkid pc_ContinueSkid
 /* A quad for a new skid of colour color: from the pool, or the skid farthest from the camera taken back; its
  * polygon made (in the front end's car screen with another draw mode). 0 when no polygon could be made. */
-EffectObj *GetSkid(u8 *color)
+tSkid *GetSkid(u8 *color)
 {
     s32 i;
-    EffectObj *s;
-    EffectObj *fars;
+    tSkid *s;
+    tSkid *fars;
     f32 d;
     f32 dsq;
     f32 fardsq;
@@ -114,8 +91,8 @@ EffectObj *GetSkid(u8 *color)
     s = GetStatLLE(&gSkidList);
     if (s == 0) {
         fardsq = -1.0f;
-        fars = (EffectObj *) gSkidList.head;
-        for (s = (EffectObj *) gSkidList.head; s->next; s = s->next) {
+        fars = (tSkid *) gSkidList.head;
+        for (s = (tSkid *) gSkidList.head; s->next; s = s->next) {
             for (dsq = 0.0f, i = 0; i < 3; i++) {
                 d = s->pos[i] - gCamera[0].mat.pos[i];
                 dsq += d * d;
@@ -126,18 +103,18 @@ EffectObj *GetSkid(u8 *color)
             }
         }
         s = fars;
-        ZOID_RemovePoly(s->dl);
+        ZOID_RemovePoly(s->poly);
         FreeStatLLE(&gSkidList, s);
         s = GetStatLLE(&gSkidList);
     }
-    s->f20 = 0;
-    s->color[0] = color[0];
-    s->color[1] = color[1];
-    s->color[2] = color[2];
-    s->color[3] = 0xC0;
-    s->dl = ZOID_NewPoly(4, gDummyVtx, gTexList[8], color,
+    s->active = 0;
+    s->color.c[0] = color[0];
+    s->color.c[1] = color[1];
+    s->color.c[2] = color[2];
+    s->color.c[3] = 0xC0;
+    s->poly = ZOID_NewPoly(4, gDummyVtx, gTexList[8], color,
                           ((gGameState & GS_CAR) ? 1 : 15) | 0x1200, 1);
-    if (s->dl == 0) {
+    if (s->poly == 0) {
         FreeStatLLE(&gSkidList, s);
         return 0;
     }
@@ -146,21 +123,21 @@ EffectObj *GetSkid(u8 *color)
 
 /* Starts a skid for tyre tire of car slot (ns its skid): a new quad, both edges at the tyre. Nothing when no quad
  * is free. */
-void StartSkid(WheelSlot *ns, s16 slot, u32 tire, u8 *color)
+void StartSkid(tNewSkid *ns, s16 slot, u32 tire, u8 *color)
 {
-    EffectObj *s;
+    tSkid *s;
 
     s = GetSkid(color);
     if (s == 0) {
         return;
     }
-    ns->obj = s;
+    ns->skid = s;
     ns->lenSq = 0.0f;
     UpdateSkid(ns, slot, tire, color);
     ns->start[0] = ns->pos[0]; ns->start[1] = ns->pos[1]; ns->start[2] = ns->pos[2];
     ns->quad[0] = ns->right[0]; ns->quad[1] = ns->right[1]; ns->quad[2] = ns->right[2];
     ns->quad[3] = ns->left[0]; ns->quad[4] = ns->left[1]; ns->quad[5] = ns->left[2];
-    ZOID_UpdatePoly(s->dl, 4, ns->quad, 0, 0, 0, 0);
+    ZOID_UpdatePoly(s->poly, 4, ns->quad, 0, 0, 0, 0);
 }
 
 #define magsq(v) (((v)[0] * (v)[0]) + ((v)[1] * (v)[1]) + ((v)[2] * (v)[2]))
@@ -168,7 +145,7 @@ void StartSkid(WheelSlot *ns, s16 slot, u32 tire, u8 *color)
 /* Extends tyre tire's skid to the tyre; once it is longer than 0.1 (squared) it has a direction, and from then
  * on the skid ends and a new one starts when the tyre leaves its line by more than 1 (squared) or the skid gets
  * shorter. */
-void ContinueSkid(WheelSlot *ns, s16 slot, u32 tire, u8 *color)
+void ContinueSkid(tNewSkid *ns, s16 slot, u32 tire, u8 *color)
 {
     f32 vec[3];
     f32 dirpos[3];
@@ -214,7 +191,7 @@ void UpdateSkids(s32 slot)
 {
     s32 i;
     CarState *m;
-    WheelSlot *ns;
+    tNewSkid *ns;
     s32 on;
     s32 laston;
     u8 *color;
@@ -227,7 +204,7 @@ void UpdateSkids(s32 slot)
     for (i = 0; i < 4; i++, ns++) {
         on = ((PC_CAR_FLAGS(slot) & skid_tire_flags[i]) != 0) && (m->airborne[0] == -1) &&
              (m->terrain[i] != 8) && ((stree_surf[m->surface[i]].snd_flags & 0x30) == 0);
-        laston = (ns->obj != 0);
+        laston = (ns->skid != 0);
         color = (m->terrain[i] == 0) ? gShadowColor.c : gDirtColor;
 
         if (!laston && on) {

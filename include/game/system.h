@@ -343,7 +343,7 @@ void PauseTimer(void);
 void pc_Check2WheelSide(s32 idx);
 void pc_CheckAirTime(s32 idx);
 void pc_CheckMulti(s32 idx);
-void pc_ContinueSkid(struct WheelSlot *ns, s16 slot, u32 tire, u8 *color);
+void pc_ContinueSkid(tNewSkid *ns, s16 slot, u32 tire, u8 *color);
 f32 *pc_grid_start(struct tModelData *m, s32 what);
 f32 *pc_pole_row(s32 place);
 void pc_ReadShifter(struct CarState *car, struct InputRecord *player);

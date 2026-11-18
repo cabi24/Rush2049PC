@@ -121,6 +121,42 @@ typedef struct tPoly {
     tPolyVertex verts[4];
 } tPoly;
 
+/* A blast sprite's matrix (MAT3 tBlastMat; gBlastMats, 50 taken in turn by StartBlast). */
+typedef struct tBlastMat {
+    tUVMatrix *mat;     /* from the scene's persistent pool (ZOID_NewMatrix, InitBlast) */
+} tBlastMat;
+
+/* A skid mark (MAT3 tSkid; gSkidArray, listed by gSkidList): a quad laid along a tire's track while it skids
+ * (UpdateSkids), which fades once the skid has stopped (StopSkid, AnimateSkids). */
+typedef struct tSkid {
+    struct tSkid *next;     /* the pool's links (MAT3 tStatDLLE: GetStatLLE, FreeStatLLE) */
+    struct tSkid *prev;
+    f32 lastTime;           /* gSeconds when the skid last grew: its fade starts from it */
+    tPoly *poly;            /* its quad (ZOID_NewPoly) */
+    f32 pos[3];             /* its middle once it has stopped (StopSkid): the far-mark search takes the farthest */
+    tRGBA color;            /* its colour; its alpha fades */
+    s32 active;             /* set once the skid has stopped: the mark fades */
+} tSkid;
+
+/* A smoke puff (MAT3 smoke.c's anon_ll_mat_58; gSmokeObjs, listed by gSmokeList): tire smoke, a wreck's smoke, a
+ * blast's flames, the wing trails, a water spray (StartSmoke, StartWater), which UpdateSmoke moves, grows, fades
+ * and animates until it is done. */
+typedef struct SmokePuff {
+    struct SmokePuff *next; /* the pool's link (MAT3 tStatLLE) */
+    tUVMatrix mat;          /* its orientation and size, and its position: its scene object draws by it */
+    union {
+        s32 mbIdx;          /* its scene object's handle (MBOX_NewObject) */
+        s16 mbNode;         /* the handle's low half, the node, as the PC (little-endian) holds it */
+    };
+    f32 tlifeTime;          /* MAT3's whole life; nothing reads it */
+    f32 lifeTime;           /* seconds left (fire: the size it grows to) */
+    f32 swTime;             /* seconds to its next animation frame */
+    f32 vel[3];             /* its drift, feet a second (fire, a water spray: its offset from the car) */
+    u32 data;               /* PUFF_FORWARD, PUFF_WATER, its type << PUFF_TYPE_SHIFT (cars.h) */
+    s16 slot;               /* the car it came from */
+    s16 tIdx;               /* its animation frame, 0-7 (fire: -1 while growing, then 0-14) */
+} SmokePuff;
+
 /* Data */
 extern ModelDefTable gRomObjDefPtrs[EXTENT(64)];
 extern Item12 texture_swap_shared_frames[EXTENT(400)];

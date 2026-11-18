@@ -51,8 +51,8 @@ StatLL gStreakList, gStreakPolyList, gSkidList;
 Trail gStreakArray[50];
 Fade gStreakPolyArray[150];
 Effect gSkidArray[100];
-_Static_assert(sizeof(WheelSlot) == sizeof(struct pc_skid), "the PC declaration's size");
-struct pc_skid pc_skids[PC_MAX_LINKS][4];   /* the skid table (data.c's in the game), PC_MAX_LINKS cars */
+_Static_assert(sizeof(WheelSlot) == sizeof(tNewSkid), "the PC declaration's size");
+tNewSkid pc_skids[PC_MAX_LINKS][4];   /* the skid table (data.c's in the game), PC_MAX_LINKS cars */
 #define gNewSkid (*(WheelSlot (*)[PC_MAX_LINKS][4])pc_skids)
 uint8_t after_skids[16];   /* what follows the skid table: the reset must not reach it */
 

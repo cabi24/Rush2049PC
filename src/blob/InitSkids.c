@@ -4,18 +4,9 @@
  * and clears each tire's skid state (gNewSkid). */
 #include "game/game.h"
 
-/* PC: the skid marks (skid_marks' EffectObj, MAT3 tSkid) of this doubly linked list: the two links are
- * pointer-sized, so the element is 56 bytes here (36 on the N64), and so are the array and the element size
- * (docs/port/POINTERS.md 9). */
-typedef struct tSkid {
-    void *next, *prev;
-    f32 lastTime;
-    void *poly;     /* the mark's polygon */
-} tSkid;
-
-/* The skid table gNewSkid (skid_marks' WheelSlot[6][4]: 0x5C bytes on the N64, 0x60 here, its effect pointer being
- * pointer-sized): all of it, or the last wheel's slot keeps a stale effect pointer after a reset. On the PC it is
- * pc_skids, PC_MAX_LINKS cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md 6). */
+/* The tires' skid table gNewSkid (tNewSkid[cars][4], 96 bytes each, its mark pointer pointer-sized): all of it, or
+ * the last wheel's slot keeps a stale mark pointer after a reset. On the PC it is pc_skids, PC_MAX_LINKS cars, with no
+ * N64 address (pc_game_types.h, docs/port/DECOUPLE.md 6). */
 #define SKID_TABLE_BYTES sizeof (pc_skids)
 
 #define gNewSkid PC_SKIDS
@@ -37,7 +28,7 @@ void InitSkids(void)
     }
     gSkidList.list = gSkidArray;    /* MAT3 InitStatLL, inlined: the elements, how many, their size, doubly linked */
     gSkidList.numElements = 100;
-    gSkidList.elementSize = sizeof(PcEffectObj);
+    gSkidList.elementSize = sizeof(tSkid);
     gSkidList.dbl = 1;
     ClearStatLL(&gSkidList);
     memset(gNewSkid, 0, SKID_TABLE_BYTES);

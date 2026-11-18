@@ -11,10 +11,6 @@ typedef struct tCarData { u8 pad0[8]; f32 dr_pos[3]; f32 dr_vel[3]; u8 pad20[12]
 /* The model record (tModelData): body_type, the tires' surfaces (sviscode[4], SURF_VIS_*) and the suspension's
  * compression (reckon.suscomp). sviscode is declared 8 long here because StartSmoke reads it for every type. */
 typedef struct tModelData {_tCar *car; Tune44 *tune;u8 body_type;u8 pad9[919]; streetyp *lasttp[4]; u8 pad3B0[92]; const s16 *torquecurve; u8 pad410[524];u16 sviscode[8];u8 pad62C[28]; surftyp *movingSurface; u8 pad64C[272];f32 reckon_suscomp[4];u8 pad76C[156];} tModelData;
-/* A smoke puff (MAT3 smoke.c's anon_ll_mat_58, types.h's PcPuff). PC: the handle is the s32 MBOX_NewObject
- * returned, and index its low half: the second s16 on the N64, the first on a little-endian host
- * (docs/port/ENDIAN.md). */
-typedef struct SmokePuff { void *next; f32 uvs[9]; f32 pos[3]; union { s32 handle; struct {s16 index,high;} part; } mbIdx; s32 tlifeTime; f32 lifeTime; f32 swTime; f32 vel[3]; u32 data; s16 slot; s16 tIdx; } SmokePuff;
 /* On the PC the effects' per-car arrays are PC data, PC_MAX_LINKS long, with no N64 address (pc_game_types.h,
  * docs/port/DECOUPLE.md 6). */
 #define gCarSmokeDir pc_tire_fx
@@ -123,15 +119,15 @@ void StartSmoke(s16 slot, u32 type, s32 water, f32 *smkoffset)
          * tracks, the one-frame smoke) */
         if (type == SMOKE_FIRE) {
             smk->tIdx = -1;
-            smk->mbIdx.handle = ZOID_AddObject(gObjList[204], smk->uvs, -1, 0x52000);
-            ObjInstanceList[smk->mbIdx.handle].w = 1.00999999f;
+            smk->mbIdx = ZOID_AddObject(gObjList[204], &smk->mat, -1, 0x52000);
+            ObjInstanceList[smk->mbIdx].w = 1.00999999f;
         } else {
             if (expansion_pak_present == 0 && gTrackNum >= 0 && gTrackNum < 6) {
                 smk->tIdx = 0;
-                smk->mbIdx.handle = ZOID_AddObject(gObjList[195], smk->uvs, -1, 0x52000);
+                smk->mbIdx = ZOID_AddObject(gObjList[195], &smk->mat, -1, 0x52000);
             } else {
                 smk->tIdx = (s32)Random(8.0f);
-                smk->mbIdx.handle = ZOID_AddObject(gObjList[196 + smk->tIdx], smk->uvs, -1, 0x52000);
+                smk->mbIdx = ZOID_AddObject(gObjList[196 + smk->tIdx], &smk->mat, -1, 0x52000);
             }
         }
         /* how long it lives, seconds */
@@ -200,13 +196,13 @@ void StartSmoke(s16 slot, u32 type, s32 water, f32 *smkoffset)
             pos[1] = pos[1] + car->dr_uvs[1][1] * gCarMiddles[PC_MODEL_BODY(slot)];
             pos[2] = pos[2] + car->dr_uvs[1][2] * gCarMiddles[PC_MODEL_BODY(slot)];
             pos[1] = pos[1] + 0.75f;
-            ObjInstanceList[smk->mbIdx.handle].scale = Random(0.5f) + 0.75f;
+            ObjInstanceList[smk->mbIdx].scale = Random(0.5f) + 0.75f;
             break;
         case SMOKE_FIRE:
             /* the five flames get the five fire textures; vel holds their place on the car (4 ft across, 8 ft
              * along), which UpdateSmoke keeps them at */
-            ObjInstanceList[smk->mbIdx.handle].scale = 0.200000003f;
-            ZOID_SetTexture(smk->mbIdx.part.index, &gTexDefPtrs[gFireTexs[howmanydone] >> 10].texDefs[gFireTexs[howmanydone] & 0x3ff], -1);
+            ObjInstanceList[smk->mbIdx].scale = 0.200000003f;
+            ZOID_SetTexture(smk->mbNode, &gTexDefPtrs[gFireTexs[howmanydone] >> 10].texDefs[gFireTexs[howmanydone] & 0x3ff], -1);
             pos[0] = car->dr_pos[0];
             pos[1] = car->dr_pos[1];
             pos[2] = car->dr_pos[2];
@@ -244,7 +240,7 @@ void StartSmoke(s16 slot, u32 type, s32 water, f32 *smkoffset)
             pos[1] = pos[1] + car->dr_uvs[0][1] * (Random(2.0f) - 1.0f);
             pos[2] = pos[2] + car->dr_uvs[0][2] * (Random(2.0f) - 1.0f);
             pos[1] += PC_MODEL_SUSPENSION(slot)[type];
-            ObjInstanceList[smk->mbIdx.handle].scale = Random(0.75f) + 0.25f;
+            ObjInstanceList[smk->mbIdx].scale = Random(0.75f) + 0.25f;
         }
         if (type >= SMOKE_WING0) {
             /* at the wing: smkoffset along the car's axes, then 1.15 ft back, 2.6 ft out to its side, 0.5 ft up */
@@ -302,30 +298,30 @@ void StartSmoke(s16 slot, u32 type, s32 water, f32 *smkoffset)
                     pos[2] = pos[2] + offset2 * pos2[2];
                 }
             }
-            ObjInstanceList[smk->mbIdx.handle].scale = Random(0.100000001f) + 0.075000003f;
+            ObjInstanceList[smk->mbIdx].scale = Random(0.100000001f) + 0.075000003f;
         }
-        MBOX_ShowObject(smk->mbIdx.handle, first = 0, 15);
+        MBOX_ShowObject(smk->mbIdx, first = 0, 15);
         if (car->camera >= 0 && (car->view == 0 || car->view == 1))
-            MBOX_HideObject(smk->mbIdx.handle, 0, 1 << car->camera);
+            MBOX_HideObject(smk->mbIdx, 0, 1 << car->camera);
         if (type >= SMOKE_WING0) {
             switch (gCarWings[slot + 1][m->body_type]) {
-            case 0: { s16 h = smk->mbIdx.handle; ObjInstanceList[h].color = wg1.rgba; } break;
-            case 1: { s16 h = smk->mbIdx.handle; ObjInstanceList[h].color = wg2.rgba; } break;
-            case 2: { s16 h = smk->mbIdx.handle; ObjInstanceList[h].color = wg3.rgba; } break;
+            case 0: { s16 h = smk->mbIdx; ObjInstanceList[h].color = wg1.rgba; } break;
+            case 1: { s16 h = smk->mbIdx; ObjInstanceList[h].color = wg2.rgba; } break;
+            case 2: { s16 h = smk->mbIdx; ObjInstanceList[h].color = wg3.rgba; } break;
             }
         } else if (type == SMOKE_WRECK) {
-            OBJ_COLOR(ObjInstanceList[smk->mbIdx.handle].color)[0] = gCarBlastSmokeClr[slot];
-            OBJ_COLOR(ObjInstanceList[smk->mbIdx.handle].color)[1] = gCarBlastSmokeClr[slot];
-            OBJ_COLOR(ObjInstanceList[smk->mbIdx.handle].color)[2] = gCarBlastSmokeClr[slot];
-            OBJ_COLOR(ObjInstanceList[smk->mbIdx.handle].color)[3] = 255;
+            OBJ_COLOR(ObjInstanceList[smk->mbIdx].color)[0] = gCarBlastSmokeClr[slot];
+            OBJ_COLOR(ObjInstanceList[smk->mbIdx].color)[1] = gCarBlastSmokeClr[slot];
+            OBJ_COLOR(ObjInstanceList[smk->mbIdx].color)[2] = gCarBlastSmokeClr[slot];
+            OBJ_COLOR(ObjInstanceList[smk->mbIdx].color)[3] = 255;
             gCarBlastSmokeClr[slot] -= 3;
             if (gCarBlastSmokeClr[slot] < 53) gCarBlastSmokeClr[slot] = 53;
-        } else if (type == SMOKE_FIRE) { s16 h = smk->mbIdx.handle; ObjInstanceList[h].color = wht.rgba; }
-        else if (surface == SURF_VIS_DIRT) { s16 h = smk->mbIdx.handle; ObjInstanceList[h].color = dtClr.rgba; }
-        else { s16 h = smk->mbIdx.handle; ObjInstanceList[h].color = rdClr.rgba; }
-        smk->pos[0] = pos[0];
-        smk->pos[1] = pos[1];
-        smk->pos[2] = pos[2];
+        } else if (type == SMOKE_FIRE) { s16 h = smk->mbIdx; ObjInstanceList[h].color = wht.rgba; }
+        else if (surface == SURF_VIS_DIRT) { s16 h = smk->mbIdx; ObjInstanceList[h].color = dtClr.rgba; }
+        else { s16 h = smk->mbIdx; ObjInstanceList[h].color = rdClr.rgba; }
+        smk->mat.pos[0] = pos[0];
+        smk->mat.pos[1] = pos[1];
+        smk->mat.pos[2] = pos[2];
         howmanydone++;
     } while (howmany != howmanydone);
 }

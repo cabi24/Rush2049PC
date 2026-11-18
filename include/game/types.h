@@ -46,7 +46,6 @@ struct DmaReq;
 struct Dynamic;
 struct EUCar;
 struct Effect;
-struct EffectObj;
 struct EngineState;
 struct Entity;
 struct Entry;
@@ -228,7 +227,6 @@ struct Voice;
 struct VoiceControls;
 struct VoicePrefix;
 struct VoiceState;
-struct WheelSlot;
 struct X;
 struct XForm;
 struct __OSInodeCache;
@@ -1700,10 +1698,6 @@ typedef struct RecordOwner { /* 0x78 bytes */
 } RecordOwner;
 
 
-typedef struct tBlastMat { /* 0x8 bytes */
-    struct tUVMatrix *mat; /* 0x0 */
-} tBlastMat;
-
 /* A pool of fixed-size elements (MAT3 tStatList; InitStatLL, GetStatLLE, FreeStatLLE, ClearStatLL): its elements
  * linked through their first pointer (MAT3 tStatLLE) and, when dbl, back through their second (tDLLE), the ones in
  * use from head, the free ones from store. The PC's layout: the pointers are host pointers (40 bytes), and so are
@@ -1974,18 +1968,6 @@ typedef struct Collision16 { /* 0x10 bytes */
     f32 height; /* 0xC */
 } Collision16;
 
-/* A skid mark, an entry of gSkidArray (MAT3 tSkid): its list links, when it last grew, its polygon, its middle, its
- * colour, and whether it has stopped (and so fades). */
-typedef struct PcEffectObj { /* 0x38 bytes */
-    void *next;      /* 0x0 */
-    void *prev;      /* 0x8 */
-    f32 lastTime;    /* 0x10 */
-    void *poly;      /* 0x18 */
-    f32 pos[3];      /* 0x20 */
-    u8 color[4];     /* 0x2C */
-    s32 active;      /* 0x30 */
-} PcEffectObj;
-
 /* A segment of a light streak's ribbon, an entry of gStreakPolyArray (MAT3 tStreakPoly): its polygon, the seconds
  * it has left, the time to its next fade step, its colour and its streak. */
 typedef struct PcFade { /* 0x30 bytes */
@@ -1997,23 +1979,6 @@ typedef struct PcFade { /* 0x30 bytes */
     u8 clr[4];     /* 0x20 */
     void *s;       /* 0x28 */
 } PcFade;
-
-/* A smoke or spray puff, an entry of gSmokeObjs (MAT3 smoke.c's puff): its orientation and size, its position, its
- * scene node, the seconds it has left, the time to its next animation frame, its drift, its data word (PUFF_*),
- * its car and its animation frame. */
-typedef struct PcPuff { /* 0x60 bytes */
-    void *next;       /* 0x0 */
-    f32 uvs[3][3];    /* 0x8 */
-    f32 pos[3];       /* 0x2C */
-    s32 mbIdx;        /* 0x38 */
-    u8 pad3C[4];      /* 0x3C MAT3 tlifeTime, a float the code reads through its own views */
-    f32 lifeTime;     /* 0x40 */
-    f32 swTime;       /* 0x44 */
-    f32 vel[3];       /* 0x48 */
-    u32 data;         /* 0x54 */
-    s16 slot;         /* 0x58 */
-    s16 tIdx;         /* 0x5A */
-} PcPuff;
 
 /* A light streak behind a battle shot, an entry of gStreakArray (MAT3 tStreak): its flags (STREAK_*), the time to
  * its next segment, its shot's new and last points, and its ribbon's back edge ([0] the lower corner, [1] the

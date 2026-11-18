@@ -8,7 +8,7 @@
  * and the reset clears all PC_MAX_LINKS of them: on the N64 the 6 it has. */
 #define gCarSmokeDir pc_tire_fx
 
-/* Make gSmokeList a singly linked list of the 100 puffs of gSmokeObjs (88 bytes each on the N64, PcPuff's size
+/* Make gSmokeList a singly linked list of the 100 puffs of gSmokeObjs (SmokePuff, 96 bytes each
  * here), all free; clear every car's smoke latches (SMOKE_* in cars.h); and look the six fire textures up by name
  * (FireTexNames, into gFireTexs) in every loaded model, warning if one is missing, for StartSmoke's flames. With
  * 4 MB on the first six tracks there is no fire (StartNewBlast starts none), so the N64 skips the lookup. */
@@ -18,7 +18,7 @@ void InitSmoke(void)
 
     gSmokeList.list = gSmokeObjs;   /* MAT3 InitStatLL, inlined: the elements, how many, their size, singly linked */
     gSmokeList.numElements = 100;
-    gSmokeList.elementSize = sizeof(PcPuff);
+    gSmokeList.elementSize = sizeof(SmokePuff);
     gSmokeList.dbl = 0;
     ClearStatLL(&gSmokeList);
     for (i = 0; i < PC_MAX_LINKS; i++) {

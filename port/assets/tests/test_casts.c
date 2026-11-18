@@ -27,8 +27,8 @@ void InitBlast(void);
 
 void *gBlastMats[50];                      /* gBlastMats: blast.c's tBlastMat, a matrix pointer an entry */
 int16_t gBlastMatCnt;
-struct pc_blast_ring pc_blast_rings[PC_MAX_LINKS];   /* the blast rings, 0x3C bytes each (data.c's in the game) */
-struct pc_blast pc_blasts[PC_MAX_LINKS];             /* the blasts, 0x190 bytes each */
+tBlastRingStruct pc_blast_rings[PC_MAX_LINKS];   /* the blast rings, 0x3C bytes each (data.c's in the game) */
+tBlastStruct pc_blasts[PC_MAX_LINKS];             /* the blasts, 0x190 bytes each */
 static float blast_mats[50][12];
 static int blast_next;
 

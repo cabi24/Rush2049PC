@@ -37,9 +37,9 @@ unsigned int pc_tire_fx[PC_MAX_LINKS];
 unsigned char pc_smoke_shade[PC_MAX_LINKS];
 float pc_trail_pts[PC_MAX_LINKS][6];
 float pc_resurrect_mid[PC_MAX_LINKS][3];
-struct pc_blast pc_blasts[PC_MAX_LINKS];
-struct pc_blast_ring pc_blast_rings[PC_MAX_LINKS];
-struct pc_skid pc_skids[PC_MAX_LINKS][4];
+tBlastStruct pc_blasts[PC_MAX_LINKS];
+tBlastRingStruct pc_blast_rings[PC_MAX_LINKS];
+tNewSkid pc_skids[PC_MAX_LINKS][4];
 
 /* ---------------------------------------------------------------- the game's data the code under test uses */
 
@@ -333,7 +333,7 @@ int main(void)
         for (s = 0; s < PC_MAX_LINKS; s++)
             if (s != CARS - 1)
                 CHECK(pc_blast_rings[s].ringIdx == -1
-                      && sentinel(&pc_blast_rings[s].mat, sizeof(struct pc_uv_matrix), 0, 1));
+                      && sentinel(&pc_blast_rings[s].mat, sizeof(tUVMatrix), 0, 1));
     }
 
     /* The skids: the table cleared whole, then 12 cars x 4 tires started (each its own segment, at its tire),
@@ -358,15 +358,15 @@ int main(void)
         int ok = 1;
         for (s = 0; s < CARS; s++)
             for (t = 0; t < 4; t++) {
-                ok &= pc_skids[s][t].obj != NULL && pc_skids[s][t].pos[0] == PC_CAR_WHEEL_POS(s)[t][0];
+                ok &= pc_skids[s][t].skid != NULL && pc_skids[s][t].pos[0] == PC_CAR_WHEEL_POS(s)[t][0];
                 for (int s2 = 0; s2 <= s; s2++)
                     for (int t2 = 0; t2 < 4; t2++)
                         if (s2 != s || t2 != t)
-                            ok &= pc_skids[s2][t2].obj != pc_skids[s][t].obj;
+                            ok &= pc_skids[s2][t2].skid != pc_skids[s][t].skid;
             }
         CHECK(ok);
         CHECK(count_list(gSkidList.head) == 4 * CARS);
-        for (k = CARS * 4 * (int)sizeof(struct pc_skid); k < (int)sizeof pc_skids; k++)
+        for (k = CARS * 4 * (int)sizeof(tNewSkid); k < (int)sizeof pc_skids; k++)
             if (((uint8_t *)pc_skids)[k] != 0)
                 break;
         CHECK(k == (int)sizeof pc_skids);           /* slots 12-15 untouched */
@@ -376,14 +376,14 @@ int main(void)
             PC_CAR_WHEEL_POS(s)[t][2] += 0.5f;      /* moved along: a continued skid */
     for (s = 0; s < CARS; s++)
         UpdateSkids(s);
-    CHECK(pc_skids[CARS - 1][3].obj != NULL && pc_skids[CARS - 1][3].lenSq > 0.0f);
+    CHECK(pc_skids[CARS - 1][3].skid != NULL && pc_skids[CARS - 1][3].lenSq > 0.0f);
     for (s = 0; s < CARS; s++)
         CF(s, 0xE8, uint32_t) = 0;
     for (s = 0; s < CARS; s++)
         UpdateSkids(s);
     for (s = 0; s < CARS; s++)
         for (t = 0; t < 4; t++)
-            CHECK(pc_skids[s][t].obj == NULL);
+            CHECK(pc_skids[s][t].skid == NULL);
     g_nfreed_dl = 0;
     InitSkids();
     CHECK(g_nfreed_dl == 4 * CARS && gSkidList.head == NULL);

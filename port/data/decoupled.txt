@@ -33,9 +33,9 @@ pc_cars    gGameCar  0x1650  gGameCar car1_objnum car1_dr_pos car1_dr_car_uvs
 
 # The effects' per-car arrays (docs/port/DECOUPLE.md 6), 6 cars each on the N64, PC_MAX_LINKS on the PC: the tire-effect
 # latches (u32), the smoke's grey (u8; 8 bytes by the gap to gRealJustPlayerData), the trails' last points (f32[6]), the blasts
-# (struct pc_blast, 0x190), the blast rings (struct pc_blast_ring, 0x3C; 6 of them to gTempCircuitFirstTrack: the symbol file's
+# (tBlastStruct, 0x190), the blast rings (tBlastRingStruct, 0x3C; 6 of them to gTempCircuitFirstTrack: the symbol file's
 # gCheckpointTimes, gLapCounts, gBestLapTimes and gCurrentLapTimes, inside them, are names nothing uses), the skid
-# state of each car's four tires (struct pc_skid: 0x5C on the N64, 0x60 on the PC, its effect pointer a host pointer;
+# state of each car's four tires (tNewSkid: 0x5C on the N64, 0x60 on the PC, its effect pointer a host pointer;
 # own storage before) and the resurrect's midpoint (f32[3]).
 pc_tire_fx        gCarSmokeDir  0x18
 pc_smoke_shade    gCarBlastSmokeClr  0x8

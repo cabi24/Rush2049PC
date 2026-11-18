@@ -7,24 +7,6 @@
 
 typedef f32 Vec3[3];
 typedef f32 Mat3[3][3];
-/* PC: the handle is the s32 MBOX_NewObject returned, and index its low half: the second s16 on the N64, the first
- * on a little-endian host (docs/port/ENDIAN.md). */
-typedef union Id { s32 handle; struct { s16 index, high; } part; } Id;
-/* A smoke puff (MAT3 smoke.c's anon_ll_mat_58, types.h's PcPuff); the offsets are the N64's, the PC's link is
- * pointer-sized. */
-typedef struct SmokePuff {
-    struct SmokePuff *next;
-    Mat3 uvs;           /* 4: its orientation and size (the scene object's matrix) */
-    Vec3 pos;           /* 40: its position */
-    Id mbIdx;           /* 52: its scene object */
-    f32 tlifeTime;
-    f32 lifeTime;       /* 60: seconds left (fire: the size it grows to) */
-    f32 swTime;         /* 64: seconds to the next animation frame */
-    Vec3 vel;           /* 68: its drift, feet a second (fire, a water spray: its offset from the car) */
-    u32 data;           /* 80: PUFF_FORWARD, PUFF_WATER, the type << PUFF_TYPE_SHIFT */
-    s16 slot;           /* 84: the car it came from */
-    s16 tIdx;           /* 86: its animation frame, 0-7 (fire: -1 while growing, then 0-14) */
-} SmokePuff;
 /* The car record (tCarData, N64 offsets; docs/port/CARS.md 2), the fields the puffs follow. */
 typedef struct tCarData {
     u8 pad0[8];
@@ -107,9 +89,9 @@ void UpdateSmoke(void)
             mph = gc->rwmph >> 2;
             mph2 = fabsf((f32)mph);
             if (gc->view < 2) {
-                MBOX_HideObject(puff->mbIdx.handle, 1, 1 << gc->camera);
+                MBOX_HideObject(puff->mbIdx, 1, 1 << gc->camera);
             } else {
-                MBOX_ShowObject(puff->mbIdx.handle, 0, 1 << gc->camera);
+                MBOX_ShowObject(puff->mbIdx, 0, 1 << gc->camera);
             }
             if (PC_MODEL_VISCODE(slot)[type] != SURF_VIS_WATER || mph2 < 10) {
                 switch (type) {
@@ -133,7 +115,7 @@ void UpdateSmoke(void)
             pos2[2] = gc->dr_vel[2];
             NormalVector(pos2);
             LookInDir(pos2, mat);
-            CopyUV(mat, puff->uvs);
+            CopyUV(mat, puff->mat.uvs);
             if (mph2 < 90) {
                 if (mph < 0) {
                     t = mph2 / 70.0f * 0.75f + 0.25f;
@@ -142,18 +124,18 @@ void UpdateSmoke(void)
                 }
                 for (i = 0; i < 3; i++) {
                     for (j = 0; j < 3; j++) {
-                        puff->uvs[i][j] *= t;
+                        puff->mat.uvs[i][j] *= t;
                     }
                 }
             }
-            puff->pos[0] = gc->dr_tirepos[type][0];
-            puff->pos[1] = gc->dr_tirepos[type][1];
-            puff->pos[2] = gc->dr_tirepos[type][2];
-            vadd(puff->pos, puff->vel, puff->pos);
-            puff->pos[1] += 1.25f;
+            puff->mat.pos[0] = gc->dr_tirepos[type][0];
+            puff->mat.pos[1] = gc->dr_tirepos[type][1];
+            puff->mat.pos[2] = gc->dr_tirepos[type][2];
+            vadd(puff->mat.pos, puff->vel, puff->mat.pos);
+            puff->mat.pos[1] += 1.25f;
             puff->swTime -= gFrameSeconds;
             if (puff->swTime <= 0.0f) {
-                resource_set_frame(puff->mbIdx.part.index, gObjList[196 + 9 + puff->tIdx]);
+                resource_set_frame(puff->mbNode, gObjList[196 + 9 + puff->tIdx]);
                 puff->tIdx++;
                 if (puff->tIdx >= 8) {
                     puff->tIdx = 0;
@@ -166,16 +148,16 @@ void UpdateSmoke(void)
                     goto release;
                 }
                 if (puff->tIdx == -1) {
-                    if (ObjInstanceList[puff->mbIdx.handle].scale < puff->lifeTime) {
-                        ObjInstanceList[puff->mbIdx.handle].scale += PC_FSCALE(0.04f);
+                    if (ObjInstanceList[puff->mbIdx].scale < puff->lifeTime) {
+                        ObjInstanceList[puff->mbIdx].scale += PC_FSCALE(0.04f);
                     } else {
                         puff->tIdx = 0;
                     }
                 } else {
                     if (puff->tIdx < 8) {
-                        ObjInstanceList[puff->mbIdx.handle].scale -= PC_FSCALE(0.03f);
+                        ObjInstanceList[puff->mbIdx].scale -= PC_FSCALE(0.03f);
                     } else {
-                        ObjInstanceList[puff->mbIdx.handle].scale += PC_FSCALE(0.03f);
+                        ObjInstanceList[puff->mbIdx].scale += PC_FSCALE(0.03f);
                     }
                     if (PC_ON30(puff->tIdx >= 14)) {
                         puff->tIdx = 0;
@@ -197,34 +179,34 @@ void UpdateSmoke(void)
                 pos[0] = pos[0] + gc->dr_uvs[1][0] * gCarMiddles[PC_MODEL_BODY(slot)];
                 pos[1] = pos[1] + gc->dr_uvs[1][1] * gCarMiddles[PC_MODEL_BODY(slot)];
                 pos[2] = pos[2] + gc->dr_uvs[1][2] * gCarMiddles[PC_MODEL_BODY(slot)];
-                puff->pos[0] = pos[0];
-                puff->pos[1] = pos[1];
-                puff->pos[2] = pos[2];
+                puff->mat.pos[0] = pos[0];
+                puff->mat.pos[1] = pos[1];
+                puff->mat.pos[2] = pos[2];
             } while (0);
         } else {
             puff->lifeTime -= gFrameSeconds;
             if (puff->lifeTime <= 0.0f) {
 release:
-                RemoveObjectTree(puff->mbIdx.part.index, 0, 0);
+                RemoveObjectTree(puff->mbNode, 0, 0);
                 FreeStatLLE(&gSmokeList, puff);
                 continue;
             }
             gFrameSeconds;      /* a read of the volatile and nothing more (MAT3: t = gFrameSeconds, unused) */
             if (puff->lifeTime < 1.0f) {
-                if (OBJ_COLOR(ObjInstanceList[puff->mbIdx.handle].color)[3] >= 9) {
-                    PC_EACH30(OBJ_COLOR(ObjInstanceList[puff->mbIdx.handle].color)[3] -= 9;)
+                if (OBJ_COLOR(ObjInstanceList[puff->mbIdx].color)[3] >= 9) {
+                    PC_EACH30(OBJ_COLOR(ObjInstanceList[puff->mbIdx].color)[3] -= 9;)
                 }
             }
             if (type == SMOKE_WRECK) {
-                PC_EACH30(puff->pos[0] += Random(0.3f) - 0.15f;)
-                PC_EACH30(puff->pos[1] += Random(0.25f);)
-                PC_EACH30(puff->pos[2] += Random(0.15f) - 0.075f;)
-                ObjInstanceList[puff->mbIdx.handle].scale += PC_FSCALE(0.05f);
+                PC_EACH30(puff->mat.pos[0] += Random(0.3f) - 0.15f;)
+                PC_EACH30(puff->mat.pos[1] += Random(0.25f);)
+                PC_EACH30(puff->mat.pos[2] += Random(0.15f) - 0.075f;)
+                ObjInstanceList[puff->mbIdx].scale += PC_FSCALE(0.05f);
             }
             puff->swTime -= gFrameSeconds;
             if (puff->swTime <= 0.0f) {
                 if (expansion_pak_present || gTrackNum >= 6) {
-                    resource_set_frame(puff->mbIdx.part.index, gObjList[196 + puff->tIdx]);
+                    resource_set_frame(puff->mbNode, gObjList[196 + puff->tIdx]);
                     if (puff->data & PUFF_FORWARD) {
                         puff->tIdx++;
                         if (puff->tIdx >= 8) {
@@ -240,13 +222,13 @@ release:
                 puff->swTime = 0.0333333f;
             }
             if (type >= SMOKE_WING0) {
-                ObjInstanceList[puff->mbIdx.handle].scale += PC_FSCALE(0.03f);
+                ObjInstanceList[puff->mbIdx].scale += PC_FSCALE(0.03f);
             } else {
-                ObjInstanceList[puff->mbIdx.handle].scale += PC_FSCALE(0.05f);
+                ObjInstanceList[puff->mbIdx].scale += PC_FSCALE(0.05f);
             }
-            puff->pos[0] += puff->vel[0] * gFrameSeconds;
-            puff->pos[1] += puff->vel[1] * gFrameSeconds;
-            puff->pos[2] += puff->vel[2] * gFrameSeconds;
+            puff->mat.pos[0] += puff->vel[0] * gFrameSeconds;
+            puff->mat.pos[1] += puff->vel[1] * gFrameSeconds;
+            puff->mat.pos[2] += puff->vel[2] * gFrameSeconds;
         }
     }
 }

@@ -8,12 +8,6 @@
  * ends. The fireball and the ring keep their state per car in pc_blasts and pc_blast_rings. */
 #include "game/game.h"
 
-/* One of a fireball's four flame balls (MAT3 tBlastObj; PC: struct pc_blast_obj). */
-typedef struct tBlastObj {
-    int mbIdx; tUVMatrix mat; float scale; float scaleInc; float yaw; float yawInc; float pitch; float pitchInc;
-    unsigned char alpha; unsigned char alphaInc; signed short unused; float ht;
-} tBlastObj;
-
 
 /* On the PC the blasts and their rings are pc_blasts and pc_blast_rings, PC_MAX_LINKS long, with no N64 address
  * (pc_game_types.h, docs/port/DECOUPLE.md 6), with these views' MAT3 field names. */
