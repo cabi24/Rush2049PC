@@ -332,8 +332,8 @@ It uses layout_check's analysis (the same compile cache; a run takes about 15 s 
      offset and the access fits that N64 field, not the PC's field at the offset it uses: 5 for a write or an
      8-byte access, 4 for a read;
    - a PC macro on the line or the two before (one defined under `TARGET_PC` in the unit, `pc_prelude.h` or
-     `include/`: `CAR_OFS`, `EMITTER_ACTIVE`, ...; `PROFILE_OFS` until wave 4) makes it a PC offset when the access fits the PC
-     field there;
+     `include/`: `CAR_OFS`, `EMITTER_ACTIVE`, ...; `PROFILE_OFS` until wave 4) makes it a PC offset when the
+     access fits the PC field there;
    - a typed access through a view with the PC layout counts only where it fits neither that view's field nor the
      record's (`M2C_FIELD(&sym, T *, off)` on a symbol declared as the record); through a struct view that keeps the
      N64 shape (bytes up to the field: `u8 pad0[0x1A]; s8 dirty;`), it is the N64's field, judged as a raw offset,

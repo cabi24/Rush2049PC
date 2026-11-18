@@ -9,11 +9,17 @@
 s32 CheckForEgg(void)
 {
     u32 held, pressed, other;
+    u32 *step;
     if (!gEgg) return 0;
     if (gEggIdx && gNextTimeOut <= gSeconds)
         gEggIdx = 0;
-    pressed = gEgg->edges[gEggIdx];
-    held = gEgg->levels[gEggIdx];
+    /* The step's buttons, as the egg's words: held is its word 1 + gEggIdx (levels[gEggIdx]), pressed its word
+     * 21 + gEggIdx (edges[gEggIdx]). As words because the index can pass the 20 steps an egg has room for, and the
+     * game then reads the words after them: a code whose size the index never meets (the synthetic cartridge's, all
+     * zeros, which every frame without a button matches) steps on while the pad is idle. */
+    step = (u32 *)gEgg + gEggIdx;
+    pressed = step[21];
+    held = step[1];
     other = ~(pressed | held);
     if (other & gActiveEdges) gEggIdx = 0;
     else if ((held * 1) == (gActiveLevels & held) &&
