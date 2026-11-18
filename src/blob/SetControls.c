@@ -7,7 +7,10 @@
  * profile and, without a profile or when resetting, in the controller's own (gJustPlayers); then turns the layout's
  * gControlTable indices into the button bits the car reads (tPadState.controls). MAT3 also keeps the rumble setting
  * in the layout.
- * Original game: a player without a controller (5) takes gNewControls[5], past the four layouts (MAT3 skips it). */
+ * A player without a controller (CONTROLLER_NONE) would take gNewControls[5], past the four layouts (MAT3 skips such a
+ * player); none comes here. The callers that read the layouts, the car screen and the pause menu's controls page,
+ * run after the player screen (or its skip, FindPlayerNum) gave each of the gNumPlayers players a controller, and
+ * InitOptions resets to the default layout. */
 void SetControls(s32 resetToDefault)
 {
     s32 p;

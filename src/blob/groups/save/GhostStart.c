@@ -96,7 +96,7 @@ void GhostStart(void) {
         g = *(*gGhosts[i])->header;
         g->offset = 0;
         car = g->car;
-        memset(&gPlayers[i], 0, 76);
+        memset(&gPlayers[i], 0, sizeof gPlayers[i]);
         gPlayers[i].save = (tProfile **)&gGhostPlayers[i];   /* the ghost's profile */
         memset(gGhostPlayers[i], 0, PROFILE_OFS(48));
         memcpy((*gPlayers[i].save)->name, g->name, 13);

@@ -113,8 +113,6 @@ VIEW(intptr_t, gGhosts);
  * rumble request (rumble/group.c's Controller.request) is a record's byte at host +0x89. */
 #define PAK_RECORD 0x310
 #define PAK_RUMBLE_REQUEST(i) (((s8 *) gPaks)[(i) * PAK_RECORD + 0x89])
-/* A profile's rumble setting (save.c's profile record, N64 +0x2B, PROFILE_OFS on the PC): 0 off, 1 low, else full. */
-#define PROFILE_RUMBLE(profile) (*(s8 *) ((s8 *) (profile) + PROFILE_OFS(0x2B)))
 /* The drone schedule on the PC (docs/port/DECOUPLE.md 8). Row r is for n drones with one human or none (r = n) or
  * with two or more (r = PC_DRONE_SCHED_TWO + n, pc_game_types.h), n up to PC_MAX_LINKS; entry k is how many drones
  * the k-th model iteration of a round updates, -1 ending the round. Where the N64 has the row (0-6 drones with one
@@ -258,7 +256,7 @@ next_step:
                         goto next_step;
                     }
                 }
-                rumble_setting = PROFILE_RUMBLE(*player->save);
+                rumble_setting = (*player->save)->rumble;   /* the profile's: 0 off, 1 low, else full */
                 if (rumble_setting == 0) {
                     goto rumble_off;
                 }
