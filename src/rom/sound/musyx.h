@@ -115,7 +115,7 @@ typedef struct SynthInputSource {
 typedef struct SynthInputMix {
     SynthInputSource source[4];
     u8 count;                    /* sources in use; 0: the input's default */
-    u8 unused11;
+    u8 unused;
 } SynthInputMix;
 
 /* One of a voice's two LFOs (SETUP_LFO): its clock and period in ticks, and its value now (a sine,
@@ -147,7 +147,7 @@ typedef struct SynthVoice {
     u8 channel;                  /* the MIDI channel, NO_CHANNEL for an effect */
     u8 set;                      /* whose controllers it reads: a song player, or VOICE_OWN_SET (an effect's own) */
     u8 fxFlag;                   /* an effect voice (the key's bit 7 at start) */
-    u8 unused4D;
+    u8 unused1;
     u16 orgNote;                 /* the key it started on */
     u16 curNote;                 /* the note now */
     u8 setupVol;                 /* what sound_macro_start stores and the macro's first run applies: */
@@ -155,12 +155,12 @@ typedef struct SynthVoice {
     u8 setupChannel;
     u8 setupSet;
     u8 setupTrack;
-    u8 unused57;
+    u8 unused2;
     u32 sampleAddress;           /* the sample playing: its cartridge address (written, never read) */
     u32 sampleInfo;              /* its root key (bits 31..24) and rate in Hz (23..0) */
     u32 id;                      /* (macro << 16) | (key << 8) | the voice's index; VOICE_NONE when free */
     u16 macroId;                 /* the macro it runs */
-    u8 unused66[2];
+    u8 unused3[2];
     u16 loop;                    /* the LOOP step's counter */
     u8 pbLowerKeyRange;          /* the pitch wheel's range down and up, in semitones */
     u8 pbUpperKeyRange;
@@ -169,7 +169,7 @@ typedef struct SynthVoice {
     s32 vibCurOffset;
     u8 vibKeyRange;              /* and its depth in keys and cents */
     u8 vibCentRange;
-    u8 unused7A[2];
+    u8 unused4[2];
     s32 sweepAdd[2];             /* the pitch sweeps' steps */
     s32 envDelta;                /* the volume envelope's step (ENVELOPE, FADE_IN) and target */
     u32 envTarget;
@@ -179,18 +179,18 @@ typedef struct SynthVoice {
     u8 portType;                 /* 1: glide only on the voice's first update */
     u8 revVolScale;              /* the reverb send's scale (128: 1) and offset */
     u8 revVolOffset;
-    u8 unused9B;
+    u8 unused5;
     u32 wait;                    /* when the current WAIT ends (0: not waiting; MACRO_WAIT_FOREVER, macros.c) */
     u32 waitTime;                /* when the last wait ended: tick waits count from it */
     u32 time;                    /* the voice's clock */
     u32 panTime;                 /* the PANNING sweep's time left and end */
     u32 panTarget;
     u8 sweepCnt[2];              /* the pitch sweeps' step counters */
-    u8 unusedB2[2];
+    u8 unused6[2];
     u32 envTime;                 /* the envelope's time left */
     u16 pbLast;                  /* the last pitch-wheel value (0x2000: centre) */
     u16 allocId;                 /* the allocation id (sound_alloc_voice) */
-    u8 unusedBC;
+    u8 unused7;
     u8 blocked;                  /* set while the voice starts a child: not to be stolen or updated */
     u8 vGroup;                   /* the volume group (sound_volume_faders) now and as started */
     u8 setupVGroup;
@@ -198,10 +198,10 @@ typedef struct SynthVoice {
     u8 lastNote;                 /* the channel's previous key (LAST_NOTE, the portamento's start) */
     u16 curOutputVolume;
     SynthInputMix inputs[SYNTH_INPUT_COUNT];   /* the controller mixes of SYNTH_INPUT_* */
-    u8 unused166[2];
+    u8 unused8[2];
     SynthLfo lfo[2];
     s16 localVars[16];           /* the macro's variables (the globals are sound_global_variables) */
-    u8 unusedTail[4];
+    u8 unused9[4];              /* the PC's tail */
 } SynthVoice;
 #pragma pack()
 #define SYNTH_VOICE_SIZE PC_MX_VOICE_SIZE   /* 0x1C0 */

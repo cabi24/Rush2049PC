@@ -150,6 +150,7 @@ typedef union tAudioMsg {
     struct { tAudioMsgHeader hdr; f32 vol, time; s8 music, sfx; } setMasterVol;                 /* time in seconds */
     struct { tAudioMsgHeader hdr; s8 mono; } mono;
 } tAudioMsg;
+_Static_assert(sizeof(tAudioMsg) == 32, "a message is an element of the pool pc_snd_msgs (pc_game_types.h)");
 
 /* An effect instance of the sound server (MAT3 tSfxVoice without its PS2 and GameCube fields; 0x18 bytes). Its
  * handle (index) is (generation << 8) | its index in gSfxInstances. */
@@ -160,11 +161,11 @@ typedef struct tSfxVoice {
     s8 stopped;         /* 0x3: the voice has been keyed off */
     s8 stopAll;         /* 0x4: AudioStopAllEffects marked it */
     s8 fail;            /* 0x5: a command for it failed this pass: its later commands wait for the next */
-    u8 pad6[2];
+    u8 unused1[2];
     u32 index;          /* 0x8: the handle, 0 when free */
     s32 soundId;        /* 0xC: the effect (the MusyX sfx id is its low half) */
     s32 sound;          /* 0x10: the MusyX voice handle (sound_start_sfx), -1 for none */
-    s32 unused14;       /* 0x14 */
+    s32 unused2;        /* 0x14 */
 } tSfxVoice;
 
 /* A sound server command (MAT3 tSfxCmd, 0x30 bytes on the PC), on gCmdQ until AudioSfxServer carries it out. */

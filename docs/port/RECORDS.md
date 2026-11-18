@@ -162,7 +162,7 @@ tags declared in more than one file 8 (19 declarations) to 5 (10): the five left
 (`MODELDAT`, `OSMesgQueue`, `PlayerRec`, `Vec3`) and the library's own vector (`Vector` in streams_3d.c and vector.c,
 with `SalVector` and `SoundVector` the same three floats). layout_check: open findings 6 to 5 (the DMA list's views,
 which agreed in the end on one host layout). The views ctests take the records' names; `views_sound_commands` went
-(the messages are a union, which `port/config/voices.c` asserts at 32 bytes).
+(the messages are a union, which audiomgr.h asserts at the pool's 32-byte element).
 
 **Left**, and why:
 

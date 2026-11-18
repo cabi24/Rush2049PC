@@ -68,7 +68,7 @@ typedef struct SampleDmaList {
     u8 unused1;
     u16 count;          /* its requests */
     u16 next;           /* the requests started (sample_dma_next) */
-    u16 unused6;
+    u16 unused2;
     SampleDmaRequest *reqs;
     OSMesgQueue *done;  /* signalled when the last request is done */
 } SampleDmaList;

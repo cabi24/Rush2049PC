@@ -68,7 +68,7 @@ typedef struct SpeechStream {
     s8 pending;                  /* an input read is in flight */
     s8 state;                    /* SPEECH_DECODE_* (decode.c) */
     s8 budget;                   /* frames to decode per call (2; 4 at half rate) */
-    u8 unused11FF;
+    u8 unused1;
     OSMesgQueue request_queue;   /* made by speech_play, read by nothing */
     OSMesg request_messages[2];
     volatile u8 busy;            /* SPEECH_STREAM_* (streams.c) */
@@ -76,14 +76,14 @@ typedef struct SpeechStream {
     u8 pan;
     u8 span;                     /* front/back */
     u8 priority;                 /* the voice's priority */
-    u8 unused123D[3];
+    u8 unused2[3];
     u32 rate;                    /* sample rate, Hz */
     s32 handle;                  /* the stream voice (sound_stream_start), -1 for none */
     s16 *buffer;                 /* the PCM ring */
     u32 buffer_count;            /* its length in samples */
     u8 stop_countdown;           /* frames until a stopping stream's voice stops (at 2), then frees (0) */
     u8 aux;                      /* the voice's effect send */
-    u8 unused1256[2];
+    u8 unused3[2];
     u32 processed;               /* samples played */
     f32 duration;                /* seconds, set when the voice starts */
     u32 token;                   /* the caller's handle (speech_assign_token) */

@@ -1281,7 +1281,7 @@ add_test(NAME endian_check COMMAND ${Python3_EXECUTABLE} ${PORT_TOOLS}/endian_ch
 # The audio manager's records (include/game/audiomgr.h, docs/port/RECORDS.md 4.4): the files that read an fx tag
 # (N64 0x44 bytes), a sequence (0x3C) or an emitter (0x2C) see the header's one declaration, whose N64 layout (the
 # data generator's, from DWARF) must keep the N64 size (tools/port/view_check.py; ELF objects only). The messages
-# (pc_snd_msgs, tAudioMsg) are a union: port/config/voices.c asserts their 32 bytes.
+# (pc_snd_msgs, tAudioMsg) are a union, which audiomgr.h asserts at the pool's 32-byte element.
 if(NOT WIN32)
     set(SOUND_FX_VIEWS
         src/blob/groups/save/AudioInit.c src/blob/groups/audio_emitters/group.c
