@@ -2,7 +2,12 @@
 #ifndef GAME_CARS_H
 #define GAME_CARS_H
 
+/* types.h names a field errno (libultra's OSContStatus.errno). Port code that takes the records from here after a C
+ * library header that makes errno a macro (mingw-w64's stdlib.h) keeps the macro out of the types while they're read. */
+#pragma push_macro("errno")
+#undef errno
 #include "game/types.h"
+#pragma pop_macro("errno")
 
 /* Constants: the names of MAT3's rush_flags.h, the same values. */
 
