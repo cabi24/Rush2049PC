@@ -77,7 +77,6 @@ void pdf_release(PakHandle *fileh)
     InsertLLE(&pak_free_handles, fileh, pak_free_handles.head);
 }
 
-extern void osInvalDCache(void *, s32);
 
 void prpf_nop(void)
 {
@@ -102,7 +101,6 @@ void PS_ReadPartialFile(PakHandle *fileh, s32 offset, u32 numBytes)
     if (offset) {}
     psfile->data = AllocateHandleHeap(0, gPaks[pak].files[fileNo].mapBytes + psfile->size);
     memset(*psfile->data + psfile->size, 0, gPaks[pak].files[fileNo].mapBytes);
-    osInvalDCache(*psfile->data, psfile->size);
     prpf_nop();
     paksys_lock();
     size = numBytes;

@@ -215,8 +215,6 @@ int32_t osSendMesg(void *q, void *m, int32_t flags) { return 0; }
 int32_t osRecvMesg(void *q, void **m, int32_t flags) { return 0; }
 void osCreateThread(void *t, int32_t id, void (*entry)(void *), void *arg, void *sp, int32_t pri) {}
 void osStartThread(void *t) {}
-void osInvalDCache(void *p, int32_t n) {}
-void osWritebackDCache(void *p, int32_t n) {}
 void rumble_thread_entry(void *arg) {}
 void si_lock(void) {}
 int32_t pak_removed(int32_t pak) { return 0; }

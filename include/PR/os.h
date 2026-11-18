@@ -17,16 +17,9 @@
 #include "PR/os_cont.h"
 #include "PR/os_time.h"
 
-/* Cache operations */
-void osInvalDCache(void *vaddr, s32 nbytes);
-void osInvalICache(void *vaddr, s32 nbytes);
-void osWritebackDCache(void *vaddr, s32 nbytes);
-void osWritebackDCacheAll(void);
-
 /* Memory operations */
 void bzero(void *s, s32 n);
 void bcopy(const void *src, void *dst, s32 len);
-/* (osVirtualToPhysical and osPhysicalToVirtual: none on the PC, which gives the renderer pointers, docs/port/GFX.md) */
 
 /* Interrupt control */
 u32 __osDisableInt(void);

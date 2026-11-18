@@ -10,12 +10,11 @@
  * GameCube build, has its own sound code, so this has no MAT3 counterpart.
  *
  * On the PC the microcode is not run: port/audio interprets the SFDs (docs/port/AUDIO.md has their layout), and the
- * AI, the RSP task, the D-cache calls and the cartridge DMA under this code are port/ultra's. The records here are in host
- * layout; an SFD grows past 32 voice records when more voices are asked for ([audio] voices, pc_sfd_layout). A
- * voice's sample is in the cartridge, named by its 32-bit cartridge address (the caches are keyed by those), or in
- * RAM (a stream's buffer), named by its pointer (include/sound_sample_record.h). The N64 also counted the cache lines
- * its writes to the DMA list and the SFDs dirtied (a CPU cache trick with no effect on what plays); the PC has no such
- * cache, and that bookkeeping went with docs/port/NATIVE.md step 12 (it kept the low 32 bits of heap addresses). */
+ * AI, the RSP task and the cartridge DMA under this code are port/ultra's. The records here are in host layout; an SFD
+ * grows past 32 voice records when more voices are asked for ([audio] voices, pc_sfd_layout). A voice's sample is in
+ * the cartridge, named by its 32-bit cartridge address (the caches are keyed by those), or in RAM (a stream's buffer),
+ * named by its pointer (include/sound_sample_record.h). The audio task reads the same memory the CPU writes: the
+ * N64's cache writebacks and invalidations around the DMA list, the SFDs and the caches have nothing to do here. */
 #include "../rom_tu.h"
 #include "musyx.h"
 #include "sound_services.h"
@@ -71,9 +70,7 @@ enum { ENVELOPE_ATTACK, ENVELOPE_DECAY, ENVELOPE_SUSTAIN, ENVELOPE_RELEASE };
 /* sound_hw_init's flags: half-rate output (the sample-cache classes are sound_hw_cache_mode_from_flags') */
 #define SOUND_INIT_HALF_RATE 0x100000
 
-/* The N64's record sizes, which the D-cache writebacks (nothing on the PC) still count by */
-#define SFD_N64_BYTES 2576              /* an SFD: a 16-byte header and 32 voice records */
-#define DELAY_STATE_N64_BYTES 72
+/* The size of the audio microcode's text, which the task names (the PC's interpreter runs none) */
 #define AUDIO_UCODE_TEXT_BYTES 4096
 
 /* sizeof(SoundDmaEntryCodebook): 12 bytes on the N64, where the destination is a 32-bit pointer */
@@ -263,8 +260,6 @@ extern void sound_hw_set_delay(SoundDelayConfig *config);
 
 /* The OS (port/ultra on the PC) and the PC layer */
 extern void bzero(void *, int);
-extern void osWritebackDCache(void *, int);
-extern void osInvalDCache(void *, int);
 extern int osAiSetNextBuffer(void *, unsigned int);
 extern int osAiSetFrequency(unsigned int);
 extern int osRecvMesg(OSMesgQueue *, void **, int);
@@ -311,7 +306,6 @@ void sound_hw_run_output_thread(void *argument)
         sound_output_buffers[i] = (unsigned char *)sound_output_buffers[i - 1] + OUTPUT_BUFFER_BYTES;
     }
     bzero(sound_output_buffers[0], sound_output_buffer_count * OUTPUT_BUFFER_BYTES);
-    osWritebackDCache(sound_output_buffers[0], sound_output_buffer_count * OUTPUT_BUFFER_BYTES);
     sound_output_index = 0;
     osAiSetNextBuffer(sound_output_buffers[0], OUTPUT_BUFFER_BYTES);
     stop = 0;
@@ -396,7 +390,6 @@ void sound_hw_set_delay(SoundDelayConfig *config)
         state->buffer = sound_delay_line;
         i = count * 2;
         bzero(state->buffer, i);
-        osWritebackDCache(state->buffer, i);
         state->length = count;
         state->feedback = config->feedback << 8;
         state->tap_count = config->tap_count;
@@ -414,7 +407,6 @@ void sound_hw_set_delay(SoundDelayConfig *config)
             state->filter[2] = 0;
             state->filter[3] = 32767;
         }
-        osWritebackDCache(state, DELAY_STATE_N64_BYTES);
         sound_hw_lock();
         sound_delay_position = 0;
         sound_delay = state;
@@ -467,7 +459,6 @@ void sound_hw_alloc_voices(unsigned short voice_count, unsigned int frequency)
     sound_sfd_counts[0] = 0;
     sound_mix_state = sound_services.allocate(PC_MX_STATE(664), 0);
     bzero(sound_mix_state, PC_MX_STATE(664));
-    osWritebackDCache(sound_mix_state, PC_MX_STATE(664));
 }
 
 /* Frees what sound_hw_alloc_voices allocated. */
@@ -543,7 +534,6 @@ void sound_hw_submit_task(void *sfds, unsigned short sfd_count)
         task->t.ucode_data_size = SP_UCODE_DATA_SIZE;
         task->t.data_ptr = sfds;
         task->t.data_size = sfd_count;
-        osWritebackDCache(sfds, sfd_count * SFD_N64_BYTES);
         sound_services.submit_task(task);
         sound_task_busy = 1;
     }
@@ -704,7 +694,7 @@ void sound_hw_init_codebook_cache(int entry_count)
     int i;
     sound_codebook_nodes = sound_services.allocate(entry_count * sizeof(AudioNode), 0);
     sound_codebook_cache = sound_services.allocate(entry_count * ADPCM_CODEBOOK_BYTES, 0);
-    osInvalDCache(sound_codebook_cache, entry_count * ADPCM_CODEBOOK_BYTES); pc_mem_register_samples(sound_codebook_cache, entry_count * ADPCM_CODEBOOK_BYTES);
+    pc_mem_register_samples(sound_codebook_cache, entry_count * ADPCM_CODEBOOK_BYTES);
     sound_codebook_used = 0;
     sound_codebook_free = sound_codebook_nodes;
     sound_codebook_nodes[0].buffer = sound_codebook_cache;
@@ -781,7 +771,7 @@ void sound_hw_init_sample_cache(unsigned short block_count)
 {
     int i;
     sound_sample_cache = sound_services.allocate(block_count * SAMPLE_BLOCK_BYTES, 0);
-    osInvalDCache(sound_sample_cache, block_count * SAMPLE_BLOCK_BYTES); pc_mem_register_samples(sound_sample_cache, block_count * SAMPLE_BLOCK_BYTES);
+    pc_mem_register_samples(sound_sample_cache, block_count * SAMPLE_BLOCK_BYTES);
     sound_sample_nodes = sound_services.allocate(block_count * sizeof(AudioCacheNode), 0);
     sound_sample_lru_head = 0;
     sound_sample_lru_tail = 0;
@@ -1704,21 +1694,20 @@ unsigned int sound_hw_get_voice_position(int index)
     return sound_hw_voices[index].position;
 }
 
-/* A stream's samples written by the CPU: writes them back from the D-cache for the microcode (N64 only). */
+/* (A hook for a stream's samples the CPU has just written, before the audio task reads them: nothing to do, the
+ * interpreter reads the same memory.) */
 void sound_hw_flush_stream(void *buffer, unsigned int samples)
 {
-    osWritebackDCache(buffer, samples * 2);
 }
 
 /* A stream's ring of samples: copies its first 4 samples past its end, so the resampler reading across the wrap
- * finds them, and writes them back from the D-cache. */
+ * finds them. */
 void sound_hw_flush_stream_wrap(short *buffer, unsigned int samples)
 {
     buffer[samples + 0] = buffer[0];
     buffer[samples + 1] = buffer[1];
     buffer[samples + 2] = buffer[2];
     buffer[samples + 3] = buffer[3];
-    osWritebackDCache(&buffer[samples], 8);
 }
 
 /* The cartridge's bus: the PI reads the ROM at CART_BUS_BASE + its offset (0xB0000000 up, 256 MiB). */

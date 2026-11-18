@@ -152,7 +152,7 @@ extern OSTime osGetTime(void);
 extern void *osViGetCurrentFramebuffer(void),*osViGetNextFramebuffer(void);
 extern void osViSwapBuffer(void *),video_apply_pending_mode(void);
 extern s32 osSpTaskYielded(void *);
-extern void osWritebackDCacheAll(void),osSpTaskLoad(void *),osSpTaskStartGo(void *),osSpTaskYield(void);
+extern void osSpTaskLoad(void *),osSpTaskStartGo(void *),osSpTaskYield(void);
 extern s32 osDpSetNextBuffer(void *,u64);
 void osCreateScheduler(OSSched *,void *,OSPri,u8,u8);
 void osScAddClient(OSSched *,OSScClient *,OSMesgQueue *);
@@ -359,7 +359,6 @@ void __scExec(OSSched *scheduler,OSScTask *sp,OSScTask *dp) {
   } else if(!(sp->state&OS_SC_YIELDED)) {
    __osScRetraceTime=__osScFrameTime;
   }
-  osWritebackDCacheAll();
   sp->state&=~(OS_SC_YIELD|OS_SC_YIELDED);
   osSpTaskLoad(&sp->type);
   osSpTaskStartGo(&sp->type);

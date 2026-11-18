@@ -98,9 +98,8 @@ void StartGraphics(void) {
     gSPSegment(frame_dl++, 0, 0);
     gSPDisplayList(frame_dl++, rsp_init_dl);
     gSPDisplayList(frame_dl++, rdp_init_dl);
-    /* The depth and colour images are the buffers' pointers, which the renderer draws into. The N64 gives the RDP
-     * their physical addresses (osVirtualToPhysical), as the PC did through the RDRAM window until
-     * docs/port/NATIVE.md step 4 (docs/port/GFX.md "Command formats and addresses"). */
+    /* The depth and colour images are the buffers' pointers, which the renderer draws into (docs/port/GFX.md
+     * "Command formats and addresses"). */
     gDPSetDepthImage(frame_dl++, zbuffer);
     gDPPipeSync(frame_dl++);
     gDPSetCycleType(frame_dl++, G_CYC_FILL);

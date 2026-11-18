@@ -35,7 +35,6 @@ extern void sound_hw_lock(void);
 extern void sound_hw_unlock(void);
 extern void sound_dma_install_queue(void);
 extern void osYieldThread(void);
-extern void osInvalDCache(void *, int);
 extern int osRecvMesg(OSMesgQueue *, void **, int);
 
 /* The frame hook (sound_dma_flush_hook), run as sound_hw_service_frame starts a new DMA list: first wakes the reader
@@ -88,7 +87,6 @@ void sound_dma_read_blocking(void *destination, void *source, unsigned int size)
         sound_dma_requests[sound_dma_request_count].source = source;
         sound_dma_requests[sound_dma_request_count].size = (size + 15) & ~15U;
         sound_dma_request_count++;
-        osInvalDCache(destination, size);
         sound_hw_unlock();
         osRecvMesg((OSMesgQueue *) sound_dma_done_queue, 0, OS_MESG_BLOCK);
         osYieldThread();
@@ -110,7 +108,6 @@ void sound_dma_read_async(void *destination, void *source, unsigned int size)
         sound_dma_requests[sound_dma_request_count].source = source;
         sound_dma_requests[sound_dma_request_count].size = (size + 15) & ~15U;
         sound_dma_request_count++;
-        osInvalDCache(destination, size);
     }
     sound_hw_unlock();
 }

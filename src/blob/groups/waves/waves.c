@@ -23,8 +23,6 @@ typedef struct OSIoMesg { OSIoMesgHdr hdr; void *dramAddr; u32 devAddr; u32 size
 #define DL_KEEP_FORWARD 8           /* the track run the usual way */
 #define DL_KEEP_BACKWARD 0x10       /* the track run backwards */
 
-void osInvalICache(void *vaddr, s32 nbytes);
-void osInvalDCache(void *vaddr, s32 nbytes);
 s32 osPiStartDma(OSIoMesg *mb, s32 priority, s32 direction, u32 devAddr, void *vAddr, u32 nbytes, OSMesgQueue *mq);
 s32 osRecvMesg(OSMesgQueue *mq, OSMesg *msg, s32 flags);
 
@@ -105,8 +103,6 @@ void SetupWaveModel(s32 idx, s32 first) {
 void wave_rom_read(u8 *dst, s32 rom, s32 size) {
     OSIoMesg mb;
 
-    osInvalICache(dst, size);
-    osInvalDCache(dst, size);
     osPiStartDma(&mb, 0, 0, rom, dst, size, &rom_dma_queue);
     osRecvMesg(&rom_dma_queue, NULL, 1);
 }

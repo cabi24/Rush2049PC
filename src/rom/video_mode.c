@@ -50,7 +50,6 @@ void video_build_adjusted_mode(void) {
     video_adjusted_mode->fldRegs[0].yScale = (video_adjusted_mode->fldRegs[0].yScale & 0xFFFF0000) | verticalScale;
     video_adjusted_mode->fldRegs[1].yScale = (video_adjusted_mode->fldRegs[1].yScale & 0xFFFF0000) | verticalScale;
     video_pending_frames = 2;
-    osWritebackDCache(video_adjusted_mode, sizeof(OSViMode));
     osSetIntMask(saved);
 }
 

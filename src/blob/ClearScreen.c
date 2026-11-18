@@ -38,8 +38,8 @@ typedef union {
 }
 
 /* Adds to the frame's display list a fill of the whole screen (screen_width x screen_height) of the frame's colour
- * buffer with color, a 16-bit RGBA5551 colour, between pipe syncs. The colour image is the buffer's pointer, where
- * the N64 gives the RDP its physical address (osVirtualToPhysical; StartGraphics.c says more). */
+ * buffer with color, a 16-bit RGBA5551 colour, between pipe syncs. The colour image is the buffer's pointer, which the
+ * renderer draws into. */
 void ClearScreen(u16 color)
 {
     gDPPipeSync(frame_dl++);

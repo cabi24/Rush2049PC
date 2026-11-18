@@ -97,7 +97,6 @@ extern void (*sound_frame_hook)(void);
 extern unsigned int speech_take_samples(SpeechStream *, unsigned int);
 extern void sound_dma_read_async(void *, void *, unsigned int);
 extern unsigned int sound_stream_buffer_size(unsigned int);
-extern void osInvalDCache(void *, int);
 extern void speech_reset_decoder(SpeechStream *, void *, void *, unsigned int, void (*)(void *, void *, unsigned int, OSMesgQueue *));
 extern void speech_mark_stopped(SpeechStream *);
 extern void speech_decode(SpeechStream *);
@@ -257,7 +256,6 @@ unsigned int speech_play(unsigned int index, unsigned int rate,
             } else {
                 size = sound_stream_buffer_size(stream->buffer_count);
                 stream->buffer = sound_services.allocate(size, 0);
-                osInvalDCache(stream->buffer, size);
             }
             if (stream->buffer) {
                 queue_token = speech_lock();
@@ -490,7 +488,6 @@ void speech_init(unsigned int flags)
         size = sound_stream_buffer_size(SPEECH_STATIC_BUFFER_SAMPLES);
         for (i = 0; i < SPEECH_STREAMS; i++) {
             speech_static_buffers[i] = sound_services.allocate(size, 0);
-            osInvalDCache(speech_static_buffers[i], size);
         }
     }
     sound_frame_hook = speech_service;

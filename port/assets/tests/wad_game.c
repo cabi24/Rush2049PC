@@ -43,8 +43,6 @@ volatile uint8_t gNumModels;
 static uint8_t g_rom[0x2000];
 #define ROM_WAD 0x1000
 
-void osInvalICache(void *p, int32_t n) { (void)p, (void)n; }
-void osInvalDCache(void *p, int32_t n) { (void)p, (void)n; }
 int32_t osRecvMesg(void *mq, void **msg, int32_t flags) { (void)mq, (void)msg, (void)flags; return 0; }
 int32_t osPiStartDma(void *mb, int32_t pri, int32_t dir, uint32_t dev, void *dram, uint32_t size, void *mq)
 {

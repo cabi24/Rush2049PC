@@ -8,7 +8,6 @@ typedef struct OSThread_s OSThread;
 extern void osCreateMesgQueue(OSMesgQueue *, OSMesg *, s32);
 extern s32 osRecvMesg(OSMesgQueue *, OSMesg *, s32);
 extern s32 osSendMesg(OSMesgQueue *, OSMesg, s32);
-extern void osWritebackDCache(void *, s32);
 
 VIEW(void (*)(s32,  s32,  s32,  s32,  s8 *,  s8 *,  s32), gErrorFunc);
 #define gErrorFunc gErrorFunc_view
@@ -113,16 +112,12 @@ s32 PS_FlushFileInternal(tPakHandle *handle, s32 mode) {
     s8 retry, callback_value;
     u8 *address;
     s32 bytes, offset;
-    u8 **allocation;
     if (!handle) return 1;
     index = handle->file->pak;
     slot_index = handle->file->fileNo;
-    allocation = handle->file->data;
     if (!gPaks[index].files[slot_index].dirty) return 1;
-    osWritebackDCache(*allocation, handle->file->size);
     if (pak_find_dirty_run(handle, &address, &bytes, &offset)) {
         do {
-            osWritebackDCache(address, bytes);
 write_retry:
             result = osPfsReadWriteFile(&gPaks[index].pfs, slot_index, 1, offset, bytes, address);
             if (result) {
