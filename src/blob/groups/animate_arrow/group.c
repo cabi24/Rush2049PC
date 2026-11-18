@@ -6,17 +6,6 @@
  * drawn on the view's edge instead, pointing the way to turn. */
 #include "game/game.h"
 
-/* A car visual (MAT3 tVisual). PC: 0x28 bytes: next, data and func are pointer-sized (struct pc_visual,
- * docs/port/CARS.md 3). */
-typedef struct tVisual {
-    struct tVisual *next;
-    s16 index;      /* 4: the view this arrow is drawn in */
-    s16 objnum;     /* 6: its polygon (PolyInstanceList) */
-    s16 slot;       /* 8: the car it marks */
-    uintptr_t data;
-    f32 timeStamp;
-    void (*func)(struct tVisual *, s16);
-} tVisual;
 /* The car record (tCarData, N64 offsets; docs/port/CARS.md 2): its place, its crash and its battle state. */
 typedef struct tCarData {
     u8 pad0[8];

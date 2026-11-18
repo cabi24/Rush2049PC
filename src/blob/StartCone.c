@@ -105,6 +105,6 @@ void StartCone(tTarget *t)
     }
     CopyUV(tmat, t->mat.uvs);
     v->next = gEnvList;
-    gEnvList = (struct tVisual *) v;
+    gEnvList = (tVisual *) v;
     PlayTargetSound(targetInfo[t->infoIdx].sound, t->slot, t->mat.pos, 2);
 }

@@ -1,19 +1,11 @@
 /* UpdateEnvirons.c: animate the environment visuals for a frame (MAT3 visuals.c, UpdateEnvirons()). */
 #include "game/game.h"
 
-/* A visual (tVisual) on the PC: 0x28 bytes, next, data and func pointer-sized (struct pc_visual, docs/port/CARS.md 3). */
-typedef struct tVisual {
-    struct tVisual *next;
-    s16 index, objnum, slot;
-    uintptr_t data;
-    f32 timeStamp;
-    M2C_UNK (*func)(struct tVisual *v, M2C_UNK op);   /* its animator */
-} tVisual;
 
 /* Call each visual's animator on gEnvList with op 1 (update), then the skid marks'. The next visual is read before
  * the call, since an animator may release its own visual (ReleaseEnviron unlinks it). */
 void UpdateEnvirons(void) {
-    M2C_UNK (*func)(tVisual *, M2C_UNK);
+    void (*func)(tVisual *, s16);
     tVisual *v;
     tVisual *next;
 

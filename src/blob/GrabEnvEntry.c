@@ -1,16 +1,6 @@
 /* GrabEnvEntry.c: take a visual from the pool of environment visuals (MAT3 visuals.c, GrabEnvEntry()). */
 #include "game/game.h"
 
-/* A visual (tVisual) on the PC: 0x28 bytes, next, data and func pointer-sized (struct pc_visual, docs/port/CARS.md 3). */
-typedef struct tVisual {
-    struct tVisual *next;
-    s16 index;
-    s16 objnum;                 /* its scene object, -1 none */
-    s16 slot;
-    uintptr_t data;
-    f32 timeStamp;
-    void *func;                 /* its animator */
-} tVisual;
 
 /* Unlink the first free visual from gFreeVis, count it in use (gEnvCount, and its high-water mark gEnvCountMax)
  * and return it cleared, with no scene object; NULL when the pool is used up. The caller fills it in and puts it on

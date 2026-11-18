@@ -9,7 +9,6 @@
 /* Data a game file defines with a type of its own (a tentative definition, or an initialized one): the files
  * that define them declare them, so include/game can't; their layout is still this one. */
 extern f32 gDummyVtx[EXTENT(4)][3];   /* src/blob/groups/animate_arrow/group.c: defines it */
-extern EnvironNode gEnvirons[EXTENT(100)];   /* src/blob/InitEnvs.c: defines it */
 extern tTarget *CollisionTargetPtrs[EXTENT(30)];   /* src/blob/InitCollisionTargetPtrs.c: defines it */
 extern PlayerInput gPlayers[EXTENT(4)];   /* src/blob/groups/game_sounds/InitOptions.c: defines it */
 extern void (*gOPPFuncs[EXTENT(10)])(void);   /* src/blob/groups/hal_time/group.c: defines it */

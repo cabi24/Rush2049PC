@@ -3,18 +3,6 @@
 
 typedef f32 Vec3[3];
 
-/* A car visual (tVisual) on the PC: 0x28 bytes, next, data and func pointer-sized (struct pc_visual); a tire keeps
- * its turned angle in the data word's low half, a float (docs/port/CARS.md 3). */
-typedef struct tVisual {
-    void *next;
-    s16 index,objnum,slot,pad;   /* index: the tire, 0-3 */
-    union {
-        uintptr_t word;
-        f32 angle;               /* the angle the tire has turned through, radians (StartTire clears the word) */
-    } data;
-    f32 timeStamp;
-    void (*func)(void);
-} tVisual;
 /* A tire's state in the model record, seen from 8 bytes into MAT3's tire record (which starts at +0x430), so its
  * angvel is at +0x40 here (MAT3's +0x48). */
 typedef struct TireView {
@@ -133,10 +121,10 @@ void AnimateTire(tVisual *v, s16 op)
         gCamera[camera].view2spring = gCamera[camera].view2spring * PC_SPRING_KEEP(0.75f) + PC_SPRING_NOISE(spring2, 0.75f);
     }
     vel = m->tires[tire].angvel;
-    lastpos = v->data.angle;
+    lastpos = v->angle;           /* StartTire clears the data word */
     if (vel > 64.0f) lastpos += PC_FSCALE(3.7f);
     else lastpos += vel * (gModelTime - v->timeStamp);
-    v->data.angle = lastpos;
+    v->angle = lastpos;
     v->timeStamp = gModelTime;
     rpy[0] = -lastpos;
     rpy[1] = (tire < 2) ? -m->steerangle : 0;

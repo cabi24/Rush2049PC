@@ -14,17 +14,6 @@ typedef struct tBlastObj {
     unsigned char alpha; unsigned char alphaInc; signed short unused; float ht;
 } tBlastObj;
 
-/* A visual (MAT3 tVisual; the offsets are the N64's). PC: 0x28 bytes: next, data and func are pointer-sized (struct
- * pc_visual, docs/port/CARS.md 3). */
-typedef struct tVisual {
-    struct tVisual *next;       /* 0x00 */
-    s16 index;                  /* 0x04 the blast sprite's frame */
-    s16 objnum;                 /* 0x06 its scene object */
-    s16 slot;                   /* 0x08 the car, -1 none */
-    uintptr_t data;             /* 0x0C */
-    float timeStamp;            /* 0x10 */
-    void (*func)(struct tVisual *, s16);   /* 0x14 */
-} tVisual;
 
 /* On the PC the blasts and their rings are pc_blasts and pc_blast_rings, PC_MAX_LINKS long, with no N64 address
  * (pc_game_types.h, docs/port/DECOUPLE.md 6), with these views' MAT3 field names. */

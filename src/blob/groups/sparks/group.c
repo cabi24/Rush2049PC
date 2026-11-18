@@ -23,13 +23,6 @@ typedef struct {
     u8 pad3A4[0x3B8 - 0x3A4];
 } tCarData;
 
-/* A car visual (MAT3 tVisual) as the sparks use it. PC: next is a host pointer. */
-typedef struct tVisual {
-    /* 0x0 */ void *next;
-    /* 0x8 */ s16 index;        /* the spark's texture, 0-5, -1 not sparking */
-    /* 0xA */ s16 objnum;       /* the spark's scene object */
-    /* 0xC */ s16 slot;         /* the car */
-} tVisual;
 
 /* A tire of the model record (MAT3 anon_tradius_springK_5c, 0x5C bytes): its radius. */
 typedef struct { f32 tradius; u8 pad04[0x5C - 4]; } Tire;

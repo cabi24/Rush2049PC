@@ -328,7 +328,7 @@ static void test_stop_visuals(void)
 
     CF(c, 0xF4, int32_t) = 0;
     for (k = 0; k < 21; k++) {
-        c->visuals[k].func = (k % 3 == 0) ? NULL : (void (*)(void *, short))recorder;
+        c->visuals[k].func = (k % 3 == 0) ? NULL : (void (*)(tVisual *, short))recorder;
         c->visuals[k].objnum = (int16_t)(200 + k);
     }
     g_ncalled = 0, g_nloads = 0;
@@ -352,12 +352,12 @@ static void test_env_pool(void)
 
     InitEnvs();
     CHECK(gFreeVis == &gEnvirons[0] && gEnvirons[0].next == &gEnvirons[1] && gEnvirons[99].next == NULL);
-    gEnvirons[1].data = 0x1234, gEnvirons[1].func = (void (*)(void *, short))recorder;
+    gEnvirons[1].data = 0x1234, gEnvirons[1].func = (void (*)(tVisual *, short))recorder;
     a = GrabEnvEntry(), b = GrabEnvEntry(), c = GrabEnvEntry();
     CHECK(a == &gEnvirons[0] && b == &gEnvirons[1] && c == &gEnvirons[2] && gEnvCount == 3);
     CHECK(b->next == NULL && b->index == 0 && b->objnum == -1 && b->slot == 0 && b->data == 0 && b->func == NULL);
     CHECK(b->timeStamp == 0.0f && gFreeVis == &gEnvirons[3]);
-    b->func = (void (*)(void *, short))recorder, b->objnum = 9;
+    b->func = (void (*)(tVisual *, short))recorder, b->objnum = 9;
     a->next = b, b->next = c, c->next = NULL, gEnvList = a;
     g_nloads = 0;
     ReleaseEnviron(b, 1);

@@ -6,6 +6,13 @@
 #ifndef PC_GAME_TYPES_H
 #define PC_GAME_TYPES_H
 
+/* A pointer-sized integer, as the prelude has it (a PC layer file may include this header alone; one that includes
+ * <stdint.h> too declares the same type twice, which C11 allows). */
+#ifndef PC_UINTPTR_T
+#define PC_UINTPTR_T
+typedef __UINTPTR_TYPE__ uintptr_t;
+#endif
+
 /* ---- The race roster: arcade and MAT3 gLink (13 records of 8 bytes on the N64, BSS).
  * One record per car slot: who drives it and how it starts. The N64 game activates 6 slots (its MAX_LINKS: the
  * per-car arrays are 6 long), but LoadCars, InitVisuals and InitSelectCarLoad walk all 13, so the storage is never
@@ -290,18 +297,24 @@ extern struct pc_model pc_models[PC_MODEL_SLOTS];
 #define PC_N64_CAR_SLOTS 6
 #define PC_CAR_SLOTS (PC_MAX_LINKS > PC_N64_CAR_SLOTS ? PC_MAX_LINKS : PC_N64_CAR_SLOTS)
 
-/* A visual (MAT3 tVisual: N64 0x18 bytes, PC 0x28): one of a car's 21 (the car record at +0x110) or of the
- * environment visual pool gEnvirons, animated each frame by its func. next and func are host pointers. data is
- * MAT3's data word: the N64 kept a 32-bit address in it, so on the PC it is pointer-sized: an environment visual
- * keeps the target it animates there (a tTarget *, the level-object nodes, docs/port/POINTERS.md 10.2), a car's
- * visuals keep numbers (a wing's side and state, a tire's angle as a float in its low half: docs/port/CARS.md 3). */
+/* A visual (MAT3 tVisual; the game's code names it tVisual): something its func animates each frame, one of a car's
+ * 21 (pc_car.visuals) or of the environment visuals' pool gEnvirons (the track's animated objects, the blasts). data
+ * is MAT3's data word, pointer-sized on the PC: an environment visual keeps the target it animates there (a tTarget *,
+ * the level-object nodes, docs/port/POINTERS.md 10.2), a car's visuals keep numbers (a wing's side and its state
+ * bits), and a tire the angle it has turned through, a float in the word's first four bytes (docs/port/CARS.md 3). */
 struct pc_visual {
-    void *next;                         /* +0x00 the next on its list (gEnvList, the free list) */
-    short index, objnum, slot;          /* +0x08 an index of the animator's own, the scene object, the car */
-    __UINTPTR_TYPE__ data;              /* +0x10 the data word: a pointer or a number (uintptr_t) */
-    float timeStamp;                    /* +0x18 the animator's time */
-    void (*func)(void *, short);        /* +0x20 the animator: op 1 each frame, op 0 to release it */
+    struct pc_visual *next;             /* the next on its list (gEnvList, the free list gFreeVis) */
+    short index;                        /* a number of the animator's own: a tire's, a spark's texture, an arrow's view */
+    short objnum;                       /* its scene object (ObjInstanceList) or polygon (PolyInstanceList), -1 none */
+    short slot;                         /* its car */
+    union {
+        uintptr_t data;                 /* the data word: a pointer or a number */
+        float angle;                    /* a tire's: the angle it has turned through, radians (AnimateTire) */
+    };
+    float timeStamp;                    /* the animator's own time */
+    void (*func)(struct pc_visual *v, short op);   /* the animator: op 1 each frame, op 0 to stop; NULL none */
 };
+typedef struct pc_visual tVisual;
 
 /* The drone's path state inside the car record (MAT3 tCarData.mpctl, a tPathPoint, with its field names; maxpath.c):
  * no pointers, the same layout on both. Code takes its address (&PC_CAR_NAV(i)). */

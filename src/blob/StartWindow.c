@@ -38,6 +38,6 @@ void StartWindow(tTarget *t)
     }
     t->Flags &= ~(TARGET_ACTIVE | TARGET_HIT);
     v->next = gEnvList;
-    gEnvList = (struct tVisual *) v;
+    gEnvList = (tVisual *) v;
     PlayTargetSound(targetInfo[t->infoIdx].sound, t->slot, t->mat.pos, 2);
 }

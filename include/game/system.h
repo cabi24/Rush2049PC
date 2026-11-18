@@ -375,7 +375,7 @@ void SetPausePlayer(s32 player);
 void slot_forget(struct Obj **node);
 void sound_list_init(struct List *list, s8 handle, s8 dbl);
 s16 TB_GetFontHeight_Speed(void);
-void wing_extend(struct Visual *v, struct Model2056 *model);
+void wing_extend(tVisual *v, struct Model2056 *model);
 void wing_sound_off(struct Model2056 *model);
 void wing_sound_on(struct Model2056 *model);
 void update_drone_models(void);

@@ -6,8 +6,11 @@
 /* What is left of the N64's memory map: the cartridge's bus addresses and the display lists' segments. */
 #include "pc_n64_map.h"
 
-/* Pointer-sized integers. */
+/* Pointer-sized integers (uintptr_t also in pc_game_types.h, for the PC layer's files that include it alone). */
+#ifndef PC_UINTPTR_T
+#define PC_UINTPTR_T
 typedef __UINTPTR_TYPE__ uintptr_t;
+#endif
 typedef __INTPTR_TYPE__ intptr_t;
 
 /* A palette's colour (a TLUT entry, RGBA 5551) where a file holds it: the files' texels and TLUTs keep the N64's texel
@@ -46,8 +49,8 @@ unsigned int pc_n64_identity(const void *p);
 void pc_os_spin_yield(const char *site);
 void pc_os_idle(void);
 
-/* A visual (tVisual: N64 0x18 bytes, PC 0x28), struct pc_visual, is declared with the car record in
- * pc_game_types.h (included at the end), for views of the car record that pad over the car's 21 visuals. */
+/* A visual (tVisual, struct pc_visual) is declared with the car record, which holds 21 of them, in pc_game_types.h
+ * (included at the end). */
 
 /* NewMultiBlit's descriptor (NewMultiBlit; MultiBlit, arcade LIB/blit.h): N64 36 bytes, PC 48, its texture name and
  * animation function being pointers. A file whose declaration of such a table has no layout (s32, u8[]) declares it

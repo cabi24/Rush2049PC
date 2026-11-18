@@ -1,9 +1,6 @@
 /* AnimateWingFlame.c (visuals): a car's wing flame each frame (MAT3 visuals.c, AnimateWingFlame()). */
 #include "game/game.h"
 
-/* A car visual (tVisual) on the PC: 0x28 bytes, next, data and func pointer-sized (struct pc_visual, docs/port/CARS.md
- * 3). */
-typedef struct tVisual {void *next;s16 index,objnum,slot;u16 pad;uintptr_t data;u32 timeStamp;intptr_t func;} tVisual;
 /* The car record (tCarData, N64 layout: docs/port/CARS.md 2), the fields AnimateWingFlame reads. */
 typedef struct tCarData {u8 pad0[0xE8];u32 appearance;u8 pad0EC[0x110 - 0xEC]; struct pc_visual visuals[21]; u8 pad308[0x35C - 0x308];s8 camera,view,saveview,carMine;u8 pad360[0x380 - 0x360];tPadState *player;u8 pad384[0x3B8 - 0x384];} tCarData;
 

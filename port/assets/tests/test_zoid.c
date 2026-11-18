@@ -161,7 +161,7 @@ int main(void)
         AnimateFlag(&o, 1);
         CHECK(g_pal_name == flag_pals[1]);
         CHECK(ObjInstanceList[c].pal == g_palette && (m->Flags & 1) && m->frames == 10 && o.index == 3);
-        CHECK(o.func == (void (*)(void *, short))AnimateObjSwapGeneric && o.timeStamp == 0.0f);
+        CHECK(o.func == (void (*)(tVisual *, short))AnimateObjSwapGeneric && o.timeStamp == 0.0f);
     }
 
     /* Hiding walks the children; the collision walk follows them. */

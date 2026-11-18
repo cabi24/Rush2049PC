@@ -29,17 +29,6 @@ typedef struct Car {
     Battle battle;        /* 0x384 */
 } Car;
 
-/* A visual (MAT3 tVisual; the PC's 0x28-byte struct pc_visual: next, data and func are pointer-sized). The offsets
- * are the N64's. */
-typedef struct Visual {
-    struct Visual *next;  /* 0x00 */
-    s16 index;            /* 0x04 */
-    s16 objnum;           /* 0x06 */
-    s16 slot;             /* 0x08 */
-    uintptr_t data;       /* 0x0c */
-    f32 timeStamp;        /* 0x10 */
-    void (*func)(struct Visual *, s16); /* 0x14 */
-} Visual;
 
 
 f32 weaponOffsets[8][13][3] = {
@@ -108,7 +97,7 @@ void RemoveCannMFlash(s16 slot)
 
 /* The weapon visual of a car (`v`; `op` 0 removes it): the weapon's model follows the car's weapon type (the
  * car's frame, its offset by body), the flashes and the ripple fade, and the weapon goes when the car has none. */
-void AnimateWeapon(Visual *v, s16 op)
+void AnimateWeapon(tVisual *v, s16 op)
 {
     Car *car = PC_CAR(v->slot);
     s32 def;

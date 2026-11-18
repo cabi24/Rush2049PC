@@ -227,7 +227,6 @@ struct Vec3;
 struct Vehicle2056;
 struct VehicleModel;
 struct View;
-struct Visual;
 struct Voice;
 struct VoiceControls;
 struct VoicePrefix;
@@ -264,7 +263,6 @@ struct tSfxEmitter;
 struct tSfxListener;
 struct tSfxVoice;
 struct tTexture;
-struct tVisual;
 struct tree_desc_s;
 struct z_stream_s;
 union Color;
@@ -1987,19 +1985,6 @@ typedef struct Collision16 { /* 0x10 bytes */
     f32 side;   /* 0x8 */
     f32 height; /* 0xC */
 } Collision16;
-
-/* An environment visual, an entry of gEnvirons (a tVisual, struct pc_visual's layout: the next on its list, its
- * index, scene node and car slot, a data word, a time and its animator). The data word is pointer-sized: a target's
- * visual keeps its node there (a tTarget *). */
-typedef struct EnvironNode { /* 0x28 bytes */
-    struct Node *next; /* 0x0 */
-    s16 index;         /* 0x8 */
-    s16 objnum;        /* 0xA */
-    s16 slot;          /* 0xC */
-    uintptr_t data;    /* 0x10 */
-    f32 timeStamp;     /* 0x18 */
-    void *func;        /* 0x20 */
-} EnvironNode;
 
 /* A skid mark, an entry of gSkidArray (MAT3 tSkid): its list links, when it last grew, its polygon, its middle, its
  * colour, and whether it has stopped (and so fades). */

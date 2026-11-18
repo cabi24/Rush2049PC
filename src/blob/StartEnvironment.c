@@ -2,17 +2,6 @@
  * StartShadow(), StartArrow()). */
 #include "game/game.h"
 
-/* A car visual (tVisual) on the PC: 0x28 bytes, next, data and func pointer-sized (struct pc_visual,
- * docs/port/CARS.md 3). */
-typedef struct tVisual {
-    struct tVisual *next;       /* 0x00 */
-    s16 index;                  /* 0x08 */
-    s16 objnum;                 /* 0x0A */
-    s16 slot;                   /* 0x0C */
-    uintptr_t data;             /* 0x10 */
-    float timeStamp;            /* 0x18 */
-    void (*func)(struct tVisual *, s16);   /* 0x20 */
-} tVisual;
 
 typedef PolyInstance tPoly;   /* a flat polygon (MAT3 tPoly) */
 
