@@ -30,7 +30,7 @@ void AbortGame(void)
         RemoveBlit(multiPlayerBlit);
         multiPlayerBlit=0;
     }
-    for(i=0;i<gNumActiveCars;i++) End_MDrive(PC_MODEL_SLOT(i));
+    for(i=0;i<gNumActiveCars;i++) End_MDrive(pc_models[i].slot);
     modelstop();
     StopListeners();
     while((node=gEnvList)!=0) ReleaseEnviron(node,1);

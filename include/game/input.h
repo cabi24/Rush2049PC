@@ -85,7 +85,7 @@ void InitControlSys(void);
 void InitRushControls(void);
 void loading_effect_none(void);
 f32 PotRange(f32 range, f32 calib, s32 raw);
-void ReadGasAndBrake(struct CarState *car, struct InputRecord *player);
+void ReadGasAndBrake(struct tModelData *car, struct InputRecord *player);
 void SetControllerActive(s32 player, s32 value);
 void SetControllerStickEdges(s32 player, s32 value);
 void SetControls(s32 resetToDefault);

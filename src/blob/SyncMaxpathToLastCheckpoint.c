@@ -8,5 +8,5 @@ void SyncMaxpathToLastCheckpoint(s16 slot)
     struct pc_car *car;
 
     car = PC_CAR(slot);
-    car->nav.newIdx = gCheckpoints.points[PC_MODEL_LAST_CP(slot)].pathPts[car->nav.path + 1];
+    car->nav.newIdx = gCheckpoints.points[pc_models[slot].last_cp_index].pathPts[car->nav.path + 1];
 }

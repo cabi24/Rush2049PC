@@ -31,7 +31,7 @@ void MissileLock(Object *object)
     for (player = PC_CARS; player < PC_CARS_END(gNumCars); player++) {
         if (object->owner != player->slot &&
             gCarTeam[object->owner] != gCarTeam[player->slot] &&
-            !PC_MODEL_CRASHFLAG(player->slot) && player->collidable && !player->dead) {
+            !pc_models[player->slot].crashflag && player->collidable && !player->dead) {
             delta[0] = player->position[0] - object->position[0];
             delta[1] = player->position[1] - object->position[1];
             delta[2] = player->position[2] - object->position[2];

@@ -1,21 +1,6 @@
 /* CarSetup: the cars' visuals once their models are ready (MAT3 game.c). */
 #include "game/game.h"
 
-/* The model record (MAT3 tModelData): the fields this reads. */
-struct tModelData {
-    _tCar *car;
-    Tune44 *tune;
-    u8 body_type;       /* 0x008 the car's body (the roster's car) */
-    u8 pad9[0x3A0 - 0x9];
-    streetyp *lasttp[4];
-    u8 pad3B0[0x40C - 0x3B0];
-    const s16 *torquecurve;
-    u8 pad410[0x648 - 0x410];
-    surftyp *movingSurface;
-    u8 pad64C[0x7DD - 0x64C];
-    s8 data_valid;      /* 0x7DD the model thread has filled it in */
-};
-
 /* carsetup_flag is the PC's pc_carsetup_flags, a flag per car slot (pc_game_types.h, docs/port/DECOUPLE.md 8). */
 #define carsetup_flag PC_CARSETUP_FLAG(0)
 
@@ -29,9 +14,9 @@ void CarSetup(void) {
     i = 0;
     if ((s8) gNumActiveCars > 0) {
         do {
-            slot = PC_MODEL_SLOT(i);
+            slot = pc_models[i].slot;
             done = (s32 *) ((u8 *) &carsetup_flag + slot);
-            m = PC_MODEL(slot);
+            m = &pc_models[slot];
             if (m->data_valid != 0) {
                 if (*done == 0) {
                     SetupCar(slot, m->body_type, 1);

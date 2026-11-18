@@ -12,58 +12,6 @@ typedef struct PadTrans {
     void *save;                 /* +0x48 */
 } PadTrans;
 
-/* The model record (tModelData, docs/port/CARS.md 4), the fields init_cars sets. */
-typedef struct tModelData {
-    _tCar *car;                 /* +0x000 the physics descriptor */
-    Tune44 *tune;               /* +0x004 its tune (carsetup) */
-    s8 body_type;               /* +0x008 the car type, 0-12 */
-    s8 trans;
-    s8 autotrans;
-    s8 handling;                /* the per-player choices (gCarHandling ... gTireRims) */
-    s8 engine_type;
-    s8 tire_type;
-    s8 frame;
-    s8 tireRims;
-    u8 pad010[228];
-    float bodyR[4][3];          /* +0x0F4 the body's four collision corners, feet */
-    u8 pad124[636];
-    streetyp *lasttp[4];
-    u8 pad3B0[76];
-    s32 wingSnd;                /* +0x3FC */
-    float catchup;              /* +0x400 */
-    u8 pad404[8];
-    const s16 *torquecurve;
-    u8 pad410[568];
-    surftyp *movingSurface;
-    u8 pad64C[8];
-    float colrad;               /* +0x654 the collision radius, feet */
-    u8 pad658[108];
-    s16 moving_state;           /* +0x6C4 resurrect.moving_state */
-    u8 pad6C6[82];
-    float dt;                   /* +0x718 fastin.dt: the model step, kept across the reset */
-    u8 pad71C[168];
-    s16 obResPt;                /* +0x7C4 */
-    s16 slot;
-    s16 in_game;
-    s16 we_control;             /* the computer drives it: a drone of this machine's */
-    s8 drone_type;              /* +0x7CC DRONE_TYPE_NONE 0, AI 1, HUMAN 2 */
-    s8 color[3];                /* +0x7CD the three paint colours (MAT3 PaintJob) */
-    u8 pad7D0[4];
-    s32 appearance;             /* +0x7D4 APPEAR_* */
-    u8 pad7D8[4];
-    s8 started;
-    s8 data_valid;
-    u8 pad7DE[4];
-    s16 last_cp_index;          /* +0x7E2 */
-    s16 next_cp_index;
-    s16 drone_target;
-    u8 pad7E8[2];
-    s8 collidable;              /* +0x7EA */
-    s8 solid;
-    float drone_scale;          /* +0x7EC */
-    float time_boost;
-    u8 pad7F4[20];
-} tModelData;
 /* The car record (tCarData, N64 layout: docs/port/CARS.md 2), the fields init_cars sets. */
 typedef struct tCarData {
     u8 pad000[232];
@@ -121,12 +69,12 @@ void init_cars(void) {
     float dt,value,maxlen;
     gNumActiveCars=0;
     for(i=0;i<gNumCars;i++) {
-        m=PC_MODEL(i);
+        m=&pc_models[i];
         car=PC_CAR(i);
-        dt=m->dt;
+        dt=m->fastin.dt;
         for(j=0;j<sizeof(tModelData);j++)
             ((s8 *)m)[j]=0;
-        m->dt=dt;
+        m->fastin.dt=dt;
         for(j=0;j<sizeof(tCarData);j++)
             ((s8 *)car)[j]=0;
         m->car=gCarModels[0];
@@ -146,13 +94,13 @@ void init_cars(void) {
         car->last_distance=-100.0f;
         m->catchup=1.0f;
         m->obResPt=0;
-        m->moving_state=RES_IDLE;
+        m->resurrect.moving_state=RES_IDLE;
         car->crash_state=CRASH_NONE;
         m->wingSnd=-1;
         InitCarVisuals(car);
         m->in_game=(PC_LINK_FLAGS(i)&0x80)!=0;
         if(m->in_game) {
-            PC_MODEL_SLOT(gNumActiveCars++)=i;
+            pc_models[gNumActiveCars++].slot=i;
             car->slot=i;
             car->place=PC_LINK_PLACE(i);
             m->drone_type=PC_LINK_OWNER(i)<6?1:2;   /* DRONE_TYPE_AI, DRONE_TYPE_HUMAN */
@@ -227,14 +175,14 @@ void init_cars(void) {
         }
     }
     for(i=gNumCars;i<CLEAR_SLOTS;i++) {
-        m=PC_MODEL(i);
+        m=&pc_models[i];
         m->we_control=PC_LINK_OWNER(i)==0;   /* LINK_OWNER_DRONE */
         m->drone_type=0;   /* DRONE_TYPE_NONE */
         m->in_game=0;
     }
     if(gGameState&GS_DEMO) {
-        PC_MODEL_INPUT_FLAGS(0)=0;
-        PC_MODEL_AUTOTRANS(0)=1;
+        pc_models[0].trans=0;
+        pc_models[0].autotrans=1;
     }
     gOneMoreCP=0;
     sched_to_use=num_our_drones;

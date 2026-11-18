@@ -1,7 +1,8 @@
 # Game data the PC owns outright, with no N64 address (docs/port/DECOUPLE.md), for tools/port/gen_data.py.
 # Format: PC_NAME N64_NAME N64_SIZE [ALIAS ...] [init=image [period=K]]
 #
-# PC_NAME is the PC's symbol: declared once for the game C (port/include/pc_game_types.h), defined by data.c with
+# PC_NAME is the PC's symbol: declared once for the game C (port/include/pc_game_types.h; the model records in
+# include/game/modeldata.h, with their record), defined by data.c with
 # the host size its declarations give (every reader's must be the same type), zero at startup like BSS, outside the
 # arenas and not in the loader's tables. N64_NAME at its N64 address and N64_SIZE bytes from it are retired:
 # the arena has no symbol there, and a game object that still references N64_NAME, an ALIAS or any symbol-table
@@ -16,9 +17,10 @@
 # retired with the range.
 pc_links   gLink   0x68
 
-# The model records (MAT3 model[], tModelData): struct pc_model[PC_MODEL_SLOTS], 6 records of 0x808 bytes on the N64
-# (0x8014A250-0x8014D280), the same layout on the PC. The alias is the name inside it the game C reached by name,
-# model_modelrun (+0x71C, read with a stride of 0x808); it also reached the array's second label and [0]'s
+# The model records (MAT3 model[]): tModelData[PC_MODEL_SLOTS] (include/game/modeldata.h), 6 records of 0x808 bytes on
+# the N64 (0x8014A250-0x8014D280), 0x830 on the PC (its five pointers 8 bytes wide). The alias is the name inside it
+# the game C reached by name, model_modelrun (+0x71C, read with a stride of 0x808); it also reached the array's second
+# label and [0]'s
 # fields at +0x8, +0x3F0, +0x640, +0x6C4, +0x714, +0x7C4, +0x7C6, +0x7E2 and +0x7EA through labels of the image
 # symbol tables, retired with the range, as are the tables' other labels inside it.
 pc_models  model  0x3030  model_modelrun

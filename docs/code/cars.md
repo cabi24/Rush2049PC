@@ -27,14 +27,15 @@ The records:
 
 | Record | Where | Layout | What |
 |---|---|---|---|
-| model, `tModelData` | `pc_models[12]` (port/include/pc_game_types.h `struct pc_model`) | MAT3's field for field, its five pointers host pointers: 0x830 bytes (the N64's 0x808) | one car's physics state: forces, velocities, position, orientation (`uvs`), the four tires, the drivetrain, the controls (`mainin`), the respawn (`resurrect`), the race state |
+| model, `tModelData` | `pc_models[12]` (include/game/modeldata.h, which physics.h includes) | MAT3's field for field, its five pointers host pointers: 0x830 bytes (the N64's 0x808) | one car's physics state: forces, velocities, position, orientation (`uvs`), the four tires, the drivetrain, the controls (`mainin`), the respawn (`resurrect`), the race state |
 | car, `tCarData` | `pc_cars[12]` (`struct pc_car`) | host: the N64's field order with the 21 visuals and the input pointer widened, 0x510 bytes | what the game thread shows: the dead-reckoned position (`dr_pos`, `dr_uvs`), `appearance`, the place, the scene node (`objnum`), the 21 visuals, the crash state, the battle block |
 | visual, `tVisual` | in the car record (`visuals[21]`), and the environment pool `gEnvirons[100]` | host, 0x28 bytes | one animated thing: its scene node, a data word (pointer-sized: an environment visual's target), a time and its animator `func(v, op)` |
 | car descriptor, `_tCar` | `gCarModels[13]`, through the model's `car` | the N64's (arena data), 0xB4 bytes | a car's fixed physics: inertia, springs, damping, the tire descriptors (`tires[4]`, window addresses), the tire arms `tireR[4][3]`, the drivetrain constants |
 | tune, `Tune44` | `gTune[3]`, through the model's `tune` | 11 floats | the handling's scales (MAT3: diffbl, weight_scale, torque_scale, trans_scale, clutchmaxtk, shiftk, fwdfk, sidefk, skidk, antispin, drift) |
 
-Every file declares its own partial view of the model and car records, named `tModelData` and `tCarData` with
-MAT3's field names; the car views write N64 offsets in their padding and put `struct pc_visual visuals[21]` at
+The model record has one declaration, `tModelData`, with all of MAT3's fields ([RECORDS.md](../port/RECORDS.md)
+2.1). Every file declares its own partial view of the car record, named `tCarData` with MAT3's field names; the car
+views write N64 offsets in their padding and put `struct pc_visual visuals[21]` at
 0x110, so the compiler lays the later fields out at their PC offsets (CARS.md 2.2). The N64's car record has 21
 visuals where MAT3's has 22, so after the visuals an N64 offset is MAT3's less 0x18, and the N64's battle block has
 one more word (at 0x39C) than MAT3's.
@@ -268,14 +269,12 @@ encodings (`G_*`, libultra's names), and so do the walkers of the files' lists, 
 
 - **The model record** (done in wave 3 step 2, [CARS.md](../port/CARS.md) 4): its pointer fields (`car` +0, `tune`
   +4, `lasttp[4]` +0x3A0, `torquecurve` +0x40C, `movingSurface` +0x648, MAT3's offsets) are host pointers, and the
-  car descriptors (`car_descriptors`, own storage) hold host pointers to their tire records. Every file still declares
-  its own partial view of the record (with the five pointers); one shared definition, `struct pc_model`'s, could
-  replace them.
+  car descriptors (`car_descriptors`, own storage) hold host pointers to their tire records. Since wave 4 the record
+  has one declaration (`tModelData`, include/game/modeldata.h) in place of the files' partial views.
 - **The car record** is host data, but the views' padding is written in N64 offsets around `struct pc_visual
-  visuals[21]` (CARS.md 2), and a few fields are reached through accessors (`PC_CAR_*`, `PC_MODEL_*`); since wave 2c
+  visuals[21]` (CARS.md 2), and a few fields are reached through accessors (`PC_CAR_*`); since wave 2c
   the fields and accessors that were offsets or misread have MAT3's names (`camera`, `in_tunnel`, `stray_angle`,
-  `crash_state`, `shoot`, `fade_state`, `catchup`, `tire_rims` ...); left: `struct pc_model`'s `speed` is MAT3's
-  `magvel`, `lap` its `laps`.
+  `crash_state`, `shoot`, `fade_state` ...).
 - **The scene** emits N64 display lists (libultra's gbi.h macros, F3DEX2, s15.16 `Mtx`, viewports in quarter
   pixels) that port/gfx interprets; the WAD's records (TXHD, PLHD, OBHD, PTHD) are native beside the file since
   [NATIVE.md](../port/NATIVE.md) step 7, with host pointers to the texels, colours and display lists, and the car

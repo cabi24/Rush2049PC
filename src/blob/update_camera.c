@@ -17,23 +17,6 @@ typedef struct Object {
     s8 slot;            /* 860 */
     u8 view;            /* 861 */
 } Object;
-/* The model record (MAT3 tModelData): the fields this reads and clears. */
-typedef struct Model {
-    _tCar *car;
-    Tune44 *tune;
-    u8 other8[320];
-    f32 body_force[2][3];   /* 0x148 peak_body_force: the body's peak forces since the last frame, +x +z and -x -z */
-    f32 center_force[2][3]; /* 0x160 peak_center_force: the centre's */
-    u8 other376[552];
-    streetyp *lasttp[4];
-    u8 other944[92];
-    const s16 *torquecurve;
-    u8 other1040[568];
-    surftyp *movingSurface;
-    u8 other1612[120];
-    s16 moving_state;       /* 0x6C4 resurrect.moving_state: -1 unless being put back */
-    u8 other1734[322];
-} Model;                    /* 0x808 */
 
 extern void osStopThread(OSThread *);
 extern void osStartThread(OSThread *);
@@ -58,10 +41,10 @@ void update_camera(Object *object)
     s32 j;
     Vec3 pos_in;
     Vec3 pos_out;
-    Model *m;
+    tModelData *m;
     s32 slot;
 
-    m = PC_MODEL(object->car);
+    m = &pc_models[object->car];
     slot = object->slot;
     CAM.mat.pos[0] = object->pos[0];
     CAM.mat.pos[1] = object->pos[1];
@@ -82,18 +65,18 @@ void update_camera(Object *object)
     case 1:
         osStopThread(&model_thread);
         for (j = 0; j != 4; j += 2) {
-            if (m->center_force[0][j] > 100000.0f) m->center_force[0][j] = 100000.0f;
-            if (m->center_force[1][j] < -100000.0f) m->center_force[1][j] = -100000.0f;
-            if (m->body_force[0][j] > 100000.0f) m->body_force[0][j] = 100000.0f;
-            if (m->body_force[1][j] < -100000.0f) m->body_force[1][j] = -100000.0f;
-            pos_in[j] = m->center_force[0][j] * 0.00002f;
-            pos_in[j] += m->center_force[1][j] * 0.00002f;
-            m->center_force[0][j] = 0.0f;
-            m->center_force[1][j] = 0.0f;
-            pos_in[j] += m->body_force[0][j] * 0.00002f;
-            pos_in[j] += m->body_force[1][j] * 0.00002f;
-            m->body_force[0][j] = 0.0f;
-            m->body_force[1][j] = 0.0f;
+            if (m->peak_center_force[0][j] > 100000.0f) m->peak_center_force[0][j] = 100000.0f;
+            if (m->peak_center_force[1][j] < -100000.0f) m->peak_center_force[1][j] = -100000.0f;
+            if (m->peak_body_force[0][j] > 100000.0f) m->peak_body_force[0][j] = 100000.0f;
+            if (m->peak_body_force[1][j] < -100000.0f) m->peak_body_force[1][j] = -100000.0f;
+            pos_in[j] = m->peak_center_force[0][j] * 0.00002f;
+            pos_in[j] += m->peak_center_force[1][j] * 0.00002f;
+            m->peak_center_force[0][j] = 0.0f;
+            m->peak_center_force[1][j] = 0.0f;
+            pos_in[j] += m->peak_body_force[0][j] * 0.00002f;
+            pos_in[j] += m->peak_body_force[1][j] * 0.00002f;
+            m->peak_body_force[0][j] = 0.0f;
+            m->peak_body_force[1][j] = 0.0f;
         }
         osStartThread(&model_thread);
         for (i = 0; i != 4; i += 2) {
@@ -123,7 +106,7 @@ void update_camera(Object *object)
         CAM.mat.pos[0] = CAM.fcam.pos[0];
         CAM.mat.pos[1] = CAM.fcam.pos[1];
         CAM.mat.pos[2] = CAM.fcam.pos[2];
-        if (m->moving_state < 0) {
+        if (m->resurrect.moving_state < 0) {
             CameraCollision(CAM.mat.pos, pos_in);
         }
         break;

@@ -445,6 +445,7 @@ def read_gimple(text):
     """Functions of a forwprop1 dump: Func with local declarations (name -> type str), parameters and statements
     (line, text)."""
     funcs, f, state = [], None, None
+    anon = None   # an anonymous struct or union type GCC prints in full in a declaration: its lines so far
     for raw in text.splitlines():
         m = _FUNC.match(raw)
         if m:
@@ -453,6 +454,20 @@ def read_gimple(text):
             state = "sig"
             continue
         if f is None:
+            continue
+        # A local of an anonymous struct type (a member such as tModelData.mainin, or a pointer to one) is declared
+        # with the whole type: `struct`, `{`, its members, `} * _5;`. It is one declaration of an unnamed type.
+        if state == "decl" and anon is None and raw.strip() in ("struct", "union"):
+            anon = [raw.strip()]
+            continue
+        if anon is not None:
+            anon.append(raw.strip())
+            depth = sum(x.count("{") - x.count("}") for x in anon)
+            if depth == 0 and raw.strip().endswith(";") and raw.strip().startswith("}"):
+                mm = re.match(r"^\}\s*(.*?)\s*([A-Za-z_.$][\w.$]*)((?:\[[^\]]*\])*);$", raw.strip())
+                if mm:
+                    f.decls[mm.group(2)] = (anon[0] + " <anonymous> " + mm.group(1)).strip() + mm.group(3)
+                anon = None
             continue
         if state == "sig":
             if raw.strip() == "{":
@@ -2121,6 +2136,15 @@ void keep_handle(int i) { gHandles[i].whole = i * 3 + 1; }
 s16 handle_index(int i) { return gHandles[i].part.index; }
 extern int gTable[];
 int lookup(int i) { return gTable[gHandles[i].part.index]; }
+/* a record with an anonymous struct member (tModelData's tires): GCC's dump declares a temporary that points to it
+ * with the whole type, over several lines and ending in a `}` at the line's start, which is one declaration, not the
+ * function's end; the word written after it and read as bytes elsewhere is still a conflict */
+typedef struct Outer { u32 first; struct { u32 w; u8 c[4]; } part; Color col; } Outer;
+Outer gOuter[2];
+extern void sinkp(void *);
+void anon_part(Outer *o) { sinkp(&o->part); o->col.w = 0x12345678; }
+void anon_caller(int i) { anon_part(&gOuter[i]); }
+void draw_outer(int i) { sink(gOuter[i].col.c[0] << 24 | gOuter[i].col.c[1]); }
 """
 # (family, position made, width made, position used, width used, a function that made it) the self-test must
 # find, and (family, position) it must not
@@ -2128,7 +2152,8 @@ SELFTEST_EXPECT = [(("sym", "gRec"), 0x4, 4, 0x4, 1, "set_color"), (("sym", "gRe
                    (("sym", "gRec"), 0xC, 1, 0xC, 4, "set_bytes"), (("sym", "gRec"), 0x8, 2, 0x8, 4, "set_halves"),
                    (("local", "local_union", "c"), 0, 4, 0, 1, "local_union"),
                    (("sym", "gRec"), 0x4, 4, 0x4, 1, "make_word"), (("sym", "gRec"), 0x4, 4, 0x4, 1, "by_value"),
-                   (("sym", "gHandles"), 0x0, 4, 0x2, 2, "keep_handle")]
+                   (("sym", "gHandles"), 0x0, 4, 0x2, 2, "keep_handle"),
+                   (("sym", "gOuter"), 0xC, 4, 0xC, 1, "anon_part")]
 SELFTEST_ABSENT = [(("local", "neutral", "c"), None), (("sym", "gRec"), 0x0)]
 # (family, position, function) of the low-half reads (report section 2b) it must find, and no others
 SELFTEST_HALVES = [(("sym", "gHandles"), 0x2, "handle_index"), (("sym", "gHandles"), 0x2, "lookup")]

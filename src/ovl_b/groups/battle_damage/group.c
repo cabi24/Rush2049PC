@@ -9,7 +9,7 @@ typedef struct Player { u8 unknown000[0x110 - 0x0]; struct pc_visual visuals[21]
  * (defence 4) takes a fifth. At no health left the victim crashes and the attacker scores a point. */
 void BattleDamage(Player *attacker, Player *victim, s32 damage)
 {
-    if (PC_MODEL_CRASHFLAG(victim->slot)) return;
+    if (pc_models[victim->slot].crashflag) return;
     if (victim->slot == attacker->slot) return;
     if (gCarTeam[victim->slot] == gCarTeam[attacker->slot]) return;
     if (victim->defenseActive & 4) damage = damage * 0.2f;
@@ -18,6 +18,6 @@ void BattleDamage(Player *attacker, Player *victim, s32 damage)
     if (victim->health <= 0) {
         victim->health = 0;
         AddBattlePoint(attacker->slot, victim->slot, 1);
-        PC_MODEL_CRASHFLAG(victim->slot) = 1;
+        pc_models[victim->slot].crashflag = 1;
     }
 }

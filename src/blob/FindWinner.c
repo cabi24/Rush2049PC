@@ -21,8 +21,8 @@ void FindWinner(void)
       for (j = 0; j < gNumPlayers - 1; j++) {
         a = gRankedPlayer[j];
         b = gRankedPlayer[j + 1];
-        ia = PC_MODEL_SLOT(a);
-        ib = PC_MODEL_SLOT(b);
+        ia = pc_models[a].slot;
+        ib = pc_models[b].slot;
         if (ia + ib) {}
         if (gStuntPlayer[ia].totalPoints < gStuntPlayer[ib].totalPoints) {
           gRankedPlayer[j + 1] = a & 0xFF;
@@ -32,8 +32,8 @@ void FindWinner(void)
       }
     }
     for (i = 1; i < gNumPlayers; i++) {
-      f = PC_MODEL_SLOT(gRankedPlayer[0]);
-      c = PC_MODEL_SLOT(gRankedPlayer[i]);
+      f = pc_models[gRankedPlayer[0]].slot;
+      c = pc_models[gRankedPlayer[i]].slot;
       if (gStuntPlayer[f].totalPoints == gStuntPlayer[c].totalPoints) {
         ties++;
         tied[i] = 1;
@@ -45,8 +45,8 @@ void FindWinner(void)
       for (j = 0; j < gNumPlayers - 1; j++) {
         a = gRankedPlayer[j];
         b = gRankedPlayer[j + 1];
-        ia = PC_MODEL_SLOT(a);
-        ib = PC_MODEL_SLOT(b);
+        ia = pc_models[a].slot;
+        ib = pc_models[b].slot;
         if (PC_CAR_POINTS(ia) < PC_CAR_POINTS(ib)) {
           gRankedPlayer[j + 1] = a & 0xFF;
           gRankedPlayer[j] = b;
@@ -57,8 +57,8 @@ void FindWinner(void)
       for (j = 0; j < gNumPlayers - 1; j++) {
         a = gRankedPlayer[j];
         b = gRankedPlayer[j + 1];
-        ia = PC_MODEL_SLOT(a);
-        ib = PC_MODEL_SLOT(b);
+        ia = pc_models[a].slot;
+        ib = pc_models[b].slot;
         if (gTeamPoints[gCarTeam[ia]] < gTeamPoints[gCarTeam[ib]]) {
           gRankedPlayer[j + 1] = a & 0xFF;
           gRankedPlayer[j] = b;
@@ -66,8 +66,8 @@ void FindWinner(void)
       }
     }
     for (i = 1; i < gNumPlayers; i++) {
-      f = PC_MODEL_SLOT(gRankedPlayer[0]);
-      c = PC_MODEL_SLOT(gRankedPlayer[i]);
+      f = pc_models[gRankedPlayer[0]].slot;
+      c = pc_models[gRankedPlayer[i]].slot;
       if (PC_CAR_POINTS(f) == PC_CAR_POINTS(c)) {
         ties++;
         tied[i] = 1;
@@ -79,8 +79,8 @@ void FindWinner(void)
       for (j = 0; j < gNumPlayers - 1; j++) {
         a = gRankedPlayer[j];
         b = gRankedPlayer[j + 1];
-        ia = PC_MODEL_SLOT(a);
-        ib = PC_MODEL_SLOT(b);
+        ia = pc_models[a].slot;
+        ib = pc_models[b].slot;
         if (PC_CAR_PLACE(ib) < PC_CAR_PLACE(ia)) {
           gRankedPlayer[j + 1] = a & 0xFF;
           gRankedPlayer[j] = b;
@@ -88,8 +88,8 @@ void FindWinner(void)
       }
     }
     for (i = 1; i < gNumPlayers; i++) {
-      f = PC_MODEL_SLOT(gRankedPlayer[0]);
-      c = PC_MODEL_SLOT(gRankedPlayer[i]);
+      f = pc_models[gRankedPlayer[0]].slot;
+      c = pc_models[gRankedPlayer[i]].slot;
       if (PC_CAR_PLACE(f) == PC_CAR_PLACE(c)) {
         ties++;
         tied[i] = 1;

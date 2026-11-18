@@ -6,33 +6,6 @@
  * the push is hard enough. The object itself is not pushed. */
 #include "game/game.h"
 
-/* The model record (tModelData, docs/port/CARS.md 4), the fields used here. */
-typedef struct tModelData {
-    _tCar *car;
-    Tune44 *tune;
-    char pad8[0x11C];
-    f32 centerForce[3];         /* 0x124 the force on the body's centre this step, car frame */
-    char pad130[0x3A0 - 0x130];
-    streetyp *lasttp[4];
-    char pad3B0[0x40C - 0x3B0];
-    const s16 *torquecurve;
-    char pad410[0x5C4 - 0x410];
-    f32 collisionmass;          /* 0x5C4 its mass in collisions */
-    char pad5C8[0x63C - 0x5C8];
-    f32 crashthreshold;         /* 0x63C the force that crashes it */
-    s8 crashflag;               /* 0x640 */
-    char pad641[0x648 - 0x641];
-    surftyp *movingSurface;
-    char pad64C[0x788 - 0x64C];
-    f32 reckon_rwv[3];          /* 0x788 reckon.rwv: the velocity the collisions use */
-    f32 reckon_rwr[3];          /* 0x794 reckon.rwr: the position */
-    f32 reckon_uvs[3][3];       /* 0x7A0 reckon.uvs: the orientation */
-    char pad7C4[2];
-    s16 slot;                   /* 0x7C6 */
-    char pad7C8[4];
-    s8 drone_type;              /* 0x7CC DRONE_TYPE_HUMAN: a human's car */
-} tModelData;
-
 /* A track object as a body: tMiniModelData (game/types.h), whose box is a row of BBoxCollInfo (MINI_MODEL_BOX). */
 #define BBOX(m2) MINI_MODEL_BOX(m2)
 
@@ -60,9 +33,9 @@ void setMiniFBCollisionForce(s32 m_unused, tModelData *m, tMiniModelData *m2, f3
     s32 hum_car;
     s32 behind;
 
-    temp[0] = m->reckon_rwr[0] - m2->pos[0];
-    temp[1] = m->reckon_rwr[1] - m2->pos[1];
-    temp[2] = m->reckon_rwr[2] - m2->pos[2];
+    temp[0] = m->reckon.rwr[0] - m2->pos[0];
+    temp[1] = m->reckon.rwr[1] - m2->pos[1];
+    temp[2] = m->reckon.rwr[2] - m2->pos[2];
     BodyVector(temp, cent, m2->uvs[0]);
     beside = ((cent[2] < BBOX(m2)->front) && (cent[2] > BBOX(m2)->back));
     behind = ((cent[0] < BBOX(m2)->right) && (cent[0] > BBOX(m2)->left));
@@ -70,9 +43,9 @@ void setMiniFBCollisionForce(s32 m_unused, tModelData *m, tMiniModelData *m2, f3
         MiniForceApart(m, dir);
         return;
     }
-    temp[0] = m->reckon_rwv[0] - m2->vel[0];
-    temp[1] = m->reckon_rwv[1] - m2->vel[1];
-    temp[2] = m->reckon_rwv[2] - m2->vel[2];
+    temp[0] = m->reckon.rwv[0] - m2->vel[0];
+    temp[1] = m->reckon.rwv[1] - m2->vel[1];
+    temp[2] = m->reckon.rwv[2] - m2->vel[2];
     BodyVector(temp, rvel, m2->uvs[0]);
 
     if (beside && !behind) {
@@ -136,7 +109,7 @@ void setMiniFBCollisionForce(s32 m_unused, tModelData *m, tMiniModelData *m2, f3
     force[1] = rvel[1] * 100.0f;
     mass = (m->collisionmass + BBOX(m2)->weight) * 0.5f;
     WorldVector(force, temp, m2->uvs[0]);
-    BodyVector(temp, cent, m->reckon_uvs[0]);
+    BodyVector(temp, cent, m->reckon.uvs[0]);
     scale = BBOX(m2)->weight / mass;
     cent[0] *= scale;
     cent[1] *= scale;

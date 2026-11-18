@@ -10,7 +10,6 @@ typedef struct PlayerRow { u8 vehicle; u8 pak; u8 other[70]; char **name; } Play
 /* *name is the player's profile record (save.c's SaveSlot): 64 bytes on the PC, its name at +0x20 and the
  * rumble byte at +0x37 (PROFILE_OFS, pc_prelude.h; docs/port/POINTERS.md 9.10). */
 
-/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 extern PlayerRow gPlayers[];                   /* gPlayers */
 
@@ -38,8 +37,8 @@ s32 animResults(s32 unused)
     numFinished = 0;
     aFinished = 0;
     for (playerIdx = 0; playerIdx < gNumWindows; playerIdx++) {
-        if (gNumLaps == PC_MODEL_LAP(playerIdx)) aFinished = 1;
-        if (PC_CAR_PLACE_LOCKED(PC_MODEL_SLOT(playerIdx)) == 1) numFinished++;
+        if (gNumLaps == pc_models[playerIdx].laps) aFinished = 1;
+        if (PC_CAR_PLACE_LOCKED(pc_models[playerIdx].slot) == 1) numFinished++;
     }
     HAL_SetTextDepth(0.0f);
     TB_SetJust(1, 1);
@@ -50,7 +49,7 @@ s32 animResults(s32 unused)
             resultPane[4] = InitPane(91, 106 - h, 229, h + 114, 192, 0, 0, 1);
         }
         TB_SetTextColor(22);
-        if (PC_MODEL_DRONE_TYPE(PC_MODEL_SLOT(gRankedPlayer[0])) == 1) {
+        if (pc_models[pc_models[gRankedPlayer[0]].slot].drone_type == 1) {
             TB_Sprintf(str, gText.single[200]);
         } else if (ties) {
             TB_Sprintf(str, gText.single[201], ties + 1);
@@ -61,8 +60,8 @@ s32 animResults(s32 unused)
     }
     TB_SetTextColor(1);
     for (playerIdx = 0; playerIdx < gNumWindows; playerIdx++) {
-        if (gDeathMode && gNumLaps != PC_MODEL_LAP(playerIdx)) continue;
-        if (PC_CAR_PLACE_LOCKED(PC_MODEL_SLOT(playerIdx)) != 1) continue;
+        if (gDeathMode && gNumLaps != pc_models[playerIdx].laps) continue;
+        if (PC_CAR_PLACE_LOCKED(pc_models[playerIdx].slot) != 1) continue;
         x = wrongWayPos[gNumWindows - 1][playerIdx].x;
         y = wrongWayPos[gNumWindows - 1][playerIdx].y;
         if (gNumWindows == 4 && playerIdx >= 2) y += 12;
@@ -99,8 +98,8 @@ s32 animResults(s32 unused)
 
             TB_Sprintf(str1, gText.single[198], place + 1,
                          gText.taba[gText.tab[TEXT_PLACE_SUFFIXES] + place]);
-            if (gNumLaps != PC_MODEL_LAP(gPlayers[playerIdx].vehicle)) {
-                TB_Sprintf(str2, gText.single[207], PC_MODEL_LAP(gPlayers[playerIdx].vehicle), gNumLaps);
+            if (gNumLaps != pc_models[gPlayers[playerIdx].vehicle].laps) {
+                TB_Sprintf(str2, gText.single[207], pc_models[gPlayers[playerIdx].vehicle].laps, gNumLaps);
             } else {
                 u32 min;
                 u32 sec;

@@ -5,40 +5,6 @@
  * crashes a car pushed hard enough. */
 #include "game/game.h"
 
-/* The model record (tModelData, docs/port/CARS.md 4), the fields used here. */
-typedef struct tModelData {
-    /* 0x000 */ _tCar *car;
-    /* 0x004 */ Tune44 *tune;
-    /* 0x008 */ char pad8[0xEC];
-    /* 0x0F4 */ f32 bodyR[4][3];        /* the body's corners, car frame, feet: 0 front +x, 3 back -x */
-    /* 0x124 */ f32 centerForce[3];     /* the force on the body's centre this step, car frame */
-    /* 0x130 */ char pad130[0xF0];
-    /* 0x220 */ f32 rwv[3];             /* the velocity in the world, feet a second */
-    /* 0x22C */ char pad22C[0x174];
-    /* 0x3A0 */ streetyp *lasttp[4];
-    /* 0x3B0 */ char pad3B0[0x40];
-    /* 0x3F0 */ f32 magvel;             /* the speed */
-    /* 0x3F4 */ char pad3F4[0x18];
-    /* 0x40C */ const s16 *torquecurve;
-    /* 0x410 */ char pad410[0x1B4];
-    /* 0x5C4 */ f32 collisionmass;      /* its mass in collisions */
-    /* 0x5C8 */ char pad5C8[0x74];
-    /* 0x63C */ f32 crashthreshold;     /* the force that crashes it */
-    /* 0x640 */ s8 crashflag;
-    /* 0x641 */ char pad641[0x7];
-    /* 0x648 */ surftyp *movingSurface;
-    /* 0x64C */ char pad64C[0x78];
-    /* 0x6C4 */ s16 resurrect_moving_state;   /* RES_IDLE when not respawning */
-    /* 0x6C6 */ char pad6C6[0xC2];
-    /* 0x788 */ f32 reckon_rwv[3];      /* reckon.rwv: the velocity the collisions use */
-    /* 0x794 */ f32 reckon_rwr[3];      /* reckon.rwr: the position */
-    /* 0x7A0 */ f32 reckon_uvs[3][3];   /* reckon.uvs: the orientation */
-    /* 0x7C4 */ s16 obResPt;
-    /* 0x7C6 */ s16 slot;
-    /* 0x7C8 */ char pad7C8[4];
-    /* 0x7CC */ s8 drone_type;          /* DRONE_TYPE_HUMAN: a human's car */
-} tModelData;
-
 /* The car record (tCarData, N64 layout: docs/port/CARS.md 2), the fields used here. */
 typedef struct tCarData {
     /* 0x000 */ char pad0[0x110 - 0x0]; struct pc_visual visuals[21]; char pad0_308[0x358 - 0x308];
@@ -112,20 +78,20 @@ void setFBCollisionForce(tModelData *m, tModelData *m1, tModelData *m2, f32 *dir
         }
     }
 
-    temp[0] = m1->reckon_rwr[0] - m2->reckon_rwr[0];
-    temp[1] = m1->reckon_rwr[1] - m2->reckon_rwr[1];
-    temp[2] = m1->reckon_rwr[2] - m2->reckon_rwr[2];
-    BodyVector(temp, cent, m2->reckon_uvs[0]);
+    temp[0] = m1->reckon.rwr[0] - m2->reckon.rwr[0];
+    temp[1] = m1->reckon.rwr[1] - m2->reckon.rwr[1];
+    temp[2] = m1->reckon.rwr[2] - m2->reckon.rwr[2];
+    BodyVector(temp, cent, m2->reckon.uvs[0]);
     beside = (cent[2] < m2->bodyR[0][2]) && (cent[2] > m2->bodyR[3][2]);
     behind = (cent[0] < m2->bodyR[0][0]) && (cent[0] > m2->bodyR[3][0]);
 
     if (gRace == kBattle && gCarTeam[gc1->slot] != gCarTeam[gc2->slot]) {
-        if (gc1->weapon_type == 5 && m2->resurrect_moving_state == RES_IDLE && gc1->reloadingTime <= 0 &&
+        if (gc1->weapon_type == 5 && m2->resurrect.moving_state == RES_IDLE && gc1->reloadingTime <= 0 &&
             gc2->crash_state == CRASH_NONE) {
-            temp[0] = m2->reckon_rwr[0] - m1->reckon_rwr[0];
-            temp[1] = m2->reckon_rwr[1] - m1->reckon_rwr[1];
-            temp[2] = m2->reckon_rwr[2] - m1->reckon_rwr[2];
-            BodyVector(temp, cent2, m1->reckon_uvs[0]);
+            temp[0] = m2->reckon.rwr[0] - m1->reckon.rwr[0];
+            temp[1] = m2->reckon.rwr[1] - m1->reckon.rwr[1];
+            temp[2] = m2->reckon.rwr[2] - m1->reckon.rwr[2];
+            BodyVector(temp, cent2, m1->reckon.uvs[0]);
             if (cent2[2] > 2.25f) {
                 gc1->reloadingTime = 0.3333333f;
                 gc1->weapon_ammoCnt--;
@@ -133,7 +99,7 @@ void setFBCollisionForce(tModelData *m, tModelData *m1, tModelData *m2, f32 *dir
                 damage += m1->magvel * 7.0f;
                 BattleDamage(gc1, gc2, damage);
             }
-        } else if (gc2->weapon_type == 5 && m1->resurrect_moving_state == RES_IDLE && gc2->reloadingTime <= 0 &&
+        } else if (gc2->weapon_type == 5 && m1->resurrect.moving_state == RES_IDLE && gc2->reloadingTime <= 0 &&
                    gc1->crash_state == CRASH_NONE) {
             if (cent[2] > 2.25f) {
                 gc2->reloadingTime = 0.3333333f;
@@ -150,10 +116,10 @@ void setFBCollisionForce(tModelData *m, tModelData *m1, tModelData *m2, f32 *dir
         return;
     }
 
-    temp[0] = m1->reckon_rwv[0] - m2->reckon_rwv[0];
-    temp[1] = m1->reckon_rwv[1] - m2->reckon_rwv[1];
-    temp[2] = m1->reckon_rwv[2] - m2->reckon_rwv[2];
-    BodyVector(temp, rvel, m2->reckon_uvs[0]);
+    temp[0] = m1->reckon.rwv[0] - m2->reckon.rwv[0];
+    temp[1] = m1->reckon.rwv[1] - m2->reckon.rwv[1];
+    temp[2] = m1->reckon.rwv[2] - m2->reckon.rwv[2];
+    BodyVector(temp, rvel, m2->reckon.uvs[0]);
 
     if (beside) {
         force[2] = 0;
@@ -204,8 +170,8 @@ void setFBCollisionForce(tModelData *m, tModelData *m1, tModelData *m2, f32 *dir
     force[1] = rvel[1] * 100.0f;
     mass = (m1->collisionmass + m2->collisionmass) * 0.5f;
 
-    WorldVector(force, temp, m2->reckon_uvs[0]);
-    BodyVector(temp, cent, m1->reckon_uvs[0]);
+    WorldVector(force, temp, m2->reckon.uvs[0]);
+    BodyVector(temp, cent, m1->reckon.uvs[0]);
     scale = m2->collisionmass / mass;
     cent[0] *= scale;
     cent[1] *= scale;

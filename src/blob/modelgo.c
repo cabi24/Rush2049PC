@@ -13,7 +13,7 @@ void modelgo(void)
   {
     for (i = 0; i < (s8) gNumActiveCars; i++)
     {
-      StartCarSounds(PC_MODEL(i));
+      StartCarSounds(&pc_models[i]);
     }
   }
   if (!(gGameState & GS_DEMO))

@@ -26,11 +26,12 @@
 
 #include "pc_prelude.h"
 #include "support.h"
+#include "game/modeldata.h"
 
 /* ---------------------------------------------------------------- the game's data the code under test uses */
 
 struct pc_car pc_cars[PC_CAR_SLOTS];        /* data.c defines it in the game */
-struct pc_model pc_models[PC_MODEL_SLOTS];  /* the model records (pc_game_types.h) */
+tModelData pc_models[PC_MODEL_SLOTS];  /* the model records (game/modeldata.h) */
 struct pc_link pc_links[PC_LINK_SLOTS];     /* the race roster */
 #define SENTINEL 0xEE
 #define RAW(i, off) (((const unsigned char *)pc_cars)[(i) * PC_CAR_SIZE + (off)])
@@ -176,7 +177,7 @@ static void test_remap(void)
     DetectDroneAbort();
     for (int i = 0; i < 6; i++) {
         CHECK(PC_CAR_FWD_PROGRESS(i) == 0.0f && PC_CAR_STRAY_ANGLE(i) == 0.0f && only(i, progress, 2));
-        CHECK(PC_MODEL_STUCK_TIME(i) == 0.0f);
+        CHECK(pc_models[i].stuck_time == 0.0f);
     }
     CHECK(untouched_from(6) && MF(6, 0x7D8, uint32_t) == 0xEEEEEEEEu);
 
@@ -217,7 +218,7 @@ static void test_remap12(void)
     DetectDroneAbort();
     for (int i = 0; i < 12; i++) {
         CHECK(PC_CAR_FWD_PROGRESS(i) == 0.0f && PC_CAR_STRAY_ANGLE(i) == 0.0f && only(i, progress, 2));
-        CHECK(PC_MODEL_STUCK_TIME(i) == 0.0f);
+        CHECK(pc_models[i].stuck_time == 0.0f);
     }
     CHECK(untouched_from(12) && MF(12, 0x7D8, uint32_t) == 0xEEEEEEEEu);
     test_race_cars = 6;
@@ -330,7 +331,7 @@ static void test_battle_reset(void)
     static const int reset[] = {0x358, 0x359, 0x386, 0x388, 0x38C, 0x390, 0x3A0, 0x3A1, 0x3A2, 0x3A3, 0x3B0, 0x3B8};
     sentinels();
     MF(10, 0x7C6, int16_t) = 10;
-    initialize(PC_MODEL(10));
+    initialize(&pc_models[10]);
     CHECK(PC_CAR_HEALTH(10) == 800 && CF(10, 0x386, int16_t) == 800 && PC_CAR_CRASH_STATE(10) == 0);
     CHECK(PC_CAR_DEFENSE_ACTIVE(10) == 0 && PC_CAR_SHOOT(10) == 0 && PC_CAR_FADE_STATE(10) == 0);
     CHECK(PC_CAR_BATTLE_PITCH(10) == 0.0f && PC_CAR_BATTLE_YAW(10) == 0.0f && only(10, reset, 6));

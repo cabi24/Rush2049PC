@@ -2059,7 +2059,8 @@ so one run lists every site.
   next. Known and left as the N64 does them: a player without a controller (5) reads `gNewControls[5]`, past the
   four layouts (SetControls, controls_validControl, animControls: on the N64 the bytes of `gFrontDistance` and what
   follows); `CheckCameraView` indexes the switch times by a car's camera (under 4 on every path); the ghost race reads
-  `gGhosts[m->slot]`. The retail cartridge's scripts under ASan on the Pi are the net for the rest: the lead's run
+  `gGhosts[m->slot]` (shown inside its four entries since: only a human's car reads it, and humans hold the slots
+  below `gNumPlayers`, [RECORDS.md](RECORDS.md) 2.1). The retail cartridge's scripts under ASan on the Pi are the net for the rest: the lead's run
   of the 44 scripts on the merged tree found two (`fixword`, `DetectDroneAbort`, the last rows of 18.2), fixed before
   the push, and none of these three.
 - **The circuit's slot before its first race** (18.2) is built from `audio_cursorSpeed`'s last byte in memory: on a

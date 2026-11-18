@@ -178,7 +178,7 @@ void drawRaceStandings(void)
                 } else if (col == 3) {
                     HAL_SetFont(11);
                     TB_SetTextColor(kTB_WhiteText);
-                    str = PC_PLACE_TEXT(gText.taba, gText.tab[TEXT_PLACES], PC_CAR_PLACE(PC_MODEL_SLOT(gRankedPlayer[row - 1])));
+                    str = PC_PLACE_TEXT(gText.taba, gText.tab[TEXT_PLACES], PC_CAR_PLACE(pc_models[gRankedPlayer[row - 1]].slot));
                 }
             }
             if (col != 0) TB_DrawText(col * 60 - cols * 60 / 2 + 190, y + 7, str);

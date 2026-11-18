@@ -13,6 +13,7 @@
 
 #include "pc_prelude.h"
 #include "support.h"
+#include "game/modeldata.h"
 
 /* ---------------------------------------------------------------- the PC layouts */
 
@@ -42,7 +43,7 @@ static uint8_t g_heap[0x1000] __attribute__((aligned(16)));   /* the game heap's
 TInfo targetInfo[122];
 struct pc_car pc_cars[PC_CAR_SLOTS];                  /* the car records (pc_game_types.h) */
 #define CAR(i) ((uint8_t *)&pc_cars[i])
-struct pc_model pc_models[PC_MODEL_SLOTS];    /* the model records (pc_game_types.h) */
+tModelData pc_models[PC_MODEL_SLOTS];    /* the model records (game/modeldata.h) */
 #define MODEL(i) ((uint8_t *)&pc_models[i])
 int32_t ammoCnts[8] = {10, 11, 12, 13, 14, 15, 16, 17};
 float collsize[4][4] = {{0}, {2.0f, 4.0f, 3.0f, 0.0f}, {0}, {0}};   /* colfront, colrear, colside, colheight */
@@ -138,7 +139,7 @@ static void test_pickup(void)
     CHECK(CF(car, 0x398, float) == 0.05f && CF(car, 0x39C, float) == 0.0f);
 
     /* weapon 5 grows the car's collision body from its kind's size (collsize[body type]) */
-    memset(MODEL(3), 0, sizeof(struct pc_model));
+    memset(MODEL(3), 0, sizeof(tModelData));
     NF(MODEL(3), MODEL_OFS(8), uint8_t) = 1;
     t = icon(357, 0x04, 3);
     StartWeaponIcon(t);

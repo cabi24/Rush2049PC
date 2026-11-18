@@ -26,6 +26,7 @@
 
 #include "pc_prelude.h"
 #include "support.h"
+#include "game/modeldata.h"
 
 #define ALIAS(name, base, off) __asm__(".globl " #name "\n.set " #name ", " #base " + " #off)
 #define CARS 12              /* the race's cars: slots 0 to 11 */
@@ -44,7 +45,7 @@ struct pc_skid pc_skids[PC_MAX_LINKS][4];
 /* ---------------------------------------------------------------- the game's data the code under test uses */
 
 struct pc_car pc_cars[PC_CAR_SLOTS];
-struct pc_model pc_models[PC_MODEL_SLOTS];
+tModelData pc_models[PC_MODEL_SLOTS];
 struct pc_link pc_links[PC_LINK_SLOTS];
 #define CF(i, n, T) (*(T *)((uint8_t *)&pc_cars[i] + CAR_OFS(n)))   /* car i's field at N64 offset n */
 #define MF(i, off, T) (*(T *)((uint8_t *)&pc_models[i] + MODEL_OFS(off)))   /* model i's field at MAT3's offset */

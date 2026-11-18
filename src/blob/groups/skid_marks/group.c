@@ -29,29 +29,7 @@ typedef struct WheelSlot {
     f32 right[3];
 } WheelSlot;
 
-/* The car record's fields the skids read (MAT3 tModelData). */
-typedef struct CarState {
-    /* 0x000 */ _tCar *car;
-    /* 0x004 */ Tune44 *tune;
-    /* 0x008 */ u8 pad8[0x398];
-    /* 0x3A0 */ streetyp *lasttp[4];
-    /* 0x3B0 */ u8 pad3B0[0x5C];
-    /* 0x40C */ const s16 *torquecurve;
-    /* 0x410 */ u8 pad410[0x190];
-    /* 0x5A0 */ u16 surface[4];
-    /* 0x5A8 */ u8 pad5A8[0x61C - 0x5A8];
-    /* 0x61C */ u16 terrain[4];
-    /* 0x624 */ u8 pad624[0x648 - 0x624];
-    /* 0x648 */ surftyp *movingSurface;
-    /* 0x64C */ u8 pad64C[0x6C4 - 0x64C];
-    /* 0x6C4 */ s16 airborne[4];
-    /* 0x6CC */ u8 pad6CC[0x75C - 0x6CC];
-    /* 0x75C */ f32 wheelHeight[4];
-    /* 0x76C */ u8 pad76C[0x808 - 0x76C];
-} CarState;                             /* 0x808 */
-
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
-/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 /* On the PC the skid state is pc_skids, PC_MAX_LINKS cars of four tires, with no N64 address (pc_game_types.h,
  * docs/port/DECOUPLE.md 6), with WheelSlot's field names. */
 #define gNewSkid pc_skids
@@ -65,7 +43,7 @@ extern f32 gDummyVtx[];
  * and the colour, and updates the quad. */
 void UpdateSkid(WheelSlot *slot, s16 player, u32 wheel, u8 *color)
 {
-    CarState *m = PC_MODEL(player);
+    tModelData *m = &pc_models[player];
     EffectObj *obj = slot->obj;
     s16 i;
     f32 up;
@@ -76,7 +54,7 @@ void UpdateSkid(WheelSlot *slot, s16 player, u32 wheel, u8 *color)
     orth[0] = PC_CAR_WHEEL_POS(player)[wheel | 1][0] - PC_CAR_WHEEL_POS(player)[wheel & 2][0];
     orth[1] = PC_CAR_WHEEL_POS(player)[wheel | 1][1] - PC_CAR_WHEEL_POS(player)[wheel & 2][1];
     orth[2] = PC_CAR_WHEEL_POS(player)[wheel | 1][2] - PC_CAR_WHEEL_POS(player)[wheel & 2][2];
-    orth[1] += m->wheelHeight[wheel | 1] - m->wheelHeight[wheel & 2];
+    orth[1] += m->reckon.suscomp[wheel | 1] - m->reckon.suscomp[wheel & 2];
     vector_direction(orth, dir);
     for (i = 0; i < 3; i++) {
         wid = dir[i] * 0.75f;
@@ -207,13 +185,13 @@ void ContinueSkid(WheelSlot *ns, s16 slot, u32 tire, u8 *color)
 }
 
 /* Each frame, each tyre of car slot (one or two players only): it skids when the car's skid flag for it is set,
- * the car is on the ground, the tyre isn't on terrain 8 and its surface allows marks (flags 0x30 clear); a skid
- * starts, goes on or stops accordingly, dark on road (terrain 0, gShadowColor), dirt-coloured elsewhere (arcade
- * DoSkid). */
+ * the car isn't respawning (resurrect.moving_state RES_IDLE), the tyre isn't in the air (sviscode SURF_VIS_AIRBORNE)
+ * and its road surface (tiresli) allows marks (flags 0x30 clear); a skid starts, goes on or stops accordingly, dark
+ * on pavement (SURF_VIS_PAVEMENT, gShadowColor), dirt-coloured elsewhere (arcade DoSkid). */
 void UpdateSkids(s32 slot)
 {
     s32 i;
-    CarState *m;
+    tModelData *m;
     WheelSlot *ns;
     s32 on;
     s32 laston;
@@ -222,13 +200,13 @@ void UpdateSkids(s32 slot)
     if (gNumPlayers >= 3) {
         return;
     }
-    m = PC_MODEL(slot);
+    m = &pc_models[slot];
     ns = gNewSkid[slot];
     for (i = 0; i < 4; i++, ns++) {
-        on = ((PC_CAR_FLAGS(slot) & skid_tire_flags[i]) != 0) && (m->airborne[0] == -1) &&
-             (m->terrain[i] != 8) && ((stree_surf[m->surface[i]].snd_flags & 0x30) == 0);
+        on = ((PC_CAR_FLAGS(slot) & skid_tire_flags[i]) != 0) && (m->resurrect.moving_state == -1) &&
+             (m->sviscode[i] != 8) && ((stree_surf[m->tiresli[i]].snd_flags & 0x30) == 0);
         laston = (ns->obj != 0);
-        color = (m->terrain[i] == 0) ? gShadowColor.c : gDirtColor;
+        color = (m->sviscode[i] == 0) ? gShadowColor.c : gDirtColor;
 
         if (!laston && on) {
             StartSkid(ns, slot, i, color);

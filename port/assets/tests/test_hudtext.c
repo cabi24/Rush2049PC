@@ -11,6 +11,7 @@
 
 #include "pc_prelude.h"
 #include "support.h"
+#include "game/modeldata.h"
 
 #define CF(c, off, T) (*(T *)((uint8_t *)(c) + CAR_OFS(off)))   /* a car field by its N64 offset */
 #define NF(n, off, T) (*(T *)((uint8_t *)(n) + (off)))
@@ -20,7 +21,7 @@
 int8_t gShowSpeed, gShowMetric;                 /* gShowSpeed, gShowMetric */
 struct { int32_t h, v; } gJust;
 int16_t gNumWindows;
-struct pc_model pc_models[PC_MODEL_SLOTS];
+tModelData pc_models[PC_MODEL_SLOTS];
 struct pc_car pc_cars[PC_CAR_SLOTS];                  /* the car records (pc_game_types.h) */
 #define CAR(i) ((uint8_t *)&pc_cars[i])
 #define MODEL(i) ((uint8_t *)&pc_models[i])

@@ -24,7 +24,7 @@ s32 animLapCount(void *item)
         HAL_SetFont(12);
     }
     for (i = 0; i < gNumWindows; i++) {
-        if (gNumLaps == PC_MODEL_LAP(i)) {
+        if (gNumLaps == pc_models[i].laps) {
             continue;
         }
         if (PC_CAR_PLACE_LOCKED(i) == 1) {
@@ -33,9 +33,9 @@ s32 animLapCount(void *item)
         x = lapCountPos[gNumWindows - 1][i].x;
         y = lapCountPos[gNumWindows - 1][i].y;
         TB_SetTextColor(kTB_BlackText);
-        TB_Printf(x + 1, y + 1, gText.single[LAP_FORMAT], PC_MODEL_LAP(i) + 1, gNumLaps);
+        TB_Printf(x + 1, y + 1, gText.single[LAP_FORMAT], pc_models[i].laps + 1, gNumLaps);
         TB_SetTextColor(kTB_WhiteText);
-        TB_Printf(x, y, gText.single[LAP_FORMAT], PC_MODEL_LAP(i) + 1, gNumLaps);
+        TB_Printf(x, y, gText.single[LAP_FORMAT], pc_models[i].laps + 1, gNumLaps);
     }
     gJust.v = kTB_JustTop;
     gJust.h = kTB_JustLeft;

@@ -130,7 +130,10 @@ and read the fields at their N64 offsets in the slots it walks and leave the res
 ## 3. The model records
 
 (Since 2026-11-09, wave 3 step 2 of [NATIVE.md](NATIVE.md), the record's five pointer fields are host pointers and it
-is 0x830 bytes on the PC: [CARS.md](CARS.md) 4. This section is the decoupling as it was done, in the N64 layout.)
+is 0x830 bytes on the PC: [CARS.md](CARS.md) 4. Since wave 4 ([RECORDS.md](RECORDS.md) 2.1) the record is MAT3's
+`tModelData`, declared once in `include/game/modeldata.h` with every field: `struct pc_model`, its accessors and the
+files' own views are gone, and the game names the fields (`pc_models[i].slot`, `&pc_models[i]`, the collision's end
+`&pc_models[PC_RACE_CARS]`). This section is the decoupling as it was done, in the N64 layout.)
 
 **What it is.** One 0x808-byte record per car, 6 of them, at 0x8014A250-0x8014D280 in the game's BSS: MAT3's `model[]`
 (`tModelData`), the car's physics state, its controls and its race state. It keeps its N64 layout on the PC: its five

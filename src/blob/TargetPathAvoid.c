@@ -1,21 +1,6 @@
 /* TargetPathAvoid: a drone slows for the moving boxes ahead of it (MAT3 targets.c). */
 #include "game/game.h"
 
-/* The model record (MAT3 tModelData): its dead-reckoned position and orientation (reckon.rwr, reckon.uvs). */
-struct tModelData {
-    _tCar *car;
-    Tune44 *tune;
-    char pad8[0x398];
-    streetyp *lasttp[4];
-    char pad3B0[0x5C];
-    const s16 *torquecurve;
-    char pad410[0x238];
-    surftyp *movingSurface;
-    char pad64C[0x148];
-    f32 reckon_rwr[3];
-    f32 reckon_uvs[3][3];
-};
-
 extern f32 fabsf(f32);
 
 /* Lowers *scale1, the drone's speed scale (AvoidAreas), for each bounding box model ahead of model `m` within 225
@@ -29,10 +14,10 @@ void TargetPathAvoid(struct tModelData *m, f32 *scale1) {
 
     if (gBBoxModelUsed != 0) {
         for (tp = gBBoxModelStructs; tp < &gBBoxModelStructs[gBBoxModelUsed - 1]; tp++) {
-            pos[0] = tp->pos[0] - m->reckon_rwr[0];
-            pos[1] = tp->pos[1] - m->reckon_rwr[1];
-            pos[2] = tp->pos[2] - m->reckon_rwr[2];
-            BodyVector(pos, rpos, m->reckon_uvs[0]);
+            pos[0] = tp->pos[0] - m->reckon.rwr[0];
+            pos[1] = tp->pos[1] - m->reckon.rwr[1];
+            pos[2] = tp->pos[2] - m->reckon.rwr[2];
+            BodyVector(pos, rpos, m->reckon.uvs[0]);
             if (rpos[2] < 0.0f) {
                 continue;
             }

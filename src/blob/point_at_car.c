@@ -21,7 +21,7 @@ void point_at_car(tCarData *car,f32 *pos,Mat3 *uvs,f32 *res)
     f32 rpos[3];
     s32 camera=car->camera;
     if(uvs) update_car_object(car,pos,uvs);
-    if(PC_MODEL_MOVING_STATE(car->slot)>=0) {
+    if(pc_models[car->slot].resurrect.moving_state>=0) {
         elasticity[camera]=0.0f;
     } else {
         elasticity[camera]=PC_CAM_ELASTIC(elastic_factor[camera]*0.6f);

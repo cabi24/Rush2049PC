@@ -105,7 +105,7 @@ void playDemoGame(s32 on, s32 x) {
 void endDemoGame(void) {
     s16 i;
         for (i = 0; i < gNumActiveCars; i++) {
-            End_MDrive(PC_MODEL_SLOT(i));
+            End_MDrive(pc_models[i].slot);
         }
         modelstop();
         StopListeners();

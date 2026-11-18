@@ -170,51 +170,12 @@ typedef struct CCol {
     f32 dist;       /* how far the car is into it */
 } CCol;
 
-/* The model record (MAT3 tModelData): the fields this reads and sets. */
-typedef struct CCar {
-    _tCar *car;
-    Tune44 *tune;
-    u8 p8[0x38];
-    f32 v[3];               /* 0x040 the velocity in the car's frame */
-    f32 w[3];               /* 0x04C the turning speed */
-    u8 p88[108];
-    f32 bodyForce[4][3];    /* 0x0C4 the forces at the corners */
-    f32 bodyR[4][3];        /* 0x0F4 the corners from the centre */
-    u8 p292[8];
-    f32 centerForce2;       /* 0x12C centerForce[2] */
-    u8 p304[252];
-    f32 rwr[3];             /* 0x22C the position */
-    u8 p568[12];
-    f32 tireRwr[4][3];      /* 0x244 */
-    f32 bodyrwr[4][3];      /* 0x274 */
-    u8 p676[72];
-    f32 uvs[9];             /* 0x2EC the orientation */
-    u8 p784[144];
-    streetyp *lasttp[4];
-    u8 p944[92];
-    const s16 *torquecurve;
-    u8 p1040[432];
-    f32 mass;               /* 0x5C0 */
-    u8 p1476[72];
-    s32 roadcode[4];        /* 0x60C each tyre's road (8 ...) */
-    u8 p1564[28];
-    f32 idt;                /* 0x638 1 / the step */
-    u8 p1596[12];
-    surftyp *movingSurface;
-    u8 p1612[328];
-    f32 reckon_rwr[3];      /* 0x794 the dead-reckoned position */
-    u8 p1952[44];
-    s8 drone_type;          /* 0x7CC 1 a drone */
-    u8 p1997[7];
-    u32 appearance;         /* 0x7D4 */
-} CCar;
-
 /* Pushes model `car` out of the wall of contact `col`: moves it (and its dead reckoning, corners and tyres) back
  * by its depth along the wall's normal, and adds a force at the corner against its velocity there (the turning
  * included), softer off walls of kinds 5, 6 and 0x2000, and a lift that grows with how square to the wall the
  * car's up is (less for a drone). A corner on road code 8 against a soft wall takes only the sideways force and
  * the push along the car. Marks the car (appearance 0x100000) as having hit. */
-void CarApplyCollision(CCar *car, CCol *col) {
+void CarApplyCollision(tModelData *car, CCol *col) {
     f32 v[3];
     f32 w[3];
     s32 i;
@@ -232,9 +193,9 @@ void CarApplyCollision(CCar *car, CCol *col) {
     car->rwr[0] = v[0] + car->rwr[0];
     car->rwr[1] = v[1] + car->rwr[1];
     car->rwr[2] = v[2] + car->rwr[2];
-    car->reckon_rwr[0] = v[0] + car->reckon_rwr[0];
-    car->reckon_rwr[1] = v[1] + car->reckon_rwr[1];
-    car->reckon_rwr[2] = v[2] + car->reckon_rwr[2];
+    car->reckon.rwr[0] = v[0] + car->reckon.rwr[0];
+    car->reckon.rwr[1] = v[1] + car->reckon.rwr[1];
+    car->reckon.rwr[2] = v[2] + car->reckon.rwr[2];
     for (i = 0; i < 4; i++) {
         car->bodyrwr[i][0] = v[0] + car->bodyrwr[i][0];
         car->bodyrwr[i][1] = v[1] + car->bodyrwr[i][1];
@@ -262,15 +223,15 @@ void CarApplyCollision(CCar *car, CCol *col) {
     w[0] = -v[0] * k;
     w[2] = -v[2] * k;
     if (car->drone_type == 1) {
-        k = fabsf((car->uvs[6] * col->uvs[3] + car->uvs[7] * col->uvs[4]) + car->uvs[8] * col->uvs[5]) * collision_lift_slope_drone + collision_lift_base;
+        k = fabsf((car->uvs[2][0] * col->uvs[3] + car->uvs[2][1] * col->uvs[4]) + car->uvs[2][2] * col->uvs[5]) * collision_lift_slope_drone + collision_lift_base;
     } else {
-        k = fabsf((car->uvs[6] * col->uvs[3] + car->uvs[7] * col->uvs[4]) + car->uvs[8] * col->uvs[5]) * collision_lift_slope + collision_force_limit;
+        k = fabsf((car->uvs[2][0] * col->uvs[3] + car->uvs[2][1] * col->uvs[4]) + car->uvs[2][2] * col->uvs[5]) * collision_lift_slope + collision_force_limit;
     }
     w[1] = -v[1] * f12 * car->idt * k;
     WorldVector(w, v, col->uvs);
     BodyVector(v, w, car->uvs);
     if ((i == 5 || i == 6) && car->roadcode[idx] == 8 && fabsf(w[2]) < 4000.0f && fabsf(w[1]) < 4000.0f) {
-        car->centerForce2 += w[2];
+        car->centerForce[2] += w[2];
         car->bodyForce[idx][0] += w[0];
     } else {
         car->bodyForce[idx][0] += w[0];

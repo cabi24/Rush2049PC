@@ -1,26 +1,10 @@
 /* StopCarSounds: silences a car (MAT3 audio.c). */
 #include "game/game.h"
 
-/* The model record's fields this file reads (MAT3 tModelData, docs/port/CARS.md 4). */
-typedef struct MODELDAT {
-    _tCar *car;
-    Tune44 *tune;
-    u8 pad8[0x398];
-    streetyp *lasttp[4];
-    u8 pad3B0[0x5C];
-    const s16 *torquecurve;
-    u8 pad410[0x238];
-    surftyp *movingSurface;
-    u8 pad64C[0x17A];
-    s16 slot;           /* 0x7C6 */
-    u8 pad7C8[4];
-    s8 drone_type;      /* 0x7CC: 2 for a human's car */
-} MODELDAT;
-
 /* Stops every sound of the car of model m, if it has started them (StartCarSounds): the two engine layers, the
  * random engine sound and the tire screech, and for a human's car its road noises, scrape, horn and bog sounds.
  * Its engine is then updated on the frames of its slot's parity again (pc_engine_phase). */
-void StopCarSounds(MODELDAT *m) {
+void StopCarSounds(tModelData *m) {
     s32 slot = m->slot;
     s32 i;
 

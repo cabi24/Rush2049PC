@@ -28,7 +28,7 @@ int TargetCollRadius(short *player_index, float *point, float *radius_in,
     index = *player_index;
     player = PC_CAR(index);
     radius = *radius_in;
-    if (!PC_MODEL_COLLIDABLE(index)) return 0;
+    if (!pc_models[index].collidable) return 0;
     mveccopy(point,position);
     mvecsub(player->position,position,delta);
     distance_squared = delta[0] * delta[0] + delta[1] * delta[1] + delta[2] * delta[2];

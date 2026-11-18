@@ -77,13 +77,13 @@ void StartEnvironment(void)
 {
     s16 i;
     for (i = 0; i < PC_RACE_CARS; i++) {
-        if (PC_MODEL_ACTIVE(i)) {
+        if (pc_models[i].in_game) {
             CreateCar(i, 15, 1);
             StartCar(i);
         }
     }
     for (i = 0; i < PC_RACE_CARS; i++) {
-        if (PC_MODEL_ACTIVE(i)) {
+        if (pc_models[i].in_game) {
             StartShadow(i);
             if (gNumPlayers > 1 && PC_LINK_OWNER(i) == 6) StartArrow(i);
         }

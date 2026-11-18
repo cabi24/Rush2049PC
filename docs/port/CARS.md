@@ -15,7 +15,7 @@ symbols live), [PROTOTYPES.md](PROTOTYPES.md).
 |---|---:|---:|---|---|
 | car, `pc_cars[12]` (N64 `gGameCar[6]`) | 0x3B8 | **0x510** (0x468 until 2026-11-09) | own storage, no N64 address (`struct pc_car`, [DECOUPLE.md](DECOUPLE.md) 4) | its visuals hold function pointers, and +0x380 points at own storage: those must be host pointers |
 | visual, `tVisual` (21 per car at +0x110; the environment pool `gEnvirons[100]`) | 0x18 | **0x28** (0x20 until 2026-11-09) | inside the car; the pool is C-defined | `next` and `func` are host pointers; `data` holds numbers or a pointer (a target: section 3), pointer-sized |
-| model, `pc_models[12]` (N64 `D_8014A250[6]`) | 0x808 | **0x830** | own storage, no N64 address (`struct pc_model`, [DECOUPLE.md](DECOUPLE.md) 3) | its five pointer fields (MAT3's `car`, `tune`, `lasttp[4]`, `torquecurve`, `movingSurface`) are host pointers (since 2026-11-09, section 4) |
+| model, `pc_models[12]` (N64 `D_8014A250[6]`) | 0x808 | **0x830** | own storage, no N64 address (`tModelData`, include/game/modeldata.h; [DECOUPLE.md](DECOUPLE.md) 3) | its five pointer fields (MAT3's `car`, `tune`, `lasttp[4]`, `torquecurve`, `movingSurface`) are host pointers (since 2026-11-09, section 4) |
 | car physics descriptor, `car_descriptors[6]` (MAT3 `_tCar`; `model->car`, `gCarModels[body]`) | 0xB4 | **0xC8** | own storage (data.c), filled from the image | its four tire pointers (`tires[4]`, to `frontTire`) are host pointers (since 2026-11-09, section 4) |
 
 Results: `view_audit.py` finds 0 disagreeing views of the car (134 views; 222 with `struct pc_car` since DECOUPLE.md 4)
@@ -127,11 +127,12 @@ pc_visual` itself.
 
 ## 4. The model record
 
-`pc_models[PC_MODEL_SLOTS]` (12 records) of `struct pc_model` in `port/include/pc_game_types.h`: PC data with no N64
-address since 2026-10-28 ([DECOUPLE.md](DECOUPLE.md) 3), which names the fields the game reaches by index (through
-`PC_MODEL_<FIELD>(i)`; a record through `PC_MODEL(i)`, in the reader's own view) and MAT3's five pointers. Since
-2026-11-09 (wave 3 step 2, [NATIVE.md](NATIVE.md) 5) those five fields hold host pointers, no longer the N64's 32-bit
-window addresses:
+`pc_models[PC_MODEL_SLOTS]` (12 records) of `tModelData`, MAT3's record with every field named, declared once in
+`include/game/modeldata.h` (physics.h includes it; [RECORDS.md](RECORDS.md) 2.1): PC data with no N64 address since
+2026-10-28 ([DECOUPLE.md](DECOUPLE.md) 3). The game names its fields (`pc_models[i].slot`, `m->reckon.rwr`); until
+wave 4 each file had its own partial view of the record and `struct pc_model` named only the fields reached by index,
+through `PC_MODEL_<FIELD>(i)` accessors. Since 2026-11-09 (wave 3 step 2, [NATIVE.md](NATIVE.md) 5) the five pointer
+fields hold host pointers, no longer the N64's 32-bit window addresses:
 
 | MAT3 offset | PC offset | Field | Points at | Set by |
 |---|---|---|---|---|
@@ -144,11 +145,9 @@ window addresses:
 The layout is MAT3's field order with each pointer 8 bytes wide: a field after one lies further on than on the N64,
 by 8 after `tune`, 0x18 after `lasttp`, 0x20 after `torquecurve` (which the compiler aligns to 8, leaving 4 bytes
 after `engangvel`) and 0x24 after `movingSurface`, and the record is 0x830 bytes (0x82C rounded up to the pointers'
-alignment). The offsets in the game's comments and padding stay MAT3's: every view of the record (the 143 of its
-whole size and the physics stages' partial ones, in 106 game files) declares the five pointers by MAT3's names and types
-and pads in MAT3's bytes between them (`u8 pad8[0x3A0 - 0x8]; streetyp *lasttp[4];`), so the compiler gives each view
-the host layout, as the car record's views have its visuals (section 2.2). The tests that name fields by MAT3's
-offsets map them with `MODEL_OFS(n)` (`port/assets/tests/support.h`).
+alignment). The record has no padding of its own: every byte belongs to a named field, as in MAT3. The tests that
+name fields by MAT3's offsets map them with `MODEL_OFS(n)` (`port/assets/tests/support.h`), and `assets_models` checks
+that each field is where `MODEL_OFS` puts MAT3's offset.
 
 What changed with the pointers:
 
@@ -158,8 +157,8 @@ What changed with the pointers:
   (calcaa, steer_constants, transmission, find_best_gear), engine's `CURVE()` of the torque curve (enginetorque takes
   a `const s16 *`), carsetup's and init_cars's `PC_N64W` stores, init_collision's `PC_N64A(stree_nodes)`. The link
   enums (`enum n64p_tCar` ...) and the files' `N64P` macros went with them.
-- The 0x808 strides: dead_reckon_all, modelgo, modelstop, AbortCar and update_model reach record i as `PC_MODEL(i)`;
-  init_cars clears `sizeof(tModelData)`, the host size of its view. road clears `movingSurface` as a pointer (it was
+- The 0x808 strides: dead_reckon_all, modelgo, modelstop, AbortCar and update_model reach record i as
+  `&pc_models[i]` (`PC_MODEL(i)` until wave 4); init_cars clears `sizeof(tModelData)`, the record's host size. road clears `movingSurface` as a pointer (it was
   an `s32` store there, which would have left half of it). UpdateCarSounds read the position through
   `(u8 *)model + 0x22C`, a raw MAT3 offset (in a branch no car takes: a drone's screech in a human's block), now its
   view's `rwr`.
@@ -187,7 +186,8 @@ those translations as the bulk of the game C's crossings into the arenas.
 
 - `python3 tools/port/view_audit.py --build build/pc --symbols pc_cars --size 952 --ref StartWeapon.c` (the car;
   the reference is `struct pc_car` now: 222 views, 0 disagreeing), `--symbols pc_models --size 2056 --ref
-  init_cars.c` (the model; the reference is `struct pc_model`, with its host pointers: 143 views, 0 disagreeing),
+  init_cars.c` (the model: since wave 4 every view is `tModelData` itself, 155 of them, one an object, 0 disagreeing;
+  before, the files' own views and `struct pc_model`, 143),
   `--symbols gEnvirons,gEnvList,gFreeVis --size 24 --tags tVisual,Visual,Node,... --ref StartWeapon.c` (the
   visuals): every view's named fields at the host offsets the reference's field program gives, and its pointers
   where the reference has them (intptr_t counts as a pointer).
@@ -201,7 +201,7 @@ those translations as the bulk of the game C's crossings into the arenas.
   `find_best_gear`. It checks `CAR_OFS` against the layout's `offsetof`s and every field the code writes at its PC
   offset (the model's through `MODEL_OFS`). The car array, the model array and the descriptors are host storage, as
   in the game; the checkpoint block, `gCarParts`, the tune table and the torque curve are the test's own storage
-  (absolute symbols at their N64 addresses in a window the test mapped, until [NATIVE.md](NATIVE.md) step 11). Reverting a `CAR_OFS` or a model pointer to a u32 makes it fail. `assets_models` checks `struct pc_model`'s
+  (absolute symbols at their N64 addresses in a window the test mapped, until [NATIVE.md](NATIVE.md) step 11). Reverting a `CAR_OFS` or a model pointer to a u32 makes it fail. `assets_models` checks `tModelData`'s
   offsets (each `MODEL_OFS` of MAT3's) and its size, `assets_model` the m2c readers through the pointers.
 - `n64_neutral.py --base 09da2f0`: every changed game file is code-exact or shifted (0 FAIL).
 

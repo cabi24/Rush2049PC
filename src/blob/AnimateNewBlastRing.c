@@ -20,7 +20,6 @@ typedef struct tBlastRingStruct {
     f32 incTime;            /* seconds to its next step */
 } tBlastRingStruct;
 
-/* On the PC the model records are pc_models, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 /* On the PC the car records are pc_cars, with no N64 address (pc_game_types.h, docs/port/DECOUPLE.md). */
 /* On the PC the blast rings are pc_blast_rings, PC_MAX_LINKS long, with no N64 address (pc_game_types.h,
  * docs/port/DECOUPLE.md 6), seen here in this file's view. */
@@ -35,7 +34,7 @@ void AnimateNewBlastRing(tVisual *v,s16 op) {
     s32 phase;          /* the step count, then (below) the ring's scene node */
     tRGBA clr;
     if(gPauseState) return;
-    if(!PC_MODEL_CRASHFLAG(v->slot)) {
+    if(!pc_models[v->slot].crashflag) {
         if(gBlastRingObjs[v->slot].ringIdx.handle!=-1) {
             RemoveObjectTree(gBlastRingObjs[v->slot].ringIdx.handle,0,0);
             gBlastRingObjs[v->slot].ringIdx.handle=-1;

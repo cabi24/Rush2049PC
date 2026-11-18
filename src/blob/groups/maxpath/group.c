@@ -4,64 +4,6 @@
  * maxpath control (MAT3 mpctl, the PC's pc_car.nav). */
 #include "game/game.h"
 
-/* The model record (MAT3 tModelData): the fields maxpath reads and sets. */
-typedef struct tModelData {
-    _tCar *car;
-    Tune44 *tune;
-    u8 pad8[0x218];
-    f32 rwv[3];             /* 0x220 the velocity, feet a second */
-    f32 rwr[3];             /* 0x22C the position */
-    u8 pad238[0x168];
-    streetyp *lasttp[4];
-    u8 pad3B0[0x40];
-    f32 magvel;             /* 0x3F0 the speed */
-    u8 pad3F4[0x18];
-    const s16 *torquecurve;
-    u8 pad410[0x78];
-    s8 slipflag0;           /* 0x488 tires[0].slipflag: the front tyres' surface flags (40 below: no gas, no brake) */
-    u8 pad489[0x5B];
-    s8 slipflag1;           /* 0x4E4 tires[1].slipflag */
-    u8 pad4E5[0x14F];
-    f32 dt;                 /* 0x634 the model step, seconds */
-    f32 idt;                /* 0x638 its inverse, 0 while paused */
-    u8 pad63C[0x4];
-    s8 crashflag;           /* 0x640 */
-    u8 pad641[0x7];
-    surftyp *movingSurface;
-    u8 pad64C[0x78];
-    s16 moving_state;       /* 0x6C4 resurrect.moving_state: -1 unless being put back on the road */
-    u8 pad6C6[0x6];
-    s8 autoAbort;           /* 0x6CC resurrect.autoAbort */
-    u8 pad6CD[0x43];
-    s32 modelIteration;     /* 0x710 fastin.modelIteration */
-    f32 modelTime;          /* 0x714 fastin.modelTime */
-    f32 fastDt;             /* 0x718 fastin.dt */
-    u8 pad71C[0x4];
-    f32 wheel;              /* 0x720 mainin.wheel: the steer */
-    u8 pad724[0x4];
-    f32 brake;              /* 0x728 mainin.brake */
-    f32 throttle;           /* 0x72C mainin.throttle */
-    u8 pad730[0x2];
-    s8 abort;               /* 0x732 mainin.abort */
-    u8 pad733[0x55];
-    f32 reckon_rwv[3];      /* 0x788 reckon.rwv: the dead-reckoned velocity */
-    f32 reckon_rwr[3];      /* 0x794 reckon.rwr: the dead-reckoned position */
-    f32 reckon_uvs[3][3];   /* 0x7A0 reckon.uvs: the dead-reckoned orientation */
-    u8 pad7C4[0x2];
-    s16 slot;               /* 0x7C6 the car slot */
-    u8 pad7C8[0x2];
-    s16 we_control;         /* 0x7CA this machine drives it */
-    s8 drone_type;          /* 0x7CC 1 a drone, 2 a human */
-    u8 pad7CD[0x11];
-    s8 can_we_cheat;        /* 0x7DE */
-    u8 pad7DF[0x1];
-    s16 please_abort_me;    /* 0x7E0 the drone is stuck: put it back on the road (DetectDroneAbort) */
-    s16 last_cp_index;      /* 0x7E2 the last checkpoint it passed */
-    u8 pad7E4[0x8];
-    f32 drone_scale;        /* 0x7EC its speed scale (the catch-up) */
-    u8 pad7F0[0x18];
-} tModelData;
-
 extern f32 sqrtf(f32), fabsf(f32);
 
 /* Returns the point of drone path `path` nearest `pos`, searching only round where a car at point `lastIdx` of
@@ -178,14 +120,14 @@ void IntervalPosChange(tModelData *m, struct pc_car_nav *cp, s32 change_flag) {
             if (++current_drone >= num_drones) {
                 current_drone = 0;
             }
-            if (PC_MODEL_WE_CONTROL(PC_DRONE(current_drone))) {
+            if (pc_models[PC_DRONE(current_drone)].we_control) {
                 break;
             }
         }
         gLastPathSwitchTime = cur_time;
 
-        xpos = m->reckon_rwr[0];
-        ypos = m->reckon_rwr[2];
+        xpos = m->reckon.rwr[0];
+        ypos = m->reckon.rwr[2];
 
         high_score = 0.0f;
         high_index = -1;
@@ -211,9 +153,9 @@ void IntervalPosChange(tModelData *m, struct pc_car_nav *cp, s32 change_flag) {
             score = 0.0f;
             index = i;
 
-            pp[0] = m->reckon_rwr[0];
-            pp[1] = m->reckon_rwr[1];
-            pp[2] = m->reckon_rwr[2];
+            pp[0] = m->reckon.rwr[0];
+            pp[1] = m->reckon.rwr[1];
+            pp[2] = m->reckon.rwr[2];
             nmpi = FindClosestDronePathPtEfficiently(pp, cp->path, cp->idx, m->last_cp_index, index);
 
             y1 = gDronePaths[i].pts[nmpi].pos[2];
@@ -313,16 +255,16 @@ void AvoidAreas(s16 drone_index) {
     struct pc_car_nav *cp;
     tModelData *m;
 
-    m = PC_MODEL(drone_index);
+    m = &pc_models[drone_index];
     cp = &PC_CAR_NAV(drone_index);
 
     veccopy(cp->tgtpos, tpos);
 
-    vecsub(tpos, m->reckon_rwr, pos);
-    BodyVector(pos, rpos, (f32 *) m->reckon_uvs);
+    vecsub(tpos, m->reckon.rwr, pos);
+    BodyVector(pos, rpos, (f32 *) m->reckon.uvs);
 
     if ((m->idt ==  0.f ) || (m->magvel < .1f)) {
-        PC_MODEL_CAN_CHEAT(drone_index) = 0;
+        pc_models[drone_index].can_we_cheat = 0;
         rpos[0] =  0.0f ;
         cp->tgtspd = 100.0f;
         veccopy(rpos, cp->tgtpos);
@@ -339,7 +281,7 @@ void AvoidAreas(s16 drone_index) {
         for (i = 0; i < 3; i++) {
             PC_MP_DIR(drone_index)[i] = 0;
         }
-        PC_MODEL_CAN_CHEAT(drone_index) = 0;
+        pc_models[drone_index].can_we_cheat = 0;
         return;
     }
 
@@ -348,7 +290,7 @@ void AvoidAreas(s16 drone_index) {
         for (i = 0; i < 3; i++) {
             PC_MP_DIR(drone_index)[i] = 0;
         }
-        PC_MODEL_CAN_CHEAT(drone_index) = 0;
+        pc_models[drone_index].can_we_cheat = 0;
         return;
     }
 
@@ -357,20 +299,20 @@ void AvoidAreas(s16 drone_index) {
     scalmul(rpos, scale, dir);
     veccopy(dir, save_dir);
 
-    veccopy(PC_MODEL_RECKON_RWR(drone_index), own_rwr);
+    veccopy(pc_models[drone_index].reckon.rwr, own_rwr);
 
     can_we_cheat = 1;
     scale1 =  1 ;
 
     for (i = 0; i < gNumActiveCars; i++) {
-        index = PC_MODEL_SLOT(i);
+        index = pc_models[i].slot;
         if (index == drone_index) {
             continue;
         }
-        m = PC_MODEL(index);
+        m = &pc_models[index];
 
-        vecsub(m->reckon_rwr, own_rwr, pos);
-        BodyVector(pos, rpos, (f32 *) ((tModelData *) PC_MODEL(drone_index))->reckon_uvs);
+        vecsub(m->reckon.rwr, own_rwr, pos);
+        BodyVector(pos, rpos, (f32 *) pc_models[drone_index].reckon.uvs);
 
         dist = rpos[0] * rpos[0] + rpos[2] * rpos[2];
         if (dist > 90000.0f) {
@@ -398,7 +340,7 @@ void AvoidAreas(s16 drone_index) {
         }
     }
 
-    TargetPathAvoid(PC_MODEL(drone_index), &scale1);
+    TargetPathAvoid(&pc_models[drone_index], &scale1);
 
     if (fabsf(dir[0]) * 4 < fabsf(dir[2])) {
         if (dir[0] <  0.0f ) {
@@ -419,7 +361,7 @@ void AvoidAreas(s16 drone_index) {
     if (PC_MP_DIR(drone_index)[0] == 0 && PC_MP_DIR(drone_index)[2] == 0) {
         dir[0] = 0;
         cp->tgtspd *= 1.0f - (1.0f - scale1) * .3f;
-    } else if (hint == 5 || m->moving_state >= 0) {
+    } else if (hint == 5 || m->resurrect.moving_state >= 0) {
         dir[0] *= .4f;
     } else if (hint == 2 || (PC_MP_DIR(drone_index)[0] == 0 && PC_MP_DIR(drone_index)[2] == 0)) {
         veccopy(save_dir, dir);
@@ -440,7 +382,7 @@ void AvoidAreas(s16 drone_index) {
         dir[0] = dir[0] * .5f + PC_MP_DIR(drone_index)[0] * .5f;
     }
 
-    PC_MODEL_CAN_CHEAT(drone_index) = can_we_cheat;
+    pc_models[drone_index].can_we_cheat = can_we_cheat;
 
     veccopy(dir, cp->tgtpos);
 
@@ -582,7 +524,7 @@ void AdjustSpeed(tModelData *m, f32 tspd)
 
     tspd *= 1.05f;
 
-    if ((gGravityScale < 2) && ((m->slipflag0 == 40) || (m->slipflag1 == 40))) {
+    if ((gGravityScale < 2) && ((m->tires[0].slipflag == 40) || (m->tires[1].slipflag == 40))) {
         PC_MP_BRAKE(node) = 0;
         PC_MP_GAS(node) = 0;
     } else {
@@ -618,8 +560,8 @@ void AdjustSpeed(tModelData *m, f32 tspd)
         PC_MP_BRAKE(node) = 1.0f;
     }
 
-    m->throttle = PC_MP_GAS(node);
-    m->brake = PC_MP_BRAKE(node);
+    m->mainin.throttle = PC_MP_GAS(node);
+    m->mainin.brake = PC_MP_BRAKE(node);
 }
 
 /* Sets model `m`'s steer (pc_mp_steer, and the model's wheel) from the direction to steer, `pos`, in the car's
@@ -638,6 +580,6 @@ void AdjustSteer(tModelData *m, f32 *pos)
     angle = range_it(angle, 0, 3.1415927f);
 
     PC_MP_STEER(node) = 1.0f - angle * 0.63661975f;
-    m->wheel = PC_MP_STEER(node);
+    m->mainin.wheel = PC_MP_STEER(node);
 }
 

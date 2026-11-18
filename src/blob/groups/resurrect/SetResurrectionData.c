@@ -29,33 +29,6 @@ typedef struct tCarData { u8 pad[0x110 - 0x0]; struct pc_visual visuals[21]; u8 
 
 extern f32 sqrtf(f32), fabsf(f32), sinf(f32), cosf(f32);
 
-/* The model record (tModelData, docs/port/CARS.md 4), the fields used here. */
-typedef struct tModelData {
-    _tCar *car;
-    Tune44 *tune;
-    u8 pad8[0x398];
-    streetyp *lasttp[4];
-    u8 pad3B0[0x5C];
-    const s16 *torquecurve;
-    u8 pad410[0x238];
-    surftyp *movingSurface;
-    u8 pad64C[0x20];
-    f32 resurrect_save_pos[3];  /* 0x66C resurrect.save_pos: the point to respawn from */
-    f32 resurrect_uvs[9];       /* 0x678 resurrect.uvs: and the orientation there */
-    u8 pad69C[0x6C0 - 0x69C];
-    f32 resurrect_crash_time;   /* 0x6C0 resurrect.crash_time: the model time of the crash, 0 at the start */
-    u8 pad6C4[0x714 - 0x6C4];
-    f32 modelTime;              /* 0x714 fastin.modelTime: the model thread's race clock, seconds */
-    u8 pad718[0x794 - 0x718];
-    f32 reckon_rwr[3];          /* 0x794 reckon.rwr: the car's position */
-    u8 pad7A0[0x7C6 - 0x7A0];
-    s16 slot;                   /* 0x7C6 */
-    u8 pad7C8[0x7E2 - 0x7C8];
-    s16 last_cp_index;          /* 0x7E2 the last checkpoint passed */
-    s16 next_cp_index;          /* 0x7E4 and the next one */
-    u8 tail[0x808 - 0x7E6];
-} tModelData;
-
 typedef struct Surface Surface;
 
 /* The orientation `uvs` (3x3, by rows) for a car placed at point `idx` of a path: `res` 1 the resurrection path
@@ -159,7 +132,7 @@ void SetResurrectionData(s16 mode, tModelData *m, u32 abort) {
     switch (mode) {
     case INIT_MODE_START:
         if (gGameState & GS_DEMO) {
-            FindSurfaceUvsFromResPoint(1, -1, gDemoPathPt, m->resurrect_uvs);
+            FindSurfaceUvsFromResPoint(1, -1, gDemoPathPt, m->resurrect.uvs);
             for (i = gCheckpoints.numPoints - 1; i >= 0; i--) {
                 if (gDemoPathPt >= gCheckpoints.points[i].pathPts[0]) {
                     m->last_cp_index = i;
@@ -171,42 +144,42 @@ void SetResurrectionData(s16 mode, tModelData *m, u32 abort) {
             }
             SetDroneResPathIndex((struct State *)m, -1, gDemoPathPt);
             car = PC_CAR(m->slot);
-            m->resurrect_save_pos[0] = (f32)DRONE_PATH(car->mpctl.path).pts[car->mpctl.idx][0];
-            m->resurrect_save_pos[1] = (f32)DRONE_PATH(car->mpctl.path).pts[car->mpctl.idx][1];
-            m->resurrect_save_pos[2] = (f32)DRONE_PATH(car->mpctl.path).pts[car->mpctl.idx][2];
+            m->resurrect.save_pos[0] = (f32)DRONE_PATH(car->mpctl.path).pts[car->mpctl.idx][0];
+            m->resurrect.save_pos[1] = (f32)DRONE_PATH(car->mpctl.path).pts[car->mpctl.idx][1];
+            m->resurrect.save_pos[2] = (f32)DRONE_PATH(car->mpctl.path).pts[car->mpctl.idx][2];
         } else if (gRace == kBattle || gRace == kStunt) {
 #define ARENA_START(slot) ((slot) == 0 ? 0 : ((slot) == 1 ? 2 : ((slot) == 2 ? 1 : 3)))
-            m->resurrect_save_pos[0] = gCheckpoints.points[ARENA_START(m->slot)].pos[0];
-            m->resurrect_save_pos[1] = gCheckpoints.points[ARENA_START(m->slot)].pos[1];
-            m->resurrect_save_pos[2] = gCheckpoints.points[ARENA_START(m->slot)].pos[2];
-            CopyUV(unitmatrix, m->resurrect_uvs);
-            m->resurrect_uvs[6] = gCheckpoints.points[ARENA_START(m->slot)].normal[0];
-            m->resurrect_uvs[7] = gCheckpoints.points[ARENA_START(m->slot)].normal[1];
-            m->resurrect_uvs[8] = gCheckpoints.points[ARENA_START(m->slot)].normal[2];
-            m->resurrect_uvs[7] = 0.0f;
-            m->resurrect_uvs[6] *= -1.0f;
-            m->resurrect_uvs[8] *= -1.0f;
-            NormalVector(&m->resurrect_uvs[6]);
+            m->resurrect.save_pos[0] = gCheckpoints.points[ARENA_START(m->slot)].pos[0];
+            m->resurrect.save_pos[1] = gCheckpoints.points[ARENA_START(m->slot)].pos[1];
+            m->resurrect.save_pos[2] = gCheckpoints.points[ARENA_START(m->slot)].pos[2];
+            CopyUV(unitmatrix, m->resurrect.uvs);
+            m->resurrect.uvs[2][0] = gCheckpoints.points[ARENA_START(m->slot)].normal[0];
+            m->resurrect.uvs[2][1] = gCheckpoints.points[ARENA_START(m->slot)].normal[1];
+            m->resurrect.uvs[2][2] = gCheckpoints.points[ARENA_START(m->slot)].normal[2];
+            m->resurrect.uvs[2][1] = 0.0f;
+            m->resurrect.uvs[2][0] *= -1.0f;
+            m->resurrect.uvs[2][2] *= -1.0f;
+            NormalVector(&m->resurrect.uvs[2][0]);
             /* the first row: the cross product of the second and third */
-            m->resurrect_uvs[0] = m->resurrect_uvs[4]*m->resurrect_uvs[8] - m->resurrect_uvs[5]*m->resurrect_uvs[7];
-            m->resurrect_uvs[1] = m->resurrect_uvs[5]*m->resurrect_uvs[6] - m->resurrect_uvs[3]*m->resurrect_uvs[8];
-            m->resurrect_uvs[2] = m->resurrect_uvs[3]*m->resurrect_uvs[7] - m->resurrect_uvs[4]*m->resurrect_uvs[6];
-            NormalVector(m->resurrect_uvs);
+            m->resurrect.uvs[0][0] = m->resurrect.uvs[1][1]*m->resurrect.uvs[2][2] - m->resurrect.uvs[1][2]*m->resurrect.uvs[2][1];
+            m->resurrect.uvs[0][1] = m->resurrect.uvs[1][2]*m->resurrect.uvs[2][0] - m->resurrect.uvs[1][0]*m->resurrect.uvs[2][2];
+            m->resurrect.uvs[0][2] = m->resurrect.uvs[1][0]*m->resurrect.uvs[2][1] - m->resurrect.uvs[1][1]*m->resurrect.uvs[2][0];
+            NormalVector(m->resurrect.uvs);
             SyncMaxpathToLastCheckpoint(m->slot);
         } else {
-            m->resurrect_save_pos[0] = (f32)gResPath.pts[gCheckpoints.points[m->last_cp_index].pathPts[0]][0];
-            m->resurrect_save_pos[1] = (f32)gResPath.pts[gCheckpoints.points[m->last_cp_index].pathPts[0]][1];
-            m->resurrect_save_pos[2] = (f32)gResPath.pts[gCheckpoints.points[m->last_cp_index].pathPts[0]][2];
-            FindSurfaceUvsFromResPoint(1, -1, gCheckpoints.points[m->last_cp_index].pathPts[0], m->resurrect_uvs);
+            m->resurrect.save_pos[0] = (f32)gResPath.pts[gCheckpoints.points[m->last_cp_index].pathPts[0]][0];
+            m->resurrect.save_pos[1] = (f32)gResPath.pts[gCheckpoints.points[m->last_cp_index].pathPts[0]][1];
+            m->resurrect.save_pos[2] = (f32)gResPath.pts[gCheckpoints.points[m->last_cp_index].pathPts[0]][2];
+            FindSurfaceUvsFromResPoint(1, -1, gCheckpoints.points[m->last_cp_index].pathPts[0], m->resurrect.uvs);
             SyncMaxpathToLastCheckpoint(m->slot);
         }
-        m->resurrect_crash_time = 0.0f;
+        m->resurrect.crash_time = 0.0f;
         break;
     case INIT_MODE_CRASH:
-        m->resurrect_save_pos[0] = m->reckon_rwr[0];
-        m->resurrect_save_pos[1] = m->reckon_rwr[1];
-        m->resurrect_save_pos[2] = m->reckon_rwr[2];
-        m->resurrect_crash_time = m->modelTime;
+        m->resurrect.save_pos[0] = m->reckon.rwr[0];
+        m->resurrect.save_pos[1] = m->reckon.rwr[1];
+        m->resurrect.save_pos[2] = m->reckon.rwr[2];
+        m->resurrect.crash_time = m->fastin.modelTime;
         break;
     }
 }

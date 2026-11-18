@@ -23,7 +23,7 @@ void StartFrame(s16 slot)
   car->visuals[VIS_FRAME].objnum = (s16) parts->frame;
   car->visuals[VIS_FRAME].slot = slot;
   MBOX_ShowObject(car->visuals[VIS_FRAME].objnum, 0, 15);
-  if ((PC_MODEL_BODY(slot)) == 2)
+  if ((pc_models[slot].body_type) == 2)
   {
     parts->extraparts[1] = InitCarObj(objects[OBJLIST_ROCKET_FLAME + 1], 15, -1, 0x42000, slot, -1, 1);
     car->roktScale[1] = 0.25f;

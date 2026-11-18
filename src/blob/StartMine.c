@@ -21,7 +21,7 @@ void StartMine(tTarget *t)
     f32 delta[3];
     f32 local[3];
 
-    if (PC_MODEL_CRASHFLAG(t->slot) == 0) {
+    if (pc_models[t->slot].crashflag == 0) {
         car = PC_CAR(t->slot);
         if (car->weapon_type == WEAPON_FRONT_ARMOUR) {
             delta[0] = t->pos[0] - car->pos[0];

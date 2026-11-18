@@ -18,28 +18,6 @@ typedef struct Object {
     s8 view2;           /* 862 the view to go back to after the crash view (MAT3 saveview) */
     u8 other863[0x380 - 0x35F]; void *input; u8 other863_384[0x3B8 - 0x384];
 } Object;               /* 952 */
-/* The model record (MAT3 tModelData): the suspension and the fields this reads. */
-typedef struct Model {
-    _tCar *car;
-    Tune44 *tune;
-    u8 other8[920];
-    streetyp *lasttp[4];
-    u8 other944[92];
-    const s16 *torquecurve;
-    u8 other1040[444];
-    f32 sus[4];         /* 1484 */
-    u8 other1500[16];
-    f32 comp[4];        /* 1516 */
-    u8 other1532[76];
-    surftyp *movingSurface;
-    u8 other1612[380];
-    s16 active;         /* 1992 */
-    u8 other1994[2];
-    s8 f1996;           /* 1996 */
-    u8 other1997[18];
-    s8 f2015;           /* 2015 */
-    u8 other2016[40];
-} Model;                /* 0x808 */
 /* A player's profile (SaveSlot, host layout: pc_prelude.h), and its handle. */
 typedef struct { void *next, *prev, *fileh; u8 other0C[32]; void *resource; } HObject;
 typedef struct Handle { HObject *object; } Handle;
@@ -63,7 +41,8 @@ extern Player76 gPlayers[];
  * views 0 to 3, a view3 (10) or a track camera (6, for 3 seconds); a player's finish turns to the circling finish
  * view (5); a player's view button steps through views 0 to 3 (saved in their profile). The views: 0 and 1 the chase
  * views (1 lagging the car's acceleration, cur_acc), 2 and 3 view3's, 4 the crash, 5 the finish, 6 a track camera.
- * Also each window's car's suspension average for the in-car view (gTireCnt, gSusAvg: tyres compressed under 4). */
+ * Also each window's car's suspension average for the in-car view (gTireCnt, gSusAvg: the tyres less
+ * than 4 feet above the road). */
 void CheckCameraView(void)
 {
     s16 j;
@@ -71,7 +50,7 @@ void CheckCameraView(void)
     s32 view;
     s32 slot;
     Object *obj;
-    Model *m;
+    tModelData *m;
     tCamera *cam;
     s32 i;
     Player76 *pl;
@@ -88,7 +67,7 @@ void CheckCameraView(void)
             if (n >= gNumCars) {
                 n = 0;
             }
-        } while (PC_MODEL_ACTIVE(n) == 0 && PC_CAR_CAMERA(n) < 0);
+        } while (pc_models[n].in_game == 0 && PC_CAR_CAMERA(n) < 0);
         PC_CAR_CAMERA(n) = 0;
         gCamera[0].slot = n;
     }
@@ -96,7 +75,7 @@ void CheckCameraView(void)
     for (i = 0; i < gNumWindows; i++, pl++) {
         cam = &gCamera[i];
         obj = PC_CAR(cam->slot);
-        m = PC_MODEL(cam->slot);
+        m = &pc_models[cam->slot];
         view = obj->view;
         slot = obj->slot;
         if (gGameState & GS_DEMO) {
@@ -158,9 +137,9 @@ void CheckCameraView(void)
         update_camera(obj);
         gTireCnt[slot] = 0; gSusAvg[slot] = 0;
         for (k = 0; k < 4; k++) {
-            if (m->comp[k] < 4.0f) {
+            if (m->airdist[k] < 4.0f) {
                 gTireCnt[slot]++;
-                gSusAvg[slot] += m->sus[k];
+                gSusAvg[slot] += m->suscomp[k];
             }
         }
         if (gTireCnt[slot] >= 3) {
@@ -171,7 +150,7 @@ void CheckCameraView(void)
     }
     BlinkResurrectingCars();
     for (j = 0; j < PC_RACE_CARS; j++) {
-        if (PC_MODEL_ACTIVE(j) != 0 && PC_CAR_NODE(j) >= 0 && PC_MODEL_DRONE_TYPE(j) != 2 && PC_MODEL_HIDE_CAR(j) == 0) {
+        if (pc_models[j].in_game != 0 && PC_CAR_NODE(j) >= 0 && pc_models[j].drone_type != 2 && pc_models[j].hide_car == 0) {
             cam = ZOID_FindMatrix(PC_CAR_NODE(j));
             cam->mat.pos[0] = PC_CAR_POS(j)[0];
             cam->mat.pos[1] = PC_CAR_POS(j)[1];

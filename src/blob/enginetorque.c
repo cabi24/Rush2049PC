@@ -9,15 +9,6 @@ typedef struct {
     f32 torque_scale;       /* +0x08 */
 } tTune;
 
-/* The model record (tModelData), the fields enginetorque reads. */
-typedef struct tModelData {
-    _tCar *car;             /* +0x000 the physics descriptor */
-    tTune *tune;            /* +0x004 the tune record */
-    u8 pad8[3];
-    s8 handling;            /* +0x00B the handling (tune) choice */
-    s8 engine_type;         /* +0x00C the engine choice */
-} tModelData;
-
 #define RPM_SCALE 1150      /* the curve's rpm step: its 12 columns span 0 to 12,650 rpm */
 
 /* The torque of model m's engine at `rpm` with `throttle` (0..128), from torquecurve (stdtorquecurve: 10 rows of

@@ -18,18 +18,18 @@ void init_model_task(s32 frames)
     gModelTime = gModelIteration * dt;
     i = 0;
     do {
-        if (gRace != kGhost || i == 0 || PC_MODEL_DT(i) == 0.0f) {
-            PC_MODEL_ITERATION(i) = gModelIteration;
-            PC_MODEL_MODEL_TIME(i) = gModelTime;
-            PC_MODEL_DT(i) = dt;
+        if (gRace != kGhost || i == 0 || pc_models[i].fastin.dt == 0.0f) {
+            pc_models[i].fastin.modelIteration = gModelIteration;
+            pc_models[i].fastin.modelTime = gModelTime;
+            pc_models[i].fastin.dt = dt;
         } else {
-            iteration = gModelTime / PC_MODEL_DT(i);
+            iteration = gModelTime / pc_models[i].fastin.dt;
             if (iteration < 0.0f) {
-                PC_MODEL_ITERATION(i) = iteration - 0.5f;
+                pc_models[i].fastin.modelIteration = iteration - 0.5f;
             } else {
-                PC_MODEL_ITERATION(i) = iteration + 0.5f;
+                pc_models[i].fastin.modelIteration = iteration + 0.5f;
             }
-            PC_MODEL_MODEL_TIME(i) = gModelTime;
+            pc_models[i].fastin.modelTime = gModelTime;
         }
         i++;
     } while (i < PC_RACE_CARS);

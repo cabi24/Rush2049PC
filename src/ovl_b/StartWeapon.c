@@ -30,6 +30,6 @@ void StartWeapon(s16 slot)
         v->slot = slot;
         v->objnum = gCarParts[slot].weap =
             InitCarObj(gObjList[217], 15, gCarParts[slot].frame, 0x2000, slot, -1, 1);
-        ZOID_UpdateObject(v->objnum, weaponOffsets[1][PC_MODEL_BODY(slot)], 0);
+        ZOID_UpdateObject(v->objnum, weaponOffsets[1][pc_models[slot].body_type], 0);
     }
 }

@@ -19,22 +19,22 @@ void CarReportsGameOver(s32 slot, f32 score) {
     PC_CAR_SCORE(slot) = score;
     num_humans_locked = 0;
     for (i = 0, num_locked = -1; i < gNumActiveCars; i++) {
-        index = PC_MODEL_SLOT(i);
+        index = pc_models[i].slot;
         if (PC_CAR_PLACE_LOCKED(index) == 1) {
             place[++num_locked] = index;
             scores[num_locked] = PC_CAR_SCORE(index);
-            if (PC_MODEL_DRONE_TYPE(index) == 2) {
-                if (gRace != kGhost || PC_MODELS == PC_MODEL(index)) {
+            if (pc_models[index].drone_type == 2) {
+                if (gRace != kGhost || &pc_models[0] == &pc_models[index]) {
                     num_humans_locked++;
                 }
             }
-            if (PC_CAR_DEAD(index) > 0 && PC_MODEL_LAP(index) < gNumLaps) {
+            if (PC_CAR_DEAD(index) > 0 && pc_models[index].laps < gNumLaps) {
                 /* out of the race: after the slowest possible finish, the further it got the better */
                 scores[num_locked] = 5999.999f + (f32) (s32) (9.0f * gLapDistance) - PC_CAR_DISTANCE(index);
             }
         }
     }
-    if (PC_MODEL_DRONE_TYPE(slot) == 2) {
+    if (pc_models[slot].drone_type == 2) {
         if ((num_humans_locked == gNumPlayers || (gRace == kGhost && num_humans_locked == 1)) && gEndGame == 0) {
             gEndGame = 1;
             AddCountdownTime(1.0f - GetCountdownTimeRemaining());
@@ -54,7 +54,7 @@ void CarReportsGameOver(s32 slot, f32 score) {
         }
     }
     for (i = 0; i < num_locked + 1; i++) {
-        if (PC_CAR_DEAD(place[i]) > 0 && PC_MODEL_LAP(place[i]) < gNumLaps) {
+        if (PC_CAR_DEAD(place[i]) > 0 && pc_models[place[i]].laps < gNumLaps) {
             PC_CAR_PLACE(place[i]) = gNumCars - num_locked + i - 1;
         } else {
             PC_CAR_PLACE(place[i]) = i;

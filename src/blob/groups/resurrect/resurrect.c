@@ -30,79 +30,11 @@ typedef struct tResurrect {     /* anon_pos_save_pos_70 */
     s8 waterAbort;              /* 0x6d */
 } tResurrect;
 
-typedef struct tInitIn {        /* anon_polepos_pos_40 */
-    s16 polepos;                /* 0x00 */
-    float pos[3];               /* 0x04 */
-    float uvs[3][3];            /* 0x10 */
-    float offset[3];            /* 0x34 */
-} tInitIn;
-
-typedef struct tFastIn {        /* anon_modelIteration_modelTime_10 */
-    int modelIteration;         /* 0x0 */
-    float modelTime;            /* 0x4 */
-    float dt;                   /* 0x8 */
-    s16 modelrun;               /* 0xc */
-} tFastIn;
-
 typedef struct tReckon {        /* anon_base_rwa_base_rwv_90 */
     u8 pad00[0x60];
     float rwr[3];               /* 0x60 */
     float uvs[3][3];            /* 0x6c */
 } tReckon;
-
-/* The model record (tModelData, docs/port/CARS.md 4), the fields used here: MAT3's names and layout. */
-typedef struct tModelData {
-    _tCar *car;
-    Tune44 *tune;
-    u8 pad008[0x38];
-    float v[3];                 /* 0x040 */
-    u8 pad04C[0x94 - 0x4C];
-    float tireV[4][3];          /* 0x094 */
-    float bodyForce[4][3];      /* 0x0c4 */
-    u8 pad0F4[0x220 - 0xF4];
-    float rwv[3];               /* 0x220 */
-    float rwr[3];               /* 0x22c */
-    u8 pad238[0x2EC - 0x238];
-    float uvs[3][3];            /* 0x2ec */
-    u8 pad310[0x3A0 - 0x310];
-    streetyp *lasttp[4];
-    u8 pad3B0[0x40C - 0x3B0];
-    const s16 *torquecurve;
-    u8 pad410[0x430 - 0x410];
-    tTire tires[4];             /* 0x430 */
-    u8 pad5A0[0x5CC - 0x5A0];
-    float suscomp[4];           /* 0x5cc */
-    u8 pad5DC[0x62C - 0x5DC];
-    u16 sound_flags[4];         /* 0x62c */
-    u8 pad634[0x640 - 0x634];
-    s8 crashflag;               /* 0x640 */
-    s8 topscrape;               /* 0x641 */
-    s8 thumpflag;               /* 0x642 */
-    s8 mthumpflag;              /* 0x643 */
-    u8 pad644[0x648 - 0x644];
-    surftyp *movingSurface;
-    u8 pad64C[0x660 - 0x64C];
-    tResurrect resurrect;       /* 0x660 */
-    tInitIn initin;             /* 0x6d0 */
-    tFastIn fastin;             /* 0x710 */
-    u8 pad720[0x734 - 0x720];
-    tReckon reckon;             /* 0x734 */
-    s16 obResPt;                /* 0x7c4 */
-    s16 slot;                   /* 0x7c6 */
-    u8 pad7C8[0x7D4 - 0x7C8];
-    u32 appearance;             /* 0x7d4 */
-    u8 pad7D8[0x7DF - 0x7D8];
-    s8 hide_car;                /* 0x7df */
-    s16 please_abort_me;        /* 0x7e0 */
-    s16 last_cp_index;          /* 0x7e2 */
-    s16 next_cp_index;          /* 0x7e4 */
-    s16 drone_target;           /* 0x7e6 */
-    s8 laps;                    /* 0x7e8 */
-    s8 cpSign;                  /* 0x7e9 */
-    s8 collidable;              /* 0x7ea */
-    s8 solid;                   /* 0x7eb */
-    u8 pad7EC[0x808 - 0x7EC];
-} tModelData;
 
 typedef struct tPathPoint {
     float xrel;                 /* 0x00 */
@@ -362,12 +294,12 @@ void FindHumanResPt(tModelData *m, int *outPath, int *outIdx)
             if (pReal >= gResPath.numPts) pReal -= gResPath.numPts;
             for (a = 0; a < gNumPlayers; a++) {
                 if (m->slot == a) continue;
-                if (PC_MODEL_MOVING_STATE(a) >= 0) {
-                    x = PC_MODEL_RESURRECT_POS(a)[0];
-                    z = PC_MODEL_RESURRECT_POS(a)[2];
+                if (pc_models[a].resurrect.moving_state >= 0) {
+                    x = pc_models[a].resurrect.pos[0];
+                    z = pc_models[a].resurrect.pos[2];
                 } else {
-                    x = PC_MODEL_RWR(a)[0];
-                    z = PC_MODEL_RWR(a)[2];
+                    x = pc_models[a].rwr[0];
+                    z = pc_models[a].rwr[2];
                 }
                 dx = gResPath.pts[pReal][0] - x;
                 dz = gResPath.pts[pReal][2] - z;
@@ -534,7 +466,7 @@ void Resurrect(tModelData *m)
                 m->tires[i].angvel = m->tireV[i][2] / m->tires[i].tradius;
             }
         }
-        PC_MODEL_MODELRUN(node) = 1;
+        pc_models[node].fastin.modelrun = 1;
         return;
     }
     if (inPlace) {

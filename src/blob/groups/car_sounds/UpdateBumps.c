@@ -4,18 +4,6 @@
  * a bump for a settled hit, a scrape while a side rubs, and a thump when the car lands or hits harder than before. */
 #include "game/game.h"
 
-/* The model record's fields this file reads (MAT3 tModelData): bodyForce (the four corners),
- * centerForceLast, the speed at +0x3F0, crashflag, thumpflag and mthumpflag (this frame's and the last thump's
- * kind), thump_side, slot. */
-typedef struct AudioModel2056 {
-    _tCar *car; Tune44 *tune; u8 to_body_force[188];f32 body_force[4][3];
-    u8 to_center_force[60];f32 center_force[3];
-    u8 to_lasttp[612]; streetyp *lasttp[4]; u8 to_speed[64];f32 speed;
-    u8 to_torquecurve[24]; const s16 *torquecurve; u8 to_crash[560];s8 crash;u8 gap1601;
-    s8 collision_kind,last_collision_kind;s16 collision_direction;
-    u8 to_movingSurface[2]; surftyp *movingSurface; u8 to_player[378];s16 player;u8 tail[64];
-} AudioModel2056;
-
 f32 fabsf(f32);
 
 /* The effects (fxid): the first of 13 bump sounds, the scrape loop, the thumps of the three collision kinds. */
@@ -33,14 +21,14 @@ f32 fabsf(f32);
  * direction. Scrapes, above 20 of speed with no bump: a side touching (body forces) starts one short scrape,
  * and a tenth of a second later the scrape loop, until the side lets go. Thumps: a new collision kind plays its
  * thump, at most six a second. */
-void UpdateBumps(AudioModel2056 *m) {
+void UpdateBumps(tModelData *m) {
     s32 i;
     s16 bump_index, scrape_side, scrape_snd;
     f32 volume, high_force;
     s32 p;
 
-    p = m->player;
-    if (m->crash != 0) {
+    p = m->slot;
+    if (m->crashflag != 0) {
         InitBumps(p);
         return;
     }
@@ -72,11 +60,11 @@ void UpdateBumps(AudioModel2056 *m) {
     }
     if (bump_index) {
         if (gBumpTime[p] == 0.0f) {
-            AudPlayEffectVP((s32)(Random(13.0f) + SFX_BUMP_FIRST), m->player, 1, 1, volume,
+            AudPlayEffectVP((s32)(Random(13.0f) + SFX_BUMP_FIRST), m->slot, 1, 1, volume,
                                 gBumpLRTab[bump_index], gBumpFBTab[bump_index]);
             gBumpTime[p] = gSeconds;
         } else {
-            AudPlayEffectVP((s32)(Random(13.0f) + SFX_BUMP_FIRST), m->player, 1, 1, volume,
+            AudPlayEffectVP((s32)(Random(13.0f) + SFX_BUMP_FIRST), m->slot, 1, 1, volume,
                                 gBumpLRTab[bump_index], gBumpFBTab[bump_index]);
             gBumpTime[p] = 0.0f;
         }
@@ -112,17 +100,17 @@ void UpdateBumps(AudioModel2056 *m) {
             gBump[p].point[4].bump = 0;
         }
         if (bump_index) {
-            AudPlayEffectVP((s32)(Random(13.0f) + SFX_BUMP_FIRST), m->player, 1, 1, volume,
+            AudPlayEffectVP((s32)(Random(13.0f) + SFX_BUMP_FIRST), m->slot, 1, 1, volume,
                                 gBumpLRTab[bump_index], gBumpFBTab[bump_index]);
         }
     }
 
-    if (bump_index == 0 && m->speed > 20.0f) {
+    if (bump_index == 0 && m->magvel > 20.0f) {
         scrape_side = 0;
-        if (m->body_force[0][0] != 0.0f || m->body_force[2][0] != 0.0f) {
+        if (m->bodyForce[0][0] != 0.0f || m->bodyForce[2][0] != 0.0f) {
             scrape_side |= 1;
         }
-        if (m->body_force[1][0] != 0.0f || m->body_force[3][0] != 0.0f) {
+        if (m->bodyForce[1][0] != 0.0f || m->bodyForce[3][0] != 0.0f) {
             scrape_side |= 2;
         }
         scrape_snd = 0;
@@ -159,22 +147,22 @@ void UpdateBumps(AudioModel2056 *m) {
         }
         switch (scrape_snd) {
         case 1:
-            AudPlayEffectVP((s32)(Random(13.0f) + SFX_BUMP_FIRST), m->player, 1, 1, 0.65f, 1, 0.0f);
+            AudPlayEffectVP((s32)(Random(13.0f) + SFX_BUMP_FIRST), m->slot, 1, 1, 0.65f, 1, 0.0f);
             break;
         case 2:
-            AudPlayEffectVP((s32)(Random(13.0f) + SFX_BUMP_FIRST), m->player, 1, 1, 0.65f, -1, 0.0f);
+            AudPlayEffectVP((s32)(Random(13.0f) + SFX_BUMP_FIRST), m->slot, 1, 1, 0.65f, -1, 0.0f);
             break;
         case 3:
-            AudPlayEffectVP((s32)(Random(13.0f) + SFX_BUMP_FIRST), m->player, 1, 1, 0.65f, 0.0f, 0.0f);
+            AudPlayEffectVP((s32)(Random(13.0f) + SFX_BUMP_FIRST), m->slot, 1, 1, 0.65f, 0.0f, 0.0f);
             break;
         case 4:
-            gScrapes[p] = AudPlayEffectVP(SFX_SCRAPE, m->player, 1, 2, 0.65f, 1, 0.0f);
+            gScrapes[p] = AudPlayEffectVP(SFX_SCRAPE, m->slot, 1, 2, 0.65f, 1, 0.0f);
             break;
         case 5:
-            gScrapes[p] = AudPlayEffectVP(SFX_SCRAPE, m->player, 1, 2, 0.65f, -1, 0.0f);
+            gScrapes[p] = AudPlayEffectVP(SFX_SCRAPE, m->slot, 1, 2, 0.65f, -1, 0.0f);
             break;
         case 6:
-            gScrapes[p] = AudPlayEffectVP(SFX_SCRAPE, m->player, 1, 2, 0.65f, 0.0f, 0.0f);
+            gScrapes[p] = AudPlayEffectVP(SFX_SCRAPE, m->slot, 1, 2, 0.65f, 0.0f, 0.0f);
             break;
         }
     } else {
@@ -189,23 +177,23 @@ void UpdateBumps(AudioModel2056 *m) {
             gThumpTime[p] = 0.0f;
         }
     }
-    if (m->last_collision_kind > m->collision_kind) {
-        m->last_collision_kind = m->collision_kind;
+    if (m->mthumpflag > m->thumpflag) {
+        m->mthumpflag = m->thumpflag;
     }
-    if (m->last_collision_kind != m->collision_kind) {
-        m->last_collision_kind = m->collision_kind;
+    if (m->mthumpflag != m->thumpflag) {
+        m->mthumpflag = m->thumpflag;
         if (gThumpTime[p] == 0.0f) {
             gThumpTime[p] = gSeconds;
             if (!(gGameState & GS_COUNTDOWN)) {
-                switch (m->last_collision_kind) {
+                switch (m->mthumpflag) {
                 case 1:
-                    AudPlayEffectVP(SFX_THUMP_1, m->player, 1, 2, 1.0f, gBumpLRTab[m->collision_direction], gBumpFBTab[m->collision_direction]);
+                    AudPlayEffectVP(SFX_THUMP_1, m->slot, 1, 2, 1.0f, gBumpLRTab[m->thump_side], gBumpFBTab[m->thump_side]);
                     break;
                 case 2:
-                    AudPlayEffectVP(SFX_THUMP_2, m->player, 1, 2, 1.0f, gBumpLRTab[m->collision_direction], gBumpFBTab[m->collision_direction]);
+                    AudPlayEffectVP(SFX_THUMP_2, m->slot, 1, 2, 1.0f, gBumpLRTab[m->thump_side], gBumpFBTab[m->thump_side]);
                     break;
                 case 3:
-                    AudPlayEffectVP(SFX_THUMP_3, m->player, 1, 2, 1.0f, gBumpLRTab[m->collision_direction], gBumpFBTab[m->collision_direction]);
+                    AudPlayEffectVP(SFX_THUMP_3, m->slot, 1, 2, 1.0f, gBumpLRTab[m->thump_side], gBumpFBTab[m->thump_side]);
                     break;
                 }
             }
@@ -215,11 +203,11 @@ void UpdateBumps(AudioModel2056 *m) {
 
 /* Gathers this frame's forces of the car of model m: each body corner's and the centre's (GetForceAndPeak, with a
  * threshold of 5000). */
-void CheckForces(AudioModel2056 *m) {
+void CheckForces(tModelData *m) {
     s16 k;
 
     for (k = 0; k < 4; k++) {
-        GetForceAndPeak(k, m->player, m->body_force[k], 5000.0f);
+        GetForceAndPeak(k, m->slot, m->bodyForce[k], 5000.0f);
     }
-    GetForceAndPeak(4, m->player, m->center_force, 5000.0f);
+    GetForceAndPeak(4, m->slot, m->centerForceLast, 5000.0f);
 }

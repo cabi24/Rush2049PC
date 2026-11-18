@@ -1,23 +1,6 @@
 /* SetDroneResPathIndex: puts a respawned drone back on its drone path (MAT3 maxpath.c). */
 #include "game/game.h"
 
-/* The model record (MAT3 tModelData): the fields this reads. */
-struct tModelData {
-    _tCar *car;
-    Tune44 *tune;
-    u8 pad_8[0x398];
-    streetyp *lasttp[4];
-    u8 pad_3B0[0x5C];
-    const s16 *torquecurve;
-    u8 pad_410[0x238];
-    surftyp *movingSurface;
-    u8 pad_64C[0x17A];
-    s16 slot;          /* 0x7C6 the car slot */
-    u8 pad7C8[0x7E2 - 0x7C8];
-    s16 last_cp_index; /* 0x7E2 the last checkpoint it passed */
-    s16 next_cp_index; /* 0x7E4 the next one */
-};
-
 /* Sets the drone of model `m`, respawned at point `idx` of the resurrection path (alternative path `path`, or the
  * main one when `path` is negative), on the nearest point of its drone path within its checkpoint section (from
  * its last checkpoint to its next), then that many points further on as its slot number, so drones put back at the

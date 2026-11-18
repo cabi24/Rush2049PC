@@ -16,6 +16,7 @@
 
 #include "pc_prelude.h"
 #include "support.h"
+#include "game/modeldata.h"
 
 /* NewMultiBlit.c's Blit: the layout every PC view has (test_hudblit.c). */
 typedef struct Blit {
@@ -40,7 +41,7 @@ _Static_assert(sizeof(Blit) == 0x68 && offsetof(Blit, AnimID) == 0x40, "the Blit
 
 /* ---------------------------------------------------------------- the game's data */
 
-struct pc_model pc_models[PC_MODEL_SLOTS];
+tModelData pc_models[PC_MODEL_SLOTS];
 struct pc_car pc_cars[PC_CAR_SLOTS];
 struct { uint32_t opaque[6]; } text_lock_queue;     /* the font lock */
 int32_t gGameState, gRace;
@@ -264,7 +265,7 @@ static void cars_in_race(int n, int humans)
     for (int i = 0; i < n; i++) {
         pc_models[i].slot = (int16_t)i;
         pc_models[i].drone_type = i < humans ? 2 : 1;
-        pc_models[i].active = 1;
+        pc_models[i].in_game = 1;
         pc_cars[i].place = (int8_t)(n - 1 - i);   /* the last slot leads */
     }
     for (int h = 0; h < humans; h++)
@@ -411,7 +412,7 @@ static void test_dots(void)
     }
     /* a blip for slot 11 on viewer 0's radar: a drone's icon */
     gShowRadar = 1, gGameState = 0, radarWidth = 64, radarHeight = 64;
-    pc_models[11].active = 1, pc_models[11].drone_type = 1;
+    pc_models[11].in_game = 1, pc_models[11].drone_type = 1;
     pc_cars[0].pos[0] = 0, pc_cars[0].pos[2] = 0, pc_cars[11].pos[0] = 30, pc_cars[11].pos[2] = -100;
     memset(&b, 0, sizeof b);
     b.AnimID = 0x00B, b.Width = 64, b.Height = 8, b.AnimFunc = animRadarBlip, b.Hide = 1;
@@ -419,7 +420,7 @@ static void test_dots(void)
     CHECK(animRadarBlip(&b) == 1);
     CHECK(g_ncalls == 1 && g_calls[0].what == 'I' && g_calls[0].a == 5 && !b.Hide && b.AnimFunc);
     /* a slot not in the race: hidden for good */
-    pc_models[10].active = 0;
+    pc_models[10].in_game = 0;
     memset(&b, 0, sizeof b);
     b.AnimID = 0x00A, b.Width = 64, b.Height = 8, b.AnimFunc = animRadarBlip;
     g_ncalls = 0;

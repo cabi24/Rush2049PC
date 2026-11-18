@@ -20,37 +20,6 @@ typedef struct tResurrect {
     s8 waterAbort;              /* 0x6D */
 } tResurrect;
 
-/* The model record (tModelData, docs/port/CARS.md 4), the fields used here. */
-typedef struct tModelData {
-    _tCar *car;
-    Tune44 *tune;
-    char pad8[0x218];
-    f32 rwv[3];                 /* 0x220 the velocity in the world, feet a second */
-    f32 rwr[3];                 /* 0x22C the position in the world, feet */
-    char pad238[0x2EC - 0x238];
-    f32 uvs[3][3];              /* 0x2EC the orientation */
-    char pad310[0x3A0 - 0x310];
-    streetyp *lasttp[4];
-    char pad3B0[0x40C - 0x3B0];
-    const s16 *torquecurve;
-    char pad410[0x648 - 0x410];
-    surftyp *movingSurface;
-    char pad64C[0x660 - 0x64C];
-    tResurrect resurrect;       /* 0x660 */
-    char pad6D0[0x6D4 - 0x6D0];
-    f32 initin_pos[3];          /* 0x6D4 initin.pos: where the flight began (Resurrect sets it) */
-    char pad6E0[0x714 - 0x6E0];
-    f32 modelTime;              /* 0x714 fastin.modelTime: the model thread's race clock, seconds */
-    char pad718[0x7C6 - 0x718];
-    s16 slot;                   /* 0x7C6 */
-    char pad7C8[2];
-    s16 we_control;             /* 0x7CA this machine simulates it */
-    char pad7CC[0x7D4 - 0x7CC];
-    s32 appearance;             /* 0x7D4 APPEAR_* bits */
-    char pad7D8[0x7DF - 0x7D8];
-    s8 hide_car;                /* 0x7DF */
-} tModelData;
-
 /* The flight's apex for each car, MAT3's static save_pos[6][3]: on the PC pc_resurrect_mid, PC_MAX_LINKS long, with
  * no N64 address (pc_game_types.h, docs/port/DECOUPLE.md 6). */
 #define resurrect_save_pos pc_resurrect_mid
@@ -73,19 +42,19 @@ void UpdateResurrectingCar(tModelData *m) {
     void *gc;   /* unused */
 
     if (m->resurrect.moving_state == RES_START) {
-        pos2[0] = m->initin_pos[0] - m->resurrect.pos[0];
-        pos2[1] = m->initin_pos[1] - m->resurrect.pos[1];
-        pos2[2] = m->initin_pos[2] - m->resurrect.pos[2];
+        pos2[0] = m->initin.pos[0] - m->resurrect.pos[0];
+        pos2[1] = m->initin.pos[1] - m->resurrect.pos[1];
+        pos2[2] = m->initin.pos[2] - m->resurrect.pos[2];
         temp = vector_magnitude(pos2) / 8;
         if (temp > 100) {
             temp = 100;
         }
-        Interpolate(m->initin_pos, m->resurrect.pos, 3, 0.0f, resurrectTime, resurrectTime / 2, resurrect_save_pos[node]);
+        Interpolate(m->initin.pos, m->resurrect.pos, 3, 0.0f, resurrectTime, resurrectTime / 2, resurrect_save_pos[node]);
         resurrect_save_pos[node][1] += temp;
         m->appearance &= ~APPEAR_INVISIBLE;
     }
     m->resurrect.moving_state++;
-    f32_state = m->modelTime - m->resurrect.resurrect_time;
+    f32_state = m->fastin.modelTime - m->resurrect.resurrect_time;
     if (f32_state > resurrectTime) {
         if (m->appearance & APPEAR_HULK) {
             m->appearance &= ~APPEAR_HULK;
@@ -100,7 +69,7 @@ void UpdateResurrectingCar(tModelData *m) {
         }
         if (f32_state < resurrectTime / 2) {
             scale = 2 * f32_state * f32_state / resurrectTime;
-            Interpolate(m->initin_pos, resurrect_save_pos[node], 3, 0.0, resurrectTime / 2, scale, pos);
+            Interpolate(m->initin.pos, resurrect_save_pos[node], 3, 0.0, resurrectTime / 2, scale, pos);
             Interpolate(m->resurrect.quat_start, m->resurrect.quat_end, 4, 0.0, resurrectTime / 2, scale, quat);
             MakeUvsFromQuat(quat, uvs);
             scale = 1 - 2 * scale / resurrectTime;

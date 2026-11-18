@@ -25,6 +25,7 @@
 
 #include "pc_prelude.h"
 #include "support.h"
+#include "game/modeldata.h"
 
 /* ---------------------------------------------------------------- the pool, the lock and the queue */
 
@@ -91,7 +92,7 @@ void *n64_memset(void *d, int c, size_t n) { return memset(d, c, n); }
 #define STUB_FN(n) long n(void) { return 0; }
 #define STUB_DATA(n) uint8_t n[0x1000] __attribute__((aligned(16)));
 struct pc_link pc_links[PC_LINK_SLOTS];   /* the race roster (pc_game_types.h), which data.c defines */
-struct pc_model pc_models[PC_MODEL_SLOTS];   /* the model records (pc_game_types.h) */
+tModelData pc_models[PC_MODEL_SLOTS];   /* the model records (game/modeldata.h) */
 struct pc_car pc_cars[PC_CAR_SLOTS];       /* the car records (pc_game_types.h) */
 short pc_drones[PC_MAX_LINKS], pc_our_drones[PC_MAX_LINKS];   /* the drone lists (pc_game_types.h) */
 signed char pc_carsetup_flags[PC_MAX_LINKS];   /* CarSetup's flags (pc_game_types.h) */

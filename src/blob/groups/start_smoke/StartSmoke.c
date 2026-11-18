@@ -8,9 +8,6 @@
 /* The car record (tCarData, N64 offsets; docs/port/CARS.md 2): the fields the puffs start from. dr_uvs's rows are
  * the car's axes: [0] x (sideways), [1] y (up), [2] z (forwards). */
 typedef struct tCarData { u8 pad0[8]; f32 dr_pos[3]; f32 dr_vel[3]; u8 pad20[12]; f32 dr_uvs[3][3]; u8 pad50[36]; f32 dr_tirepos[4][3]; u8 padA4[84]; s16 rwmph; u8 padFA[0x110 - 0xFA]; struct pc_visual visuals[21]; u8 pad308[0x35C - 0x308]; s8 camera; s8 view; u8 pad35E[0x380 - 0x35E]; void *player; u8 pad384[0x3B8 - 0x384]; } tCarData;
-/* The model record (tModelData): body_type, the tires' surfaces (sviscode[4], SURF_VIS_*) and the suspension's
- * compression (reckon.suscomp). sviscode is declared 8 long here because StartSmoke reads it for every type. */
-typedef struct tModelData {_tCar *car; Tune44 *tune;u8 body_type;u8 pad9[919]; streetyp *lasttp[4]; u8 pad3B0[92]; const s16 *torquecurve; u8 pad410[524];u16 sviscode[8];u8 pad62C[28]; surftyp *movingSurface; u8 pad64C[272];f32 reckon_suscomp[4];u8 pad76C[156];} tModelData;
 /* A smoke puff (MAT3 smoke.c's anon_ll_mat_58, types.h's PcPuff). PC: the handle is the s32 MBOX_NewObject
  * returned, and index its low half: the second s16 on the N64, the first on a little-endian host
  * (docs/port/ENDIAN.md). */
@@ -49,9 +46,9 @@ void StartSmoke(s16 slot, u32 type, s32 water, f32 *smkoffset)
     f32 gap;
     f32 offset;
     f32 offset2;
-    tModelData *m = PC_MODEL(slot);
+    tModelData *m = &pc_models[slot];
     f32 prevPos[3];
-    s16 surface = m->sviscode[type];
+    s16 surface = ((u16 *)m->sviscode)[type];   /* types 4-7 read on into roadboost[type - 4]: see below */
     s16 mph2;
     s16 first;
     s32 howmany;
@@ -196,9 +193,9 @@ void StartSmoke(s16 slot, u32 type, s32 water, f32 *smkoffset)
             pos[0] = pos[0] + car->dr_uvs[2][0] * (Random(7.0f) - 3.5f);
             pos[1] = pos[1] + car->dr_uvs[2][1] * (Random(7.0f) - 3.5f);
             pos[2] = pos[2] + car->dr_uvs[2][2] * (Random(7.0f) - 3.5f);
-            pos[0] = pos[0] + car->dr_uvs[1][0] * gCarMiddles[PC_MODEL_BODY(slot)];
-            pos[1] = pos[1] + car->dr_uvs[1][1] * gCarMiddles[PC_MODEL_BODY(slot)];
-            pos[2] = pos[2] + car->dr_uvs[1][2] * gCarMiddles[PC_MODEL_BODY(slot)];
+            pos[0] = pos[0] + car->dr_uvs[1][0] * gCarMiddles[pc_models[slot].body_type];
+            pos[1] = pos[1] + car->dr_uvs[1][1] * gCarMiddles[pc_models[slot].body_type];
+            pos[2] = pos[2] + car->dr_uvs[1][2] * gCarMiddles[pc_models[slot].body_type];
             pos[1] = pos[1] + 0.75f;
             ObjInstanceList[smk->mbIdx.handle].scale = Random(0.5f) + 0.75f;
             break;
@@ -218,9 +215,9 @@ void StartSmoke(s16 slot, u32 type, s32 water, f32 *smkoffset)
             pos[0] = pos[0] + car->dr_uvs[2][0] * smk->vel[2];
             pos[1] = pos[1] + car->dr_uvs[2][1] * smk->vel[2];
             pos[2] = pos[2] + car->dr_uvs[2][2] * smk->vel[2];
-            pos[0] = pos[0] + car->dr_uvs[1][0] * gCarMiddles[PC_MODEL_BODY(slot)];
-            pos[1] = pos[1] + car->dr_uvs[1][1] * gCarMiddles[PC_MODEL_BODY(slot)];
-            pos[2] = pos[2] + car->dr_uvs[1][2] * gCarMiddles[PC_MODEL_BODY(slot)];
+            pos[0] = pos[0] + car->dr_uvs[1][0] * gCarMiddles[pc_models[slot].body_type];
+            pos[1] = pos[1] + car->dr_uvs[1][1] * gCarMiddles[pc_models[slot].body_type];
+            pos[2] = pos[2] + car->dr_uvs[1][2] * gCarMiddles[pc_models[slot].body_type];
             break;
         case SMOKE_WING0:
             if (gCarSmokeDir[slot] & SMOKE_SPIN_WING0) { gCarSmokeDir[slot] &= ~SMOKE_SPIN_WING0; break; }
@@ -243,7 +240,7 @@ void StartSmoke(s16 slot, u32 type, s32 water, f32 *smkoffset)
             pos[0] = pos[0] + car->dr_uvs[0][0] * (Random(2.0f) - 1.0f);
             pos[1] = pos[1] + car->dr_uvs[0][1] * (Random(2.0f) - 1.0f);
             pos[2] = pos[2] + car->dr_uvs[0][2] * (Random(2.0f) - 1.0f);
-            pos[1] += PC_MODEL_SUSPENSION(slot)[type];
+            pos[1] += pc_models[slot].reckon.suscomp[type];
             ObjInstanceList[smk->mbIdx.handle].scale = Random(0.75f) + 0.25f;
         }
         if (type >= SMOKE_WING0) {

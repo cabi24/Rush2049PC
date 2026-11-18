@@ -22,6 +22,7 @@
 
 #include "pc_prelude.h"
 #include "support.h"
+#include "game/modeldata.h"
 
 /* An input record on the PC: the N64 fields in place, the profile pointer at +0x48 pointer-sized. */
 typedef struct {
@@ -49,7 +50,7 @@ float unitmatrix[4][3];
 int8_t gDefaultControls[10], gNewControls[8][10], gControlsSet[8];
 uint32_t gControlTable[32];
 void *gJustPlayers[8];
-struct pc_model pc_models[PC_MODEL_SLOTS];
+tModelData pc_models[PC_MODEL_SLOTS];
 struct { uint8_t pad0[12]; float a[3], b[3]; uint8_t pad24[152 - 36]; } gCamera[4];
 uint8_t audio_lock_queue[24];
 struct { uint8_t indirect, doubly, pad[2]; uint32_t count; void *head, *tail; } gFreeListeners, gActiveListeners;

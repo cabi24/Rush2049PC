@@ -19,29 +19,13 @@ typedef struct GameCar {
     u8 pad360[0x380 - 0x360]; void *input; u8 pad384[0x3B8 - 0x384];
 } GameCar;
 
-/* The model record's view (MAT3 tModelData): only its crash flag. */
-typedef struct ModelData {
-    _tCar *car;
-    Tune44 *tune;
-    u8 pad008[0x398];
-    streetyp *lasttp[4];
-    u8 pad3B0[0x5C];
-    const s16 *torquecurve;
-    u8 pad410[0x230];
-    s8 crashflag;           /* 0x640 the car is wrecked */
-    u8 pad641[0x648 - 0x641];
-    surftyp *movingSurface;
-    u8 pad64C[0x808 - 0x64C];
-} ModelData;
-
-
 
 #define OBJ_CONE 236            /* the cone's object (MAT3 550) */
 #define OBJ_LIGHT_DEBRIS_A 339  /* the two objects that fly up only a foot a frame (MAT3 653 and 551) */
 #define OBJ_LIGHT_DEBRIS_B 237
 
 /* Wreck the model's car, unless it already is (MAT3: `if (!model[slot].crashflag) model[slot].crashflag = 1`). */
-static void crash_car(ModelData *m)
+static void crash_car(tModelData *m)
 {
     if (!m->crashflag) {
         m->crashflag = 1;
@@ -73,7 +57,7 @@ void StartCone(tTarget *t)
     if (gMineCones && info->objListIdx == OBJ_CONE) {
         MBOX_HideObject(t->dlIdx, 0, 15);
         StartBlast(t->pos, 0, 0.4f, 1);
-        crash_car(PC_MODEL(t->slot));
+        crash_car(&pc_models[t->slot]);
         t->Flags &= ~(TARGET_ACTIVE | TARGET_HIT);
         return;
     }

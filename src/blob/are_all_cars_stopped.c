@@ -22,7 +22,7 @@ s32 are_all_cars_stopped(void)
             }
         } else {
             for (i = 0; i < gNumPlayers; i++) {
-                if (gNumLaps == PC_MODEL_LAP(i)) {
+                if (gNumLaps == pc_models[i].laps) {
                     gDeathWaitEnd = gFrameSeconds;
                 }
             }
@@ -36,10 +36,10 @@ s32 are_all_cars_stopped(void)
         count = gNumActiveCars;
     }
     for (i = 0; i < count; i++) {
-        slot = PC_MODEL_SLOT(i);
-        if (PC_MODEL_DRONE_TYPE(slot) == 2) {   /* DRONE_TYPE_HUMAN */
-            if (gDeathMode == 0 || gNumLaps == PC_MODEL_LAP(slot)) {
-                if (PC_MODEL_SPEED(slot) > 5.0f) {
+        slot = pc_models[i].slot;
+        if (pc_models[slot].drone_type == 2) {   /* DRONE_TYPE_HUMAN */
+            if (gDeathMode == 0 || gNumLaps == pc_models[slot].laps) {
+                if (pc_models[slot].magvel > 5.0f) {
                     result = 0;
                     break;
                 }

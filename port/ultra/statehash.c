@@ -50,6 +50,7 @@
 
 #include "pc_data.h"
 #include "pc_game_types.h"
+#include "game/modeldata.h"
 #include "pc_lockstep.h"
 #include "ultra.h"
 

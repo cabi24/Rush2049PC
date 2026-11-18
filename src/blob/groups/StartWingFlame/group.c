@@ -1,22 +1,6 @@
 /* group.c (StartWingFlame): start one of a car's wing-flame visuals (MAT3 visuals.c, StartWingFlame()). */
 #include "game/game.h"
 
-/* The model record (tModelData, docs/port/CARS.md 4), the fields StartWingFlame reads. */
-typedef struct tModelData {
-    _tCar *car;
-    Tune44 *tune;
-    u8 body_type;                /* +0x008 the car, 0-12 */
-    u8 pad009[0x3A0 - 0x9];
-    streetyp *lasttp[4];
-    u8 pad3B0[0x40C - 0x3B0];
-    const s16 *torquecurve;
-    u8 pad410[0x648 - 0x410];
-    surftyp *movingSurface;
-    u8 pad64C[0x7CA - 0x64C];
-    s16 we_control;              /* +0x7CA the computer drives it (a drone) */
-    u8 pad7CC[0x808 - 0x7CC];
-} tModelData;
-
 /* A scene node's matrix: its rotation and its position relative to its parent. */
 typedef struct tUVMatrix { f32 uvs[3][3]; f32 pos[3]; } tUVMatrix;
 
@@ -28,7 +12,7 @@ void StartWingFlame(s16 slot, s16 side) {
     tModelData *m;
     s32 index;
     s16 objnum;
-    if (gRace == kGhost || gRace == kBattle || (m = PC_MODEL(slot), m->we_control != 0)) {
+    if (gRace == kGhost || gRace == kBattle || (m = &pc_models[slot], m->we_control != 0)) {
         PC_CAR_VISUALS(slot)[side + VIS_WING_FLAMES].func = 0;
         return;
     }

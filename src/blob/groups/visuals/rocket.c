@@ -48,28 +48,6 @@ typedef struct tCarData {
     /* 0x3A2 */ u8 pad3A2[0x3B8 - 0x3A2];
 } tCarData;
 
-/* The model record (tModelData, docs/port/CARS.md 4), the fields these functions read. */
-typedef struct tModelData {
-    /* 0x000 */ _tCar *car;
-    /* 0x004 */ Tune44 *tune;
-    /* 0x008 */ u8 body_type;       /* the car, 0-12; 13 the wreck */
-    /* 0x009 */ u8 pad9[0x3A0 - 0x9];
-    /* 0x3A0 */ streetyp *lasttp[4];
-    /* 0x3B0 */ u8 pad3B0[0x3D0 - 0x3B0];
-    /* 0x3D0 */ f32 throttle;       /* 0..1 */
-    /* 0x3D4 */ u8 pad3D4[0x40C - 0x3D4];
-    /* 0x40C */ const s16 *torquecurve;
-    /* 0x410 */ u8 pad410[0x5F4 - 0x410];
-    /* 0x5F4 */ f32 airdist2;       /* airdist[2]: how far the rear left tire is off the ground, feet */
-    /* 0x5F8 */ u8 pad5F8[0x648 - 0x5F8];
-    /* 0x648 */ surftyp *movingSurface;
-    /* 0x64C */ u8 pad64C[0x6C4 - 0x64C];
-    /* 0x6C4 */ s16 moving_state;   /* resurrect.moving_state: RES_IDLE, else respawning */
-    /* 0x6C6 */ u8 pad6C6[0x7D0 - 0x6C6];
-    /* 0x7D0 */ s16 rpm;
-    /* 0x7D2 */ u8 pad7D2[0x808 - 0x7D2];
-} tModelData;
-
 /* A car visual (tVisual) on the PC: 0x28 bytes, next, data and func pointer-sized (struct pc_visual, docs/port/CARS.md
  * 3). */
 typedef struct tVisual {
@@ -109,8 +87,8 @@ Color GetCarsIRColor(tCarData *car, tModelData *m)
     rgb[1] = sum >> 2;
     sum = ((Color *)gTrackColors[gTrackNum])[i0].b[2]+((Color *)gTrackColors[gTrackNum])[i1].b[2]+((Color *)gTrackColors[gTrackNum])[i2].b[2]+((Color *)gTrackColors[gTrackNum])[i3].b[2];
     rgb[2] = sum >> 2;
-    if (m->airdist2 >= 20.0f) {
-        d1 = 0.025f * (m->airdist2 - 20.0f);
+    if (m->airdist[2] >= 20.0f) {
+        d1 = 0.025f * (m->airdist[2] - 20.0f);
         if (d1 > 1.0f)
             return ((Color *)gTrackColors[gTrackNum])[gTrackBaseColors[gTrackNum]];
         if (d1 > 0.0f) {
@@ -158,7 +136,7 @@ void AnimateFrame(tVisual *v, s16 op)
     Color nextclr;
 
     slot = v->slot;
-    m = PC_MODEL(slot);
+    m = &pc_models[slot];
     car = PC_CAR(slot);
     def = ObjInstanceList[v->objnum].index;
     if (op == 0) {
@@ -258,7 +236,7 @@ void AnimateFrame(tVisual *v, s16 op)
     if (PickCar(slot, m->body_type) != def) {
         ZOID_SetObjectDef(v->objnum, PickCar(slot, m->body_type));
     }
-    if (gRace == kBattle && m->moving_state >= 0) {
+    if (gRace == kBattle && m->resurrect.moving_state >= 0) {
         ObjInstanceList[v->objnum].flags |= 0x80000000;
     } else if (gInvisibleCar != 0 || (car->appearance & 8)) {
         ObjInstanceList[v->objnum].flags ^= 0x80000000;
@@ -302,7 +280,7 @@ void AnimateRocketFlame(s16 slot, int hulk)
     float pos[3];
     int mph;
     int b;
-    m=PC_MODEL(slot);
+    m=&pc_models[slot];
     car=PC_CAR(slot);
     if(hulk) {
         MBOX_HideObject(gCarParts[slot].extraparts[0],1,15);
@@ -397,7 +375,7 @@ void AnimateRocketFlame(s16 slot, int hulk)
         flames[2]->uvs[1][1]*=car->roktScale[2];
         flames[2]->uvs[1][2]*=car->roktScale[2];
     }
-    if(gRace==kBattle && m->moving_state>=0) {
+    if(gRace==kBattle && m->resurrect.moving_state>=0) {
         ObjInstanceList[gCarParts[slot].extraparts[0]].flags |=0x80000000;
         ObjInstanceList[gCarParts[slot].extraparts[1]].flags |=0x80000000;
         ObjInstanceList[gCarParts[slot].extraparts[2]].flags |=0x80000000;

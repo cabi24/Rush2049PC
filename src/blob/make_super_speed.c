@@ -3,14 +3,6 @@
  * With gSuperSpeed set, init_road and the physics step call it on the car's orientation. */
 #include "game/game.h"
 
-/* The model record (tModelData), its orientation. */
-typedef struct tModelData {
-    _tCar *car;
-    Tune44 *tune;
-    u8 pad8[0x2E4];
-    f32 uvs[3][3];              /* +0x2EC the orientation: rows the car's x, y and z axes */
-} tModelData;
-
 /* Rescale each row of model m's orientation to a length of super_speed_scale_x, _y and _z (MAT3 1.00025) instead of
  * 1. The orientation turns the car's velocity into the world's every step, so a matrix a little longer than a
  * rotation makes the car gain speed step after step: that is the cheat. */

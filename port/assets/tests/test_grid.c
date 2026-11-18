@@ -21,12 +21,13 @@
 
 #include "pc_prelude.h"
 #include "support.h"
+#include "game/modeldata.h"
 
 #define ALIAS(name, base, off) __asm__(".globl " #name "\n.set " #name ", " #base " + " #off)
 
 /* ---------------------------------------------------------------- the game's data the code under test uses */
 
-struct pc_model pc_models[PC_MODEL_SLOTS];
+tModelData pc_models[PC_MODEL_SLOTS];
 struct pc_car pc_cars[PC_CAR_SLOTS];
 struct pc_link pc_links[PC_LINK_SLOTS];
 float pole_pos_offset[12][3];   /* pole_pos_offset: this test's own rows */
@@ -49,8 +50,8 @@ static int g_placed[PC_MODEL_SLOTS];
 void syminit(void *m)
 {
     ptrdiff_t d = (uint8_t *)m - (uint8_t *)pc_models;
-    if (d >= 0 && d % sizeof(struct pc_model) == 0 && d / sizeof(struct pc_model) < PC_MODEL_SLOTS)
-        g_placed[d / sizeof(struct pc_model)]++;
+    if (d >= 0 && d % sizeof(tModelData) == 0 && d / sizeof(tModelData) < PC_MODEL_SLOTS)
+        g_placed[d / sizeof(tModelData)]++;
 }
 static int g_faced = -1;
 void FindSurfaceUvsFromResPoint(int res, int path, int idx, float (*uvs)[3])
@@ -182,7 +183,7 @@ static void place(int n, int action, float pos[][3])
         PC_LINK_OWNER(i) = i == 0 ? 6 : 0;
         PC_LINK_PLACE(i) = i == 0 ? n - 1 : i - 1;
         PC_LINK_FLAGS(i) = 0xB0;
-        PC_MODEL_SLOT(i) = i;
+        pc_models[i].slot = i;
         *MF(i, CRASH_TIME) = 0.0f;
         memcpy(MF(i, SAVE_POS), g_start, 12);
         for (int k = 0; k < 9; k++)

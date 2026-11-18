@@ -9,7 +9,7 @@ void modelstop(void) {
     s32 i;
     modelrun = 0;
     for (i = 0; i < (s8) gNumActiveCars; i++) {
-        StopCarSounds(PC_MODEL(i));
+        StopCarSounds(&pc_models[i]);
     }
     if (!(gGameState & GS_DEMO)) {
         PS_RumbleStop();

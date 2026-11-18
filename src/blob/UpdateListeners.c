@@ -26,7 +26,7 @@ void UpdateListeners(void)
     for (i = 0; i < gNumPlayers; i++) {
         if (gPlayers[i].listener != NO_LISTENER) {
             listener = &gListeners[gPlayers[i].listener];
-            AudUpdateListener(listener, PC_MODEL_RWR(gPlayers[i].model), unitmatrix_origin,
+            AudUpdateListener(listener, pc_models[gPlayers[i].model].rwr, unitmatrix_origin,
                             gCamera[i].mat.uvs[2], gCamera[i].mat.uvs[1]);
         }
     }

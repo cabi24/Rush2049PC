@@ -19,31 +19,6 @@ typedef float F32;
 #define DRONE 1
 #define HUMAN 2
 
-/* The model record (MAT3 tModelData): the fields the catch-up reads and sets. */
-typedef struct MODELDAT {
-    /* 0x000 */ _tCar *car;
-    /* 0x004 */ Tune44 *tune;
-    /* 0x008 */ U8 pad8[0x3A0 - 0x8];
-    /* 0x3A0 */ streetyp *lasttp[4];
-    /* 0x3B0 */ U8 pad3B0[0x400 - 0x3B0];
-    /* 0x400 */ F32 catchup;
-    /* 0x404 */ U8 pad404[0x40C - 0x404];
-    /* 0x40C */ const s16 *torquecurve;
-    /* 0x410 */ U8 pad410[0x648 - 0x410];
-    /* 0x648 */ surftyp *movingSurface;
-    /* 0x64C */ U8 pad64C[0x7C6 - 0x64C];
-    /* 0x7C6 */ S16 slot;
-    /* 0x7C8 */ S16 in_game;
-    /* 0x7CA */ S16 we_control;
-    /* 0x7CC */ S8 drone_type;
-    /* 0x7CD */ U8 pad7CD[0x7E6 - 0x7CD];
-    /* 0x7E6 */ S16 drone_target;
-    /* 0x7E8 */ U8 pad7E8[4];
-    /* 0x7EC */ F32 drone_scale;
-    /* 0x7F0 */ F32 time_boost;
-    /* 0x7F4 */ U8 pad7F4[0x808 - 0x7F4];
-} MODELDAT;
-
 typedef struct {
     /* 0x000 */ U8 pad0[8];
     /* 0x008 */ F32 dr_pos[3];
@@ -115,13 +90,13 @@ void DoDrones(void)
     F32 time_scale, target_dist, car_distance[PC_MAX_LINKS][PC_MAX_LINKS];
     F32 max_brake, min_brake, max_boost, min_boost, temp1;
     F32 place_scale, diff_scale;
-    MODELDAT *m;
+    tModelData *m;
     CAR_DATA *gc;
 
     SetCatchup();
 
     for (i = 0; i < num_active_cars; i++) {
-        high_place = PC_MODEL_SLOT(i);
+        high_place = pc_models[i].slot;
         place[high_place] = PC_CAR_PLACE(high_place);
     }
 
@@ -130,7 +105,7 @@ void DoDrones(void)
     for (i = 0; i < num_active_cars; i++) {
         index = 0;
         for (j = 0; j < num_active_cars; j++) {
-            index = PC_MODEL_SLOT(j);
+            index = pc_models[j].slot;
 
             if (place[index] == i)
                 break;
@@ -138,7 +113,7 @@ void DoDrones(void)
 
         cars_in_order[i] = index;
 
-        if (PC_MODEL_DRONE_TYPE(index) == HUMAN)
+        if (pc_models[index].drone_type == HUMAN)
             human_slots[human_count++] = index;
         else
             drones[drone_count++] = index;
@@ -149,10 +124,10 @@ void DoDrones(void)
 
     if (gGameState & GS_DEMO) {
         for (i = 0; i < num_active_cars; i++) {
-            index = PC_MODEL_SLOT(i);
+            index = pc_models[i].slot;
 
-            if (PC_MODEL_DRONE_TYPE(index) == DRONE)
-                PC_MODEL_DRONE_SCALE(index) = 1;
+            if (pc_models[index].drone_type == DRONE)
+                pc_models[index].drone_scale = 1;
         }
 
         return;
@@ -162,17 +137,17 @@ void DoDrones(void)
         if (gModelTime < 5) {
             for (i = 0; i < drone_count; i++) {
                 j = drone_count - i - 1;
-                PC_MODEL_TIME_BOOST(drones[i]) = ((F32)(j) * .02f) + .98f;
-                PC_MODEL_DRONE_SCALE(drones[i]) = 1;
+                pc_models[drones[i]].time_boost = ((F32)(j) * .02f) + .98f;
+                pc_models[drones[i]].drone_scale = 1;
             }
         } else {
             for (i = 0; i < num_active_cars; i++) {
-                index = PC_MODEL_SLOT(i);
+                index = pc_models[i].slot;
                 car_in_conflict[index] = 0;
                 gc = PC_CAR(index);
 
                 for (j = i; j < num_active_cars; j++) {
-                    index2 = PC_MODEL_SLOT(j);
+                    index2 = pc_models[j].slot;
                     if (index == index2)
                         car_distance[index][index2] = 99999999;
                     else {
@@ -188,7 +163,7 @@ void DoDrones(void)
             }
 
             for (i = 0; i < drone_count; i++)
-                PC_MODEL_DRONE_TARGET(drones[i]) = drones[i];
+                pc_models[drones[i]].drone_target = drones[i];
 
             for (i = 0; i < human_count; i++) {
                 for (j = i + 1; j < human_count; j++) {
@@ -208,13 +183,13 @@ void DoDrones(void)
 
                     if (my_place > 0) {
                         j = cars_in_order[my_place - 1];
-                        if (PC_MODEL_DRONE_TYPE(j) == DRONE && car_in_conflict[j] == 0)
+                        if (pc_models[j].drone_type == DRONE && car_in_conflict[j] == 0)
                             index2 = j;
                     }
 
                     if (my_place < num_active_cars - 1) {
                         j = cars_in_order[my_place + 1];
-                        if (PC_MODEL_DRONE_TYPE(j) == DRONE && car_in_conflict[j] == 0)
+                        if (pc_models[j].drone_type == DRONE && car_in_conflict[j] == 0)
                             index3 = j;
                     }
 
@@ -227,16 +202,16 @@ void DoDrones(void)
                     if (index2 != -1) {
                         car_in_conflict[index]++;
                         car_in_conflict[index2]++;
-                        PC_MODEL_DRONE_TARGET(index2) = index;
+                        pc_models[index2].drone_target = index;
                     }
                 }
             }
 
             for (indx = 0; indx < num_active_cars; indx++) {
-                index = PC_MODEL_SLOT(indx);
+                index = pc_models[indx].slot;
 
-                if (PC_MODEL_WE_CONTROL(index)) {
-                    index2 = PC_MODEL_DRONE_TARGET(index);
+                if (pc_models[index].we_control) {
+                    index2 = pc_models[index].drone_target;
                     my_place = place[index];
 
                     if (gDifficulty == 5)
@@ -253,7 +228,7 @@ void DoDrones(void)
                             high_index = 6;
                         else
                             high_index = 0;
-                        diff_scale *= (F32)gCircuitCars[PC_MODEL_SLOT(index)].skill[temp + high_index] * .125f + .75f;
+                        diff_scale *= (F32)gCircuitCars[pc_models[index].slot].skill[temp + high_index] * .125f + .75f;
                     }
 
                     max_boost = (1.0f - 1.1f) * diff_scale + 1.1f - place_scale * ((.15f - .05f) * diff_scale + .05f);
@@ -319,12 +294,12 @@ void DoDrones(void)
                                 }
                             } else {
                                 for (i = 0, j = 0; i < my_place; i++) {
-                                    if (PC_MODEL_DRONE_TYPE(cars_in_order[i]) == HUMAN)
+                                    if (pc_models[cars_in_order[i]].drone_type == HUMAN)
                                         j++;
                                 }
 
                                 for (i = my_place, k = 0; i < num_active_cars; i++) {
-                                    if (PC_MODEL_DRONE_TYPE(cars_in_order[i]) == HUMAN)
+                                    if (pc_models[cars_in_order[i]].drone_type == HUMAN)
                                         k++;
                                 }
 
@@ -357,7 +332,7 @@ void DoDrones(void)
                         time_scale = min_boost;
                     }
 
-                    temp1 = PC_MODEL_DRONE_SCALE(index);
+                    temp1 = pc_models[index].drone_scale;
 
                     if (temp1 > scale) {
                         temp1 -= PC_FSCALE(.01f);
@@ -369,9 +344,9 @@ void DoDrones(void)
                             temp1 = scale;
                     }
 
-                    PC_MODEL_DRONE_SCALE(index) = temp1;
+                    pc_models[index].drone_scale = temp1;
 
-                    temp1 = PC_MODEL_TIME_BOOST(index);
+                    temp1 = pc_models[index].time_boost;
 
                     if (temp1 > time_scale) {
                         temp1 -= PC_FSCALE(.01f);
@@ -383,7 +358,7 @@ void DoDrones(void)
                             temp1 = time_scale;
                     }
 
-                    PC_MODEL_TIME_BOOST(index) = temp1;
+                    pc_models[index].time_boost = temp1;
                 }
             }
         }

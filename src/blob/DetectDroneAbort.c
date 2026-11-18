@@ -6,37 +6,6 @@
  * road ahead, which the HUD shows as WRONG WAY past 90 degrees. */
 #include "game/game.h"
 
-/* The model record (tModelData, docs/port/CARS.md 4), the fields used here. */
-typedef struct tModelData {
-    _tCar *car;
-    Tune44 *tune;
-    u8 pad8[0x398];
-    streetyp *lasttp[4];
-    u8 pad3B0[0x40];
-    f32 magvel;                 /* 0x3F0 the speed, feet a second */
-    u8 pad3F4[0x40C - 0x3F4];
-    const s16 *torquecurve;
-    u8 pad410[0x648 - 0x410];
-    surftyp *movingSurface;
-    u8 pad64C[0x6C4 - 0x64C];
-    s16 resurrect_moving_state; /* 0x6C4 resurrect.moving_state: RES_IDLE when not respawning */
-    u8 pad6C6[0x6CC - 0x6C6];
-    s8 resurrect_autoAbort;     /* 0x6CC resurrect.autoAbort: the game, not a crash, aborted it */
-    u8 pad6CD[0x714 - 0x6CD];
-    f32 modelTime;              /* 0x714 fastin.modelTime: the model thread's race clock, seconds */
-    u8 pad718[0x7C6 - 0x718];
-    s16 slot;                   /* 0x7C6 */
-    s16 in_game;                /* 0x7C8 */
-    s16 we_control;             /* 0x7CA this machine simulates it */
-    u8 pad7CC[0x7D8 - 0x7CC];
-    f32 stuck_time;             /* 0x7D8 when it became stuck (0: not stuck) */
-    u8 pad7DC[0x7E0 - 0x7DC];
-    s16 please_abort_me;        /* 0x7E0 the drone code asks for an abort (maxpath) */
-    u8 pad7E2[0x7EC - 0x7E2];
-    f32 drone_scale;            /* 0x7EC */
-    u8 pad7F0[0x808 - 0x7F0];
-} tModelData;
-
 /* The car record (tCarData, N64 layout: docs/port/CARS.md 2), the fields used here. */
 typedef struct {
     u8 pad0[8];
@@ -99,7 +68,7 @@ void DetectDroneAbort(void) {
 
     if (gModelTime < 5.0f) {
         for (i = 0; i < PC_RACE_CARS; i++) {
-            PC_MODEL_STUCK_TIME(i) = 0.0f;
+            pc_models[i].stuck_time = 0.0f;
             PC_CAR_FWD_PROGRESS(i) = 0.0f;
             PC_CAR_STRAY_ANGLE(i) = 0.0f;
         }
@@ -107,15 +76,15 @@ void DetectDroneAbort(void) {
     }
 
     for (i = 0; i < gNumActiveCars; i++) {
-        node = PC_MODEL_SLOT(i);
-        m = PC_MODEL(node);
+        node = pc_models[i].slot;
+        m = &pc_models[node];
         gc = PC_CAR(node);
         if (m->we_control || PC_LINK_OWNER(node) == 6) {   /* LINK_OWNER_HUMAN */
             abort_me = m->please_abort_me;
             /* fell out of the world */
             if (gc->dr_pos[1] < -190.0f && gc->dead == CAR_ALIVE && gc->crash_state == CRASH_NONE &&
-                m->resurrect_moving_state == RES_IDLE) {
-                m->resurrect_autoAbort = 1;
+                m->resurrect.moving_state == RES_IDLE) {
+                m->resurrect.autoAbort = 1;
                 AbortCar(m->slot, 0);
                 return;
             }
@@ -128,7 +97,7 @@ void DetectDroneAbort(void) {
                 (m->magvel < 25.0f || abort_me)) {
                 if (!abort_me) {
                     if (m->stuck_time == 0.0f) {
-                        m->stuck_time = m->modelTime;
+                        m->stuck_time = m->fastin.modelTime;
                     } else {
                         wait_time = 1;
                         /* A car whose controller holds reverse waits twice as long. Only the four controllers have
@@ -139,11 +108,11 @@ void DetectDroneAbort(void) {
                             wait_time = 2;
                         }
                         if (wait_time != 4) {   /* always: wait_time is 1 or 2 */
-                            if (m->modelTime - m->stuck_time > 6.0f * wait_time) {
+                            if (m->fastin.modelTime - m->stuck_time > 6.0f * wait_time) {
                                 abort_me = 1;
                             }
                         } else {
-                            m->stuck_time = m->modelTime;
+                            m->stuck_time = m->fastin.modelTime;
                         }
                     }
                 }
@@ -152,7 +121,7 @@ void DetectDroneAbort(void) {
                     gc->crash_state = CRASH_RESPAWN;
                     gc->dead = 0xFF;   /* CAR_ABORTED */
                     m->stuck_time = 0.0f;
-                    m->resurrect_autoAbort = 1;
+                    m->resurrect.autoAbort = 1;
                 }
             } else {
                 m->stuck_time = 0.0f;
@@ -161,7 +130,7 @@ void DetectDroneAbort(void) {
     }
 
     for (node = 0; node < gNumPlayers; node++) {
-        m = PC_MODEL(gPlayers[node].slot);
+        m = &pc_models[gPlayers[node].slot];
         gc = PC_CAR(gPlayers[node].slot);
         if (gc->last_distance < gc->distance) {
             gc->fwd_progress_t = 0.0f;
@@ -171,8 +140,8 @@ void DetectDroneAbort(void) {
             gc->fwd_progress_t = 0.0f;
             gc->strayAngle = 0.0f;
         } else if (gc->fwd_progress_t == 0.0f) {
-            gc->fwd_progress_t = m->modelTime;
-        } else if (m->modelTime - gc->fwd_progress_t > 2.0f) {
+            gc->fwd_progress_t = m->fastin.modelTime;
+        } else if (m->fastin.modelTime - gc->fwd_progress_t > 2.0f) {
             path = gc->lastResPath;
             idx = gc->lastResIdx;
             for (i = 0; i < 5; i++) {

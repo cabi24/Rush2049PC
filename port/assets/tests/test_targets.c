@@ -25,6 +25,7 @@
 
 #include "pc_prelude.h"
 #include "support.h"
+#include "game/modeldata.h"
 
 /* ---------------------------------------------------------------- the PC layouts */
 
@@ -57,7 +58,7 @@ typedef struct { uint8_t doubly; int32_t count, size; void *mem, *active, *free;
 struct tTarget pc_target_nodes[PC_TARGET_NODES];   /* the nodes (pc_game_types.h), which data.c defines */
 #define NODE(i) (&pc_target_nodes[i])
 float BBoxCollInfo[115];             /* the bounding boxes, a row of eight floats each (arena data) */
-struct pc_model pc_models[PC_MODEL_SLOTS];    /* model[] (pc_game_types.h), which data.c defines */
+tModelData pc_models[PC_MODEL_SLOTS];    /* model[] (game/modeldata.h), which data.c defines */
 #define MODEL(i) ((uint8_t *)&pc_models[i])
 static uint8_t g_memory[0x40000] __attribute__((aligned(16)));
 #define HEAP g_memory                 /* the game heap (AllocateMemoryHeap, from +64 KiB), the track's records */
@@ -501,7 +502,7 @@ static void test_camera(void)
     memset(polys, 0, 4 * 24);
     NF(polys + 24, 2, uint16_t) = 0x20 | (4 << 11);               /* a camera trigger of scene 4 */
     stree_surf = polys;
-    memset(MODEL(0), 0, sizeof(struct pc_model));
+    memset(MODEL(0), 0, sizeof(tModelData));
     NF(MODEL(0), MODEL_OFS(0x6C4), int16_t) = -1;
     NF(MODEL(0), MODEL_OFS(0x5A0), uint16_t) = 1;
     TargetCollTrigger(cam, &player, 0, 0);
@@ -515,7 +516,7 @@ static void test_camera(void)
  * the first one comes in). In a race of 6, a car past them is not of it. */
 static void car_on(int16_t car, int on)
 {
-    memset(MODEL(car), 0, sizeof(struct pc_model));
+    memset(MODEL(car), 0, sizeof(tModelData));
     NF(MODEL(car), MODEL_OFS(0x6C4), int16_t) = -1;
     NF(MODEL(car), MODEL_OFS(0x5A0), uint16_t) = on ? 1 : 0;     /* a wheel on polygon 1, the trigger, or none */
 }
@@ -583,7 +584,7 @@ static void test_reckon(void)
     memset(rec + 0x28, 0, 24);
     obj->owner = 0;                                            /* its model: gBBoxModelStructs[0] */
     CHECK(NF(rec, 0, int32_t) == 2);
-    memset(m, 0, sizeof(struct pc_model));
+    memset(m, 0, sizeof(tModelData));
     NF(m, MODEL_OFS(0x7EA), int8_t) = 1, NF(m, MODEL_OFS(0x654), float) = 3.0f, NF(m, MODEL_OFS(0x640), int8_t) = 1;
     memcpy(m + MODEL_OFS(0x798), unitmatrix, 9 * sizeof(float));
     memcpy(m + MODEL_OFS(0x7A0), unitmatrix, 9 * sizeof(float));

@@ -27,6 +27,7 @@
 
 #include "pc_prelude.h"
 #include "support.h"
+#include "game/modeldata.h"
 
 /* ---------------------------------------------------------------- the PC layouts */
 
@@ -56,7 +57,7 @@ struct car {
 struct pc_car pc_cars[PC_CAR_SLOTS];      /* gGameCar, the car records (pc_game_types.h), which data.c defines */
 #define CARS ((struct car *)pc_cars)       /* in this file's view */
 
-struct pc_model pc_models[PC_MODEL_SLOTS];    /* model[], the model records (pc_game_types.h), which data.c defines */
+tModelData pc_models[PC_MODEL_SLOTS];    /* model[], the model records (game/modeldata.h), which data.c defines */
 #define MODEL(i) ((uint8_t *)&pc_models[i])
 uint8_t gCheckpoints[0x10000] __attribute__((aligned(16)));   /* the checkpoint block (Route at +0) */
 uint32_t gCarParts[52 * 16];                  /* gCarParts, 0x40 bytes a car */
@@ -211,7 +212,7 @@ static void test_init_cars(void)
     struct car *c0 = &CARS[0], *c1 = &CARS[1], *c2 = &CARS[2];
 
     memset(pc_cars, 0xAA, sizeof pc_cars);
-    memset(MODEL(0), 0x55, sizeof(struct pc_model) * 3);
+    memset(MODEL(0), 0x55, sizeof(tModelData) * 3);
     gNumCars = 3;
     gNumPlayers = 1;
     pc_links[0].car = 3, pc_links[0].place = 1, pc_links[0].flags = 0x80, pc_links[0].owner = 6;
@@ -444,7 +445,7 @@ static void test_model(void)
     DF(desc, 0x50, float) = 1080.0f, DF(desc, 0x54, float) = 2.0f, DF(desc, 0x90, float) = 8.0f;
     DF(desc, 0xA4, float) = 3.0f;
     gCarModels[4] = desc;
-    memset(m, 0, sizeof(struct pc_model));
+    memset(m, 0, sizeof(tModelData));
     MD(m, 8, uint8_t) = 4;               /* car_type */
     MD(m, 11, int8_t) = 2;               /* tune_type */
     TUNES[2 * 11 + 3] = 0.5f;            /* tune +0xC */

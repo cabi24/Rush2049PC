@@ -16,27 +16,6 @@ typedef struct PCar {
     u8 pad374[0x380 - 0x374]; void *input; u8 pad374_384[0x3B8 - 0x384];
 } PCar;
 
-/* The model record (MAT3 tModelData): the fields the stunts read. */
-typedef struct HudRec {
-    _tCar *car;
-    Tune44 *tune;
-    u8 pad008[0x398];
-    streetyp *lasttp[4];
-    u8 pad3B0[0x48];
-    s16 wing;                    /* 0x3F8 */
-    u8 pad3FA[0x40C - 0x3FA];
-    const s16 *torquecurve;
-    u8 pad410[0x5EC - 0x410];
-    f32 airdist[4];              /* 0x5EC each tyre's height off the ground */
-    u8 pad5FC[0x61C - 0x5FC];
-    u16 sviscode[4];             /* 0x61C each tyre's surface's visual code */
-    u8 pad624[0x648 - 0x624];
-    surftyp *movingSurface;
-    u8 pad64C[0x6C4 - 0x64C];
-    s16 moving_state;            /* 0x6C4 resurrect.moving_state: -1 unless being put back */
-    u8 pad6C6[0x808 - 0x6C6];
-} HudRec;
-
 extern void *memset(void *s, s32 c, u32 n);
 
 /* Adds trick `code` to player `idx`'s run: 0-4 and 7-8 (flips, spins, rolls ...) 5 points, 5 and 6 (the combination,
@@ -302,14 +281,14 @@ void CheckRoll(s32 idx) {
  * its mirror. */
 void Check2WheelBack(s32 idx) {
     StuntInfo *p;
-    HudRec *h;
+    tModelData *h;
     s32 fl;
     f32 r;
     f32 dt;
     f32 zero;
 
     p = &gStuntInfo[idx];
-    h = PC_MODEL(idx);
+    h = &pc_models[idx];
     fl = p->active;
     if (fl & 4) {
         if (stunt_j >= 3 || stunt_f > 0 || h->airdist[2] > 0.75f || h->airdist[3] > 0.75f || h->airdist[0] < 1.0f || h->airdist[1] < 1.0f) {
@@ -334,14 +313,14 @@ void Check2WheelBack(s32 idx) {
 /* The front-wheels tracker (flag 2, tricks 8): Check2WheelBack's mirror. */
 void Check2WheelFront(s32 idx) {
     StuntInfo *p;
-    HudRec *h;
+    tModelData *h;
     s32 fl;
     f32 r;
     f32 dt;
     f32 zero;
 
     p = &gStuntInfo[idx];
-    h = PC_MODEL(idx);
+    h = &pc_models[idx];
     fl = p->active;
     if (fl & 2) {
         if (stunt_j >= 3 || stunt_b > 0 || h->airdist[0] > 0.75f || h->airdist[1] > 0.75f || h->airdist[2] < 1.0f || h->airdist[3] < 1.0f) {
@@ -478,7 +457,7 @@ void CheckMulti(s32 idx) {
 void CheckForStunt(void) {
     StuntInfo *ply;
     PCar *car;
-    HudRec *hud;
+    tModelData *m;
     s32 i;
     s32 ok;
     f32 *pdt;
@@ -502,35 +481,35 @@ void CheckForStunt(void) {
     for (i = 0; i < gNumPlayers; i++) {
         ply = &gStuntInfo[i];
         car = PC_CAR(i);
-        hud = PC_MODEL(i);
-        if ((ply->active & 0x1F0) && hud->wing != 0) {
+        m = &pc_models[i];
+        if ((ply->active & 0x1F0) && m->wing != 0) {
             gStuntPlayer[i].wingTime += *pdt;
         }
-        if ((ply->active & 0xC08FFFFF) && (car->crash_state != 0 || hud->moving_state != -1)) {
+        if ((ply->active & 0xC08FFFFF) && (car->crash_state != 0 || m->resurrect.moving_state != -1)) {
             ply->active = 0x15000000;
         } else {
             stunt_j = stunt_l = stunt_r = stunt_f = stunt_b = 0;
-            if (hud->sviscode[0] != 8) {
+            if (m->sviscode[0] != 8) {
                 stunt_j++;
                 stunt_l++;
                 stunt_f++;
             }
-            if (hud->sviscode[1] != 8) {
+            if (m->sviscode[1] != 8) {
                 stunt_j++;
                 stunt_r++;
                 stunt_f++;
             }
-            if (hud->sviscode[2] != 8) {
+            if (m->sviscode[2] != 8) {
                 stunt_j++;
                 stunt_l++;
                 stunt_b++;
             }
-            if (hud->sviscode[3] != 8) {
+            if (m->sviscode[3] != 8) {
                 stunt_j++;
                 stunt_r++;
                 stunt_b++;
             }
-            stunt_okToStart = stunt_j < 3 && car->crash_state == 0 && hud->moving_state == -1;
+            stunt_okToStart = stunt_j < 3 && car->crash_state == 0 && m->resurrect.moving_state == -1;
             stunt_GCabsW[0] = fabsf(car->vx);
             stunt_GCabsW[1] = fabsf(car->vy);
             stunt_GCabsW[2] = fabsf(car->vz);
