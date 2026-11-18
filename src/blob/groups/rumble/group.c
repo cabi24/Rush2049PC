@@ -1,16 +1,6 @@
 /* si_lock and the rumble thread: the serial bus lock and the Rumble Paks' motors (MAT3 controlsys.c and paksysdc.c;
  * the duty cycle is the N64's own). */
 #include "game/game.h"
-#define OSMesgQueue OSMesgQueueView   /* this file's own OSMesgQueue: include/game's OSMesgQueue is another type */
-
-typedef struct { s32 w[6]; } OSMesgQueue;
-
-typedef struct { void *next; OSMesgQueue *msgQ; } OSScClient;
-
-
-void osCreateMesgQueue(OSMesgQueue *mq, OSMesg *msg, s32 count);
-s32 osRecvMesg(OSMesgQueue *mq, OSMesg *msg, s32 flags);
-s32 osSendMesg(OSMesgQueue *mq, OSMesg msg, s32 flags);
 
 #define RUMBLE_MAX 40        /* the most rumble a pak is asked for */
 #define RUMBLE_FULL 10       /* from this level the motor runs all the time */
@@ -19,20 +9,17 @@ s32 osSendMesg(OSMesgQueue *mq, OSMesg msg, s32 flags);
 /* Makes the serial bus lock: a one-message queue holding its message. */
 static void si_lock_init(void) {
     si_lock_inited = 1;
-    osCreateMesgQueue(&si_lock_queue, &si_lock_msg, 1);
-    osSendMesg(&si_lock_queue, 0, 0);
+    queue_init(&si_lock_queue, &si_lock_msg, 1);
+    lock_give(&si_lock_queue);
 }
 
 /* Takes the serial bus lock (the controllers and their paks), making it the first time; si_unlock gives it back. */
 void si_lock(void) {
-    OSMesg msg;
-
     if (!si_lock_inited) {
         si_lock_init();
     }
-    osRecvMesg(&si_lock_queue, &msg, 1);
+    lock_take(&si_lock_queue);
 }
-
 
 /* The rumble thread: woken each retrace by the scheduler, it runs each Rumble Pak's motor under the serial bus lock.
  * A pak's level follows its request (at most RUMBLE_MAX), falling by one a retrace; from RUMBLE_FULL up the motor
@@ -46,10 +33,10 @@ void rumble_thread_entry(void *arg) {
     s32 retried;
     s32 level;
 
-    osCreateMesgQueue(&rumble_queue, &rumble_msg, 1);
-    osScAddClient(&gScheduler, &client, &rumble_queue);
+    queue_init(&rumble_queue, &rumble_msg, 1);
+    sched_add_client(&gScheduler, &client, &rumble_queue);
     for (;;) {
-        osRecvMesg(&rumble_queue, &msg, 1);
+        msg = queue_recv(&rumble_queue);
         si_lock();
         for (i = 0; i < 4; i++) {
             switch (gPaks[i].rumble) {

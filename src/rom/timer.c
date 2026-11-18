@@ -1,11 +1,10 @@
 /* The frame timer and the countdown clock (MAT3 timer.c): both count the scheduler's retraces
- * (scheduler_retrace_count, 60 or 50 a second). UpdateFrameTimer, once a frame, measures the frame (gLastFrameCount
+ * (gScheduler.retraceCount, 60 or 50 a second). UpdateFrameTimer, once a frame, measures the frame (gLastFrameCount
  * retraces, gFrameSeconds) and the game time (gSeconds), which stops while paused; the countdown is a retrace count
  * to reach. */
 
 #include "rom_tu.h"
 
-extern volatile int scheduler_retrace_count;   /* gScheduler.retraceCount */
 extern volatile int gLastFrameCounter;         /* the retrace count at the last frame */
 extern f32 gRetraceTime;                       /* a retrace's seconds */
 extern f32 gFrameSeconds;
@@ -24,7 +23,7 @@ void InitializeTimer(void) {
     register f32 t;
 
     mask = osSetIntMask(1);
-    gLastFrameCounter = scheduler_retrace_count;
+    gLastFrameCounter = gScheduler.retraceCount;
     gFrameSeconds = t = 2.0f * gRetraceTime;
     gSeconds = t;
     osSetIntMask(mask);
@@ -45,13 +44,13 @@ void ResumeTimer(void) {
  * started.
  * PC: pc_game_frame_note tells the frame pacing (port/ultra) how long the frame was. */
 void UpdateFrameTimer(void) {
-    gLastFrameCount = scheduler_retrace_count - gLastFrameCounter;
-    gLastFrameCounter = scheduler_retrace_count;
+    gLastFrameCount = gScheduler.retraceCount - gLastFrameCounter;
+    gLastFrameCounter = gScheduler.retraceCount;
     if (gTimerPaused) {
         gCountdownStart += gLastFrameCount;
         gCountdownEnd += gLastFrameCount;
     } else {
-        gSeconds = (scheduler_retrace_count - gCountdownStart) * gRetraceTime;
+        gSeconds = (gScheduler.retraceCount - gCountdownStart) * gRetraceTime;
     }
     if (gLastFrameCount > 5) {
         gLastFrameCount = 5;
@@ -61,8 +60,8 @@ void UpdateFrameTimer(void) {
 
 /* Starts the countdown: seconds from now (in retraces). */
 void SetCountdownTimer(f32 seconds) {
-    gCountdownStart = scheduler_retrace_count;
-    gCountdownEnd = (int)(seconds * gRetraceRate) + scheduler_retrace_count;
+    gCountdownStart = gScheduler.retraceCount;
+    gCountdownEnd = (int)(seconds * gRetraceRate) + gScheduler.retraceCount;
 }
 
 /* Adds seconds to the countdown. */
@@ -72,10 +71,10 @@ void AddCountdownTime(f32 seconds) {
 
 /* The countdown's seconds left (negative once it has run out). */
 f32 GetCountdownTimeRemaining(void) {
-    return (gCountdownEnd - scheduler_retrace_count) * gRetraceTime;
+    return (gCountdownEnd - gScheduler.retraceCount) * gRetraceTime;
 }
 
 /* Whether the countdown has run out. */
 s32 CountdownTimeOut(void) {
-    return (gCountdownEnd - scheduler_retrace_count) < 1;
+    return (gCountdownEnd - gScheduler.retraceCount) < 1;
 }

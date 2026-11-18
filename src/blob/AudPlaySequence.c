@@ -9,8 +9,6 @@ typedef __builtin_va_list va_list;
 #define va_arg(list, mode) __builtin_va_arg(list, mode)
 #define va_end(list) __builtin_va_end(list)
 
-int osRecvMesg(void *, void *, int);
-int osSendMesg(void *, void *, int);
 
 /* Starts a sequence of up to four effects (the num variable arguments, each an effect id or -1 to skip) that
  * ProcessSequences plays one after another, each with subId, replace and priority as AudPlayEffect's. If the
@@ -22,7 +20,7 @@ u32 AudPlaySequence(int priority, f32 timeout, int replace, int subId, int num, 
     int i;
     u32 handle;
 
-    osRecvMesg(&audio_lock_queue, 0, 1);
+    lock_take(&audio_lock_queue);
     seq = NewSequence();
     seq->priority = priority;
     seq->startTime = GetAudioTime();
@@ -44,6 +42,6 @@ u32 AudPlaySequence(int priority, f32 timeout, int replace, int subId, int num, 
     InsertLLE(&gActiveSequences, seq, gActiveSequences.head);
     seq->active = 1;
     handle = seq->id;
-    osSendMesg(&audio_lock_queue, 0, 0);
+    lock_give(&audio_lock_queue);
     return handle;
 }

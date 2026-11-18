@@ -3,12 +3,6 @@
  * headers; memsys/group.c the rest of the heap. */
 #include "game/game.h"
 #include "game/heap.h"
-#define OSMesgQueue OSMesgQueueView   /* this file's own OSMesgQueue: include/game's OSMesgQueue is another type */
-
-typedef struct OSMesgQueue OSMesgQueue;
-
-s32 osRecvMesg(OSMesgQueue *, void **, s32);
-s32 osSendMesg(OSMesgQueue *, void *, s32);
 
 /* Takes size bytes (rounded up to 32) from the highest free chunk of heap (0: the main heap) that holds them: from
  * the chunk's top end when the rest is worth keeping as a free chunk (at least HEAP_MIN_SPLIT bytes), else the
@@ -23,7 +17,7 @@ void *AllocateMemoryHeapHigh(tHeap *heap, u32 size)
     u32 largestFree;
     u32 chunkSize;
 
-    osRecvMesg(&heap_lock_queue, 0, 1);
+    lock_take(&heap_lock_queue);
     freeTotal = 0;
     largestFree = 0;
     heap = ConvertHeap(heap);
@@ -65,6 +59,6 @@ void *AllocateMemoryHeapHigh(tHeap *heap, u32 size)
         chunk->used = 1;
         chunk->internal = 0;
     }
-    osSendMesg(&heap_lock_queue, 0, 0);
+    lock_give(&heap_lock_queue);
     return (u8 *)chunk + HEAP_CHUNK_HEADER;
 }

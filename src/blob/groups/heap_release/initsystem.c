@@ -1,9 +1,6 @@
 /* InitSystem (MAT3 Init.c InitSystem): the game's start-up on the main thread, before the game thread starts:
  * the heap, the saves, the graphics, the sound, the controls, the options, the timer and the text. */
 #include "game/game.h"
-#define OSMesgQueue OSMesgQueueView   /* this file's own OSMesgQueue: include/game's OSMesgQueue is another type */
-
-typedef struct { u32 opaque[6]; } OSMesgQueue;
 
 extern s32 osTvType;
 
@@ -13,9 +10,6 @@ extern s32 osTvType;
 
 /* The frame command buffers (initsystem_start.c has their storage and their sizes). */
 extern u8 pc_frame_dl[2][PC_FRAME_BYTES];
-
-extern s32 osSendMesg(OSMesgQueue *, OSMesg, s32);
-extern void osCreateMesgQueue(OSMesgQueue *, OSMesg *, s32);
 
 /* The video and frame set-up (MAT3 has its own in its graphics layer): no texture filter or dithering options,
  * a 90-degree field of view; waits for libultra to know the TV type and sets the video mode; allocates the
@@ -33,7 +27,7 @@ static void _InitGfx_Init(void)
     zbuffer = ALIGN_64(zbuffer); framebuffer_a = ALIGN_64(framebuffer_a); framebuffer_b = ALIGN_64(framebuffer_b);
     frame_records[0].colorBuffer = framebuffer_a; frame_records[1].colorBuffer = framebuffer_b;
     frame_records[0].commands = DL_BUFFER_0; frame_records[1].commands = DL_BUFFER_1;
-    frame_records[0].doneMsgType = OS_SC_DONE_MSG; frame_records[1].doneMsgType = OS_SC_DONE_MSG;
+    frame_records[0].doneMsg.type = OS_SC_DONE_MSG; frame_records[1].doneMsg.type = OS_SC_DONE_MSG;
     frame_dynamic = frame_records[0].commands; frame_matrix_cursor = (u8 *)frame_records[0].commands + 1728;
     frame_dl_start = frame_dl = (u8 *)frame_records[0].commands + PC_GLIST_OFFSET;
 }

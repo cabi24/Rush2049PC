@@ -1,29 +1,20 @@
 /* PS_RumbleStop: stop every Rumble Pak (MAT3 paksysdc.c). */
 #include "game/game.h"
-#define OSMesgQueue OSMesgQueueView   /* this file's own OSMesgQueue: include/game's OSMesgQueue is another type */
-#define OSThread OSThreadView   /* this file's own OSThread: include/game's OSThread is another type */
-
-typedef struct OSThread OSThread;
-typedef struct OSMesgQueue {OSThread *mtqueue,*fullqueue;s32 validCount,first,msgCount;OSMesg *msg;} OSMesgQueue;
-extern void osCreateMesgQueue(OSMesgQueue *,OSMesg *,s32);
-extern s32 osSendMesg(OSMesgQueue *,OSMesg,s32),osRecvMesg(OSMesgQueue *,OSMesg *,s32);
 
 /* Makes the serial bus lock (a one-message queue) the first time it is needed (a copy of pfs_queue_init). */
 static void pak_queue_init(void)
 {
     if (!si_lock_inited) {
-        si_lock_inited = 1; osCreateMesgQueue(&si_lock_queue,&si_lock_msg,1);
-        osSendMesg(&si_lock_queue,0,0);
+        si_lock_inited = 1; queue_init(&si_lock_queue, &si_lock_msg, 1);
+        lock_give(&si_lock_queue);
     }
 }
 
 /* Takes the serial bus lock (a copy of si_lock). */
 static void pak_lock(void)
 {
-    OSMesg message;
-
     pak_queue_init();
-    osRecvMesg(&si_lock_queue,&message,1);
+    lock_take(&si_lock_queue);
 }
 
 /* Stops pak i's motor if it is a Rumble Pak: no rumble asked, the motor told to stop, and noted off if it did.
@@ -50,5 +41,5 @@ void PS_RumbleStop(void)
         p = &gPaks[i];
         motor_init(p, i);
     }
-    osSendMesg(&si_lock_queue,0,0);
+    lock_give(&si_lock_queue);
 }

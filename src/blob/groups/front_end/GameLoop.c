@@ -1,9 +1,5 @@
 /* GameLoop: one turn of the game thread's loop (MAT3 game.c). */
 #include "game/game.h"
-#define OSMesgQueue OSMesgQueueView   /* this file's own OSMesgQueue: include/game's OSMesgQueue is another type */
-
-typedef struct { s32 opaque[6]; } OSMesgQueue;
-
 
 /* One frame of the game: a change of game state starts a new frame's graphics (waiting for the last to finish
  * drawing) and reads the controls; the idle warning after 5 minutes without a key (but in the attract, demo and

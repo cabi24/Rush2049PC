@@ -10,7 +10,6 @@ typedef struct {
 VIEW(UButton[12], audio_buttonInfo);
 #define audio_buttonInfo audio_buttonInfo_view
 
-s32 osSendMesg(OSMesgQueue *, void *, s32);
 
 
 /* Closes the audio screen: stops the song, and if the screen was set up removes its buttons, its panes (in the

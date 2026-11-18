@@ -2,11 +2,6 @@
  * headers. */
 #include "game/game.h"
 #include "game/heap.h"
-#define OSMesgQueue OSMesgQueueView   /* this file's own OSMesgQueue: include/game's OSMesgQueue is another type */
-
-typedef struct OSMesgQueue OSMesgQueue;
-s32 osRecvMesg(OSMesgQueue *, void **, s32);
-s32 osSendMesg(OSMesgQueue *, void *, s32);
 
 /* Unlinks heap from the chain of heaps that starts at gMainHeap and frees the chunk of its parent that holds it,
  * with everything still allocated in it. Takes the heap lock. */
@@ -15,7 +10,7 @@ void destroy_heap(tHeap *heap)
     tHeap *other;
     tHeap *target;
 
-    osRecvMesg(&heap_lock_queue, NULL, 1);
+    lock_take(&heap_lock_queue);
     target = ConvertHeap(heap);
     for (other = gMainHeap; other != NULL; other = other->next) {
         if (other->next == target) {
@@ -24,5 +19,5 @@ void destroy_heap(tHeap *heap)
         }
     }
     DeallocateMemoryInternal(target, 1);
-    osSendMesg(&heap_lock_queue, NULL, 0);
+    lock_give(&heap_lock_queue);
 }

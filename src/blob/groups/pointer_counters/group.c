@@ -3,8 +3,6 @@
 #include "game/game.h"
 #include "game/heap.h"
 
-s32 osRecvMesg(OSMesgQueue *mq, OSMesg *msg, s32 flags);
-s32 osSendMesg(OSMesgQueue *mq, OSMesg msg, s32 flags);
 
 /* The size in bytes of the chunk whose data is at ptr, or of a handle's chunk (a multiple of 32). Takes the heap
  * lock. */
@@ -13,11 +11,11 @@ u32 GetPtrSize(void *ptr) {
     tMemoryChunk *chunk;
     u32 size;
 
-    osRecvMesg((OSMesgQueue *)&heap_lock_queue, NULL, 1);
+    lock_take(&heap_lock_queue);
     heap = FindHeap(ptr);
     chunk = FindChunk(heap, ptr, 0);
     size = chunk->size;
-    osSendMesg((OSMesgQueue *)&heap_lock_queue, NULL, 0);
+    lock_give(&heap_lock_queue);
     return size;
 }
 
@@ -27,12 +25,12 @@ void unlock_memory(void *ptr) {
     tMemoryChunk *chunk;
     s32 count;
 
-    osRecvMesg((OSMesgQueue *)&heap_lock_queue, NULL, 1);
+    lock_take(&heap_lock_queue);
     heap = FindHeap(ptr);
     chunk = FindChunk(heap, ptr, 0);
     count = chunk->locked;
     if (count > 0) chunk->locked = count - 1;
-    osSendMesg((OSMesgQueue *)&heap_lock_queue, NULL, 0);
+    lock_give(&heap_lock_queue);
 }
 
 /* One lock of the chunk whose data is at ptr: its lock count goes up, not above 255. Takes the heap lock. */
@@ -41,10 +39,10 @@ void lock_memory(void *ptr) {
     tMemoryChunk *chunk;
     s32 count;
 
-    osRecvMesg((OSMesgQueue *)&heap_lock_queue, NULL, 1);
+    lock_take(&heap_lock_queue);
     heap = FindHeap(ptr);
     chunk = FindChunk(heap, ptr, 0);
     count = chunk->locked;
     if (count < 255) chunk->locked = count + 1;
-    osSendMesg((OSMesgQueue *)&heap_lock_queue, NULL, 0);
+    lock_give(&heap_lock_queue);
 }

@@ -1,12 +1,6 @@
 /* Loading a wave (MAT3 waves.c LoadWave): a free wave instance, its heap block, and the read, now or on the
  * background loader thread (waves/group.c has the waves). */
 #include "game/game.h"
-#define OSMesgQueue OSMesgQueueView   /* this file's own OSMesgQueue: include/game's OSMesgQueue is another type */
-
-typedef struct OSMesgQueue { s32 pad[6]; } OSMesgQueue;
-
-s32 osRecvMesg(OSMesgQueue *, OSMesg *, s32);
-s32 osSendMesg(OSMesgQueue *, OSMesg, s32);
 
 /* Takes the first free wave instance for wave waveNum and allocates its block from heap (0: the main heap), as a
  * handle when handle is set (the heap may then move it). Returns the instance's index (MAT3 _NewWaveInstance).
@@ -33,9 +27,9 @@ int NewWaveInstance(int waveNum, int handle, void *heap)
 void _BGLoadWave(int idx)
 {
     OSMesg msg;
-    osRecvMesg(&bg_load_idle_queue, &msg, 1);
+    msg = queue_recv(&bg_load_idle_queue);
     bg_load_request = idx;
-    osSendMesg(&bg_load_request_queue, 0, 1);
+    queue_send(&bg_load_request_queue, NULL);
 }
 
 /* Loads wave waveNum and returns its wave instance. Unless loadAgain is set, an instance that already holds the

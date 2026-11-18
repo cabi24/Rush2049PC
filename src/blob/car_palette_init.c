@@ -34,15 +34,13 @@ void car_palette_init(int index, int kind, void *data)
     }
 }
 
-int osRecvMesg(OSMesgQueue *, void **, int);
-int osSendMesg(OSMesgQueue *, void *, int);
 
 /* Frees car `index`'s colours (car_palettes[index].palBase, a heap block), under the heap lock. (heap_release/group.c
  * had this function until the heap took pointers, docs/port/NATIVE.md step 6.) */
 void free_car_palette(s32 index) {
     void *block = car_palettes[index].palBase;
 
-    osRecvMesg(&heap_lock_queue, NULL, 1);
+    lock_take(&heap_lock_queue);
     DeallocateMemoryInternal(block, 0);
-    osSendMesg(&heap_lock_queue, NULL, 0);
+    lock_give(&heap_lock_queue);
 }

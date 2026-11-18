@@ -49,7 +49,7 @@ _Static_assert(sizeof(union audiomsg) == 0x20 && offsetof(union audiomsg, tag.ta
 
 /* ---------------------------------------------------------------- the game's data the thread names */
 
-uint8_t gScheduler[64];                               /* the scheduler */
+uint8_t gScheduler[792];                              /* the scheduler (game/threads.h's PcSched) */
 int8_t gInited_AudioMgr;                                    /* gInited */
 int32_t audiomgr_gSong = -1;                              /* gSong */
 void *gSortedFxTags;
@@ -89,7 +89,7 @@ void AudioSfxServer(void) {}
 void UpdateFx(void *element, int elNum) { (void)element, (void)elNum; }
 int AudioEffectPlaying(unsigned int sysId) { (void)sysId; return 1; }
 void osCreateMesgQueue(void *q, void **msgs, int32_t count) { (void)q, (void)msgs, (void)count; }
-void osScAddClient(void *sc, void *client, void *q) { (void)sc, (void)client, (void)q; }
+void sched_add_client(void *sc, void *client, void *q) { (void)sc, (void)client, (void)q; }
 int32_t osSendMesg(void *q, void *msg, int32_t flags) { (void)q, (void)msg, (void)flags; return 0; }
 
 /* The script: the messages the queue gives the thread, in order; past its end the thread is left. */

@@ -41,11 +41,10 @@ int32_t gfx_tasks_pending;
 intptr_t blit_dl;
 uint64_t rspbootTextStart[2], rspbootTextEnd[2], gspF3DEX2_NoN_fifoTextStart[2], gspF3DEX2_NoN_fifoDataStart[2], rsp_dram_stack[2], rsp_yield_buffer[2], rdp_fifo_buffer[2],
     rdp_fifo_buffer_end[2];
-uint32_t main_thread_queue[6], scheduler_task_queue[6], scheduler_interrupt_queue[6];   /* the scheduler's queues: done, tasks, commands */
-uint8_t scheduler_thread[16];
+uint32_t main_thread_queue[6];   /* the frame's done message goes here */
 int16_t gRenderInProgress;
 volatile int32_t gLastFrameCount;
-uint8_t gScheduler[640] __attribute__((aligned(16)));
+uint8_t gScheduler[792] __attribute__((aligned(16)));   /* game/threads.h's PcSched: its queues, thread, retraceCount */
 static uint64_t g_text_dl[2];
 static const void *g_sent;
 void HAL_FinishText(int32_t a) { (void)a; }

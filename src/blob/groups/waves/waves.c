@@ -5,9 +5,7 @@
 #include "game/game.h"
 #define OSIoMesg OSIoMesgView   /* this file's own OSIoMesg: include/game's OSIoMesg is another type */
 #define OSIoMesgHdr OSIoMesgHdrView   /* this file's own OSIoMesgHdr: include/game's OSIoMesgHdr is another type */
-#define OSMesgQueue OSMesgQueueView   /* this file's own OSMesgQueue: include/game's OSMesgQueue is another type */
 
-typedef struct OSMesgQueue { void *mtqueue; void *fullqueue; s32 validCount; s32 first; s32 msgCount; OSMesg *msg; } OSMesgQueue;
 typedef struct OSIoMesgHdr { u16 type; u8 pri; u8 status; OSMesgQueue *retQueue; } OSIoMesgHdr;
 typedef struct OSIoMesg { OSIoMesgHdr hdr; void *dramAddr; u32 devAddr; u32 size; void *piHandle; } OSIoMesg;
 
@@ -26,7 +24,6 @@ typedef struct OSIoMesg { OSIoMesgHdr hdr; void *dramAddr; u32 devAddr; u32 size
 void osInvalICache(void *vaddr, s32 nbytes);
 void osInvalDCache(void *vaddr, s32 nbytes);
 s32 osPiStartDma(OSIoMesg *mb, s32 priority, s32 direction, u32 devAddr, void *vAddr, u32 nbytes, OSMesgQueue *mq);
-s32 osRecvMesg(OSMesgQueue *mq, OSMesg *msg, s32 flags);
 
 /* Sets up wave instance idx once its file is in (MAT3 _SetupWaveModel): for a model WAD, points the instance's
  * entries of the model, texture and palette tables (and, for a track wave, the target paths) at the WAD's records,
@@ -108,7 +105,7 @@ void wave_rom_read(u8 *dst, s32 rom, s32 size) {
     osInvalICache(dst, size);
     osInvalDCache(dst, size);
     osPiStartDma(&mb, 0, 0, rom, dst, size, &rom_dma_queue);
-    osRecvMesg(&rom_dma_queue, NULL, 1);
+    queue_recv(&rom_dma_queue);
 }
 
 /* Reads wave instance slot's wave from the cartridge into its block, as the wave is stored (wave_storage_kinds: 0

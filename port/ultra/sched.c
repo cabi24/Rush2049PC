@@ -9,9 +9,13 @@
  * waits for events (idle, busy-wait yields), but they never take it from a thread that is computing, as an
  * N64 interrupt would. That is why the game's busy-waits yield (pc_os_spin_yield).
  *
- * State lives in side tables keyed by the game's object addresses. Nothing is written into the game's
- * OSThread or OSMesgQueue: they are N64-sized in the BSS arenas, and the native structs are larger. Message
- * buffers are host-side for the same reason (OSMesg slots are 8 bytes here, 4 in the game's arrays).
+ * The game calls these through include/game/threads.h (thread_create, queue_send, lock_take, event_notify ...), whose
+ * functions each make one of the libultra calls below; libultra's own C, the MusyX driver and the speech decoder call
+ * them by libultra's names (docs/port/ULTRA.md 11).
+ *
+ * State lives in side tables keyed by the game's object addresses. Nothing is written into the game's OSThread or
+ * OSMesgQueue, which keep libultra's fields unused, and the game's message slots are not used: the messages are
+ * kept here. So the game's data holds no host pointer of this layer's (the state hash reads it).
  *
  * With --fast (timer.c's virtual clock) the main thread moves the clock to its next deadline only when the
  * system is idle: no thread holds the baton, or its holder waits for events with nothing else runnable. Each

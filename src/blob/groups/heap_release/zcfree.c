@@ -9,15 +9,13 @@ extern void *memset(void *, int, size_t);
 
 typedef void  FAR *voidpf;
 
-extern int osRecvMesg(void *mq, void *msg, int flag);
-extern int osSendMesg(void *mq, void *msg, int flag);
 
 /* Frees ptr's chunk under the heap lock. */
 __inline void heap_free_locked(void *ptr)
 {
-    osRecvMesg(&heap_lock_queue, 0, 1);
+    lock_take(&heap_lock_queue);
     DeallocateMemoryInternal(ptr, 0);
-    osSendMesg(&heap_lock_queue, 0, 0);
+    lock_give(&heap_lock_queue);
 }
 /* heap_free_locked. */
 __inline void mem_free(void *ptr)

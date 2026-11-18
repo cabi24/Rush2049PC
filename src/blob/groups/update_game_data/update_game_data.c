@@ -119,8 +119,6 @@ typedef struct _tSusp {
     f32 sideangle;
 } _tSusp;
 
-void osStopThread(void *t);
-void osStartThread(void *t);
 
 /* The appearance bits of each skid direction and tire: sSmoke and sSkid by skid direction (0 the -x pair sliding
  * sideways, 1 the +x pair, 2 the front wheels spinning or locked, 3 the rear), sSmoke2 by tire (the dust behind a
@@ -250,7 +248,7 @@ void update_game_data(void)
     const _tSusp *susp;
     u16 tsf;
 
-    osStopThread(&model_thread);
+    thread_stop(&model_thread);
     game_reckon_all(gModelTime);
     for (i = 0; i < PC_RACE_CARS; i++) {
         m = PC_MODEL(i);
@@ -367,5 +365,5 @@ void update_game_data(void)
             gc->data_valid = m->data_valid;
         }
     }
-    osStartThread(&model_thread);
+    thread_start(&model_thread);
 }

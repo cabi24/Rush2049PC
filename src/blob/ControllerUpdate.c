@@ -2,20 +2,13 @@
  * into gControllerData once a retrace (the model thread calls it) and hands them to ControlIRQ. controlsys/group.c
  * turns them into the game's held, pressed and stick state. */
 #include "game/game.h"
-#define OSMesgQueue OSMesgQueueView   /* this file's own OSMesgQueue: include/game's OSMesgQueue is another type */
-#define OSThread OSThreadView   /* this file's own OSThread: include/game's OSThread is another type */
-
-typedef struct OSThread OSThread;
-typedef struct OSMesgQueue {OSThread *mtqueue,*fullqueue;s32 validCount,first,msgCount;OSMesg *msg;} OSMesgQueue;
 
 typedef struct OSContPad {u16 button;s8 stick_x,stick_y;u8 errno;} OSContPad;
-extern void osCreateMesgQueue(OSMesgQueue *,OSMesg *,s32);
-extern s32 osSendMesg(OSMesgQueue *,OSMesg,s32),osRecvMesg(OSMesgQueue *,OSMesg *,s32);
 
 /* libultra's controller error bit (cont_status[].errno, OSContPad.errno): no controller answered. */
 #define CONT_NO_RESPONSE_ERROR 0x8
 /* The type of the serial bus's event message: init_controllers.c has si_event_queue get si_message when a serial
- * command finishes (osSetEventMesg(OS_EVENT_SI, ...), OS_EVENT_SI being 5 too). */
+ * command finishes (event_notify(EVENT_SI, ...)). */
 #define SI_EVENT_MSG 5
 /* Retraces between status queries (which find a Controller Pak being plugged in or out). */
 #define CONT_QUERY_INTERVAL 30
@@ -24,18 +17,16 @@ extern s32 osSendMesg(OSMesgQueue *,OSMesg,s32),osRecvMesg(OSMesgQueue *,OSMesg 
 static void pak_queue_init(void)
 {
     if (!si_lock_inited) {
-        si_lock_inited = 1; osCreateMesgQueue(&si_lock_queue,&si_lock_msg,1);
-        osSendMesg(&si_lock_queue,0,0);
+        si_lock_inited = 1; queue_init(&si_lock_queue, &si_lock_msg, 1);
+        lock_give(&si_lock_queue);
     }
 }
 
 /* Takes the serial bus's lock (shared with the Controller Pak and Rumble Pak code); si_unlock gives it back. */
 static void pak_lock(void)
 {
-    OSMesg message;
-
     pak_queue_init();
-    osRecvMesg(&si_lock_queue,&message,1);
+    lock_take(&si_lock_queue);
 }
 
 /* Every CONT_QUERY_INTERVAL calls, queries the controllers' status (cont_status) and notes paks plugged in or out
@@ -52,12 +43,12 @@ s32 ControllerUpdate(void)
     OSContPad pads[4];
 
     pak_lock();
-    osRecvMesg(&si_event_queue, &msg, 0);
+    queue_try_recv(&si_event_queue, &msg);
     if (++queryTimer == CONT_QUERY_INTERVAL) {
         queryTimer = 0;
         osContStartQuery(&si_event_queue);
         do {
-            osRecvMesg(&si_event_queue, &msg, 1);
+            msg = queue_recv(&si_event_queue);
         } while (*(s16 *)msg != SI_EVENT_MSG);
         osContGetQuery(cont_status);
         pak_poll_inserted();
@@ -66,7 +57,7 @@ s32 ControllerUpdate(void)
         si_unlock();
         return 0;
     }
-    osRecvMesg(&si_event_queue, &msg, 1);
+    msg = queue_recv(&si_event_queue);
     osContGetReadData(pads);
     si_unlock();
     for (i = 0; i < 4; i++) {

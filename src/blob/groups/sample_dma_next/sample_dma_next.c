@@ -6,9 +6,7 @@
 #include "game/game.h"
 #define DmaList DmaListView   /* this file's own DmaList: include/game's DmaList is another type */
 #define OSIoMesg OSIoMesgView   /* this file's own OSIoMesg: include/game's OSIoMesg is another type */
-#define OSMesgQueue OSMesgQueueView   /* this file's own OSMesgQueue: include/game's OSMesgQueue is another type */
 
-typedef struct OSMesgQueue OSMesgQueue;
 typedef struct OSIoMesg OSIoMesg;
 
 /* One request: size bytes from the cartridge address devAddr to vAddr. */

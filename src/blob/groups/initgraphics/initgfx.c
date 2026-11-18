@@ -36,8 +36,8 @@ void InitGfx(void)
     framebuffer_b = ALIGN_64(framebuffer_b);
     frame_records[0].colorBuffer = framebuffer_a;
     frame_records[1].colorBuffer = framebuffer_b;
-    frame_records[0].doneMsgType = OS_SC_DONE_MSG;
-    frame_records[1].doneMsgType = OS_SC_DONE_MSG;
+    frame_records[0].doneMsg.type = OS_SC_DONE_MSG;
+    frame_records[1].doneMsg.type = OS_SC_DONE_MSG;
     frame_records[0].commands = DL_BUFFER_0;
     frame_records[1].commands = DL_BUFFER_1;
     frame_dynamic = frame_records[0].commands;

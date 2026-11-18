@@ -3,8 +3,6 @@
 #include "game/game.h"
 #include "game/audiomgr.h"
 
-s32 osRecvMesg(OSMesgQueue *queue, OSMesg *message, s32 flags);
-s32 osSendMesg(OSMesgQueue *queue, OSMesg message, s32 flags);
 
 /* Meant to pause every effect (the pause command sets their pitch to 0, AudResumeAllEffects gives it back).
  * Original game: it posts the stop-all command (7), as MAT3's does, not the pause command (8), which nothing
@@ -13,10 +11,10 @@ void AudPauseAllEffects(void) {
     tAudioMsg *msg_to_send;
     tAudioMsg *msg;
 
-    osRecvMesg(&audio_lock_queue, NULL, 1);
+    lock_take(&audio_lock_queue);
     msg = GetCmd(); PC_CMD_OR_UNLOCK(msg)
     msg_to_send = msg;
     msg->hdr.cmd = kAudioCmdStopAllEffects;
-    osSendMesg(&audio_lock_queue, NULL, 0);
+    lock_give(&audio_lock_queue);
     PC_CMD_SEND(&audio_command_queue, msg_to_send);
 }

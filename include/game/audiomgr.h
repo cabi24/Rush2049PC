@@ -134,9 +134,9 @@ typedef struct tAudioMsgHeader {
  * request is then dropped: PC_CMD_OR_UNLOCK(m) gives the lock back and returns when GetCmd had no message,
  * PC_CMD_SEND(q, m) gives a message the full queue refuses back, PC_SEND_OR_GIVE_BACK(q, m, e) gives it back and
  * takes the command off tag e's count. */
-#define PC_CMD_OR_UNLOCK(m) if((m)==0){osSendMesg(&audio_lock_queue,NULL,0);return;}
-#define PC_CMD_SEND(q,m) if(osSendMesg(q,m,0)!=0)(m)->hdr.used=0
-#define PC_SEND_OR_GIVE_BACK(q,m,e) if(osSendMesg(q,m,0)!=0){(e)->numCmds--;(m)->hdr.used=0;}
+#define PC_CMD_OR_UNLOCK(m) if((m)==0){lock_give(&audio_lock_queue);return;}
+#define PC_CMD_SEND(q,m) if(!queue_try_send(q, m))(m)->hdr.used=0
+#define PC_SEND_OR_GIVE_BACK(q,m,e) if(!queue_try_send(q, m)){(e)->numCmds--;(m)->hdr.used=0;}
 
 typedef union tAudioMsg {
     tAudioMsgHeader hdr;

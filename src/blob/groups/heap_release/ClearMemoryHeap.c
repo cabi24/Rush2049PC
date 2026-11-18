@@ -1,11 +1,6 @@
 /* ClearMemoryHeap: free and compact a heap (MAT3 memsys.c). include/game/heap.h has the headers. */
 #include "game/game.h"
 #include "game/heap.h"
-#define OSMesgQueue OSMesgQueueView   /* this file's own OSMesgQueue: include/game's OSMesgQueue is another type */
-
-typedef struct OSMesgQueue OSMesgQueue;
-s32 osRecvMesg(OSMesgQueue *, void **, s32);
-s32 osSendMesg(OSMesgQueue *, void *, s32);
 
 /* Frees every chunk of the heap (hint, or the main heap for NULL) that nobody owns or has locked and that isn't the
  * heap's own, then moves each handle-owned unlocked chunk down into the first free chunk that fits (or that it
@@ -19,7 +14,7 @@ void ClearMemoryHeap(tHeap *hint) {
     s32 adjacent;
     u32 size, difference;
 
-    osRecvMesg((OSMesgQueue *)&heap_lock_queue, NULL, 1);
+    lock_take(&heap_lock_queue);
     heap = ConvertHeap(hint);
     chunk = heap->chunks;
     while (chunk != NULL) {
@@ -90,5 +85,5 @@ void ClearMemoryHeap(tHeap *hint) {
         }
         chunk = after;
     }
-    osSendMesg((OSMesgQueue *)&heap_lock_queue, NULL, 0);
+    lock_give(&heap_lock_queue);
 }

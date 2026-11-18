@@ -77,7 +77,7 @@ int32_t kMapSize, radarWidth, radarHeight;    /* the map's size, the radar's */
 struct { int32_t x, y; } hud_mapPos[4], radarPos[4][4];
 struct { void *pal, *tex; uint16_t model; int16_t x, y; uint16_t mode; int16_t w, h; uint8_t color, flags; int8_t hidden;
          uint8_t pad17; int16_t t0, s0, t1, s1; } gBlitInstanceList[8];
-struct { uint8_t pad[636]; uint32_t tick; } gScheduler;
+struct { uint8_t pad[784]; uint32_t tick; uint32_t doAudio; } gScheduler;   /* game/threads.h's PcSched: retraceCount */
 /* drawRaceStandings and the rest of its file */
 uint64_t g_dl[2 * 512];
 void *blit_dl = g_dl;                       /* the display list */

@@ -2,21 +2,15 @@
  * headers. */
 #include "game/game.h"
 #include "game/heap.h"
-#define OSMesgQueue OSMesgQueueView   /* this file's own OSMesgQueue: include/game's OSMesgQueue is another type */
-
-typedef struct OSMesgQueue OSMesgQueue;
-
-s32 osRecvMesg(OSMesgQueue *, void **, s32);
-s32 osSendMesg(OSMesgQueue *, void *, s32);
 
 /* LargestAvailableMemoryChunk under the heap lock. */
 u32 LargestAvailableMemoryHeapChunk(tHeap *heap)
 {
     u32 largest;
 
-    osRecvMesg(&heap_lock_queue, 0, 1);
+    lock_take(&heap_lock_queue);
     largest = LargestAvailableMemoryChunk(heap);
-    osSendMesg(&heap_lock_queue, 0, 0);
+    lock_give(&heap_lock_queue);
     return largest;
 }
 

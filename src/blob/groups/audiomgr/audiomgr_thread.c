@@ -4,10 +4,7 @@
  * the 3D mix (ProcessEmitters), the sequences, the priorities (which effect tags get a voice) and the sound
  * system's own service. AudioInit (save/AudioInit.c) makes the thread. */
 #include "game/game.h"
-#define OSMesgQueue OSMesgQueueView   /* this file's own OSMesgQueue: include/game's OSMesgQueue is another type */
 
-typedef struct OSMesgQueue { s32 pad[6]; } OSMesgQueue;
-typedef struct OSScClient { struct OSScClient *next; OSMesgQueue *msgQ; } OSScClient;
 typedef struct OSSched OSSched;
 
 typedef struct tDLList { char handle; char dbl; int numElements; void *head; void *tail; } tDLList;
@@ -81,11 +78,6 @@ typedef union tAudioMsg {
 
 #define gInited gInited_AudioMgr
 
-void osCreateMesgQueue(OSMesgQueue *, OSMesg *, s32);
-
-s32 osRecvMesg(OSMesgQueue *, OSMesg *, s32);
-s32 osSendMesg(OSMesgQueue *, OSMesg, s32);
-
 /* ClearBST and WalkBST of the fx tag tree (tOrderedList, the host layout: the root at +16). The game's ClearBST
  * and WalkBST do the same since 2026-11-08 (until then they read the N64's offsets); these copies stay because
  * port/assets/tests/test_mgrstart.c links this file without them. */
@@ -121,7 +113,7 @@ static void _InsertSorted(tFxSequence *tag)
  * when the queue and the pool run out); the next priority pass sends it again. */
 static void send_fx_command(tAudioMsg *cmd)
 {
-    if (osSendMesg(&audio_command_queue, cmd, 0) != 0) {
+    if (!queue_try_send(&audio_command_queue, cmd)) {
         cmd->startEffect.tag->numCmds--;
         cmd->hdr.used = 0;
     }
@@ -141,7 +133,7 @@ static void _ProcessPriorities(void)
 {
     tFxSequence *tag, *next;
     int i;
-    osRecvMesg(&audio_lock_queue, 0, 1);
+    lock_take(&audio_lock_queue);
     clear_fx_tag_tree(&gSortedFxTagTree); pc_snd_walk_begin();
     gNumStopCmds = 0;
     gNumStartCmds = 0;
@@ -172,7 +164,7 @@ static void _ProcessPriorities(void)
         _InsertSorted(tag);
     }
     walk_fx_tag_tree(&gSortedFxTagTree, UpdateFx);
-    osSendMesg(&audio_lock_queue, 0, 0);
+    lock_give(&audio_lock_queue);
     for (i = 0; i < gNumStopCmds; i++) send_fx_command(gStopCmds[i]);
     for (i = 0; i < gNumStartCmds; i++) send_fx_command(gStartCmds[i]);
 }
@@ -180,9 +172,9 @@ static void _ProcessPriorities(void)
 /* The sound system's own service (AudioSfxServer), under the audio lock. */
 static void AudioPeriodicMaintenance(void)
 {
-    osRecvMesg(&audio_lock_queue, 0, 1);
+    lock_take(&audio_lock_queue);
     AudioSfxServer();
-    osSendMesg(&audio_lock_queue, 0, 0);
+    lock_give(&audio_lock_queue);
 }
 
 /* The audio manager's periodic pass, each retrace (MAT3 _PeriodicMaintenance; MAT3 also times its parts): once
@@ -212,15 +204,15 @@ void audio_manager_thread_entry(void *arg)
     tFxSequence *tag;
     tFxSequence *next;
 
-    osCreateMesgQueue(&audio_command_queue, audio_cmd_queue_msgs, PC_SND_MSG_LOOP(128));
-    osScAddClient(&gScheduler, &client, &audio_command_queue);
+    queue_init(&audio_command_queue, audio_cmd_queue_msgs, PC_SND_MSG_LOOP(128));
+    sched_add_client(&gScheduler, &client, &audio_command_queue);
     for (;;) {
-        osRecvMesg(&audio_command_queue, &msg, 1);
+        msg = queue_recv(&audio_command_queue);
         if (((tAudioMsg *)msg)->hdr.type == OS_SC_RETRACE_MSG) {
             PeriodicMaintenance();
         } else {
             cmd = msg;
-            osRecvMesg(&audio_lock_queue, 0, 1);
+            lock_take(&audio_lock_queue);
             switch (cmd->hdr.cmd) {
             case kAudioCmdPlaySong:
                 if (audiomgr_gSong != cmd->playSong.song && audiomgr_gSong < 0) {

@@ -431,19 +431,19 @@ __ll_mod = 0x8000DAE8; // type:func libultra __ll_mod (renamed from __moddi3, do
 __ll_rshift = 0x8000DB84; // type:func libultra __ll_rshift (renamed from __ashrdi3, docs/SYMBOL_MISATTRIBUTION.md)
 
 // Scheduler functions (1050.s) - identified
-osCreateScheduler = 0x80000450; // type:func create OSSc-like scheduler struct, sets up msg queues and events
-osScAddClient = 0x800005D4; // type:func link client into scheduler clientList
-__scMain = 0x8000063C; // type:func scheduler thread main loop (handles events 0x29A-0x29E)
-__scSchedule = 0x80000780; // type:func drain command queue, append tasks to pending lists
-__scHandleRetrace = 0x80000880; // type:func VI retrace handler, sends msgs to clients
-__scHandleRSP = 0x80000950; // type:func SP interrupt handler, finalizes RSP tasks
-__scHandleRDP = 0x80000ACC; // type:func DP interrupt handler, reschedules graphics
-__scTaskReady = 0x80000BA4; // type:func validate task timing before scheduling
-__scExecTask = 0x80000C54; // type:func process task msgQ, handle watchdog
-__scAppendList = 0x80000D6C; // type:func insert task into audio/gfx pending list
-__scExec = 0x80000E20; // type:func launch next task to RSP/RDP
-__scHandlePreNMI = 0x80000F88; // type:func handle pre-NMI for audio tasks
-__scScheduleCore = 0x80000FE8; // type:func main scheduler algorithm
+sched_create = 0x80000450; // type:func create OSSc-like scheduler struct, sets up msg queues and events
+sched_add_client = 0x800005D4; // type:func link client into scheduler clientList
+sched_main = 0x8000063C; // type:func scheduler thread main loop (handles events 0x29A-0x29E)
+sched_schedule = 0x80000780; // type:func drain command queue, append tasks to pending lists
+sched_handle_retrace = 0x80000880; // type:func VI retrace handler, sends msgs to clients
+sched_handle_rsp = 0x80000950; // type:func SP interrupt handler, finalizes RSP tasks
+sched_handle_rdp = 0x80000ACC; // type:func DP interrupt handler, reschedules graphics
+sched_task_ready = 0x80000BA4; // type:func validate task timing before scheduling
+sched_task_done = 0x80000C54; // type:func process task msgQ, handle watchdog
+sched_append_task = 0x80000D6C; // type:func insert task into audio/gfx pending list
+sched_start_tasks = 0x80000E20; // type:func launch next task to RSP/RDP
+sched_yield_gfx = 0x80000F88; // type:func handle pre-NMI for audio tasks
+sched_choose_tasks = 0x80000FE8; // type:func main scheduler algorithm
 
 // VI timing functions (1050.s)
 InitializeTimer = 0x80001350; // type:func snapshot counter, compute frame duration
@@ -1756,8 +1756,8 @@ frame_end_requested = 0x80035472; // Game state flag
 
 // Scheduler and video structures (from 2CF0.s / init.c analysis)
 gScheduler = 0x8002E8E8; // size:0x50 OSSched scheduler structure passed to osScCreateThread and osScStartRetrace
-gViModeTable = 0x8002EE08; // size:0x18 video mode table base pointer (passed to osCreateScheduler arg1)
-gViModeLan1 = 0x8002EE20; // size:0x50 OSViMode structure for LAN1 mode (passed to osCreateScheduler arg2)
+gViModeTable = 0x8002EE08; // size:0x18 video mode table base pointer (passed to sched_create arg1)
+gViModeLan1 = 0x8002EE20; // size:0x50 OSViMode structure for LAN1 mode (passed to sched_create arg2)
 gSchedulerStack = 0x80033EA0; // size:0x640 scheduler thread stack area (used with +0x640 offset)
 
 // Thread entry point functions (from init.c)
@@ -2214,7 +2214,7 @@ gInflateHuftPointerLit = 0x8002B1A8; // size:4 fixed Huffman literal/length tabl
 gInflateHuftPointerDist = 0x8002B1AC; // size:4 fixed Huffman distance table pointer (struct huft*)
 
 // Scheduler globals (1050.s - os_scheduler.c)
-// These are used by the osCreateScheduler/osSched API for RSP/RDP task management
+// These are used by the sched_create/osSched API for RSP/RDP task management
 scheduler_audio_task = 0x8002AFA0; // size:4 current audio task pointer (OSScTask*)
 __osScPendingSwap = 0x8002AFA4; // size:4 pending framebuffer swap address
 __osScSwapCount = 0x8002AFA8; // size:4 retrace count at last swap

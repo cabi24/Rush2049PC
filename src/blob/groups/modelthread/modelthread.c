@@ -5,16 +5,8 @@
  * simulation (model_iteration). On the PC it is a host thread like the others (port/ultra). MAT3 calls the same
  * work once a frame from its main loop. */
 #include "game/game.h"
-#define OSMesgQueue OSMesgQueueView   /* this file's own OSMesgQueue: include/game's OSMesgQueue is another type */
-
-typedef struct OSMesgQueue { u8 opaque[0x18]; } OSMesgQueue;
-typedef struct OSScClient { struct OSScClient *next; OSMesgQueue *msgQ; } OSScClient;
-typedef struct OSScMsg { s16 type; s8 misc[30]; } OSScMsg;
-
 
 extern void __setfpcsr(u32 value);
-void osCreateMesgQueue(OSMesgQueue *mq, OSMesg *msg, s32 count);
-s32 osRecvMesg(OSMesgQueue *mq, OSMesg *msg, s32 flags);
 
 /* The thread's body; `arg` is unused. It sets the FPU's control word (0x01000E00: flush denormals to zero, trap on
  * invalid operations, division by zero and overflow; on the PC port/ultra only records it), makes its message
@@ -29,16 +21,16 @@ void ModelThread(void *arg)
 
     msg = 0;
     __setfpcsr(0x01000E00);
-    osCreateMesgQueue(&model_thread_queue, model_thread_msgs, 8);
+    queue_init(&model_thread_queue, model_thread_msgs, 8);
     init_controllers();
     modelrun = 0;
     init_model_task(0);
-    osScAddClient(&gScheduler, &client, &model_thread_queue);
+    sched_add_client(&gScheduler, &client, &model_thread_queue);
     while (1) {
-        osRecvMesg(&model_thread_queue, &msg, 1);   /* OS_MESG_BLOCK */
+        msg = queue_recv(&model_thread_queue);
         do {
             if (((OSScMsg *)msg)->type == OS_SC_RETRACE_MSG || ((OSScMsg *)msg)->type == OS_SC_PRE_NMI_MSG) {}
-        } while (osRecvMesg(&model_thread_queue, &msg, 0) != -1);   /* OS_MESG_NOBLOCK: -1 when empty */
+        } while (queue_try_recv(&model_thread_queue, &msg));
         if (ControllerUpdate() && modelrun) {
             model_iteration();
         }

@@ -28,8 +28,6 @@ typedef struct Event {
 VIEW(Event *, gSequences);
 #define gSequences gSequences_view
 
-int osRecvMesg(void *, void *, int);
-int osSendMesg(void *, void *, int);
 
 /* The sequence of handle h (its slot is h's tag bits), or NULL for -1 or a handle the slot no longer holds. */
 static Event *find_sequence(s32 h)
@@ -48,10 +46,10 @@ void stop_sequence(s32 h)
 {
     Event *e;
 
-    osRecvMesg(&audio_lock_queue, 0, 1);
+    lock_take(&audio_lock_queue);
     e = find_sequence(h);
     if (e != 0) {
         e->stop = 1;
     }
-    osSendMesg(&audio_lock_queue, 0, 0);
+    lock_give(&audio_lock_queue);
 }

@@ -2,11 +2,6 @@
  * has the headers. */
 #include "game/game.h"
 #include "game/heap.h"
-#define OSMesgQueue OSMesgQueueView   /* this file's own OSMesgQueue: include/game's OSMesgQueue is another type */
-
-typedef struct OSMesgQueue OSMesgQueue;
-
-s32 osRecvMesg(OSMesgQueue *,void **,s32);s32 osSendMesg(OSMesgQueue *,void *,s32);
 
 /* Unlocks (purgeable != 0: the count goes down, not below 0) or locks (up, not above 255) the chunk whose data is at
  * ptr. A handle's chunk (one with a master slot) is left alone. Takes the heap lock. */
@@ -15,11 +10,11 @@ void PurgeableMemory(void *ptr, s32 purgeable) {
     tMemoryChunk *chunk;
     s32 count;
 
-    osRecvMesg((OSMesgQueue *)&heap_lock_queue, NULL, 1);
+    lock_take(&heap_lock_queue);
     heap = FindHeap(ptr);
     chunk = FindChunk(heap, ptr, 0);
     if (chunk->master != NULL) {
-        osSendMesg((OSMesgQueue *)&heap_lock_queue, NULL, 0);
+        lock_give(&heap_lock_queue);
         return;
     }
     if (purgeable) {
@@ -29,5 +24,5 @@ void PurgeableMemory(void *ptr, s32 purgeable) {
         count = chunk->locked;
         if (count < 255) chunk->locked = count + 1;
     }
-    osSendMesg((OSMesgQueue *)&heap_lock_queue, NULL, 0);
+    lock_give(&heap_lock_queue);
 }

@@ -1,13 +1,7 @@
 /* PS_ErrorFunc: the pak system's error function, the error screen in the middle of whatever was running (MAT3
  * pakerr.c). */
 #include "game/game.h"
-#define OSThread OSThreadView   /* this file's own OSThread: include/game's OSThread is another type */
 
-typedef struct OSThread OSThread;
-
-extern OSId osGetThreadId(OSThread *thread);
-
-#define GAME_THREAD_ID 7   /* the game thread's id: only it may draw frames */
 
 /* Shows pak's error mode (kPS_Err*) and waits for the player's answer: the screen is dimmed (a full-screen blit and
  * every window's fog pushed to black), the error dialog made (SetPakError) and run until done (ShowPakError, which
@@ -34,7 +28,7 @@ void PS_ErrorFunc(s32 pak, s32 mode, s32 blocks, s32 unused, s8 *retry, s8 *stat
         ZOID_SetFog(1000, 999, 0, 0, 0, 255, i);
     }
     while (!done) {
-        if (osGetThreadId(0) == GAME_THREAD_ID) {
+        if (thread_id(NULL) == THREAD_ID_GAME) {   /* only the game thread may draw frames */
             UpdateFrame();
         }
         if (mode != kPS_ErrReread && mode != kPS_ErrRepairFailed && mode != kPS_ErrRepaired && mode != kPS_ErrRecognize) {

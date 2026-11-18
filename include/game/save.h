@@ -57,7 +57,7 @@ enum {
 
 /* Data */
 extern u8 rumble_thread_stack_top[EXTENT(4096)];
-extern u8 rumble_thread[EXTENT(432)];
+extern OSThread rumble_thread;
 extern OSMesgQueue si_event_queue;
 extern s8 gSaveGhostFiles;
 extern s8 gCheatActive[EXTENT(21)];

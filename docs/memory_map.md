@@ -30,7 +30,7 @@ This code is loaded directly from ROM at boot and remains resident. It contains 
 | ROM Offset | VRAM Address | Size | Description |
 |------------|--------------|------|-------------|
 | 0x1000 | 0x80000400 | 0x50 | Entry point (clears BSS, sets stack, jumps to main) |
-| 0x1050 | 0x80000450 | 0x11A0 | Scheduler (osCreateScheduler, scMain, scHandleRetrace, etc.) |
+| 0x1050 | 0x80000450 | 0x11A0 | Scheduler (sched_create, scMain, scHandleRetrace, etc.) |
 | 0x21F0 | 0x800015F0 | 0xB00 | Display/rendering (video_build_adjusted_mode, video_set_mode) |
 | 0x2CF0 | 0x80002238 | 0x450 | Game init (main, main_thread_entry, thread entries) |
 | 0x3140 | 0x80002540 | 0x1F0 | DMA utilities (init_decompress_lock, lzss_decompress, inflate_decompress) |
@@ -54,7 +54,7 @@ main              = 0x800020F0  // Real main function
 main_thread_entry         = 0x80002238  // OS-level initialization
 idle_thread_entry = 0x800021A4  // Idle thread
 game_thread_entry= 0x800024FC  // Audio thread
-osCreateScheduler = 0x80000450  // Scheduler creation
+sched_create = 0x80000450  // Scheduler creation
 __osException     = 0x8000C980  // CPU exception handler
 unzipdata_from_rom     = 0x80006814  // DEFLATE decompression entry
 ```
@@ -517,7 +517,7 @@ DPC_TMEM_REG      = 0xA410001C  // TMEM counter
 | Thread ID | Priority | Entry Point | Stack | Description |
 |-----------|----------|-------------|-------|-------------|
 | 1 | 1 | idle_thread_entry (0x800021A4) | 0x8002F660 | Idle thread |
-| 4 | 4 | __scMain (0x8000063C) | - | Scheduler thread |
+| 4 | 4 | sched_main (0x8000063C) | - | Scheduler thread |
 | 5 | 5 | (render) | 0x80031D70 | Render thread |
 | 6 | 6 | (init) | 0x80030150 | Init thread |
 | 7 | 7 | (game) | 0x80030AB0 | Main game thread |

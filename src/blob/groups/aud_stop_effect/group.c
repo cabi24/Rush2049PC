@@ -4,8 +4,6 @@
 #include "game/audiomgr.h"
 
 /* Declared without prototypes, as this file always had them (a prototype would change the calls' code). */
-s32 osRecvMesg();
-s32 osSendMesg();
 
 /* The fx tag of handle tag, or NULL for -1 or a handle whose tag has been freed since (its generation, the
  * bits above gTagMask, no longer matches). */
@@ -26,7 +24,7 @@ void AudStopEffect(s32 tag)
     tAudioMsg *msg = 0;
     tFxSequence *fx_tag;
 
-    osRecvMesg(&audio_lock_queue, 0, 1);
+    lock_take(&audio_lock_queue);
     fx_tag = ConvertTag(tag);
     if (fx_tag != 0) {
         msg = GetCmd(); PC_CMD_OR_UNLOCK(msg)
@@ -34,7 +32,7 @@ void AudStopEffect(s32 tag)
         msg->stopEffect.tag = fx_tag;
         fx_tag->numCmds++;
     }
-    osSendMesg(&audio_lock_queue, 0, 0);
+    lock_give(&audio_lock_queue);
     if (msg != 0) {
         PC_SEND_OR_GIVE_BACK(&audio_command_queue, msg, fx_tag);
     }

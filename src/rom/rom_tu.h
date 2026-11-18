@@ -4,6 +4,7 @@
 #include "rom_auto.h"   /* auto-decomp type context (autodecomp promotion) */
 #include "PR/os_message.h"
 #include "PR/os_thread.h"
+#include "game/threads.h"   /* threads, queues, locks, events, the scheduler: the PC's OS interface */
 
 /* PC layer (port/include/pc_port.h): sample memory, the sample and codebook caches the DMA fills (hardware.c). */
 extern void pc_mem_register_samples(const void *start, __SIZE_TYPE__ size);
@@ -13,9 +14,7 @@ extern void pc_mem_unregister_samples(const void *start);
 /* Additive declarations for shared src/rom/rom_tu.h; existing types suffice. */
 extern s32 __osViModeInfo;
 extern s32 zmmax;
-/* : gCountdownEnd and gLastFrameCounter are lib_1050_sdk.c.bss definitions (timer.c declares them itself):
- * an extern here gives them early cfe block numbers, and IDO 5.3 sorts .bss by block number mod 256. */
-extern volatile s32 scheduler_retrace_count; /* : interrupt-updated; UpdateFrameTimer's load order needs volatile */
+extern PcSched gScheduler;   /* src/rom/scheduler.c */
 extern s32 __osPiInitialized;
 extern OSMesgQueue __osPiMesgQueue;
 extern void *__osPiMesg;

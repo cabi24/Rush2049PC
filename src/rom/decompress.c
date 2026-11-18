@@ -4,15 +4,29 @@
 #include "static_debug_context.h"
 
 /* Makes the decompression lock, a one-message queue, free. */
-void init_decompress_lock(void) { decompress_lock_ready=1; osCreateMesgQueue(&decompress_lock_queue,&decompress_lock_message,1); osSendMesg(&decompress_lock_queue,NULL,0); }
+void init_decompress_lock(void)
+{
+    decompress_lock_ready = 1;
+    queue_init(&decompress_lock_queue, &decompress_lock_message, 1);
+    lock_give(&decompress_lock_queue);
+}
 
 /* Takes the decompression lock (making it first if need be): waits for it with block, else returns 0 when it is
  * taken. Returns 1 once it is held. */
-s32 acquire_decompress_lock(s32 block) { OSMesg msg; if (!decompress_lock_ready) init_decompress_lock(); if(block) { osRecvMesg(&decompress_lock_queue,&msg,OS_MESG_BLOCK); } else { if(osRecvMesg(&decompress_lock_queue,&msg,OS_MESG_NOBLOCK)==-1) return 0; } return 1; }
+s32 acquire_decompress_lock(s32 block)
+{
+    if (!decompress_lock_ready)
+        init_decompress_lock();
+    if (block)
+        lock_take(&decompress_lock_queue);
+    else if (!lock_try(&decompress_lock_queue))
+        return 0;
+    return 1;
+}
 
 /* Gives the decompression lock back. */
 void release_decompress_lock(void) {
-    osSendMesg(&decompress_lock_queue, NULL, 0);
+    lock_give(&decompress_lock_queue);
 }
 
 /* Decompresses the LZSS data at cartridge offset src into dst, under the lock. Returns lzss_decode's result. */

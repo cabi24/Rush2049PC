@@ -1,4 +1,4 @@
-/* include/m2c_types.h: libultra's internal records (the VI context, the PIF RAM block, the scheduler, the timer
+/* include/m2c_types.h: libultra's internal records (the VI context, the PIF RAM block, the timer
  * list, the PI manager) and the boot code's data and functions that the boot segment's C (src/rom, through
  * rom_auto.h and rom_tu.h) shares. Types and declarations only. */
 #ifndef M2C_TYPES_H
@@ -81,61 +81,7 @@ extern s32 __osSiDmaRetry;
 extern s32 __osContRamRead(OSMesgQueue *mq, s32 channel, u16 address,
                             u8 *buffer);
 
-/* --- Scheduler internals (src/libultra/os_scheduler.c has the same
- * layout reconstructed as SCHED_ and TASK_ offset macros operating on
- * void pointers; m2c needs real field types since it decompiles
- * __scAppendList/__scExec's own bodies directly from ROM asm, not through
- * those macros). */
-/* PC: the task as the game builds it (EndGraphics.c's Frame, musyx_submit_audio_task's static task): its
- * OSTask is in place from type on, and the OSTask's pointers are host-sized, which moves output_buff,
- * output_buff_size and msgQueue (docs/port/MUSYX_DATA.md 8.4). */
-typedef struct OSScTask_s {
-    struct OSScTask_s *next;   /* 0x00 */
-    s32 state;                  /* 0x04 */
-    s32 flags;                  /* 0x08 */
-    void *framebuffer;          /* 0x0C */
-    s32 type;                   /* 0x10: t.type */
-    u32 tflags14;               /* t.flags */
-    u64 *pad18; u32 pad1C;      /* t.ucode_boot, size */
-    u64 *pad20; u32 pad24;      /* t.ucode, size */
-    u64 *pad28; u32 pad2C;      /* t.ucode_data, size */
-    u64 *pad30; u32 pad34;      /* t.dram_stack, size */
-    void *output_buff;           /* 0x38: t.output_buff */
-    s32 *output_buff_size;       /* 0x3C: t.output_buff_size */
-    u64 *pad40; u32 pad44;      /* t.data_ptr, data_size */
-    u64 *pad48; u32 pad4C;      /* t.yield_data_ptr, size */
-    OSMesgQueue *msgQueue;        /* 0x50 */
-    OSMesg msg;                    /* 0x54 */
-} OSScTask;
-
-typedef struct OSScClient_s {
-    struct OSScClient_s *next;  /* 0x00 */
-    OSMesgQueue *msgQueue;       /* 0x04 */
-} OSScClient;
-
-typedef struct {
-    s16 state;                        /* 0x00 */
-    u8 pad02[0x20 - 0x02];
-    s16 priority;                     /* 0x20 */
-    u8 pad22[0x40 - 0x22];
-    OSMesgQueue cmdQueue;              /* 0x40 */
-    OSMesg cmdMsgs[8];                 /* 0x58 */
-    OSMesgQueue retQueue;              /* 0x78 */
-    OSMesg retMsgs[8];                 /* 0x90 */
-    u8 padB0[0x260 - 0xB0];            /* thread lives here */
-    OSScClient *clientList;            /* 0x260 */
-    OSScTask *rspTaskHead;             /* 0x264 */
-    OSScTask *rspTaskTail;             /* 0x268 */
-    OSScTask *rdpTaskHead;             /* 0x26C */
-    OSScTask *rdpTaskTail;             /* 0x270 */
-    OSScTask *curRSPTask;              /* 0x274 */
-    OSScTask *curRDPTask;              /* 0x278 */
-    s32 retraceCount;                  /* 0x27C */
-    s32 audioListPending;              /* 0x280 */
-} OSSched;
-
-extern void __scAppendList(OSSched *sc, OSScTask *task);
-extern void __scExec(OSSched *sc, OSScTask *rspTask, OSScTask *rdpTask);
+/* --- The scheduler's records (its tasks, clients and messages, PcSched) are include/game/threads.h's. */
 
 /* osViSwapBuffer/video_apply_pending_mode (symbol_addrs.us.txt names for these two
  * addresses); osViSwapBuffer takes the next framebuffer pointer. */

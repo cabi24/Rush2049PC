@@ -2,8 +2,6 @@
 #include "game/game.h"
 #include "game/audiomgr.h"
 
-s32 osRecvMesg(OSMesgQueue *queue, OSMesg *message, s32 flags);
-s32 osSendMesg(OSMesgQueue *queue, OSMesg message, s32 flags);
 extern int __unit_dead[];
 
 /* MAT3's _ValidateListener: a debug build's check of a listener, empty in the shipped game. The `if (0)` block
@@ -29,7 +27,7 @@ void ValidateListener(tSfxListener *listener) {
  * frame's copy wrote the position over the links (docs/port/QA.md 5). */
 void AudUpdateListener(tSfxListener *listener, f32 *pos, f32 *dir, f32 *look, f32 *up) {
     if (listener != (tSfxListener *) -1) {
-        osRecvMesg(&audio_lock_queue, 0, 1);
+        lock_take(&audio_lock_queue);
         ValidateListener(listener);
         listener->pos[0] = pos[0];
         listener->pos[1] = pos[1];
@@ -43,6 +41,6 @@ void AudUpdateListener(tSfxListener *listener, f32 *pos, f32 *dir, f32 *look, f3
         listener->up[0] = up[0];
         listener->up[1] = up[1];
         listener->up[2] = up[2];
-        osSendMesg(&audio_lock_queue, 0, 0);
+        lock_give(&audio_lock_queue);
     }
 }

@@ -1,15 +1,7 @@
 /* The pak system's file and pak management (MAT3 paksysdc.c, the N64's libultra form of it): creating and deleting
  * files, forgetting a pak's files, the pak server that notices paks being put in and taken out, and the start-up. */
 #include "game/game.h"
-#define OSMesgQueue OSMesgQueueView   /* this file's own OSMesgQueue: include/game's OSMesgQueue is another type */
-#define OSThread OSThreadView   /* this file's own OSThread: include/game's OSThread is another type */
 
-typedef struct OSThread OSThread;
-typedef struct OSMesgQueue {
-    OSThread *mtqueue, *fullqueue;
-    s32 validCount, first, msgCount;
-    OSMesg *msg;
-} OSMesgQueue;
 /* libultra's OSPfs, as the local copy of a pak's handle (PcPfs's layout). */
 typedef struct OSPfs {
     s32 status;
@@ -27,9 +19,6 @@ typedef struct tDLList {
 } tDLList;
 typedef s32 (*PakPredicate)(s32);
 typedef void (*PakErrorFunc)(s32, s32, u32, s32, s8 *, s8 *, PakPredicate);
-
-extern s32 osSendMesg(OSMesgQueue *, OSMesg, s32);
-extern s32 osRecvMesg(OSMesgQueue *, OSMesg *, s32);
 
 extern void *memset(void *, s32, u32);
 
@@ -205,9 +194,9 @@ void RemovePak(s32 pak)
         }
         if (psfile->data != 0) {
             u8 **data = psfile->data;
-            osRecvMesg(&heap_lock_queue, 0, 1);
+            lock_take(&heap_lock_queue);
             DeallocateMemoryInternal(data, 0);
-            osSendMesg(&heap_lock_queue, 0, 0);
+            lock_give(&heap_lock_queue);
             psfile->data = 0;
         }
         RemoveLLE(&gPS_Files[fileh->file->pak], fileh);
@@ -463,9 +452,6 @@ flush:
     if (forceUpdate) {}
 }
 
-extern void osCreateThread(void *, s32, void (*)(void *), void *, void *, s32);
-extern void osStartThread(void *);
-
 /* Starts the pak system: errorFunc is what asks the player when a pak fails (PS_ErrorFunc); the 64 file handles go
  * on the free list; every pak record is cleared (keeping no damage: each is cleared to undamaged); the rumble thread
  * starts; then the paks in are noted (pak_poll_inserted). */
@@ -484,8 +470,8 @@ void PS_InitPakSys(PakErrorFunc errorFunc)
         gPaks[i].damaged = 0;
         ClearPak(i);
     }
-    osCreateThread(rumble_thread, 2, rumble_thread_entry, 0, rumble_thread_stack_top, 6);
-    osStartThread(rumble_thread);
+    thread_create(&rumble_thread, THREAD_ID_RUMBLE, rumble_thread_entry, 0, rumble_thread_stack_top, THREAD_PRI_RUMBLE);
+    thread_start(&rumble_thread);
     gPakSysInited = 1;
     pak_poll_inserted();
 }

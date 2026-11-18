@@ -2,13 +2,6 @@
  * the headers. */
 #include "game/game.h"
 #include "game/heap.h"
-#define OSMesgQueue OSMesgQueueView   /* this file's own OSMesgQueue: include/game's OSMesgQueue is another type */
-
-typedef struct OSMesgQueue OSMesgQueue;
-
-s32 osRecvMesg(OSMesgQueue *, void **, s32);
-s32 osSendMesg(OSMesgQueue *, void *, s32);
-
 
 /* Moves the handle-owned chunk of ptr (a handle) down to the first free chunk before it that is big enough (or that it
  * adjoins): the data is copied, the master slot pointed at the new place, the rest of the free chunk split off when
@@ -27,7 +20,7 @@ void heap_move_block_low(void *ptr)
     s32 adjacent;
     u32 size;
 
-    osRecvMesg(&heap_lock_queue, 0, 1);
+    lock_take(&heap_lock_queue);
     heap = FindHeap(ptr);
     old = FindChunk(heap, ptr, 0);
     after = old->next;
@@ -51,7 +44,7 @@ void heap_move_block_low(void *ptr)
         }
     }
     if (b == NULL) {
-        osSendMesg(&heap_lock_queue, 0, 0);
+        lock_give(&heap_lock_queue);
         return;
     }
     b->master = old->master;
@@ -94,5 +87,5 @@ void heap_move_block_low(void *ptr)
         }
     }
     DeallocateMemoryInternal((u8 *)old + HEAP_CHUNK_HEADER, 0);
-    osSendMesg(&heap_lock_queue, 0, 0);
+    lock_give(&heap_lock_queue);
 }
