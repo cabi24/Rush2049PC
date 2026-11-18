@@ -18,7 +18,6 @@ struct AudioCacheNode;
 struct AudioModel2056;
 struct AudioNode;
 struct Basis;
-struct Blit;
 struct Block;
 struct BSTNode;
 struct C96Handle;
@@ -50,7 +49,6 @@ struct EffectObj;
 struct EngineState;
 struct Entity;
 struct Entry;
-struct FiveParts;
 struct Ghost;
 struct GsmState;
 struct GsmStream;
@@ -123,7 +121,6 @@ struct MacroStateTrapKeyOff;
 struct MacroStateUntrapKeyOff;
 struct MacroStateVibrato;
 struct MapRecord;
-struct MenuItem;
 struct MenuNode;
 struct MessageQueue;
 struct Metadata48;
@@ -134,7 +131,6 @@ struct ModelObj;
 struct ModelRecord;
 struct ModelSnapshot;
 struct ModelView;
-struct MultiBlit;
 struct Nav;
 struct Node;
 struct Node104;
@@ -1219,7 +1215,6 @@ typedef struct tBlitDef { /* 0x30 bytes */
     s32 (*animfunc)(struct tBlit *); /* 0x20 the blit's animation function (tBlit.animFunc) */
     u32 animid;                      /* 0x28 its argument; bit 31 is NewBlit's flags argument */
 } tBlitDef;
-typedef tBlitDef HudBlitDef; /* frontend.h's name for tBlitDef (its data), to be folded into tBlitDef */
 
 /* A pane (MAT3 pane.c's tBlitSet): a bordered rectangle made of five blits, the four one-pixel edges in the border
  * colour and the inside in the pane colour. gPaneBlits holds the 16 panes. */

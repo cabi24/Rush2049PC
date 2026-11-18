@@ -81,7 +81,7 @@ extern f32 video_buttonSlideScale;
 extern const struct pc_multiblit video_frontEndBlit[EXTENT(2)];
 extern const struct pc_multiblit video_pauseBlit[EXTENT(2)];
 extern s8 video_inited;
-extern struct Blit *video_blit;
+extern tBlit *video_blit;
 extern s32 video_resetChoice;
 extern char *gPS_PakName[EXTENT(4)];
 extern s8 gPakSysInited;

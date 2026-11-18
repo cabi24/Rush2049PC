@@ -160,16 +160,6 @@ typedef struct OwnerBody {
 struct MenuOwner { OwnerBody *body; };
 /* A player's pad record (MAT3 tPadState, gPlayers): only its profile. */
 typedef struct Player { u8 other[72]; MenuOwner *owner; } Player;
-typedef struct Blit Blit;
-typedef struct FiveParts FiveParts;
-typedef struct MultiBlit {
-    char *name;
-    s16 x,y,width,height,top,bottom,left,right;
-    u32 z,alpha;
-    s32 (*callback)(Blit *);
-    u32 descriptor;
-} MultiBlit;
-
 extern Player gPlayers[];
 
 
@@ -425,7 +415,7 @@ void circuitscr_uninitScreen(void)
         circuitscr_blit = 0;
     }
     if (circuitscr_pane) {
-        RemovePane((tBlitSet *)circuitscr_pane);
+        RemovePane(circuitscr_pane);
         circuitscr_pane = 0;
     }
     if (trophyObjIdx != -1) {
@@ -996,7 +986,7 @@ void circuitscr_animButtonText(void)
 }
 
 /* The screen's text blit callback: the text, once the buttons exist. Always 1. */
-s32 circuitscr_animText(Blit *blit)
+s32 circuitscr_animText(tBlit *blit)
 {
     if (circuitscr_buttonsInited == 1) {
         circuitscr_animButtonText();

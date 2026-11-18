@@ -69,8 +69,6 @@ typedef struct PlayerProfile {Owner *next,*previous;PakFileHandle *fileh;u8 id[8
 struct Owner {PlayerProfile *body;};
 /* A player's pad record (MAT3 tPadState, gPlayers): 76 bytes, 80 on the PC. */
 typedef struct Player {u8 slot,controller;u16 unaccessed2;u32 edges;u32 levels;u32 autoEdges;u8 unaccessed10[56];Owner *owner;} Player;
-typedef struct Blit Blit;typedef struct FiveParts FiveParts;
-typedef struct MultiBlit {char *name;s16 x,y,width,height,top,bottom,left,right;u32 z,alpha;s32 (*callback)(Blit *);u32 descriptor;} MultiBlit;
 extern Player gPlayers[];
 
 

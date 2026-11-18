@@ -7,11 +7,6 @@
 #include "game/game.h"
 #define Gfx GfxView   /* this file's own Gfx: include/game's Gfx is another type */
 
-typedef struct Blit Blit;
-typedef struct MultiBlit {
-    char *name;s16 x,y,width,height,top,bottom,left,right;
-    u32 z,alpha;s32 (*callback)(Blit *);u32 descriptor;
-} MultiBlit;
 typedef struct tMenuButton {s32 type,handle;f32 angle,matrix[3][3],position[3];u8 alpha,pad[3];} tMenuButton;
 typedef union Color {u32 word;u8 channel[4];} Color;
 /* A pak file record (MAT3 tPS_File) in its PC layout (pc_prelude.h PSF_OFS, docs/port/POINTERS.md 9.10). */
@@ -108,10 +103,6 @@ typedef union { Gwords words; long long int force_structure_alignment; } Gfx;
     _g->words.w0 = (_SHIFTL(0x06, 24, 8) | __gsSP1Triangle_w1(v00, v01, v02)); \
     _g->words.w1 = __gsSP1Triangle_w1(v10, v11, v12); \
 }
-
-/* PC: the Blit's host layout (NewMultiBlit.c), as every view has it (docs/port/POINTERS.md 9). */
-struct Blit {const char *Name;void *Image;void *Info;u16 TexIndex;s16 X,Y;u16 Z;s16 Width,Height;u8 Alpha,Flip;s8 Hide,Init;
-    s16 Top,Bot,Left,Right,color;u16 reserved;void *AnimFunc;u32 AnimID;intptr_t AnimDTA;u16 resource;};
 
 /* The fog layer's texture tile (MAT3 BlowFog's static fogTileSize, anon_uls_ult_8). */
 typedef struct TileSize {u16 uls,ult,lrs,lrt;} TileSize;
@@ -604,9 +595,9 @@ void SetFogIntensity(s32 initialize)
         trackscr_fogColor[5] = 0;
         trackscr_fogColor[6] = 0;
         trackscr_fogColor[7] = 0;
-        trackFogPoly->Z = 0x7E00;
-        trackFogPoly->Alpha = trackscr_fogColor[3];
-        trackFogPoly->Image = &n64FogPal;
+        trackFogPoly->z = 0x7E00;
+        trackFogPoly->alpha = trackscr_fogColor[3];
+        trackFogPoly->palette = &n64FogPal;
         UpdateBlit(trackFogPoly);
     }
 }
@@ -645,12 +636,12 @@ void loadTrackScreen(void)
         (gTrackNum >= TRACK_STUNT_FIRST && gTrackNum <= TRACK_STUNT_LAST) ||
         (gTrackNum >= TRACK_OBSTACLE && gTrackNum <= TRACK_OBSTACLE))) return;
     trackScreenPoly = NewBlit(trackScreenNames[gTrackNum],176,32,0);
-    trackScreenPoly->Z = 0x7F00;
+    trackScreenPoly->z = 0x7F00;
     UpdateBlit(trackScreenPoly);
-    gBlitInstanceList[trackScreenPoly->resource].flags |= 1;
+    gBlitInstanceList[trackScreenPoly->blidx].flags |= BLITINST_ALPHA_COMPARE;
     if (OptionValid(TRACK_OPT_FOG) == 1) {
         trackFogPoly = NewBlit(track_fog_texture_name,176,32,0);
-        trackFogPoly->Z = 0x7E00;
+        trackFogPoly->z = 0x7E00;
         UpdateBlit(trackFogPoly);
     }
 }
@@ -658,7 +649,7 @@ void loadTrackScreen(void)
 /* Remove the track picture and the fog layer. */
 void unloadTrackScreen(void)
 {
-    Blit *b;
+    tBlit *b;
     if ((b = trackScreenPoly)) { RemoveBlit(b); trackScreenPoly = 0; }
     if ((b = trackFogPoly)) { RemoveBlit(b); trackFogPoly = 0; }
 }

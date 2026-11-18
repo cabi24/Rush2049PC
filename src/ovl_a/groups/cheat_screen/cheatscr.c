@@ -4,15 +4,6 @@
  * gCheatState, which the screen draws. */
 #include "game/game.h"
 
-typedef struct Blit Blit;
-typedef struct MultiBlit {
-    const char *texname;
-    s16 dulx, duly, width, height, top, bot, left, right;
-    u32 zdepth, alpha;
-    s32 (*animfunc)(Blit *);
-    u32 animid;
-} MultiBlit;
-
 
 /* PC: game.cheats_unlock (port/config/cheats.c, docs/port/FRONTEND.md "The cheat screen in the main menu"): every
    cheat is available while it is on, its code not needed: the tests of gCheatActive[cheat] that let LEFT and RIGHT
@@ -230,7 +221,7 @@ void cheatscr_uninitScreen(void)
 /* The screen's text blit callback (MAT3 animText): the title, then 13 rows centred on the selected cheat, each its
  * name and its value (the frame scale as a number, else the cheat's own value names: gText's second table, the
  * cheat's name followed by its values). Always 1. */
-s32 cheatscr_animText(Blit *blit)
+s32 cheatscr_animText(tBlit *blit)
 {
     s32 x;
     s32 i;

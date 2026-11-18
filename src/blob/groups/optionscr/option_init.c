@@ -1,9 +1,6 @@
 /* options_initScreen: the options screen's set-up (MAT3 optionscr.c initScreen). */
 #include "game/game.h"
 
-typedef struct Blit Blit;
-typedef struct MultiBlit MultiBlit;
-
 
 /* Set the screen up: keep the options as they are now (SaveGlobals), size the list, select the first offered row.
  * In the front end: the background, the 3D buttons and the text blit. In the pause menu: whether the pausing

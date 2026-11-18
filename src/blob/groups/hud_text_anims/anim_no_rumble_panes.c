@@ -2,21 +2,6 @@
  * of a blit. */
 #include "game/game.h"
 
-/* PC: the Blit's host layout (NewMultiBlit.c), as every view has it (docs/port/POINTERS.md 9). */
-typedef struct Blit {
-    void *name, *image, *info;
-    u16 texIndex;
-    s16 x, y;
-    u16 z;
-    s16 width, height;
-    u8 alpha, flip;
-    s8 hidden;
-    u8 init;
-    s16 top, bot, left, right, color;
-    u16 reserved;
-    intptr_t state;     /* AnimFunc */
-} Blit;
-
 typedef struct Player {   /* gPlayers' record (tPadState) */
     u8 b0;
     u8 control;
@@ -29,7 +14,7 @@ extern Player gPlayers[];
 /* During the countdown and not paused, a pane (in the window's colours) around the "no Rumble Pak" text of each
  * window whose player has none; the panes go otherwise. From the race on the blit's animation is dropped and it
  * hides. */
-s32 anim_no_rumble_panes(Blit *blt)
+s32 anim_no_rumble_panes(tBlit *blt)
 {
     s32 w;
     s32 h;
@@ -61,7 +46,7 @@ s32 anim_no_rumble_panes(Blit *blt)
         }
     }
     if (gGameState & GS_RACING) {
-        blt->state = 0;
+        blt->animFunc = 0;
         Hidden(blt, 1);
         return 0;
     }

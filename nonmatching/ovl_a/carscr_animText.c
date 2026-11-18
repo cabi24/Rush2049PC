@@ -7,7 +7,6 @@ typedef struct Player { u32 held, pressed, unknown08, repeated; u8 unknown10[50]
 typedef struct Record Record;
 /* PC: as cleanup_colortrace's Record: unknown24 is pointer-sized. */
 struct Record { Record **next; FileInfo **file; s8 track; u8 mode, name[14]; u32 id0, id1; f32 time; void *unknown24; void **active; };
-typedef struct Blit Blit;
 
 extern Player gPlayers[];
 
@@ -21,7 +20,7 @@ extern void TB_FlashTextColors(tRGBA first, tRGBA second);
 static void animButtonText(s32 p);
 static void drawOptions(s32 p);
 
-s32 carscr_animText(Blit *blt)
+s32 carscr_animText(tBlit *blt)
 {
     s32 i;
     for (i = 0; i < gNumPlayers; i++) {

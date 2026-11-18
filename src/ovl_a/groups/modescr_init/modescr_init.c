@@ -9,7 +9,6 @@ typedef struct Slot64 {
 } Slot64;
 /* A player's pad record (MAT3 tPadState, gPlayers): only its profile. */
 typedef struct Player76 { u8 unknown0[72]; void **profile; } Player76;
-typedef struct Blit Blit;
 
 VIEW(Slot64[13], modescr_buttonInfo);
 #define modescr_buttonInfo modescr_buttonInfo_view
@@ -21,13 +20,6 @@ extern void *memcpy(void *,const void *,u32);
 /* PC: the buttons' colour modescr_button_color is R,G,B,A bytes in the ROM, copied whole into the scene nodes (read as bytes).
  * The PC loader fills initialized data by its declarations: as a word it would swap them (docs/port/ENDIAN.md). */
 typedef struct Color4 { u8 c[4]; } Color4;
-typedef struct MultiBlit {
-    const char *texname;
-    s16 dulx,duly,width,height,top,bot,left,right;
-    u32 zdepth,alpha;
-    s32 (*animfunc)(Blit *);
-    u32 animid;
-} MultiBlit;
 VIEW(Color4, modescr_button_color);
 #define modescr_button_color modescr_button_color_view
 

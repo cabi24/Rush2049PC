@@ -2,21 +2,6 @@
  * whose player has no Rumble Pak. */
 #include "game/game.h"
 
-/* PC: the Blit's host layout (NewMultiBlit.c), as every view has it (docs/port/POINTERS.md 9). */
-typedef struct Blit {
-    void *name, *image, *info;
-    u16 texIndex;
-    s16 x, y;
-    u16 z;
-    s16 width, height;
-    u8 alpha, flip;
-    s8 hidden;
-    u8 init;
-    s16 top, bot, left, right, color;
-    u16 reserved;
-    intptr_t state;     /* AnimFunc */
-} Blit;
-
 typedef struct Player {   /* gPlayers' record (tPadState) */
     u8 b0;
     u8 control;
@@ -29,7 +14,7 @@ extern Player gPlayers[];
 /* Until the race starts (hidden from GS_RACING on, when the blit's animation is dropped): during the
  * countdown and not paused, message 226 ("no Rumble Pak") centred at each window's place for a player without
  * one, in the player's colour; the smaller font when the message is wider than a window. */
-s32 anim_no_rumble_text(Blit *blt)
+s32 anim_no_rumble_text(tBlit *blt)
 {
     u32 width;
     s32 limit;
@@ -39,7 +24,7 @@ s32 anim_no_rumble_text(Blit *blt)
     s32 ctl;
 
     if (Hidden(blt, gGameState & GS_RACING)) {
-        blt->state = 0;
+        blt->animFunc = 0;
         return 0;
     }
     TB_SetJust(1, 1);

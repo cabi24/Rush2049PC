@@ -23,10 +23,6 @@ extern Player gPlayers[];
 VIEW(Record **[4], gGhosts);
 #define gGhosts gGhosts_view
 
-typedef struct FiveParts FiveParts;
-typedef struct Blit Blit;
-typedef struct MultiBlit {char *name;s16 x,y,width,height,top,bottom,left,right;u32 z,alpha;s32 (*callback)(Blit *);u32 descriptor;} MultiBlit;
-
 VIEW(void *[48], gCarMatrices);
 #define gCarMatrices gCarMatrices_view
 
@@ -856,7 +852,7 @@ typedef struct CarComponent { s16 idx, level; f32 uvs[9]; f32 pos[3]; } CarCompo
 void carscr_UninitScreen(void)
 {
     s32 player,count;
-    FiveParts **box;
+    tBlitSet **box;
     UnloadWaveAll(62);
     if(gNumPlayers==1 && gRace!=kGhost) releaseGridMap();
     if(expansion_pak_present) {
@@ -865,7 +861,7 @@ void carscr_UninitScreen(void)
     } else if(gTrackNum>=6)UnloadWaveAll(80);
     else UnloadWaveAll(81);
     for(box=carscr_pane;box<carscr_pane+4;box++) {
-        if(*box) {RemovePane((tBlitSet *)*box);*box=0;}
+        if(*box) {RemovePane(*box);*box=0;}
     }
     for(player=0;player<(count=gNumPlayers);player++) {
         carscr_uninitButtons(player);

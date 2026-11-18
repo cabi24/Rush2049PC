@@ -237,7 +237,7 @@ extern f32 audio_gButtonScale;
 extern const struct pc_multiblit audio_frontEndBlit[EXTENT(1)];
 extern const struct pc_multiblit audio_pauseBlit[EXTENT(2)];
 extern s8 audio_inited;
-extern struct Blit *audio_blit;
+extern tBlit *audio_blit;
 extern s8 audio_panesCreated;
 extern s32 audio_gSong;
 extern intptr_t audio_gTitlePane;
