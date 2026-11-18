@@ -13,7 +13,6 @@ struct Profile { Profile **next,**previous; FileInfo **fileh; u8 id[8]; u8 name[
 /* A player's pad record (MAT3 tPadState, gPlayers): only its profile. */
 typedef struct Player { u8 unknown00[72]; Profile **owner; } Player;
 typedef struct FiveParts FiveParts;
-typedef struct TextBox {s16 x,y,width,height;} TextBox;
 
 /* The statistics a profile keeps (MAT3 rush_types.h's tSaveData parts; no pointers, so the PC has the N64's layout:
  * the N64's records sit 4 bytes earlier than MAT3's, its controls being one shorter). One race track's (MAT3
@@ -98,8 +97,6 @@ extern Player gPlayers[];
 VIEW(Profile **, gStatPlayer);
 #define gStatPlayer gStatPlayer_view
 
-VIEW(TextBox, gScreenRect);
-#define gScreenRect gScreenRect_view
 VIEW(FiveParts *, recordscr_viewPane);
 #define recordscr_viewPane recordscr_viewPane_view
 VIEW(StuntStats[], gTotalStuntStats);

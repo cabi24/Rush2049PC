@@ -685,7 +685,7 @@ extern char playerscr_title_texture_name[EXTENT(16)];
 extern char playerscr_cursor_texture_name[EXTENT(8)];
 extern char playerscr_a_button_texture_name[EXTENT(4)];
 extern char playerscr_b_button_texture_name[EXTENT(220)];
-extern config gScreenRect;
+extern TextBox gScreenRect;   /* the record screen's views' box */
 extern u8 recordscr_circuit_title_format[EXTENT(8)];
 extern u8 recordscr_track_variant_title_format[EXTENT(8)];
 extern u8 recordscr_race_laps_format[EXTENT(4)];
