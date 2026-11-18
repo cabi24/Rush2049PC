@@ -23,9 +23,9 @@ s32 sample_dma_next(void)
 {
     if (pc_sample_dma_list.next < pc_sample_dma_list.count) {
         pc_sample_dma_list.next++;
-        osPiStartDma(&sample_dma_io, 1, 0, pc_sample_dma_list.reqs[pc_sample_dma_list.next - 1].devAddr,
-                          pc_sample_dma_list.reqs[pc_sample_dma_list.next - 1].vAddr,
-                          pc_sample_dma_list.reqs[pc_sample_dma_list.next - 1].size, &sample_dma_pi_queue);
+        osPiStartDma(&sample_dma_io, 1, 0, pc_sample_dma_list.reqs[pc_sample_dma_list.next - 1].source,
+                          pc_sample_dma_list.reqs[pc_sample_dma_list.next - 1].destination,
+                          pc_sample_dma_list.reqs[pc_sample_dma_list.next - 1].length, &sample_dma_pi_queue);
         return 1;
     }
     return 0;

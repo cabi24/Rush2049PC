@@ -6,6 +6,7 @@
 #define GAME_AUDIO_H
 
 #include "game/types.h"
+#include "game/soundlib.h"   /* the sound library's records the game shares */
 
 /* The front end's menu sounds: effect ids (AudPlayEffect's fxid), as the screens and the helpers PlayStartABSound,
  * PlayExitSound, PlayUDSound and PlayLRSound play them for the buttons (BUTTON_*, input.h). */
@@ -57,15 +58,11 @@ typedef struct SoundGroupEntry {
     u16 group;          /* the group's id in the project */
 } SoundGroupEntry;
 
-/* The sample DMAs of the sound library (MusyX): a list of reads from the cartridge that musyx_start_dma_list (its
- * DMA service) records in pc_sample_dma_list and starts, and the sample DMA thread runs one after another
- * (sample_dma_next), signalling the list's done queue after the last. The list is the PC's own storage
- * (src/blob/groups/sample_dma_next/sample_dma_next.c): with its two host pointers it doesn't fit the N64's 16 bytes. */
-typedef struct SampleDmaRequest {
-    u32 size;           /* bytes */
-    u32 devAddr;        /* the cartridge address */
-    void *vAddr;        /* the buffer */
-} SampleDmaRequest;
+/* The sample DMAs of the sound library (MusyX): a list of reads from the cartridge (game/soundlib.h's
+ * SampleDmaRequest) that musyx_start_dma_list (its DMA service) records in pc_sample_dma_list and starts, and the
+ * sample DMA thread runs one after another (sample_dma_next), signalling the list's done queue after the last. The
+ * list is the PC's own storage (src/blob/groups/sample_dma_next/sample_dma_next.c): with its two host pointers it
+ * doesn't fit the N64's 16 bytes. */
 typedef struct SampleDmaList {
     s8 active;          /* a list is in progress */
     u8 unused1;
@@ -120,7 +117,7 @@ extern SoundServices sound_services;
 extern void (*sound_dma_flush_hook)(void);
 extern void (*sound_frame_hook)(void);
 extern u16 sound_dma_list_count;
-extern void *sound_dma_list;
+extern SampleDmaRequest *sound_dma_list;
 extern u8 sound_output_thread[EXTENT(432)];
 extern u8 *sound_output_stack;
 extern u8 sound_output_queue[EXTENT(24)];
@@ -419,7 +416,7 @@ struct tFxSequence *GetFxTag(void);
 s32 GetSfxInstance(struct tSfxVoice **theSound);
 s32 gsm_decode_frame(struct GsmState *s, u8 *c, s16 *target);
 void gsm_decode_parameters(struct GsmState *S, s16 *LARcr, s16 *Ncr, s16 *bcr, s16 *Mcr, s16 *xmaxcr, s16 *xMcr, s16 *s);
-s32 gsm_decode_stream_frame(struct GsmStream *stream, s16 *out);
+s32 gsm_decode_stream_frame(SpeechStream *stream, s16 *out);
 void gsm_short_term_synthesis(struct GsmState *S, s16 *LARcr, s16 *wt, s16 *s);
 void heap_lock(void);
 void heap_unlock(void);

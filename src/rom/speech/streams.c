@@ -10,6 +10,7 @@
  * N64-shaped: the bank is read by cartridge DMA, and speech_set_bank tells a cartridge address from a RAM one by
  * its top bits. */
 #include "../rom_tu.h"
+#include "game/soundlib.h"   /* SpeechStream */
 #include "../sound/sound_services.h"
 
 #define SPEECH_STREAMS 2                        /* streams that can play at once */
@@ -26,52 +27,6 @@ enum {
 /* The decoder's state (SpeechStream.state, decode.c) */
 enum { SPEECH_DECODE_IDLE = 0, SPEECH_DECODE_PRIMING = 1, SPEECH_DECODE_PRIMED = 2, SPEECH_DECODE_PLAYING = 3,
        SPEECH_DECODE_ENDED = 4 };
-
-/* The stream record (PC: native layout, 0x1268 bytes; decode.c has the same, with a comment per field). The first
- * 400 bytes are the GSM decoder's state. */
-typedef struct SpeechStream {
-    unsigned char gsm_history[358];
-    unsigned short gsm_last_lag;
-    unsigned char gsm_rest[40];
-    void (*read_input)(void *source, void *destination, unsigned int size, OSMesgQueue *done);
-    unsigned char *input;
-    void *output;
-    unsigned int capacity;
-    unsigned int input_ring[1024];
-    unsigned short remaining_blocks;
-    unsigned short header_low;
-    unsigned int remaining_input;
-    int remaining;
-    OSMesgQueue queue;
-    OSMesg message;
-    unsigned int bit_position;
-    unsigned int consumed_input;
-    unsigned int received;
-    unsigned int consumed;
-    unsigned int available;
-    signed char pending;
-    signed char state;                  /* SPEECH_DECODE_* */
-    signed char budget;
-    unsigned char pad11FF;
-    OSMesgQueue request_queue;
-    OSMesg request_messages[2];
-    volatile unsigned char busy;        /* SPEECH_STREAM_* */
-    unsigned char volume;
-    unsigned char pan;
-    unsigned char span;
-    unsigned char priority;
-    unsigned char pad123D[3];
-    unsigned int rate;
-    int handle;                         /* the stream voice, -1 for none */
-    short *buffer;                      /* the PCM ring */
-    unsigned int buffer_count;          /* its length in samples */
-    unsigned char stop_countdown;       /* SPEECH_STREAM_STOPPING: frames until the voice stops (at 2) and the stream frees (0) */
-    unsigned char aux;
-    unsigned char pad1256[2];
-    unsigned int processed;             /* samples played */
-    float duration;                     /* seconds */
-    unsigned int token;
-} SpeechStream;
 
 typedef int (*SpeechStreamCallback)(short *, unsigned int, short *, unsigned int, unsigned int);
 

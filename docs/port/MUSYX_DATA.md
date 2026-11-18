@@ -248,15 +248,17 @@ The order comes from the call signatures, not from the ROM's table.
   functions. `CallbackWords` (`api.c`) copies 8 pointers. `SpeechServiceHooks` (`streams.c`) has six
   pointer slots before `allocate` and `release`, and gen_data now places `sound_service_wait_task` … `sound_service_free` at 8-byte steps
   in `sound_services`'s own storage (`data_symbols.txt`).
-- `musyx_set_retrace_callback` takes `intptr_t` (it stores into the pointer-sized `musyx_retrace_callback`, which `audio_retrace_thread_entry` calls
-  each retrace), and `musyx_cart_address` takes and returns a u32 (since [NATIVE.md](NATIVE.md) step 9: a ROM offset
-  in, a cartridge address out). `musyx_start_dma_list` takes `intptr_t` for the list and the done queue.
+- `musyx_set_retrace_callback` takes the callback (`void (*)(void)`) and stores it in `musyx_retrace_callback`
+  (audio.h), which `audio_retrace_thread_entry` calls each retrace; `musyx_cart_address` takes and returns a u32 (since
+  [NATIVE.md](NATIVE.md) step 9: a ROM offset in, a cartridge address out). `musyx_start_dma_list` takes the list
+  (`SampleDmaRequest *`) and the done queue (`OSMesgQueue *`).
   `musyx_alloc` and `musyx_free` deal in heap blocks, as pointers since NATIVE.md step 6.
-- The DMA request list: `musyx_start_dma_list`'s `CallSlot` and `sample_dma_next`'s `DmaList` now have one layout
-  {u16 × 4; requests; done queue} (24 bytes; `sample_dma_thread_entry` reads the done queue at `DMA_DONE_OFF`). It has
-  PC storage of its own, `pc_sample_dma_list` (defined in `sample_dma_next.c`): at 0x80153F10 there are 16 bytes before
-  `gPathWave` (the path data pointer), and gen_data places both inside `gGameCar`'s storage. The entries
-  (`SoundDmaEntryCodebook`, `SoundDmaEntrySamples`, `DmaReq`) are 16 bytes on LP64, and `sound_hw_alloc_dma` allocates the
+- The DMA request list in progress is audio.h's `SampleDmaList` {active, count, next; the requests; the done queue}
+  (24 bytes; since wave 4 one declaration for `musyx_start_dma_list`, `sample_dma_next` and `sample_dma_thread_entry`,
+  [RECORDS.md](RECORDS.md) 4.4). It has PC storage of its own, `pc_sample_dma_list` (defined in `sample_dma_next.c`):
+  at 0x80153F10 there are 16 bytes before `gPathWave` (the path data pointer). The entries are
+  include/game/soundlib.h's `SampleDmaRequest` {length, source, destination} (the library's hardware layer and
+  dma_queue.c write them, the sample DMA thread reads them), 16 bytes on LP64, and `sound_hw_alloc_dma` allocates the
   list with `DMA_ENTRY_SIZE` = 16.
 - Blank cartridge: the table is ROM data, so `--no-rom` fills it with the eight functions above (`port/main.c`,
   `musyx_services`). With a ROM, `rush2049pc: MusyX service N is ... in the ROM's table, not ...` reports a slot

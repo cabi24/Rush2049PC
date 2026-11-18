@@ -1,12 +1,13 @@
 /* src/rom/speech/decode.c: the speech module's decoder side of a stream.
  *
- * A speech stream (speech/streams.c's SpeechStream, speech_streams[2]) reads a bank entry's compressed data from
+ * A speech stream (game/soundlib.h's SpeechStream, speech_streams[2]) reads a bank entry's compressed data from
  * the cartridge in 1 KiB blocks into a 4 KiB input ring (speech_read_input: async DMA), decodes GSM frames from it
  * (gsm.c) into a PCM ring of `capacity` samples, and hands the samples to the stream voice that plays the ring
  * (speech_take_samples, from the voice's callback). speech_service runs speech_decode once a frame for each busy
  * stream. MusyX-side code with no MAT3 counterpart; the game never starts the speech module (nothing calls
  * speech_init). N64-shaped: the input is read by cartridge DMA. */
 #include "../rom_tu.h"
+#include "game/soundlib.h"   /* SpeechStream */
 
 #define SPEECH_INPUT_BLOCK 1024          /* bytes per input read */
 #define SPEECH_INPUT_RING 4096           /* bytes of input ring */
@@ -23,53 +24,7 @@ enum {
     SPEECH_DECODE_ENDED = 4     /* played out, or stopped */
 };
 
-/* The stream record, as speech/streams.c has it (PC: native layout, 0x1268 bytes: the read function, the rings and
- * the message queues are host-sized). The first 400 bytes are the GSM decoder's state (gsm.c's GsmState); only its
- * last long-term lag is named here, since the stream's setup sets it. */
-typedef struct SpeechStream {
-    unsigned char gsm_history[358];             /* 0x000: GsmState: residual history, filter states */
-    unsigned short gsm_last_lag;                /* 0x166: GsmState's nrp, the last valid long-term lag */
-    unsigned char gsm_rest[40];                 /* 0x168: GsmState: LARpp, j, the repeat and silence counts */
-    void (*read_input)(void *source, void *destination, unsigned int size, OSMesgQueue *done); /* 0x190 */
-    unsigned char *input;                       /* 0x198: the entry's compressed data (cartridge address) */
-    void *output;                               /* 0x1A0: the PCM ring (the stream's buffer) */
-    unsigned int capacity;                      /* 0x1A8: its length in samples */
-    unsigned int input_ring[1024];              /* 0x1AC: compressed input, read a block at a time */
-    unsigned short remaining_blocks;            /* 0x11AC: GSM frames left to decode (header word 1, high half) */
-    unsigned short header_low;                  /* 0x11AE: header word 1, low half (not used) */
-    unsigned int remaining_input;               /* 0x11B0: input words left to read (header word 2, low 24 bits) */
-    int remaining;                              /* 0x11B4: samples left to play once the last frame is decoded */
-    OSMesgQueue queue;                          /* 0x11B8: an input read's done message */
-    OSMesg message;                             /* 0x11E0 */
-    unsigned int bit_position;                  /* 0x11E8: the decoder's position in the input, in bits */
-    unsigned int consumed_input;                /* 0x11EC: bytes of input decoded (whole words) */
-    unsigned int received;                      /* 0x11F0: bytes of input read */
-    unsigned int consumed;                      /* 0x11F4: samples the voice has taken */
-    unsigned int available;                     /* 0x11F8: samples decoded */
-    signed char pending;                        /* 0x11FC: an input read is in flight */
-    signed char state;                          /* 0x11FD: SPEECH_DECODE_* */
-    signed char budget;                         /* 0x11FE: frames to decode per call (2; 4 at half rate) */
-    unsigned char pad11FF;                      /* 0x11FF */
-    OSMesgQueue request_queue;                  /* 0x1200: made by speech_play, read by nothing */
-    OSMesg request_messages[2];                 /* 0x1228 */
-    volatile unsigned char busy;                /* 0x1238: SPEECH_STREAM_* (streams.c) */
-    unsigned char volume;                       /* 0x1239 */
-    unsigned char pan;                          /* 0x123A */
-    unsigned char span;                         /* 0x123B: front/back */
-    unsigned char priority;                     /* 0x123C: the voice's priority */
-    unsigned char pad123D[3];                   /* 0x123D */
-    unsigned int rate;                          /* 0x1240: sample rate, Hz */
-    int handle;                                 /* 0x1244: the stream voice (sound_stream_start), -1 for none */
-    short *buffer;                              /* 0x1248: the PCM ring */
-    unsigned int buffer_count;                  /* 0x1250: its length in samples */
-    unsigned char stop_countdown;               /* 0x1254: frames until a stopping stream's voice stops, then frees */
-    unsigned char aux;                          /* 0x1255: the voice's effect send */
-    unsigned char pad1256[2];                   /* 0x1256 */
-    unsigned int processed;                     /* 0x1258: samples played */
-    float duration;                             /* 0x125C: seconds, set when the voice starts */
-    unsigned int token;                         /* 0x1260: the caller's handle (speech_assign_token) */
-} SpeechStream;
-/* The GSM state fills the first 400 bytes (gsm.c's GsmStream puts the read function right after it). */
+/* The GSM decoder's state (gsm.c's GsmState) fills the stream's first 400 bytes. */
 typedef char pc_stream_gsm_state[__builtin_offsetof(SpeechStream, read_input) == 400 ? 1 : -1];
 
 extern void bzero(void *, int);
@@ -121,9 +76,9 @@ void speech_decode(SpeechStream *stream)
     if (stream->pending) {
         if (osRecvMesg(&stream->queue, 0, 0) >= 0) {
             if (stream->received == 0) {
-                stream->remaining_blocks = (stream->input_ring[1] >> 16) & 65535;
-                stream->header_low = stream->input_ring[1] & 65535;
-                stream->remaining_input = stream->input_ring[2] & 0xFFFFFF;
+                stream->remaining_blocks = (stream->input_ring.words[1] >> 16) & 65535;
+                stream->header_low = stream->input_ring.words[1] & 65535;
+                stream->remaining_input = stream->input_ring.words[2] & 0xFFFFFF;
                 stream->bit_position = SPEECH_HEADER_BITS;
             }
             stream->received += SPEECH_INPUT_BLOCK;
@@ -139,7 +94,7 @@ void speech_decode(SpeechStream *stream)
         else size = stream->remaining_input > 256 ? SPEECH_INPUT_BLOCK : stream->remaining_input * 4;
         if (size > 0) {
             stream->pending = 1;
-            stream->read_input(stream->input + stream->received, (unsigned char *)stream->input_ring + ((stream->received % SPEECH_INPUT_RING) / 8) * 8, size, &stream->queue);
+            stream->read_input(stream->input + stream->received, stream->input_ring.bytes + ((stream->received % SPEECH_INPUT_RING) / 8) * 8, size, &stream->queue);
         }
     }
     /* Original game: while the stream is priming, this loop decodes even when remaining_blocks is 0. An entry
