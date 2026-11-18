@@ -680,7 +680,60 @@ work a retrace, the synthetic races headless (`race`, `race2p`, `race12`): rocky
 retraces at original, twice that). The retail
 cartridge's numbers stay off the repository.
 
-**Not done here.** The session's wiring (`port/net` into the loop, NETWORK.md 10) uses the API above. The pause key, focus loss and the F1 overlay still hold the game (re-based); a session will disable
+**Not done here.** The session's wiring (`port/net` into the loop, NETWORK.md 10) uses the API above.
+
+## 11. The game's C in the PC's terms: memory, the cartridge and the devices (wave 4, part 1)
+
+The plan, written 2026-11-18 before the work ([RECORDS.md](RECORDS.md) 5 has the records). The game's C still asked
+port/ultra for things in the N64's terms: it flushed and invalidated the CPU's caches around every transfer, named the
+cartridge by its address on the N64's bus, started DMA through the PI manager's message records, and set the video
+interface's registers. Each of those is now either a call to port/ultra in the PC's terms, or gone because the PC has
+nothing there to ask for. Threads, message queues, events, timers and the scheduler are part 2's (agent D2); where a
+transfer completes through a message, the message stays as it is.
+
+**What the game called, and what replaces it.**
+
+| The game called | Where | Now |
+|---|---|---|
+| `osWritebackDCache`, `osWritebackDCacheAll`, `osInvalDCache`, `osInvalICache` | the sound library (hardware.c, dma_queue.c, speech/streams.c), the video mode, the boot, the waves, the pak's reads and writes | nothing: a PC's caches are coherent, so the calls were no-ops (port/ultra/misc.c). Where a call marked data handed over (the sound task's lists to the audio interpreter, a pak's data to the SI), a comment says so |
+| `osVirtualToPhysical` | none left in code; two comments (StartGraphics.c, ClearScreen.c) | the comments say what the PC gives the renderer: pointers |
+| `osPiStartDma(&mb, pri, OS_READ, devAddr, dst, size, mq)` and the PI's `OSIoMesg` | `wave_rom_read` (waves.c: a raw wave), `sample_dma_next` (the sound library's DMA list: the samples, the codebooks, the sound's DMA queue and the speech streams through it) | `pc_cart_read(rom_offset, dst, size, mq)`: the cartridge's bytes at a ROM offset, copied at once, then the completion message to `mq` as the PI's was, so each caller waits where it waited. No `OSIoMesg` |
+| the cartridge's bus address, `0xB0000000 + offset` (`musyx_cart_address`, hardware.c's `CART_BUS_BASE`, pi.c's KSEG1 and bus forms) | the MusyX library's sample addresses (`cart_base`, `cart_address`, its DMA list's sources) | the ROM offset itself: `musyx_cart_address` (the library's address service) returns the offset it is given, and every sample, codebook and speech position is a ROM offset. `sound_hw_fetch_sample_range` takes one (`api.u32_address` 1 → 0) |
+| `osPiReadIo` (16 words at 0xFFB000, which `main` never read) | `main` | gone |
+| `osCreatePiManager` (a command queue nothing reads) | the idle thread | gone |
+| the game image's inflate, `unzipdata_from_rom(gRomCompressedData, gDecompressedDataStart, 0)`, which did nothing on the PC (the image is linked in) | `main_thread_entry` | gone, with `gRomCompressedData` |
+| `osViSwapBuffer`, `osViBlack`, `osViGetCurrentFramebuffer`, `osViGetNextFramebuffer` | the scheduler, the main loop, the video mode | `pc_vi_swap_buffer`, `pc_vi_black`, `pc_vi_current_framebuffer`, `pc_vi_next_framebuffer` (vi.c): the frame shown from the next retrace, the screen blacked out, the frames current and next |
+| `osViSetMode`, `osViSetSpecialFeatures`, `osCreateViManager` | the scheduler, the video mode, StartGraphics (the dither filter, the divot) | nothing: they set the N64 video interface's registers (its timing, scaling, gamma and filters), which the PC doesn't have; vi.c only stored them. The game still builds its adjusted video mode (the video screen's centring), whose vertical scale decides when the screen is unblacked |
+
+The new calls are declared in `port/include/pc_prelude.h`, with the PC layer's other calls the game makes.
+
+**What stays, and why.**
+
+- **The controllers and the controller pak go through the PIF** (`osContStartQuery`, `osContStartReadData`,
+  `osContGetReadData`, `osContInit`, the whole `osPfs*` file system, `osMotorInit`). These are the game's own libultra
+  C (src/rom/libultra), and they talk to si.c's PIF by its command blocks. The pak's file system needs the PIF's
+  32-byte reads and writes, with their CRCs, to keep the saves byte for byte, and the pads' reads share its command
+  state (`__osContLastCmd`) and its SI events with the pak's: a read of the pads in other terms would post the SI
+  events in another order, or take a second road to the same pads. So the SI stays libultra's.
+- **`osViSetEvent`** registers the retrace's message: an event, part 2's.
+- **The decompressors** (`lzss_decode`, `unzipdata_from_rom`, `unzipdata`) take ROM offsets already; their names are
+  the boot segment's.
+- **The speech streams carry their cartridge positions in pointers** (`speech_bank_data`, the DMA queue's requests:
+  `src.trunc`, `src.zext`, 5 sites). Their records are data the loader lays out, so they keep their types here; the
+  values are ROM offsets now. A u32 there is the sound's own record work.
+- **The N64 guard** (memory.c) still reserves the N64's range and names a cartridge address that faults in it: it is
+  there to catch an N64 address the game still makes, which this section takes away.
+
+**Records** ([RECORDS.md](RECORDS.md) 5): zlib's (`z_stream_s`, `tree_desc_s`, `internal_state`, two copies each)
+are declared once in `include/game/zlib_deflate.h`; the controller pak's file system records (`OSPfs`, three local
+copies and include/game's `PcPfs`; `OSPfsState`, include/game's `PakFileState`; the inode records) once in
+`include/game/pfs.h`, which the game's types and the boot segment's libultra both include.
+
+**The proof.** Each stage: objsame lists only the units it changed (`same` for the records), ctest passes; at the end
+the gate (every synthetic path `same`, screenshots and sound), the optimized and the audible cartridge's compares, the
+sanitizers, and the determinism tests (`hash_*`, `replay_same_*`, `net_session`). The full state hash's `heap` region
+holds the sound library's sample addresses, which are ROM offsets now, so its values differ from the reference
+build's; two runs of one build still agree, which is what the hash is for. The pause key, focus loss and the F1 overlay still hold the game (re-based); a session will disable
 them. While a hold stops the clock, port/input's UI timers that read `pc_host_ns()` (the overlay's key-capture
 timeout, menu repeat, a status line's fade, the cursor's hide) stand still too, as with `--fast`; a session's overlay
 won't hold the game, and otherwise they want a clock of their own. Without SDL's audio (headless builds) the tap is
