@@ -3,15 +3,6 @@
 
 float fabsf(float);
 
-/* A contact with a wall (MAT3 anon_surf_uvs_30). */
-typedef struct CCol {
-    surftyp *surf;  /* the wall, NULL none yet */
-    f32 uvs[9];     /* its frame */
-    s16 carEdge;    /* the car's corner (tireIndex) */
-    s16 index;      /* the wall's edge */
-    f32 dist;       /* how far the car is into it */
-} CCol;
-
 /* Tests model `car`'s body (its corners, BodyVerts) against wall `poly`: finds how deep the car's outline, flattened
  * into the wall's plane, is into the wall's outline and on which edge; keeps the deepest contact of the step in
  * `col` (a wall facing the car's up more than 45 degrees away is no wall). A wall's kind can end the car, unless it

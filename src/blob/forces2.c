@@ -5,8 +5,6 @@
 #include "game/game.h"
 
 typedef f32 Vec3[3];
-/* The tune record (MAT3 anon_diffbl_weight_scale_2c), its differential blend. */
-typedef struct tTune {f32 diffbl; /* +0x00 */} tTune;
 #define vecadd(a,b,r) {r[0]=a[0]+b[0];r[1]=a[1]+b[1];r[2]=a[2]+b[2];}
 
 /* Model m's total force f, in the car's frame: the four tires, gravity (mass times gGravity, down; with the wing out

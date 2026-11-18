@@ -12,7 +12,7 @@ void SetDroneResPathIndex(struct tModelData *m, s16 path, s16 idx) {
     f32 dx, dy, dz, dist;
     s16 *resPt;
     DronePathPt *pt;
-    struct pc_car_nav *ctl;
+    tPathPoint *ctl;
     s32 end;
     s16 next;
     s32 i;

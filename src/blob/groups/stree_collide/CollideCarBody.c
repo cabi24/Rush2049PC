@@ -1,15 +1,6 @@
 /* CollideCarBody: a car against the track's walls (MAT3 stree.c). */
 #include "game/game.h"
 
-/* A contact with a wall (MAT3 anon_surf_uvs_30). */
-typedef struct CCol {
-    surftyp *surf;  /* the wall, NULL none */
-    f32 uvs[9];     /* its frame */
-    s16 carEdge;    /* the car's corner (tireIndex) */
-    s16 index;
-    f32 dist;       /* how far the car is into it */
-} CCol;
-
 #define FLOOR(v) (((v) < 0.0f && (f32)(s32)(v) != (v)) ? (v) - 1.0f : (v))
 
 /* Tests model `car`'s body against the walls round its four tyres: the surfaces of the tree's leaves under them

@@ -7,28 +7,6 @@
 
 #define mveccopy(a,r) {r[0]=a[0]; r[1]=a[1]; r[2]=a[2];}
 
-/* A tire's state (MAT3's anon_tradius_springK_5c, 0x5C bytes), the fields used here. */
-typedef struct tModelTire {
-    f32 tradius;                /* 0x00 the tire's radius, feet */
-    u8 pad04[0x48 - 0x04];
-    f32 angvel;                 /* 0x48 its angular speed, radians a second */
-    u8 pad4C[0x5C - 0x4C];
-} tModelTire;
-
-/* The snapshot (MAT3 tModelData.reckon, anon_base_rwa_base_rwv_90, 0x90 bytes). */
-typedef struct tReckon {
-    f32 base_rwa[3];            /* 0x00 the world acceleration, velocity and position at the last base update */
-    f32 base_rwv[3];            /* 0x0C */
-    f32 base_rwr[3];            /* 0x18 */
-    s16 rwmph;                  /* 0x24 the speed shown: mph times 4 */
-    f32 suscomp[4];             /* 0x28 each tire's suspension compression */
-    f32 airdist[4];             /* 0x38 each tire's height above the road */
-    f32 rwa[3];                 /* 0x48 the acceleration, velocity and position to draw */
-    f32 rwv[3];                 /* 0x54 */
-    f32 rwr[3];                 /* 0x60 */
-    f32 uvs[9];                 /* 0x6C the orientation to draw */
-} tReckon;
-
 /* Take model `m`'s snapshot: its orientation; the speed shown (rwmph), the rear wheels' average rim speed
  * (angvel x radius, feet a second) times 2.72727275, which is 60/88 (feet a second to mph) times 4; each tire's
  * suspension compression and height; and the base acceleration, velocity and position. */

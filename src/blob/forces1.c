@@ -7,18 +7,6 @@
 typedef struct Vec3 {float x,y,z;} Vec3;
 /* An orientation matrix by rows: the frame's unit vectors. */
 typedef struct Basis {Vec3 rows[3];} Basis;
-/* The car's physics descriptor (MAT3 _tCar, 0xB4 bytes). */
-typedef struct tCar {
- float i[3],invi[3];            /* +0x00 the moments of inertia and their inverses */
- float springrate[4];           /* +0x18 each corner's spring rate */
- float farspringrate,rarspringrate;   /* +0x28 the front and rear anti-roll bars */
- float cdamping[4],rdamping[4]; /* +0x30 each corner's compression and rebound damping */
- float steerratio,swtpg;        /* +0x50 */
- float srefpcybo2;              /* +0x58 the air drag coefficient */
- float rollresist;              /* +0x5C the rolling resistance */
- TireDesc *tires[4];            /* +0x60 each tire's constants (frontTire's records) */
- Vec3 tireR[4];                 /* +0x70 each tire's position from the centre of mass */
-} tCar;
 
 /* The forces on model m's tires and body for this step, in the car's frame:
  * - each tire's frame and contact-patch velocity (the front two steered), then its force from the suspension and
@@ -34,10 +22,11 @@ void forces1(tModelData *m)
  int poortract;
  float speed,drag_base,drag_scale;
  poortract=0;
- calctireuv(&m->v,&m->w,&m->car->tireR[0],m->steerangle,&m->uvs,&m->roaduvs[0],&m->tireuvs[0],&m->tireV[0]);
- calctireuv(&m->v,&m->w,&m->car->tireR[1],m->steerangle,&m->uvs,&m->roaduvs[1],&m->tireuvs[1],&m->tireV[1]);
- calctireuv(&m->v,&m->w,&m->car->tireR[2],0.0f,&m->uvs,&m->roaduvs[2],&m->tireuvs[2],&m->tireV[2]);
- calctireuv(&m->v,&m->w,&m->car->tireR[3],0.0f,&m->uvs,&m->roaduvs[3],&m->tireuvs[3],&m->tireV[3]);
+ /* each tire's arm, the descriptor's tireR[i] (three floats), is calctireuv's vector r */
+ calctireuv(&m->v,&m->w,(Vec3 *)m->car->tireR[0],m->steerangle,&m->uvs,&m->roaduvs[0],&m->tireuvs[0],&m->tireV[0]);
+ calctireuv(&m->v,&m->w,(Vec3 *)m->car->tireR[1],m->steerangle,&m->uvs,&m->roaduvs[1],&m->tireuvs[1],&m->tireV[1]);
+ calctireuv(&m->v,&m->w,(Vec3 *)m->car->tireR[2],0.0f,&m->uvs,&m->roaduvs[2],&m->tireuvs[2],&m->tireV[2]);
+ calctireuv(&m->v,&m->w,(Vec3 *)m->car->tireR[3],0.0f,&m->uvs,&m->roaduvs[3],&m->tireuvs[3],&m->tireV[3]);
  dotireforce(m,&m->tireV[0],&m->tireuvs[0],&m->tires[0],m->torque[0],&m->tireForce[0],m->suscomp[0],m->suscomp[1],m->car->springrate[0],m->car->farspringrate,m->car->cdamping[0],m->car->rdamping[0],poortract);
  dotireforce(m,&m->tireV[1],&m->tireuvs[1],&m->tires[1],m->torque[1],&m->tireForce[1],m->suscomp[1],m->suscomp[0],m->car->springrate[1],m->car->farspringrate,m->car->cdamping[1],m->car->rdamping[1],poortract);
  {

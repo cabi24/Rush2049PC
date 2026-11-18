@@ -7,13 +7,6 @@
  * coasting). */
 #include "game/game.h"
 
-/* A tire in the model record (MAT3 anon_tradius_springK_5c), its spin. */
-typedef struct tiredes {
-    /* 0x00 */ u8 pad00[0x48];
-    /* 0x48 */ f32 angvel;          /* the wheel's spin, radians a second */
-    /* 0x4C */ u8 pad4C[0x10];
-} tiredes;
-
 /* The car record (tCarData), the fields ModelControls reads. */
 typedef struct tCarData {
     /* 0x000 */ u8 pad000[0xEF];
@@ -33,7 +26,7 @@ typedef struct tCarData {
 void ModelControls(tModelData *m) {
     f32 rolloff;
     s32 i;
-    tiredes *td;
+    Tire *td;
     tCarData *gc = PC_CAR(m->slot);
 
     m->dt = m->fastin.dt;

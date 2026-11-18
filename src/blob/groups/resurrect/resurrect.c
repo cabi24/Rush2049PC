@@ -9,47 +9,6 @@
  * pc_grid_start: docs/port/MORECARS.md 4). */
 #include "game/game.h"
 
-typedef struct tTire {          /* anon_tradius_springK_5c */
-    float tradius;              /* 0x00 */
-    u8 pad04[0x48 - 0x04];
-    float angvel;               /* 0x48 */
-    u8 pad4C[0x5C - 0x4C];
-} tTire;
-
-typedef struct tResurrect {     /* anon_pos_save_pos_70 */
-    float pos[3];               /* 0x00 */
-    float save_pos[3];          /* 0x0c */
-    float uvs[3][3];            /* 0x18 */
-    float quat_start[4];        /* 0x3c */
-    float quat_end[4];          /* 0x4c */
-    int velocity;               /* 0x5c */
-    float crash_time;           /* 0x60 */
-    s16 moving_state;           /* 0x64 */
-    float resurrect_time;       /* 0x68 */
-    s8 autoAbort;               /* 0x6c */
-    s8 waterAbort;              /* 0x6d */
-} tResurrect;
-
-typedef struct tReckon {        /* anon_base_rwa_base_rwv_90 */
-    u8 pad00[0x60];
-    float rwr[3];               /* 0x60 */
-    float uvs[3][3];            /* 0x6c */
-} tReckon;
-
-typedef struct tPathPoint {
-    float xrel;                 /* 0x00 */
-    float yrel;                 /* 0x04 */
-    float cyrel;                /* 0x08 */
-    float len;                  /* 0x0c */
-    float tgtspd;               /* 0x10 */
-    float tgtpos[3];            /* 0x14 */
-    float interval_time;        /* 0x20 */
-    s16 idx;                    /* 0x24 */
-    s16 newIdx;                 /* 0x26 */
-    s16 path;                   /* 0x28 */
-    s16 basePath;               /* 0x2a */
-} tPathPoint;
-
 /* The car record (tCarData, N64 layout: docs/port/CARS.md 2), the fields used here. */
 typedef struct tCarData {       /* N64 0x3B8 */
     u8 pad000[0xED];
@@ -65,17 +24,6 @@ typedef struct tCarData {       /* N64 0x3B8 */
     u16 sound_flags[4];         /* 0x344 */
     u8 pad34C[0x380 - 0x34C]; void *input; u8 pad34C_384[0x3B8 - 0x384];
 } tCarData;
-
-typedef struct tDronePt {       /* anon_pos_mph_8 */
-    s16 pos[3];
-    u8 mph;
-    s8 hints;
-} tDronePt;
-
-typedef struct tDronePath {     /* anon_numPts_pts_8 */
-    u16 numPts;
-    tDronePt *pts;
-} tDronePath;
 
 /* MAT3's names for the race kinds (gRace), the human owner of a car slot and the attract mode's game state (the race
  * area's values: for race.h to declare). */
@@ -532,7 +480,7 @@ done:
         tCarData *car = PC_CAR(m->slot);
         int p, idx, end;
         float min, x, y, z, dx, dy, dz, dist;
-        tDronePath *path;
+        DronePath *path;
         path = &gDronePaths[car->mpctl.path];
         min = 1.0e20f;
         x = m->resurrect.save_pos[0];

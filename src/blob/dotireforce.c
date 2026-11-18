@@ -4,21 +4,6 @@
  * forward and side forces it can take, and the rear (driven) tires' are scaled by the car's parts. */
 #include "game/game.h"
 
-/* A tire in the model record (MAT3 anon_tradius_springK_5c, tModelData.tires[i]), the fields kept here. */
-typedef struct Tire {
-    char pad0[0x50];
-    f32 sideforce;          /* +0x50 the last side force */
-    f32 traction;           /* +0x54 the last forward force */
-    char pad58[4];
-} Tire;
-
-/* The tune record (MAT3 anon_diffbl_weight_scale_2c), its grip scales. */
-typedef struct {
-    char pad0[0x18];
-    f32 fwdfk;              /* +0x18 the forward grip's */
-    f32 sidefk;             /* +0x1C the side grip's */
-} tTune;
-
 f32 fabsf(f32);
 
 /* Tire `tire`'s force on model m, into forcevec (the car's frame). tirev is its contact patch's velocity and tireuvs

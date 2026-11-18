@@ -27,8 +27,8 @@ gDriveHulk 4        # s8[4], InitOptions.c
 gContStickRange 8        # s8[4][2] (gStickCal), InitControlSys.c
 model 0x3030   # Car[6] of 0x808, init_cars.c
 # Tables the code indexes past their declaration (tools/port/index_check.py, docs/port/SYNTH.md 3): the car tunes,
-# three 44-byte Tune44 records (CalcMass reads ((Tune44 *)&gTune)[tune].values[1], the weight scale; the
-# declarations leave one record, and the other two kept the ROM's byte order).
+# three 44-byte tTune records (CalcMass reads gTune[handling].weight_scale; m2c's declarations left one record, and
+# the other two kept the ROM's byte order).
 gTune 0x84
 # The cars' drag, f32[5][3] by traction type and tune (CalcDrift reads ((f32 (*)[3]) &gTireDrift)[i][j]; its
 # TARGET_PC declaration gives the table; the gap to gTireSideForce is its size).

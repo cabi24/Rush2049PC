@@ -31,8 +31,6 @@ typedef struct tVisual {
     /* 0xC */ s16 slot;         /* the car */
 } tVisual;
 
-/* A tire of the model record (MAT3 anon_tradius_springK_5c, 0x5C bytes): its radius. */
-typedef struct { f32 tradius; u8 pad04[0x5C - 4]; } Tire;
 
 /* Show visual v's spark object in every view if `on`, else hide it; returns `on`. */
 s32 CheckVisibleAll(tVisual *v, s32 on) {

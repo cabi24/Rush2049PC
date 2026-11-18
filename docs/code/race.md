@@ -107,7 +107,7 @@ A drone follows a drone path (`groups/maxpath/group.c`, MAT3 maxpath.c), on the 
 finds the stretch it is on (`FindInterval`, `IntervalPos`; now and then a drone moves to another of the four paths,
 `IntervalPosChange`), the speed and the point 80 feet ahead it aims for (`TargetSpeed`, `TargetSteerPos`), steers
 round the cars ahead (`AvoidAreas`, `TargetPathAvoid`) and sets its gas, brake and steer (`AdjustSpeed`,
-`AdjustSteer`). Its state is the car record's `nav` (`struct pc_car_nav`, MAT3 tPathPoint). On the game thread
+`AdjustSteer`). Its state is the car record's `nav` (MAT3's `tPathPoint` mpctl). On the game thread
 `DoDrones` (`groups/drones`) sets each drone's catch-up (`drone_scale`, `time_boost` on the model record) against
 its rival human by the difficulty, its place and, in a circuit, its skill. `SetDroneResPathIndex`,
 `SetNewPathIndex` and `SyncMaxpathToLastCheckpoint` put a respawned drone back on its path.

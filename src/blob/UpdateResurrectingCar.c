@@ -5,21 +5,6 @@
  * orientation to the new one on the way up. FinishResurrecting puts it back on the ground at the end. */
 #include "game/game.h"
 
-/* The respawn's state in the model record (MAT3 tModelData.resurrect, anon_pos_save_pos_70, 0x70 bytes). */
-typedef struct tResurrect {
-    f32 pos[3];                 /* 0x00 the respawn point */
-    f32 save_pos[3];            /* 0x0C */
-    f32 uvs[3][3];              /* 0x18 the orientation there */
-    f32 quat_start[4];          /* 0x3C the orientation it leaves with, as a quaternion */
-    f32 quat_end[4];            /* 0x4C and the one it arrives with */
-    s32 velocity;               /* 0x5C its speed when it arrives, feet a second */
-    f32 crash_time;             /* 0x60 */
-    s16 moving_state;           /* 0x64 RES_IDLE, RES_START, then frames in flight, RES_DONE */
-    f32 resurrect_time;         /* 0x68 the model time the flight began */
-    s8 autoAbort;               /* 0x6C */
-    s8 waterAbort;              /* 0x6D */
-} tResurrect;
-
 /* The flight's apex for each car, MAT3's static save_pos[6][3]: on the PC pc_resurrect_mid, PC_MAX_LINKS long, with
  * no N64 address (pc_game_types.h, docs/port/DECOUPLE.md 6). */
 #define resurrect_save_pos pc_resurrect_mid

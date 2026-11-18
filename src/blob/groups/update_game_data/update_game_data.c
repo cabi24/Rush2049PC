@@ -8,15 +8,6 @@
  * shows (the appearance bits: brake lights, sparks, skid marks, smoke), then lets the model thread go on. */
 #include "game/game.h"
 
-/* The car's tune record (MAT3 anon_diffbl_weight_scale_2c, gTune), the field used here. */
-typedef struct tTune {
-    /* 0x00 */ u8 pad0[0x20];
-    /* 0x20 */ f32 skidk;           /* the skids' force scale */
-} tTune;
-
-/* A tire's state in the model record (MAT3 anon_tradius_springK_5c), the fields used here. */
-typedef struct tTireState { u8 pad0[0x50]; f32 sideforce; f32 traction; u8 pad58[4]; } tTireState; /* 0x5C */
-
 /* The car record (tCarData, N64 layout: docs/port/CARS.md 2), the fields set here. */
 typedef struct tCarData {
     /* 0x000 */ s32 modelIteration;

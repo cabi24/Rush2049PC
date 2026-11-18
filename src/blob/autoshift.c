@@ -3,13 +3,6 @@
  * The drivetrain (drivetrain.c) calls it each step for a car with automatic transmission. */
 #include "game/game.h"
 
-/* The car's physics descriptor (MAT3 _tCar), its shift points. */
-typedef struct tCar {
-    u8 pad0[0x60]; TireDesc *tires[4];             /* +0x60 each tire's constants */
-    u8 pad70[0xAC - 0x70]; f32 upshiftangvel,downshiftangvel;   /* +0xAC, +0xB0 radians a second */
-} tCar;
-/* The tune record (MAT3 anon_diffbl_weight_scale_2c). */
-typedef struct tTune {u8 pad0[0x14]; f32 shiftk; /* +0x14 the shift points' scale */} tTune;
 
 /* Choose model m's gear. Neutral and reverse are the player's (commandgear 0 or -1) and taken as they are; in a
  * forward gear the box shifts up past the car's upshift engine speed and down below its downshift speed, both

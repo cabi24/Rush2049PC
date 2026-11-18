@@ -1,18 +1,5 @@
 #include "game/game.h"
 
-typedef struct tModelPart {
-    char name[16];          /* 0x00 */
-    f32 uvs[4][3];          /* 0x10 mat; pos = uvs[3] at 0x34 */
-    u32 dlflags;            /* 0x40 */
-    s16 next;               /* 0x44 */
-    s16 child;              /* 0x46 */
-    s16 sfx1;               /* 0x48 */
-    s16 sfx2;               /* 0x4A */
-    s32 tidx;               /* 0x4C */
-    f32 min[3];             /* 0x50 */
-    f32 max[3];             /* 0x5C */
-} tModelPart; /* 0x68 */
-
 
 
 float sqrtf(float);
@@ -25,9 +12,9 @@ static void WorldDistance(tModelPart *Wnode, f32 *pos, s32 *best, f32 *dist, s32
     f32 e;
 
     for (;;) {
-        dv[0] = pos[0] - Wnode->uvs[3][0];
-        dv[1] = pos[1] - Wnode->uvs[3][1];
-        dv[2] = pos[2] - Wnode->uvs[3][2];
+        dv[0] = pos[0] - Wnode->mat.uvs[3][0];
+        dv[1] = pos[1] - Wnode->mat.uvs[3][1];
+        dv[2] = pos[2] - Wnode->mat.uvs[3][2];
 
         if (Wnode->min[0] <= dv[0] && dv[0] <= Wnode->max[0] && Wnode->min[1] <= dv[1] && Wnode->min[2] <= dv[2] &&
             dv[2] <= Wnode->max[2]) {
@@ -102,7 +89,7 @@ static void VisReach(f32 *pos, f32 reach, u32 *far)
         }
         d = 0.0f;
         for (k = 0; k < 3; k++) {
-            dv[k] = pos[k] - Wnode->uvs[3][k];
+            dv[k] = pos[k] - Wnode->mat.uvs[3][k];
             e = 0.0f;
             if (dv[k] < Wnode->min[k]) {
                 e = Wnode->min[k] - dv[k];

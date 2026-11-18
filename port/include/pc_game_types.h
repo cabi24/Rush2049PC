@@ -163,21 +163,23 @@ struct pc_visual {
     void (*func)(void *, short);        /* +0x20 the animator: op 1 each frame, op 0 to release it */
 };
 
-/* The drone's path state inside the car record (MAT3 tCarData.mpctl, a tPathPoint, with its field names; maxpath.c):
- * no pointers, the same layout on both. Code takes its address (&PC_CAR_NAV(i)). */
-struct pc_car_nav {
-    float xrel;                         /* +0x00 how far along the current stretch of drone path the car is */
-    float yrel;                         /* +0x04 how far to the side of it */
-    float cyrel;                        /* +0x08 the side offset of the point after next, from the stretch */
-    float len;                          /* +0x0C the stretch's length */
-    float tgtspd;                       /* +0x10 the target speed, feet a second */
-    float tgtpos[3];                    /* +0x14 the target point, then the steering direction */
-    float interval_time;                /* +0x20 the model time the car reached this stretch */
-    short idx;                          /* +0x24 the stretch's first point on the path */
-    short newIdx;                       /* +0x26 a point to jump to, -1 none */
-    short path;                         /* +0x28 the drone path followed (gDronePaths) */
-    short basePath;                     /* +0x2A the drone path the car started on, which it prefers */
-};
+/* A car's place on its drone path (MAT3 tPathPoint, the car record's mpctl; maxpath.c): the stretch of path it is on
+ * and where it steers and how fast. MAT3's names. Declared here beside the car record that holds it, which this file
+ * declares too; it goes to include/game/track.h, with the other paths, when the car record goes to cars.h. Code takes
+ * its address (&PC_CAR_NAV(i)). */
+typedef struct tPathPoint {
+    float xrel;                         /* how far along the current stretch of drone path the car is */
+    float yrel;                         /* how far to the side of it */
+    float cyrel;                        /* the side offset of the point after next, from the stretch */
+    float len;                          /* the stretch's length */
+    float tgtspd;                       /* the target speed, feet a second */
+    float tgtpos[3];                    /* the target point, then the steering direction */
+    float interval_time;                /* the model time the car reached this stretch */
+    short idx;                          /* the stretch's first point on the path */
+    short newIdx;                       /* a point to jump to, -1 none */
+    short path;                         /* the drone path followed (gDronePaths) */
+    short basePath;                     /* the drone path the car started on, which it prefers */
+} tPathPoint;
 
 struct pc_car {                         /* the offsets are N64 ones; PC: CAR_OFS(n) */
     unsigned char pad000[0x008];
@@ -201,7 +203,7 @@ struct pc_car {                         /* the offsets are N64 ones; PC: CAR_OFS
     unsigned char pad10C[0x110 - 0x10C];
     struct pc_visual visuals[21];       /* +0x110 the car's visuals (tVisual; the weapon's is [20]) */
     unsigned char pad308[0x314 - 0x308];
-    struct pc_car_nav nav;              /* +0x314 the drone's path state (maxpath's Nav, Region) */
+    tPathPoint nav;                     /* +0x314 the drone's path state (MAT3 mpctl) */
     float fwd_progress;                 /* +0x340 */
     unsigned char pad344[0x34C - 0x344];
     unsigned int ir_color;              /* +0x34C the IR colour (tRGBA's word) */

@@ -2,19 +2,8 @@
  * copy_tire_info()). Part of the car set-up (carsetup). */
 #include "game/game.h"
 
-/* TireDesc (include/game/types.h): a tire's constants, which the car's physics descriptor's tires[] point at. */
-
-/* A tire in the model record (MAT3 anon_tradius_springK_5c; tModelData.tires[i]): the same six first. */
-typedef struct Tire {
-    f32 tradius;
-    f32 springK;
-    f32 rubdamp;
-    f32 cstiff;
-    f32 cfmax;
-    f32 invmi;
-} Tire;
-
-/* Copy the six constants of descriptor tire tp1 into model tire tp2. */
+/* Copy the six constants of descriptor tire tp1 (TireDesc: a physics descriptor's tires[] point at them) into model
+ * tire tp2 (Tire, include/game/carphys.h), which begins with the same six. */
 void copy_tire_info(TireDesc *tp1, Tire *tp2) {
     tp2->tradius = tp1->tradius;
     tp2->springK = tp1->springK;

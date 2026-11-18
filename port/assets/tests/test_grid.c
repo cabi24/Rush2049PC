@@ -308,7 +308,7 @@ static void test_demo_and_respawns(void)
     memcpy(pole_pos_offset, TABLE_A, sizeof pole_pos_offset);
     path(40, START, 0, START - 3);
     /* The attract demo starts each car on its own drone path: straight rows from its start point. (It also reads its
-     * drone path's speed at the start checkpoint: gDronePaths[0], tDronePath {u16 numPts; tDronePt *pts;}.) */
+     * drone path's speed at the start checkpoint: gDronePaths[0], a DronePath {numPts; pts}.) */
     static uint8_t demo_pts[8 * 8];
     void *pp = demo_pts;
     memcpy(gDronePaths + 8, &pp, sizeof pp);

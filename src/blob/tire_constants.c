@@ -6,8 +6,6 @@
  * 1.0f / 3.4f is one unit in the last place off. */
 #include "game/game.h"
 
-/* A tire in the model record (MAT3 anon_tradius_springK_5c, tModelData.tires[i]). */
-typedef struct Tire { f32 tradius,springK,rubdamp,cstiff,cfmax,invmi,zforce,afmax,k1,k2,k3,l2,l3,m1,m2,m3,m4,patchy; u8 tail48[20]; } Tire;
 
 /* Tire tdes's coefficients on model m. otw is the other axle's distance from the centre of mass, so the tire's
  * static load is half its axle's share of the weight: zforce = weight * otw / wheelbase / 2. Then the Fiala terms

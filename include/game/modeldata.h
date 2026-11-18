@@ -1,5 +1,6 @@
-/* include/game/modeldata.h: the model record (MAT3 tModelData), one per car slot, and the records themselves
- * (pc_models). physics.h includes it; so does the port's code that reads the records (the state log, port/main.c, and
+/* include/game/modeldata.h: the model record (MAT3 tModelData), one per car slot, the three records it holds (its
+ * tires, its respawn and its dead reckoning), and the records themselves (pc_models). physics.h, carphys.h and track.h
+ * include it; so does the port's code that reads the records (the state log, port/main.c, and
  * the state hash, port/ultra/statehash.c), which doesn't see the rest of the game's headers: the record needs only
  * the base types (basic.h), and PC_MODEL_SLOTS, which port/include/pc_game_types.h defines (the prelude includes it
  * for the game's files). */
@@ -7,6 +8,65 @@
 #define GAME_MODELDATA_H
 
 #include "game/basic.h"
+
+/* A tire of the model record (MAT3's anonymous tire state, tModelData.tires[4]: the front two, then the rear, the
+ * driven pair). Its first six are the TireDesc's constants (copy_tire_info), then the brush model's coefficients for
+ * the tire's load (tire_constants), then what the tire model keeps from step to step (frictioncircle, dotireforce).
+ * MAT3's field names. */
+typedef struct Tire {
+    f32 tradius;            /* the radius, feet */
+    f32 springK;            /* the tire's spring rate: the contact patch's sideways spring */
+    f32 rubdamp;            /* the rubber's damping */
+    f32 cstiff;             /* the cornering stiffness */
+    f32 cfmax;              /* the most grip, as a coefficient of friction */
+    f32 invmi;              /* the wheel's inverse moment of inertia */
+    f32 zforce;             /* the static load: half the axle's share of the weight */
+    f32 afmax;              /* the slip angle of the full slide: 3 cfmax zforce / cstiff */
+    f32 k1, k2, k3;         /* the side force's cubic in the slip angle: F = Fz (k1 a - k2 a^2 + k3 a^3) */
+    f32 l2, l3;             /* its slopes' terms, 2 k2 and 3 k3 (MAT3's; no code reads them) */
+    f32 m1, m2, m3, m4;     /* the forward slip's (MAT3's; no code reads them) */
+    f32 patchy;             /* the contact patch's sideways deflection, feet */
+    f32 angvel;             /* the wheel's spin, radians a second */
+    f32 sliptorque;         /* the torque the road takes from the wheel this step */
+    f32 sideforce;          /* the last side force */
+    f32 traction;           /* the last forward force */
+    s8 slipflag;            /* which case the friction circle took: 3 in the air, 10/20 wheelspin, 30/40 locking ...
+                             * (frictioncircle.c); a front tire at 40 cuts a drone's gas and brake (AdjustSpeed) */
+} Tire;
+
+/* A car's respawn (MAT3's anonymous resurrect record, tModelData.resurrect): where it is put back after a crash or an
+ * abort, or on the grid at the start, and its flight there (SetResurrectionData, Resurrect, UpdateResurrectingCar,
+ * FinishResurrecting: docs/code/race.md). MAT3's names. */
+typedef struct tResurrect {
+    f32 pos[3];             /* the respawn point */
+    f32 save_pos[3];        /* the point it is worked out from: the grid's at the start, else where the car crashed */
+    f32 uvs[3][3];          /* the orientation at the respawn point (at save_pos until Resurrect moves it) */
+    f32 quat_start[4];      /* the orientation the flight leaves with, as a quaternion */
+    f32 quat_end[4];        /* and the one it arrives with */
+    s32 velocity;           /* the speed it arrives with, feet a second */
+    f32 crash_time;         /* the model time of the crash, 0 at the race start */
+    s16 moving_state;       /* RES_IDLE, RES_START, then the frames in flight, RES_DONE (physics.h) */
+    f32 resurrect_time;     /* the model time the flight began */
+    s8 autoAbort;           /* the game aborted the car (a drone left behind or stuck: DetectDroneAbort), not a crash */
+    s8 waterAbort;          /* the road under it aborted the car (TireSurf: road codes 3 and 7), so a human isn't
+                             * respawned in place */
+} tResurrect;
+
+/* The model record's dead reckoning (MAT3's anonymous reckon record, tModelData.reckon): what the rest of the game sees
+ * of a car between the model's steps. The model thread takes a snapshot each step (dead_reckon_posuv, the base from
+ * update_reckon_base); the game thread moves the position on to the frame's time (game_reckon_all). MAT3's names. */
+typedef struct tReckon {
+    f32 base_rwa[3];        /* the world acceleration, velocity and position at the last base update */
+    f32 base_rwv[3];
+    f32 base_rwr[3];
+    s16 rwmph;              /* the speed shown: mph times 4 */
+    f32 suscomp[4];         /* each tire's suspension compression */
+    f32 airdist[4];         /* each tire's height above the road */
+    f32 rwa[3];             /* the acceleration, velocity and position to draw */
+    f32 rwv[3];
+    f32 rwr[3];
+    f32 uvs[3][3];          /* the orientation to draw */
+} tReckon;
 
 /* The model record (MAT3 tModelData): one per car slot, pc_models[slot], the car's simulation. The model thread steps
  * it (model_iteration: syminit, then sym and regular each step: forces, torques, accelerations, velocities,
@@ -17,14 +77,13 @@
  * PaintJob and an unused short).
  *
  * The vectors and matrices are float arrays, as MAT3 declares them (wave 4: B2's vector and matrix types). The tires'
- * states, the respawn and the dead reckoning are records of their own in MAT3 (anonymous there); they are declared in
- * place here, with MAT3's field names, until their own declarations exist (wave 4: A2's tire, resurrect and reckon
- * records). The record has no pointer but its five (car, tune, lasttp, torquecurve, movingSurface), and every
+ * states, the respawn and the dead reckoning are records of their own (anonymous in MAT3): Tire, tResurrect and
+ * tReckon, above. The record has no pointer but its five (car, tune, lasttp, torquecurve, movingSurface), and every
  * pointee is game data or the road file. */
 typedef struct tModelData {
     /* The car and its owner's choices (init_cars, carsetup) */
     struct _tCar *car;          /* the physics descriptor: car_descriptors[], as gCarModels[body_type] */
-    struct Tune44 *tune;        /* its handling tune: &gTune[handling] */
+    struct tTune *tune;         /* its handling tune: &gTune[handling] */
     u8 body_type;               /* the car, 0-12 (the roster's car) */
     s8 trans;                   /* the transmission choice (the input record's; bit 0 manual) */
     s8 autotrans;               /* automatic transmission: (trans & 1) ^ 1 */
@@ -98,18 +157,9 @@ typedef struct tModelData {
     f32 transratio;             /* the gearbox's ratio */
     f32 totalratio;             /* the gearbox's and the differential's */
 
-    /* The tires (wave 4: A2's tire state record; MAT3's anonymous anon_tradius_springK_5c), set from the descriptor's
-     * tire constants (copy_tire_info, tire_constants) and stepped by the tire forces (dotireforce, frictioncircle) */
-    struct {
-        f32 tradius;            /* the radius, feet */
-        f32 springK, rubdamp, cstiff, cfmax, invmi, zforce, afmax;
-        f32 k1, k2, k3, l2, l3, m1, m2, m3, m4, patchy;
-        f32 angvel;             /* the wheel's spin, radians a second */
-        f32 sliptorque;
-        f32 sideforce;
-        f32 traction;
-        s8 slipflag;
-    } tires[4];                 /* wave 4: Tire */
+    /* The tires (Tire), set from the descriptor's tire constants (copy_tire_info, tire_constants) and stepped by the
+     * tire forces (dotireforce, frictioncircle) */
+    Tire tires[4];
     u16 tiresli[4];             /* each tire's road surface last found (an index into stree_surf; TireSurf) */
     s8 magicdiff;               /* the "magic" (limited-slip) differential (gCarDifferential bit 0) */
     s8 nothrusttorque;          /* average the rear tires' forward force (gCarDifferential bit 1) */
@@ -148,21 +198,8 @@ typedef struct tModelData {
     f32 shifttime;              /* the model time before which no other shift happens */
     s16 bogState;               /* the engine bog's sound: 1 start it, 3 stop it */
 
-    /* The respawn (wave 4: A2's resurrect record; MAT3's anonymous anon_pos_save_pos_70): Resurrect flies the car
-     * from where it stopped to the point it respawns at */
-    struct {
-        f32 pos[3];             /* where the car respawns */
-        f32 save_pos[3];        /* the point to respawn from (SetResurrectionData) */
-        f32 uvs[3][3];          /* the orientation there */
-        f32 quat_start[4];      /* the flight's orientations, as quaternions */
-        f32 quat_end[4];
-        s32 velocity;           /* the speed it respawns with, feet a second */
-        f32 crash_time;         /* the model time of the crash, 0 at the start */
-        s16 moving_state;       /* RES_IDLE, RES_START, a frame count in flight, RES_DONE */
-        f32 resurrect_time;     /* the model time the car respawns */
-        s8 autoAbort;           /* the game, not a crash, aborted the car (DetectDroneAbort) */
-        s8 waterAbort;          /* it drove into deep water */
-    } resurrect;                /* wave 4: tResurrect */
+    /* The respawn (tResurrect): Resurrect flies the car from where it stopped to the point it respawns at */
+    tResurrect resurrect;
 
     /* Where and how the car starts (syminit): its grid place or respawn point */
     struct {
@@ -193,20 +230,9 @@ typedef struct tModelData {
         s8 unused;
     } mainin;
 
-    /* The dead reckoning (wave 4: A2's reckon record; MAT3's anonymous anon_base_rwa_base_rwv_90): the place the game
-     * thread draws the car at between model steps, extrapolated from the last step's (game_reckon_all) */
-    struct {
-        f32 base_rwa[3];        /* the last step's acceleration, velocity and position */
-        f32 base_rwv[3];
-        f32 base_rwr[3];
-        s16 rwmph;              /* the speed at the driven wheels, mph x 4 */
-        f32 suscomp[4];         /* each suspension's compression */
-        f32 airdist[4];         /* each tire's height above the road */
-        f32 rwa[3];             /* the acceleration, velocity and position now */
-        f32 rwv[3];
-        f32 rwr[3];
-        f32 uvs[3][3];          /* the orientation now */
-    } reckon;                   /* wave 4: tReckon */
+    /* The dead reckoning (tReckon): the place the game thread draws the car at between model steps, extrapolated
+     * from the last step's (game_reckon_all) */
+    tReckon reckon;
 
     /* The race */
     s16 obResPt;                /* the respawn path's high-water mark (GetResPt) */

@@ -161,15 +161,6 @@ void *updownleaf(streetyp *n, s16 x, s16 y, s16 *out) {
 
 float fabsf(float);
 
-/* A contact with a wall (MAT3 anon_surf_uvs_30; CollideCarBodyAgainstSurface's): host layout. */
-typedef struct CCol {
-    surftyp *surf;  /* the wall */
-    f32 uvs[9];     /* its frame: uvs[3..5] its normal */
-    s16 carEdge;    /* the car's corner (tireIndex) */
-    s16 index;
-    f32 dist;       /* how far the car is into it */
-} CCol;
-
 /* Pushes model `car` out of the wall of contact `col`: moves it (and its dead reckoning, corners and tyres) back
  * by its depth along the wall's normal, and adds a force at the corner against its velocity there (the turning
  * included), softer off walls of kinds 5, 6 and 0x2000, and a lift that grows with how square to the wall the

@@ -5,19 +5,6 @@
 #include "game/game.h"
 
 typedef struct Vec3 {float x,y,z;} Vec3;
-/* A tire in the model record (MAT3 anon_tradius_springK_5c, tModelData.tires[i]). */
-typedef struct Tire {
- float tradius,springK,rubdamp,cstiff,cfmax,invmi,zforce,afmax,k1,k2,k3,l2,l3,m1,m2,m3,m4,patchy;
- float angvel,sliptorque,sideforce,traction;   /* +0x48 the wheel's spin, radians a second */
- float slipflag_word;                          /* +0x58 slipflag, an s8, and padding */
-} Tire;
-
-/* The car's physics descriptor (MAT3 _tCar, gCarModels[body]). */
-typedef struct tCar {
- u8 pad0[0x50];float steerratio,swtpg;u8 pad58[8];   /* +0x50 the steering */
- TireDesc *tires[4];            /* +0x60 each tire's constants (frontTire's records) */
- Vec3 tireR[4];                 /* +0x70 each tire's position from the centre of mass */
-} tCar;
 
 /* A PC datum that names the car tables only pointers reach: the six physics descriptors (gCarModels points at
  * them) and the two tire records (the descriptors' tires[] point at those). The data loader places and fills the data
@@ -38,7 +25,7 @@ float sqrtf(float);
  * wing, drag, forces and the drivetrain's state cleared. */
 void carsetup(tModelData *m)
 {
- tCar *car;
+ _tCar *car;
  Collision16 *size;
  float durability,max_length,drift;
  int row,body,i;
@@ -60,7 +47,7 @@ void carsetup(tModelData *m)
  m->offroadtires=CalcOffroadTires(m);
  drift=CalcDrift(m);m->drift=drift;
  m->sidefk=CalcTireSideForce(m);
- m->wheelbase=car->tireR[0].z-car->tireR[2].z;
+ m->wheelbase=car->tireR[0][2]-car->tireR[2][2];
  size=&collsize[m->body_type];
  m->bodyR[0][0]=m->bodyR[2][0]=size->side;
  m->bodyR[1][0]=m->bodyR[3][0]=-size->side;
@@ -72,8 +59,8 @@ void carsetup(tModelData *m)
  m->colrad=sqrtf(max_length*max_length+size->side*size->side+size->height*size->height);
  for(i=0;i<4;i++) {
   copy_tire_info(car->tires[i],&m->tires[i]);
-  if(i<2)tire_constants(m,&m->tires[i],-car->tireR[i+2].z);
-  else tire_constants(m,&m->tires[i],car->tireR[i-2].z);
+  if(i<2)tire_constants(m,&m->tires[i],-car->tireR[i+2][2]);
+  else tire_constants(m,&m->tires[i],car->tireR[i-2][2]);
   m->tires[i].angvel=m->v[2]/m->tires[i].tradius;
   m->suscomp[i]=0.0f;
   m->tireV[i][0]=0.0f;m->tireV[i][1]=0.0f;m->tireV[i][2]=0.0f;

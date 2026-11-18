@@ -9,11 +9,6 @@ typedef f32 Vec3[3];
 /* The car record (tCarData), its input record (tPadState: the stick, analog[0] across and [1] up and down): a host
  * pointer on the PC (docs/port/CARS.md 2.1), NULL for a drone. */
 typedef struct tCarData { u8 pad[0x110 - 0x0]; struct pc_visual visuals[21]; u8 pad_308[0x380 - 0x308]; tPadState *player; u8 rest[52]; } tCarData;
-/* The car's physics descriptor (MAT3 _tCar), its tire positions. */
-typedef struct tCar {
-    u8 pad[0x60]; TireDesc *tires[4];   /* +0x60 each tire's constants */
-    Vec3 tireR[4];                      /* +0x70 each tire's position from the centre of mass */
-} tCar;
 
 #define veccopy(a,r) {r[0]=a[0]; r[1]=a[1]; r[2]=a[2];}
 #define crossprod(a,b,r) {r[0]=a[1]*b[2]-a[2]*b[1]; r[1]=a[2]*b[0]-a[0]*b[2]; r[2]=a[0]*b[1]-a[1]*b[0];}

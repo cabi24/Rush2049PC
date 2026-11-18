@@ -5,8 +5,6 @@
 #include "game/game.h"
 
 typedef struct Transform {f32 matrix[3][3],position[3];} Transform;
-/* A car model's description (gCarModels, MAT3 _tCar): the tyres' places, after their constants (pointers). */
-typedef struct ModelDescription {u8 unaccessed[0x60];TireDesc *tires[4];f32 tireR[4][3];} ModelDescription;
 
 #define RIM_TEXTURES 3              /* gWheelTextures[]: the rims' textures from here on (gTireRims + this) */
 #define RIM_TEXTURE_SMALL_MEMORY 16 /* the one rim texture used without an Expansion Pak on the first six tracks */
@@ -22,7 +20,7 @@ void SetSelectTireSizes(s16 id,s16 player)
     s16 model = id % CARS;
     s16 i;
     Transform *transform;
-    ModelDescription *description;
+    _tCar *description;     /* the car's physics descriptor: its tyres' places */
     description = gCarModels[model]; for (i = 0; i < 4; i++) {
         transform = (Transform *)ZOID_FindMatrix((s16)gCarParts[id].tires[i]);
         transform->position[0] = description->tireR[i][0];

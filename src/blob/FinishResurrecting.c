@@ -5,14 +5,6 @@
  * speeds for the respawn's speed, and the car runs again. */
 #include "game/game.h"
 
-/* A tire's state (MAT3's anon_tradius_springK_5c, 0x5C bytes), the fields used here. */
-typedef struct tModelTire {
-  f32 tradius;                                  /* +0x00 the tire's radius, feet */
-  u8 pad04[0x48 - 0x04];
-  f32 angvel;                                   /* +0x48 its angular speed, radians a second */
-  u8 pad4C[0x5C - 0x4C];
-} tModelTire;
-
 /* If model `m`'s respawn flight is over (RES_DONE): stop simulating it, mark it no longer respawning (RES_IDLE),
  * start its simulation again at the respawn point and orientation (syminit), in second gear if it respawns at 44
  * feet a second (30 mph) or more, else first, with the body and every tire moving forward at the respawn speed

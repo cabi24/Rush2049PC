@@ -1,8 +1,6 @@
 /* AnimateTire.c (visuals): a car's tire each frame (MAT3 visuals.c, AnimateTire()). */
 #include "game/game.h"
 
-typedef f32 Vec3[3];
-
 /* A car visual (tVisual) on the PC: 0x28 bytes, next, data and func pointer-sized (struct pc_visual); a tire keeps
  * its turned angle in the data word's low half, a float (docs/port/CARS.md 3). */
 typedef struct tVisual {
@@ -25,12 +23,6 @@ typedef struct tCarData {
     s8 camera,view,saveview,carMine;   /* +0x35C the window that follows the car (-1 none) and its view */
     u8 tail[0x380 - 0x360]; void *player; u8 tail_384[0x3B8 - 0x384];
 } tCarData;
-/* The car's physics descriptor (MAT3 _tCar, gCarModels[body]), its tire fields. */
-typedef struct tCar {
-    u8 pad000[96];
-    TireDesc *tires[4];          /* +0x60 each tire's constants (the radius) */
-    Vec3 tireR[4];               /* +0x70 each tire's place on the body, feet */
-} tCar;
 
 /* game.frame_rate 60 (pc_game_fps.h, docs/port/FRAMERATE.md 7.6): the in-car view's bob, spring_save = spring_save *
  * 0.75 + noise once a frame of two retraces, taken every frame: the decay to the frame's length and the noise scaled
@@ -55,7 +47,7 @@ void AnimateTire(tVisual *v, s16 op)
     s16 tire, slot, row, mph;
     s32 lucent;
     s32 camera;
-    tCar *cartp;
+    _tCar *cartp;
     tModelData *m;
     s32 show, index;
 

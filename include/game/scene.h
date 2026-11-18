@@ -151,7 +151,7 @@ extern s16 scissorll[EXTENT(4)];
 extern s16 scissorlr[EXTENT(4)];
 extern struct tModelPart *WorldBase;   /* the track's world parts (FindWorld), linked by index */
 extern s16 Worlddlidx;
-extern struct Node104 *cur_world_obj;
+extern struct tModelPart *cur_world_obj;
 extern f32 gViewableDistance;
 extern TextureDefTable gTexDefPtrs[EXTENT(64)];
 extern OSMesgQueueWords audio_retrace_queue;

@@ -4,14 +4,6 @@
  * it passes to the wheels, and the engine's speed. */
 #include "game/game.h"
 
-/* The car's physics descriptor (MAT3 _tCar), the engine's and clutch's constants. */
-typedef struct tCar {
-    u8 pad0[0x60]; TireDesc *tires[4];             /* +0x60 each tire's constants */
-    u8 pad70[0xA0 - 0x70]; f32 enginvmi;           /* +0xA0 the engine's inverse inertia */
-    u8 padA4[4]; f32 clutchmaxt;                   /* +0xA8 the clutch's most torque */
-} tCar;
-/* The tune record (MAT3 anon_diffbl_weight_scale_2c), its clutch scale. */
-typedef struct tTune {u8 pad0[0x10]; f32 clutchmaxtk; /* +0x10 */} tTune;
 #define rpmtordps (2.0*3.14159/60.0)   /* rpm to radians a second */
 
 /* The clutch of model m this step. The engine idles at no less than 1000 rpm. The clutch takes up to 1.25 times the

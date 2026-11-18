@@ -3,8 +3,6 @@
  * A stage of the physics step (sym), after the forces: arcade handling on top of the tire model. */
 #include "game/game.h"
 
-/* The tune record (MAT3 anon_diffbl_weight_scale_2c, gTune[handling]). */
-typedef struct tTune { u8 pad0[0x24]; f32 antispin; /* +0x24 */ } tTune;
 
 /* Add model m's arcade yaw moments, unless it is a hulk:
  * - with a front tire on the road, a yaw moment straight from the steering wheel (12000 times the wheel at 100 ft/s

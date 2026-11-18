@@ -3,12 +3,6 @@
  * engine() calls it each model step. */
 #include "game/game.h"
 
-/* The tune record (MAT3 anon_diffbl_weight_scale_2c), its torque scale. */
-typedef struct {
-    u8 pad0[8];
-    f32 torque_scale;       /* +0x08 */
-} tTune;
-
 #define RPM_SCALE 1150      /* the curve's rpm step: its 12 columns span 0 to 12,650 rpm */
 
 /* The torque of model m's engine at `rpm` with `throttle` (0..128), from torquecurve (stdtorquecurve: 10 rows of

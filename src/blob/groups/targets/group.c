@@ -12,16 +12,6 @@ typedef struct Vec3 { f32 x, y, z; } Vec3;
  * in backward races, 0x10 the target doesn't collide, 0x800 its collision object goes when not in this race's
  * direction, 0x8000 not shown. */
 
-/* A world object (MAT3 tModelPart), the track WAD's: a target where its name matches a kind's. */
-typedef struct tModelPart {
-    char name[16];  /* 0x00 */
-    UVMat mat;      /* 0x10 its orientation and position */
-    u32 dlflags;    /* 0x40 its scene object's flags */
-    s32 w68;
-    s32 w72;
-    s32 tidx;       /* 0x4C the key the world's groups (gTargetGroupList) know it by */
-} tModelPart;
-
 /* A mine's record (MAT3 tTargetStructMine, battle's 16 in gTargetStructPtrs[5]): the fields read here. */
 typedef struct tTargetStructMine { s32 dlIdx; s32 glowdls[2]; u8 gap12[122]; s16 used; } tTargetStructMine;
 
@@ -228,9 +218,9 @@ s32 SetupTarget(tModelPart *obj, s16 parent, f32 *pos, s32 fromWorld, s8 owner, 
         }
         if (vis) {
             if (fromWorld != 0) {
-                t->mat.pos[0] = obj->mat.pos[0];
-                t->mat.pos[1] = obj->mat.pos[1];
-                t->mat.pos[2] = obj->mat.pos[2];
+                t->mat.pos[0] = obj->mat.uvs[3][0];
+                t->mat.pos[1] = obj->mat.uvs[3][1];
+                t->mat.pos[2] = obj->mat.uvs[3][2];
                 CopyUV(obj->mat.uvs[0], t->mat.uvs[0]);
             } else {
                 t->mat.pos[0] = pos[0];

@@ -4,12 +4,6 @@
  * gMineCones it blows up under the car. */
 #include "game/game.h"
 
-/* The debris' motion (MAT3 tTargetStructVelRot), the target's per-kind data (a record of its kind's). */
-typedef struct VelRot {
-    f32 angV[3];            /* 0x00 its spin, radians a second about x, y, z */
-    f32 vel[3];             /* 0x0C its velocity, feet a frame */
-} VelRot;
-
 /* The car record's view (MAT3 tCarData) in the PC layout: the velocity and the picked-up-mine flag. */
 typedef struct GameCar {
     u8 pad000[0x14];
@@ -36,13 +30,13 @@ static void crash_car(tModelData *m)
  * blows up and wrecks the car. Otherwise an environment visual (if one is free) flies it off for 5 seconds: an
  * eighth of the car's speed plus a hop up (1 ft a frame for the two light objects, else 2), a fixed spin, facing
  * the way the car went. The target stops colliding either way, and the start sound plays when it flies. t is the
- * target: its type the object it shows, its data its VelRot. */
+ * target: its type the object it shows, its data its tTargetStructVelRot. */
 void StartCone(tTarget *t)
 {
     struct pc_visual *v;
     f32 tmat[4][3];
     f32 *vel;
-    VelRot *motion;
+    tTargetStructVelRot *motion;
     GameCar *car;
     TargInfo *info;
 
@@ -70,7 +64,7 @@ void StartCone(tTarget *t)
     v->data = (uintptr_t) t;
     v->timeStamp = 5.0f;           /* the seconds the flight lasts */
     t->Flags &= ~(TARGET_ACTIVE | TARGET_HIT);
-    vel = ((VelRot *) t->data)->vel;
+    vel = ((tTargetStructVelRot *) t->data)->vel;
     motion = t->data;
     vel[0] = car->dr_vel[0] * 0.125f;
     vel[1] = car->dr_vel[1] * 0.125f;

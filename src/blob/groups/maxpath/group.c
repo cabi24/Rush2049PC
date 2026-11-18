@@ -68,7 +68,7 @@ s16 FindClosestDronePathPtEfficiently(s16 *pos, s16 lastPath, s16 lastIdx, s16 l
 /* Measures where model `m` is against the stretch of drone path it is on (from point cp->idx to the next):
  * cp->len the stretch's length, cp->xrel how far along it the car is and cp->yrel how far to the side (both in x
  * and z), and cp->cyrel how far to the side of the stretch's line the point after next lies (the bend ahead). */
-void IntervalPos(tModelData *m, struct pc_car_nav *cp) {
+void IntervalPos(tModelData *m, tPathPoint *cp) {
     DronePathPt *mp;
     DronePathPt *nmp;
     s16 nmpi;
@@ -98,7 +98,7 @@ void IntervalPos(tModelData *m, struct pc_car_nav *cp) {
  * every half second): each of the four paths' nearest points (FindClosestDronePathPtEfficiently) is scored for
  * being within 20 feet and on the path's line, for its speed being near the car's, for being the drone's own path
  * (basePath), and for heading the way the car goes; the drone takes the best one's path. */
-void IntervalPosChange(tModelData *m, struct pc_car_nav *cp, s32 change_flag) {
+void IntervalPosChange(tModelData *m, tPathPoint *cp, s32 change_flag) {
     s16 j, high_nextmp, nnmpi, index, node, high_index;
     s32 nmpi;
     f32 x, y, z, nx, ny, score, high_score, delta_spd, mspd;
@@ -252,7 +252,7 @@ void AvoidAreas(s16 drone_index) {
     f32 pos[3], tpos[3], own_rwr[3], dir[3], temp[3];
     f32 dir_list[6][3], dir_weight[6];
     f32 cur_rate[3], save_dir[3];
-    struct pc_car_nav *cp;
+    tPathPoint *cp;
     tModelData *m;
 
     m = &pc_models[drone_index];
@@ -401,7 +401,7 @@ void AvoidAreas(s16 drone_index) {
 void MaxPathControls(tModelData *m)
 {
     f32 tspd;
-    struct pc_car_nav *cp;
+    tPathPoint *cp;
 
     cp = &PC_CAR_NAV(m->slot);
     FindInterval(m, cp);
@@ -430,7 +430,7 @@ void MaxPathControls(tModelData *m)
 
 /* Finds the stretch of drone path model `m` is on: IntervalPosChange, then a step on to the next stretch once the
  * car is past this one's end (its time taken), or back to the previous one if it is behind its start. */
-void FindInterval(tModelData *m, struct pc_car_nav *cp)
+void FindInterval(tModelData *m, tPathPoint *cp)
 {
     IntervalPosChange(m, cp, 1);
     if (cp->xrel >= cp->len) {
@@ -445,7 +445,7 @@ void FindInterval(tModelData *m, struct pc_car_nav *cp)
 
 /* Sets the target speed (cp->tgtspd, feet a second): the path's speeds at the stretch's two points, interpolated by
  * how far along it the car is, cut the further the car is to the side (to a fifth at 80 feet), and at least 28. */
-void TargetSpeed(tModelData *m, struct pc_car_nav *cp)
+void TargetSpeed(tModelData *m, tPathPoint *cp)
 {
     DronePathPt *mp, *nmp;
     s32 nmpi;
@@ -473,7 +473,7 @@ void TargetSpeed(tModelData *m, struct pc_car_nav *cp)
 
 /* Sets the target point (cp->tgtpos): 80 feet ahead of the car along the drone path. A stretch of zero length
  * shows a message on the screen (target_steer_zero_dist_message), a leftover of the arcade's debugging. */
-void TargetSteerPos(tModelData *m, struct pc_car_nav *cp)
+void TargetSteerPos(tModelData *m, tPathPoint *cp)
 {
     DronePathPt *mp, *nmp;
     s16 nmpi;
