@@ -11,6 +11,26 @@
 /* A 3x3 orientation's element (row, col) at p, f32s by rows (UVECT). */
 #define UV_AT(p, row, col) (*((f32 *) (((s8 *) (p)) + ((row) * 3 + (col)) * 4)))
 
+/* Types */
+
+/* A point or a direction (MAT3 tVec3): in the world, feet (x across, y up, z along), or in a body's own frame. Most
+ * of the game's code keeps vectors as f32[3]; this is the record for code that names the three. */
+typedef struct tVec3 {
+    f32 x;
+    f32 y;
+    f32 z;
+} tVec3;
+
+/* A frame: an orientation and a position (MAT3 tUVMatrix, as its mat3 view; MAT3's union also reads the twelve as
+ * four rows). uvs holds the unit vectors of the frame's x, y and z axes in the world, one a row, so a direction
+ * (a, b, c) in the frame is a * uvs[0] + b * uvs[1] + c * uvs[2] in the world (WorldVector) and BodyVector takes it
+ * back; pos is where the frame's origin is, feet. A scene node draws by one, relative to its parent
+ * (ObjInstanceList[].mat, the persistent pool ZOID_NewMatrix hands out), and a camera looks by one (gCamera). */
+typedef struct tUVMatrix {
+    f32 uvs[3][3];
+    f32 pos[3];
+} tUVMatrix;
+
 /* Data */
 /* The identity transform (MAT3 float unitmatrix[4][3]): the identity rotation's three rows (a tUVMatrix), then the
  * position, the zero vector (unitmatrix_origin). Code copies the rotation (36 bytes) or the whole (48 bytes), or

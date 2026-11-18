@@ -314,7 +314,7 @@ extern OSTask sound_task;
 
 /* Functions */
 void AdjustTextWavePointers(void);
-struct tSfxListener *AudAddListener(struct Vec3 *pos, struct Vec3 *dir, struct Vec3 *look, struct Vec3 *up);
+struct tSfxListener *AudAddListener(tVec3 *pos, tVec3 *dir, tVec3 *look, tVec3 *up);
 void AudChangeEffect(s32 tag, f32 volume, f32 lrpan, f32 fbpan, f32 pitch);
 void AudChangeEffectPitch(s32 tag, f32 pitch);
 void AudChangeEffectVol(s32 tag, f32 volume);

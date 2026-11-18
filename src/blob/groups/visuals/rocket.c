@@ -12,12 +12,6 @@ typedef union Color {
     u32 w;
 } Color;
 
-/* A scene node's matrix: its rotation (CopyUV copies the 3x3) and its position relative to its parent. */
-typedef struct tUVMatrix {
-    /* 0x00 */ f32 uvs[3][3];
-    /* 0x24 */ f32 pos[3];
-} tUVMatrix;
-
 /* The car record (tCarData, N64 layout: docs/port/CARS.md 2), the fields these functions use. */
 typedef struct tCarData {
     /* 0x000 */ u8 pad0[0xE8];

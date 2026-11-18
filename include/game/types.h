@@ -264,7 +264,6 @@ struct tSfxEmitter;
 struct tSfxListener;
 struct tSfxVoice;
 struct tTexture;
-struct tUVMatrix;
 struct tVisual;
 struct tree_desc_s;
 struct z_stream_s;
@@ -2313,16 +2312,6 @@ typedef struct tCircuitCar { /* 0x4C bytes */
 } tCircuitCar;
 
 /* ---- camera: the cameras */
-
-/* A window's camera (MAT3 anon_mat_n64_98, gCamera[4], one per window): where it looks from. */
-typedef struct tCamera { /* 0x98 bytes */
-    UVMat mat;        /* 0x00 its orientation and position, as the cameras set them */
-    UVMat n64;        /* 0x30 what the N64 draws by: mat with four elements negated (UpdateCameras) */
-    UVMat fcam;       /* 0x60 the fixed camera's: its pos is where the crash and finish views look from */
-    f32 view2spring;  /* 0x90 */
-    u8 slot;          /* 0x94 the car it shows (ZeroCamera starts camera i on car i) */
-    u8 pad95[3];
-} tCamera;
 
 typedef struct PcFscls { /* 0x1EC bytes */
     f32 fscls[3];          /* 0x0 */

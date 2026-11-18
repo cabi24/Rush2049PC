@@ -2,8 +2,6 @@
 #include "game/game.h"
 #include "game/audiomgr.h"
 
-typedef struct Vec3 {float x,y,z;} Vec3;
-
 /* MAT3's _NewListener (the N64 keeps its own out-of-line copy, NewListener, which nothing calls): takes the first
  * free listener and marks it taken. */
 static tSfxListener *take_free_listener(void) {
@@ -23,7 +21,7 @@ static void activate_listener(tSfxListener *listener) {
 /* Adds a listener at pos moving with dir, looking along look with up, and returns it (the caller keeps its number
  * in gListeners in its player record: StartListeners); -1 when the sound manager has no listeners
  * (AudInit3D). */
-tSfxListener *AudAddListener(Vec3 *pos,Vec3 *dir,Vec3 *look,Vec3 *up) {
+tSfxListener *AudAddListener(tVec3 *pos,tVec3 *dir,tVec3 *look,tVec3 *up) {
     tSfxListener *listener;
     if(!gListeners) return (tSfxListener *)-1;
     audio_lock();

@@ -3,8 +3,6 @@
 #include "game/game.h"
 #define tStuntCoin tStuntCoinView   /* this file's own tStuntCoin: include/game's tStuntCoin is another type */
 
-typedef struct tUVMatrix { f32 uvs[4][3]; } tUVMatrix;
-
 typedef struct tStuntCoin {
     s16 type, idx;
     tUVMatrix mat;

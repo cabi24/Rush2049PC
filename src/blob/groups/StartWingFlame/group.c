@@ -17,9 +17,6 @@ typedef struct tModelData {
     u8 pad7CC[0x808 - 0x7CC];
 } tModelData;
 
-/* A scene node's matrix: its rotation and its position relative to its parent. */
-typedef struct tUVMatrix { f32 uvs[3][3]; f32 pos[3]; } tUVMatrix;
-
 /* Start the flame of car `slot`'s wing on side `side` (0 left, 1 right; VIS_WING_FLAMES + side, AnimateWingFlame):
  * the wing type's flame object (OBJLIST_WINGS + 2), a child of the wing's, at wing_flame_height above it (MAT3:
  * 0.55), hidden until it fires. No flame where there is no wing (see StartWing). */

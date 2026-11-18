@@ -5,7 +5,6 @@
  * The fireball's state is the car's pc_blasts entry. */
 #include "game/game.h"
 
-typedef struct tUVMatrix { float uvs[3][3]; float pos[3]; } tUVMatrix;
 /* One of the four flame balls (MAT3 tBlastObj; PC: struct pc_blast_obj). */
 typedef struct tBlastObj {
     int mbIdx;                  /* 0x00 its scene object, -1 none */

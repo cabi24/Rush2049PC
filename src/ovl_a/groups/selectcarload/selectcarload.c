@@ -4,7 +4,6 @@
  * car (52), gCarParts its scene objects. */
 #include "game/game.h"
 
-typedef struct Transform {f32 matrix[3][3],position[3];} Transform;
 /* A car model's description (gCarModels, MAT3 _tCar): the tyres' places, after their constants (pointers). */
 typedef struct ModelDescription {u8 unaccessed[0x60];TireDesc *tires[4];f32 tireR[4][3];} ModelDescription;
 
@@ -21,21 +20,21 @@ void SetSelectTireSizes(s16 id,s16 player)
 {
     s16 model = id % CARS;
     s16 i;
-    Transform *transform;
+    tUVMatrix *transform;
     ModelDescription *description;
     description = gCarModels[model]; for (i = 0; i < 4; i++) {
-        transform = (Transform *)ZOID_FindMatrix((s16)gCarParts[id].tires[i]);
-        transform->position[0] = description->tireR[i][0];
-        transform->position[1] = description->tireR[i][1] + TIRE_LIFT;
-        transform->position[2] = description->tireR[i][2];
+        transform = ZOID_FindMatrix((s16)gCarParts[id].tires[i]);
+        transform->pos[0] = description->tireR[i][0];
+        transform->pos[1] = description->tireR[i][1] + TIRE_LIFT;
+        transform->pos[2] = description->tireR[i][2];
         if (i >= 2) {
             if (gRearTireScale[player + 1][model] != 1.0f)
-                ScaleUV(unitmatrix,transform->matrix,gRearTireScale[player + 1][model]);
-            else CopyUV(unitmatrix,transform->matrix);
+                ScaleUV(unitmatrix,transform->uvs,gRearTireScale[player + 1][model]);
+            else CopyUV(unitmatrix,transform->uvs);
         } else {
             if (gFrontTireScale[player + 1][model] != 1.0f)
-                ScaleUV(unitmatrix,transform->matrix,gFrontTireScale[player + 1][model]);
-            else CopyUV(unitmatrix,transform->matrix);
+                ScaleUV(unitmatrix,transform->uvs,gFrontTireScale[player + 1][model]);
+            else CopyUV(unitmatrix,transform->uvs);
         }
     }
 }

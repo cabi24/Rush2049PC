@@ -3,9 +3,6 @@
  * The front end's screens use it to place their labels by the 3D buttons, the HUD to put markers over cars. */
 #include "game/game.h"
 
-/* A matrix (MAT3 tUVMatrix, as its mat3 view): the rotation's three rows, then the position. */
-typedef struct tUVMatrix { f32 uvs[3][3]; f32 pos[3]; } tUVMatrix;
-
 /* Project world point point[3] through camera matrix `mat` (its rotation and position) into window `widx`: the
  * screen position into screen[2], pixels, clamped to the s16 range; the point in the camera's frame (x right, y up,
  * z ahead, feet) into body[3] if given. A point nearer than 2.5 feet ahead (MAT3: 0.01), behind the camera

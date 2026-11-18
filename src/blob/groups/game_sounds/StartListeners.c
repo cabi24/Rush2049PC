@@ -2,7 +2,6 @@
 #include "game/game.h"
 #include "game/audiomgr.h"
 
-typedef struct Vec3 { f32 x, y, z; } Vec3;
 /* The player record's fields this file reads (MAT3 tPlayer: slot, listener). */
 typedef struct PlayerRec {
     /* 0x00 */ u8 slot;
@@ -33,7 +32,7 @@ void StartListeners(void)
         for (i = 0; i < gNumPlayers; i++) {
             if (gRace != kGhost || gPlayers[i].slot == 0)
                 gPlayers[i].listener = listener_number(AudAddListener(&unitmatrix_origin, &unitmatrix_origin,
-                                                                      (Vec3 *)unitmatrix[2], (Vec3 *)unitmatrix[1]));
+                                                                      (tVec3 *)unitmatrix[2], (tVec3 *)unitmatrix[1]));
             else gPlayers[i].listener = -1;
         }
         AudSetMasterVol((f32)gOptions[kOptEffectsVolume] / 10.0f, 0.1f, 0, 1);

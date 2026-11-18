@@ -749,7 +749,7 @@ extern s16 gProgressWidth;
 extern s16 gProgressHeight;
 extern s16 gProgressTop;
 extern s16 gMenuBottom;
-extern s32 *gCarMatrices[EXTENT(48)];
+extern tUVMatrix *gCarMatrices[EXTENT(48)];   /* the car screens' scene matrices, 12 a player (InitCarObj) */
 extern BlitColor carscr_marker_colors[EXTENT(4)][3];
 extern s32 carscr_buttonsInited[EXTENT(4)];
 extern s32 carscr_buttonsJustInited[EXTENT(4)];

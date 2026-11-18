@@ -4,6 +4,8 @@
 
 #include "game/types.h"
 
+struct tCamera;   /* a window's camera (camera.h), which the scene draw looks through */
+
 /* Constants */
 
 /* tPaletteAnim.state: what a track's palette animation does each period (TextureAnimation). The colours of 4-8 are
@@ -155,7 +157,7 @@ extern f32 tan_q1;
 extern u32 gBgColor;
 /* Each window's sky dome matrix (SkyInit; SkyUpdate keeps it on the camera), NULL for none: a matrix of the
  * persistent pool (ZOID_NewMatrix). MAT3 sky.c's tUVMatrix *skyMatrices[4]; the N64 kept them as 32-bit addresses. */
-extern struct tUVMatrix *skyMatrices[EXTENT(4)];
+extern tUVMatrix *skyMatrices[EXTENT(4)];
 extern ObjectInstance ObjInstanceList[EXTENT(600)];
 extern PaletteDefTable gPalDefPtrs[EXTENT(64)];
 extern s8 gFogIntensity;
@@ -251,8 +253,8 @@ s32 ZOID_ChangeTexture(u16 obj, s16 lod, u16 texidx);
 void ZOID_ClearPolyFlags(struct Header *poly, u16 mask);
 s32 zoid_draw_object(Gfx **gp, ObjectInstance *parent, s32 depth, s32 use_parent_distance,
                      ObjectInstance *node, s32 view, struct tPaletteDef *palette);
-void zoid_draw_window(s32 view, tCamera *eye);
-struct tUVMatrix *ZOID_FindMatrix(s16 node);
+void zoid_draw_window(s32 view, struct tCamera *eye);
+tUVMatrix *ZOID_FindMatrix(s16 node);
 s16 ZOID_FindObjInstance(void *name);
 void *ZOID_GetColor(s16 node);
 void ZOID_GetFog(u16 *min, u16 *max, u8 *red, u8 *green, u8 *blue, u8 *alpha, s32 winidx);
@@ -266,13 +268,13 @@ s16 ZOID_LastSibling(s16 node);
 void zoid_load_palette(Gfx **gfxp, struct tPaletteDef *pal);
 void zoid_load_texture(Gfx **gp, struct tTexture *tex, struct TexTile *rect, struct TexTile *clip,
                        struct tPaletteDef *palettes);
-void *ZOID_NewMatrix(void);
+tUVMatrix *ZOID_NewMatrix(void);
 struct tPoly *ZOID_NewPoly(s32 nverts, f32 *xyz, u16 texidx, u8 *color, u16 flags, s32 useTidx);
 s32 zoid_node_visible(void *node, s32 view);
 u32 ZOID_ObjectFlags(s16 node);
 s16 ZOID_ObjParent(s16 node);
 s16 ZOID_ObjPrevObj(s16 node);
-void ZOID_ProjectWindow(s32 widx, f32 *point, struct tUVMatrix *mat, f32 *body, s16 *screen);
+void ZOID_ProjectWindow(s32 widx, f32 *point, tUVMatrix *mat, f32 *body, s16 *screen);
 void ZOID_RemoveObject(s16 node);
 void ZOID_RemoveObjectTree(s16 node, s32 removeChildren);
 void ZOID_RemovePoly(struct tPoly *poly);
@@ -305,6 +307,6 @@ s32 ZOID_SplitScreen(s32 n);
 s16 ZOID_TrueObjParent(s16 child);
 void ZOID_UpdatePoly(struct tPoly *poly, s32 nverts, struct Vec3 *xyz, u16 texidx, u8 *color, u16 flags, s32 useTidx);
 void ZOID_UpdateObject(s16 node, void *pos, void *uvs);
-void ZOID_WindowTo3D(s32 widx, s16 *screen, struct tUVMatrix *mat, f32 zdist, f32 *point);
+void ZOID_WindowTo3D(s32 widx, s16 *screen, tUVMatrix *mat, f32 zdist, f32 *point);
 
 #endif /* GAME_SCENE_H */

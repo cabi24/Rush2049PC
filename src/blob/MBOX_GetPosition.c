@@ -1,9 +1,6 @@
 /* MBOX_GetPosition.c: where a scene node is in the world (MAT3 mbox.c, MBOX_GetPosition()). */
 #include "game/game.h"
 
-/* A matrix (MAT3 tUVMatrix, as its mat3 view): the rotation's three rows, then the position. */
-typedef struct tUVMatrix { f32 uvs[3][3]; f32 pos[3]; } tUVMatrix;
-
 /* The scene node as this file reads it: ObjInstanceList's layout (types.h ObjectInstance), its matrix typed. A
  * node's matrix is a rotation and a position relative to its parent. */
 typedef struct ObjInstance {

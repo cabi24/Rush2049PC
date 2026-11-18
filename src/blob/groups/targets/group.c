@@ -6,8 +6,6 @@
  * path by its index (tTargetStructPath.pathIdx): docs/port/NATIVE.md step 7. */
 #include "game/game.h"
 
-typedef struct Vec3 { f32 x, y, z; } Vec3;
-
 /* A target path's flags read here (tBasicTargetPath.flags; targetpaths/group.c has them all): 4 in forward races, 8
  * in backward races, 0x10 the target doesn't collide, 0x800 its collision object goes when not in this race's
  * direction, 0x8000 not shown. */
@@ -301,7 +299,7 @@ void SetTargetDefs(void)
     s32 i, j, enabled, other;
     tBasicTargetPath *path;   /* path i (the N64 code reached it by its byte offset in the file, 36 * i) */
     tTarget *t;
-    Vec3 zero;
+    tVec3 zero;
     struct pc_target_group *group;
     tTargetStructMine *mine;
 

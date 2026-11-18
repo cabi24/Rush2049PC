@@ -337,9 +337,6 @@ typedef struct {
     Mtx ident;      /* 0x680 */
 } GfxBuf;
 
-/* A matrix (MAT3 tUVMatrix, as its mat3 view): the rotation's three rows, then the position. */
-typedef struct tUVMatrix { f32 uvs[3][3]; f32 pos[3]; } tUVMatrix;
-
 VIEW(GfxBuf *, frame_dynamic);
 #define frame_dynamic frame_dynamic_view
 VIEW(Mtx *, frame_matrix_cursor);
