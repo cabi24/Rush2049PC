@@ -10,12 +10,8 @@ typedef struct Blit {
     s32 (*AnimFunc)(struct Blit *); u32 AnimID;
     uintptr_t reserved30; u16 Texture;
 } Blit;
-typedef struct Point { s16 x, y; } Point;
 /* PC: the sprite's host layout (particle_knot's Sprite), as every view has it (docs/port/POINTERS.md 9). */
 typedef struct Texture { void *pal, *tex; u16 model; s16 x, y; u16 mode; s16 w, h; u8 color; u8 flags; s8 hidden; u8 pad17; s16 t0, s0, t1, s1; } Texture;
-
-VIEW(Point[][4], trackscr_arrowPos);
-#define trackscr_arrowPos trackscr_arrowPos_view
 
 #define TEXT_TRACK_OPTIONS 1        /* gText.tab[]: the race options' names (trackscr_gOpts indexes them) */
 #define ARROW_LEFT 0                /* the item (AnimID bits 4-7) */

@@ -1,11 +1,9 @@
 /* EndGraphics: end a frame's display list and hand it to the scheduler (MAT3 gfx.c; the N64 side of it). */
 #include "game/game.h"
-#define Gfx GfxView   /* this file's own Gfx: include/game's Gfx is another type */
 #define OSMesgQueue OSMesgQueueView   /* this file's own OSMesgQueue: include/game's OSMesgQueue is another type */
 
 typedef struct { u32 opaque[6]; } OSMesgQueue;
 
-typedef union { Gwords words; long long force_structure_alignment; } Gfx;
 #define gDma1p_(pkt, c, s) { Gfx *_g = (Gfx *)(pkt); _g->words.w0 = (c); _g->words.w1 = (uintptr_t)(s); }
 #define gSPDisplayList(pkt, dl) gDma1p_(pkt, 0xDE000000, dl)
 #define gDPFullSync(pkt) { Gfx *_g = (Gfx *)(pkt); _g->words.w0 = 0xE9000000; _g->words.w1 = 0; }
@@ -24,13 +22,8 @@ typedef struct OSScTask {
     void *buffer;           /* 0x7C */
 } Frame;                    /* 0x80 */
 
-VIEW(Gfx *, frame_dl);
-#define frame_dl frame_dl_view
-
 VIEW(Frame[], frame_records);
 #define frame_records frame_records_view
-VIEW(Gfx *, last_frame_dl_end);
-#define last_frame_dl_end last_frame_dl_end_view
 
 /* PC: the frame's buffer as pc_game_types.h lays it out, PC_GLIST_LEN commands from PC_GLIST_OFFSET; at the end of
  * its list pc_frame_pools checks the list, the frame's matrices (frame_matrix_cursor) and its lookats, which the SDK's empty

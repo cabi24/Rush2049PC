@@ -9,10 +9,6 @@ extern u32 osTvType;
 
 /* The frame command buffers (initsystem_start.c has their storage and their sizes). */
 extern u8 pc_frame_dl[2][PC_FRAME_BYTES];
-VIEW(u8 *, frame_dynamic);
-#define frame_dynamic frame_dynamic_view
-VIEW(u8 *, frame_dl);
-#define frame_dl frame_dl_view
 
 /* As initsystem.c's _InitGfx_Init: the video mode, the z-buffer and frame buffers, the frame records. */
 void InitGfx(void)
@@ -40,7 +36,7 @@ void InitGfx(void)
     frame_records[1].doneMsgType = OS_SC_DONE_MSG;
     frame_records[0].commands = DL_BUFFER_0;
     frame_records[1].commands = DL_BUFFER_1;
-    frame_dynamic = frame_records[0].commands;
+    frame_dynamic = (struct Dynamic *)frame_records[0].commands;   /* the buffer starts with the frame's dynamic data */
     frame_matrix_cursor = frame_records[0].commands + 1728;
-    frame_dl = frame_records[0].commands + PC_GLIST_OFFSET;
+    frame_dl = (Gfx *)(frame_records[0].commands + PC_GLIST_OFFSET);
 }

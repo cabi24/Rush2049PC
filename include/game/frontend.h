@@ -512,7 +512,7 @@ extern f32 recordscr_cursorZ;
 extern struct pc_multiblit recordscr_mblit[EXTENT(1)];
 extern s8 recordscr_inited;
 extern void *recordscr_blit;
-extern void *recordscr_viewPane;
+extern tBlitSet *recordscr_viewPane;   /* the records screen's pane (MAT3 viewPane) */
 extern s8 gViewTrackValid[EXTENT(32)];
 extern s8 gViewStatValid[EXTENT(6)][13];
 extern s8 recordscr_gSelectPakIdx;
@@ -714,7 +714,7 @@ extern char recordscr_button_texture_name[EXTENT(104)];
 extern char startscr_player_count_format[EXTENT(4)];
 extern char startscr_button_player_count_format[EXTENT(136)];
 extern u8 titlescr_prompt_text[EXTENT(1216)];
-extern ResourceRange trackscr_arrowPos[EXTENT(2)][4];
+extern ScreenPos16 trackscr_arrowPos[EXTENT(2)][4];   /* the track screen's arrows' places (animArrows) */
 extern char trackscr_laps_format[EXTENT(4)];
 extern char trackscr_option5_format[EXTENT(4)];
 extern char trackscr_option6_format[EXTENT(4)];

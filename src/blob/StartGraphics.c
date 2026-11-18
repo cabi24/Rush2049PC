@@ -69,9 +69,6 @@ typedef union {
 }
 #define gSPSetGeometryMode(pkt, word) gSPGeometryMode((pkt), 0, word)
 
-VIEW(u8 *, frame_dynamic);
-#define frame_dynamic frame_dynamic_view
-
 void osViSetSpecialFeatures(u32);
 #define OS_VI_DIVOT_ON 0x0010
 #define OS_VI_DIVOT_OFF 0x0020
@@ -92,9 +89,9 @@ void StartGraphics(void) {
     u32 color;
     FrameRecord *frame;
     frame=&frame_records[frame_record_index];
-    frame_dynamic=frame->commands;
-    frame_matrix_cursor=frame_dynamic+FRAME_MATRIX_OFFSET;
-    frame_dl=(Gfx *)(frame_dynamic+PC_GLIST_OFFSET);
+    frame_dynamic=(struct Dynamic *)frame->commands;   /* the buffer starts with the frame's dynamic data */
+    frame_matrix_cursor=(u8 *)frame_dynamic+FRAME_MATRIX_OFFSET;
+    frame_dl=(Gfx *)((u8 *)frame_dynamic+PC_GLIST_OFFSET);
     gSPSegment(frame_dl++, 0, 0);
     gSPDisplayList(frame_dl++, rsp_init_dl);
     gSPDisplayList(frame_dl++, rdp_init_dl);
