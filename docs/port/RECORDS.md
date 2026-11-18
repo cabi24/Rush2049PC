@@ -179,7 +179,8 @@ The runs (Rocky, against `~/rush2049pc/w4-ref`, d224beab's builds; the machine s
 - Queued behind the other agents' runs under `~/rush2049pc/.w4-heavy.lock` when this was written, their logs to come in
   `~/rush2049pc/w4-c2/build/scratch/heavy/` (`heavy2.log` says where they are): the gate (`pconly_gate.sh --skip
   realtime --data-moved`), RelWithDebInfo against the reference on both cartridges, the ASan sweep of every path on
-  both and CI's ASan ctest set; and outside the lock (`light.log`) ctest of RelWithDebInfo and the realtime tests.
+  both and CI's ASan ctest set; the realtime tests, waiting for `~/rush2049pc/.realtime.lock` (`light.log`).
+- ctest, RelWithDebInfo (`-LE realtime`): 572 of 572 (`assets_rom` skipped: no ROM on Rocky).
 
 Numbers (src/ and nonmatching/, the 73 files this changed): local struct and union declarations 176 to 90, tags
 declared in more than one file 30 (109 declarations) to 17 (58), VIEW lines 62 to 19, pad arrays 149 to 129 (most
