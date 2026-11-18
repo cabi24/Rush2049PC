@@ -138,6 +138,13 @@ SetControls says so.
 4. view_check `--sym gPlayers`: 68 views, all `tPadState`, none disagree (UpdateCarSounds' 80-byte view differed
    before); layout_check, offset_check `--strict`, alias_check, bounds_check, census and n64_audit as before (layout
    and offset reports the same but for shots.c's line numbers).
+5. The gate (`pconly_gate.sh --base ~/rush2049pc/w4-ref --skip realtime --data-moved`): PASS, ctest 572 of 572 and
+   64 of 64 paths `same`. RelWithDebInfo against the reference's, with screenshots and sound: 64 of 64 `same` on the
+   synthetic cartridge (mods_dump's sound varied in its last subframe once on the loaded host, `same` alone) and on
+   the audible one. ctest of RelWithDebInfo 572 of 572, the realtime tests 61 of 61. ASan with UBSan (GCC 14's objects,
+   Clang 21's runtime): every synthetic path on both cartridges to its state with no report (the mods paths again with
+   their mods: on the audible cartridge three of their picture checks find fewer magenta pixels than they ask for, as
+   the reference's build does there), and CI's ASan set but its realtime-labelled tests: 399 of 399.
 
 **Numbers** (src/ and nonmatching/, counted the same way at 7d065d8e and after): 62 local declarations of the record
 went (58 files' copies of gPlayers; 7 more files used types.h's `tPadState` as their view; 4 views through a car's
