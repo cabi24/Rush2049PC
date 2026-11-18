@@ -1,16 +1,6 @@
 /* animDot: a car's dot on the track map, a blit animation function (MAT3 hud.c). */
 #include "game/game.h"
 
-/* A car record as this reads it: its position, whether it is dead or resurrecting. */
-typedef struct Car {
-    u8 pad0[8];
-    f32 position[3];
-    u8 pad14[0x110 - 0x14]; struct pc_visual visuals[21]; u8 pad14_308[0x358 - 0x308];
-    s8 dead;
-    s8 active;
-    u8 tail[0x380 - 0x35A]; void *input; u8 tail_384[0x3B8 - 0x384];
-} Car;
-
 /* A model record (MAT3 tModelData) as this reads it. */
 typedef struct Model {
     _tCar *car;
@@ -34,8 +24,6 @@ typedef struct Model {
     u8 tail[2056 - 2028];
 } Model;
 
-
-
 /* The dot of the car at place animID & 0xF of the map's drawing order (dot_order_list, hud_updateFrame) on the track
  * map (hud_mapPos, kMapSize square, the track's path bounds fitted in it; mirrored with gMirrorWaves): a human's own
  * colour frame (its slot), a drone's frame 7; it flashes (alpha 64 every 8 retraces) while the car is dead,
@@ -44,7 +32,7 @@ typedef struct Model {
 s32 animDot(tBlit *blt)
 {
     Model *m;
-    Car *car;
+    tCarData *car;
     s16 b, flash, slot;
     s16 size;
     u32 id;
@@ -72,15 +60,15 @@ s32 animDot(tBlit *blt)
     blt->x = hud_mapPos[gNumWindows - 1].x + xo - (size + kMapSize) / 2;
     blt->y = hud_mapPos[gNumWindows - 1].y + yo - (size + kMapSize) / 2;
     if (gMirrorWaves) {
-        blt->x += (car->position[0] - gPathMin[0]) * map_width / world_width;
+        blt->x += (car->dr_pos[0] - gPathMin[0]) * map_width / world_width;
     } else {
-        blt->x += ((map_width - 1) - (car->position[0] - gPathMin[0]) * map_width / world_width);
+        blt->x += ((map_width - 1) - (car->dr_pos[0] - gPathMin[0]) * map_width / world_width);
     }
-    blt->y += (car->position[2] - gPathMin[2]) * map_height / world_height;
+    blt->y += (car->dr_pos[2] - gPathMin[2]) * map_height / world_height;
     gBlitInstanceList[blt->blidx].flags |= BLITINST_ALPHA_COMPARE;
     if (size) { }
-    flash = car->dead || m->crash || !m->collidable || m->hide || m->hit_target != -1;
-    if (car->active > 0)
+    flash = car->crash_state || m->crash || !m->collidable || m->hide || m->hit_target != -1;
+    if (car->dead > 0)
         flash = 0;
     if (slot < gNumCars) {
         blt->alpha = ((gScheduler.retraceCount & 8) && flash) ? 64 : 255;

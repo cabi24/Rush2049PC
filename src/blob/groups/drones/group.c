@@ -44,19 +44,6 @@ typedef struct MODELDAT {
     /* 0x7F4 */ U8 pad7F4[0x808 - 0x7F4];
 } MODELDAT;
 
-typedef struct {
-    /* 0x000 */ U8 pad0[8];
-    /* 0x008 */ F32 dr_pos[3];
-    /* 0x014 */ U8 pad14[0xEE - 0x14];
-    /* 0x0EE */ S8 place;
-    /* 0x0EF */ U8 pad0EF[0x100 - 0xEF];
-    /* 0x100 */ F32 distance;
-    /* 0x104 */ U8 pad104[0x110 - 0x104]; struct pc_visual visuals[21]; U8 pad104_308[0x356 - 0x308];
-    /* 0x356 */ S16 weight_index;
-    /* 0x358 */ U8 pad358;
-    /* 0x359 */ S8 state;
-    /* 0x35A */ U8 pad35A[0x380 - 0x35A]; void *input; U8 pad35A_384[0x3B8 - 0x384];
-} CAR_DATA;
 
 /* The arcade's names for the game's data. */
 #define game_car gGameCar
@@ -116,7 +103,7 @@ void DoDrones(void)
     F32 max_brake, min_brake, max_boost, min_boost, temp1;
     F32 place_scale, diff_scale;
     MODELDAT *m;
-    CAR_DATA *gc;
+    tCarData *gc;
 
     SetCatchup();
 

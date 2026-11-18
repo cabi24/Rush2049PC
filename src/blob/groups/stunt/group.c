@@ -5,17 +5,6 @@
 
 float fabsf(float);
 
-/* The car record (MAT3 tCarData; the PC's pc_car, host layout): the fields the stunts read. */
-typedef struct PCar {
-    u8 pad00[0xE8];
-    s32 appearance;              /* 0x0E8 */
-    u8 padEC[0x110 - 0xEC]; struct pc_visual visuals[21]; u8 padEC_308[0x358 - 0x308];
-    s8 crash_state;              /* 0x358 */
-    u8 pad359[0x368 - 0x359];
-    f32 vx, vy, vz;              /* 0x368 stuntW: its rotation this step about its axes */
-    u8 pad374[0x380 - 0x374]; void *input; u8 pad374_384[0x3B8 - 0x384];
-} PCar;
-
 /* The model record (MAT3 tModelData): the fields the stunts read. */
 typedef struct HudRec {
     _tCar *car;
@@ -165,7 +154,7 @@ void AddStunt(s32 idx, s32 code)
  * siblings. stunt_j counts the tyres on the ground, stunt_chW0..2 say an axis's turn changed direction. */
 void CheckFlip(s32 idx) {
     StuntInfo *p;
-    PCar *c;
+    tCarData *c;
     f32 v[3];
     s32 fl;
 
@@ -175,10 +164,10 @@ void CheckFlip(s32 idx) {
         if (stunt_chW0 != 0 || stunt_j >= 3) {
             p->active = fl & ~0x40;
         } else {
-            c = (PCar *)PC_CAR(idx);
-            p->stuntW[1][0] += c->vx;
-            p->stuntW[1][1] += c->vy;
-            p->stuntW[1][2] += c->vz;
+            c = (tCarData *)PC_CAR(idx);
+            p->stuntW[1][0] += c->stuntW[0];
+            p->stuntW[1][1] += c->stuntW[1];
+            p->stuntW[1][2] += c->stuntW[2];
         }
         v[0] = fabsf(p->stuntW[1][0]);
         v[1] = fabsf(p->stuntW[1][1]);
@@ -187,7 +176,7 @@ void CheckFlip(s32 idx) {
             p->active &= ~0x40;
             return;
         }
-        if ((flip_window_min < v[0] && v[0] < flip_window_max) || ((stunt_chW0 != 0 || stunt_j > 0 || ((c = (PCar *)PC_CAR(idx))->appearance & 0x100000)) && flip_landing_min < v[0])) {
+        if ((flip_window_min < v[0] && v[0] < flip_window_max) || ((stunt_chW0 != 0 || stunt_j > 0 || ((c = (tCarData *)PC_CAR(idx))->appearance & 0x100000)) && flip_landing_min < v[0])) {
             p->active &= ~0x80;
             if (p->stuntW[1][0] > 0.0f) {
                 AddStunt(idx, 0);
@@ -201,17 +190,17 @@ void CheckFlip(s32 idx) {
         }
     } else if (stunt_okToStart != 0 && stunt_GCabsW[1] < stunt_GCabsW[0] && stunt_GCabsW[2] < stunt_GCabsW[0]) {
         p->active = fl | 0x40;
-        c = (PCar *)PC_CAR(idx);
-        p->stuntW[1][0] = c->vx;
-        p->stuntW[1][1] = c->vy;
-        p->stuntW[1][2] = c->vz;
+        c = (tCarData *)PC_CAR(idx);
+        p->stuntW[1][0] = c->stuntW[0];
+        p->stuntW[1][1] = c->stuntW[1];
+        p->stuntW[1][2] = c->stuntW[2];
     }
 }
 
 /* The spin tracker (flag 0x10, about y): as CheckFlip. */
 void CheckSpin(s32 idx) {
     StuntInfo *p;
-    PCar *c;
+    tCarData *c;
     f32 v[3];
     f32 d;
     s32 fl;
@@ -222,10 +211,10 @@ void CheckSpin(s32 idx) {
         if (stunt_chW1 != 0 || stunt_j >= 3) {
             p->active = fl & ~0x10;
         } else {
-            c = (PCar *)PC_CAR(idx);
-            p->stuntW[2][0] += c->vx;
-            p->stuntW[2][1] += c->vy;
-            p->stuntW[2][2] += c->vz;
+            c = (tCarData *)PC_CAR(idx);
+            p->stuntW[2][0] += c->stuntW[0];
+            p->stuntW[2][1] += c->stuntW[1];
+            p->stuntW[2][2] += c->stuntW[2];
         }
         v[0] = fabsf(p->stuntW[2][0]);
         v[1] = fabsf(p->stuntW[2][1]);
@@ -234,7 +223,7 @@ void CheckSpin(s32 idx) {
             p->active &= ~0x10;
             return;
         }
-        if ((spin_window_min < v[1] && v[1] < spin_window_max) || ((stunt_chW1 != 0 || stunt_j > 0 || ((c = (PCar *)PC_CAR(idx))->appearance & 0x100000)) && spin_landing_min < v[1])) {
+        if ((spin_window_min < v[1] && v[1] < spin_window_max) || ((stunt_chW1 != 0 || stunt_j > 0 || ((c = (tCarData *)PC_CAR(idx))->appearance & 0x100000)) && spin_landing_min < v[1])) {
             p->active &= ~0x80;
             AddStunt(idx, 4);
             d = (p->stuntW[2][1] > 0.0f) ? spin_unwind_negative : spin_unwind_positive;
@@ -244,17 +233,17 @@ void CheckSpin(s32 idx) {
         }
     } else if (stunt_okToStart != 0 && stunt_GCabsW[0] < stunt_GCabsW[1] && stunt_GCabsW[2] < stunt_GCabsW[1]) {
         p->active = fl | 0x10;
-        c = (PCar *)PC_CAR(idx);
-        p->stuntW[2][0] = c->vx;
-        p->stuntW[2][1] = c->vy;
-        p->stuntW[2][2] = c->vz;
+        c = (tCarData *)PC_CAR(idx);
+        p->stuntW[2][0] = c->stuntW[0];
+        p->stuntW[2][1] = c->stuntW[1];
+        p->stuntW[2][2] = c->stuntW[2];
     }
 }
 
 /* The roll tracker (flag 0x20, about z, both ways): as CheckFlip. */
 void CheckRoll(s32 idx) {
     StuntInfo *p;
-    PCar *c;
+    tCarData *c;
     f32 v[3];
     s32 fl;
 
@@ -264,10 +253,10 @@ void CheckRoll(s32 idx) {
         if (stunt_chW2 != 0 || stunt_j >= 3) {
             p->active = fl & ~0x20;
         } else {
-            c = (PCar *)PC_CAR(idx);
-            p->stuntW[0][0] += c->vx;
-            p->stuntW[0][1] += c->vy;
-            p->stuntW[0][2] += c->vz;
+            c = (tCarData *)PC_CAR(idx);
+            p->stuntW[0][0] += c->stuntW[0];
+            p->stuntW[0][1] += c->stuntW[1];
+            p->stuntW[0][2] += c->stuntW[2];
         }
         v[0] = fabsf(p->stuntW[0][0]);
         v[1] = fabsf(p->stuntW[0][1]);
@@ -290,10 +279,10 @@ void CheckRoll(s32 idx) {
         }
     } else if (stunt_okToStart != 0 && stunt_GCabsW[1] < stunt_GCabsW[2] && stunt_GCabsW[0] < stunt_GCabsW[2]) {
         p->active = fl | 0x20;
-        c = (PCar *)PC_CAR(idx);
-        p->stuntW[0][0] = c->vx;
-        p->stuntW[0][1] = c->vy;
-        p->stuntW[0][2] = c->vz;
+        c = (tCarData *)PC_CAR(idx);
+        p->stuntW[0][0] = c->stuntW[0];
+        p->stuntW[0][1] = c->stuntW[1];
+        p->stuntW[0][2] = c->stuntW[2];
     }
 }
 
@@ -432,7 +421,7 @@ void CheckAirTime(s32 idx) {
  * all, while in the air. */
 void CheckMulti(s32 idx) {
     StuntInfo *p;
-    PCar *c;
+    tCarData *c;
     s32 n;
     f32 s;
 
@@ -443,9 +432,9 @@ void CheckMulti(s32 idx) {
         if (stunt_j >= 3) {
             p->active &= ~0x80;
         } else if (stunt_j == 0) {
-            p->stuntW[3][0] += fabsf(c->vx);
-            p->stuntW[3][1] += fabsf(c->vy);
-            p->stuntW[3][2] += fabsf(c->vz);
+            p->stuntW[3][0] += fabsf(c->stuntW[0]);
+            p->stuntW[3][1] += fabsf(c->stuntW[1]);
+            p->stuntW[3][2] += fabsf(c->stuntW[2]);
         }
         if (0.4712389f < p->stuntW[3][0]) {
             n = 1;
@@ -465,9 +454,9 @@ void CheckMulti(s32 idx) {
         }
     } else if (stunt_okToStart != 0) {
         p->active |= 0x80;
-        p->stuntW[3][0] = fabsf(c->vx);
-        p->stuntW[3][1] = fabsf(c->vy);
-        p->stuntW[3][2] = fabsf(c->vz);
+        p->stuntW[3][0] = fabsf(c->stuntW[0]);
+        p->stuntW[3][1] = fabsf(c->stuntW[1]);
+        p->stuntW[3][2] = fabsf(c->stuntW[2]);
     }
 }
 
@@ -477,7 +466,7 @@ void CheckMulti(s32 idx) {
  * trackers, and a landing a second after the air time ended banks the run (AddStunt 11). */
 void CheckForStunt(void) {
     StuntInfo *ply;
-    PCar *car;
+    tCarData *car;
     HudRec *hud;
     s32 i;
     s32 ok;
@@ -531,38 +520,38 @@ void CheckForStunt(void) {
                 stunt_b++;
             }
             stunt_okToStart = stunt_j < 3 && car->crash_state == 0 && hud->moving_state == -1;
-            stunt_GCabsW[0] = fabsf(car->vx);
-            stunt_GCabsW[1] = fabsf(car->vy);
-            stunt_GCabsW[2] = fabsf(car->vz);
+            stunt_GCabsW[0] = fabsf(car->stuntW[0]);
+            stunt_GCabsW[1] = fabsf(car->stuntW[1]);
+            stunt_GCabsW[2] = fabsf(car->stuntW[2]);
             stunt_chW0 = stunt_chW1 = stunt_chW2 = 0;
-            if ((ply->active & 0x01000000) && car->vx < 0.0f) {
+            if ((ply->active & 0x01000000) && car->stuntW[0] < 0.0f) {
                 ply->active &= 0xFEFFFFFF;
                 ply->active |= 0x02000000;
                 stunt_chW0 = 1;
             } else if (ply->active & 0x02000000) {
-                if (car->vx >= 0.0f) {
+                if (car->stuntW[0] >= 0.0f) {
                     ply->active &= 0xFDFFFFFF;
                     ply->active |= 0x01000000;
                     stunt_chW0 = 1;
                 }
             }
-            if ((ply->active & 0x04000000) && car->vy < 0.0f) {
+            if ((ply->active & 0x04000000) && car->stuntW[1] < 0.0f) {
                 ply->active &= 0xFBFFFFFF;
                 ply->active |= 0x08000000;
                 stunt_chW1 = 1;
             } else if (ply->active & 0x08000000) {
-                if (car->vy >= 0.0f) {
+                if (car->stuntW[1] >= 0.0f) {
                     ply->active &= 0xF7FFFFFF;
                     ply->active |= 0x04000000;
                     stunt_chW1 = 1;
                 }
             }
-            if ((ply->active & 0x10000000) && car->vz < 0.0f) {
+            if ((ply->active & 0x10000000) && car->stuntW[2] < 0.0f) {
                 ply->active &= 0xEFFFFFFF;
                 ply->active |= 0x20000000;
                 stunt_chW2 = 1;
             } else if (ply->active & 0x20000000) {
-                if (car->vz >= 0.0f) {
+                if (car->stuntW[2] >= 0.0f) {
                     ply->active &= 0xDFFFFFFF;
                     ply->active |= 0x10000000;
                     stunt_chW2 = 1;

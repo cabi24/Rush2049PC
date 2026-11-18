@@ -1,28 +1,6 @@
 #include "game/game.h"
 
-typedef struct Defense {
-    u32 active; f32 invsTime; f32 shldTime; f32 shldScale; f32 unknown10;
-} Defense;
-typedef struct Battle {
-    s8 type; s8 ammoCnt; s16 health; s16 damageThisFrame; u8 pad06[2];
-    Defense defense;      /* 0x08 */
-    s8 shoot;             /* 0x1c */
-    u8 fadeAlpha;         /* 0x1d */
-    s8 fadeState;         /* 0x1e */
-    s8 Points;            /* 0x1f */
-    s32 loaded;           /* 0x20 */
-    f32 fadeTime; f32 reloadingTime; f32 pitch; f32 yaw;
-} Battle;
 /* PC: the car record's layout (0x510 bytes, docs/port/CARS.md): its 21 visuals and the input pointer are host-sized. */
-typedef struct Car {
-    u8 pad00[0xe8];
-    u32 appearance;       /* 0xe8 */
-    u8 padec[0x110 - 0xec];
-    struct pc_visual visuals[21];
-    u8 padec_308[0x380 - 0x308];
-    void *input;
-    Battle battle;        /* 0x384, PC 0x4D8 */
-} Car;
 typedef struct Model {
     _tCar *car;
     Tune44 *tune;
@@ -50,7 +28,7 @@ f32 sqrtf(f32);
  * 0x20), counted (IncBattlePowerUps) and hidden. */
 void StartWeaponIcon(tTarget *t)
 {
-    Car *car;
+    tCarData *car;
     Model *m;
     s32 type;
     s32 ammo;
@@ -115,7 +93,7 @@ void StartWeaponIcon(tTarget *t)
             car->battle.defense.active |= 0xa;
             car->battle.defense.shldTime = 0.0333333f;
             car->battle.defense.shldScale = 0.05f;
-            car->battle.defense.unknown10 = 0.0f;
+            car->battle.defense.shldPitch = 0.0f;
             return;
         case 360:
             type = 7;
@@ -129,11 +107,11 @@ void StartWeaponIcon(tTarget *t)
             break;
         }
         if (wep) {
-        if (type == car->battle.type) {
-            car->battle.ammoCnt += ammo;
+        if (type == car->battle.weapon.type) {
+            car->battle.weapon.ammoCnt += ammo;
         } else {
-            car->battle.type = type;
-            car->battle.ammoCnt = ammo;
+            car->battle.weapon.type = type;
+            car->battle.weapon.ammoCnt = ammo;
         }
         if (type == 5) {
             f32 z;

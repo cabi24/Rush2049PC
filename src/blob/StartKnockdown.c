@@ -3,15 +3,6 @@
  * AnimateKnockdown plays. */
 #include "game/game.h"
 
-
-
-/* The car record's view (MAT3 tCarData) in the PC layout: only its velocity. */
-typedef struct GameCar {
-    u8 pad0[20];
-    f32 dr_vel[3];          /* 0x14 the velocity, feet a second */
-    u8 pad20[0x110 - 0x20]; struct pc_visual visuals[21]; u8 pad20_308[0x380 - 0x308]; void *input; u8 pad20_384[0x3B8 - 0x384];
-} GameCar;                  /* 0x3B8 */
-
 /* An orientation and a position (MAT3 tUVMatrix). */
 typedef struct MATRIX {
     f32 uvs[3][3];
@@ -31,7 +22,7 @@ void StartKnockdown(tTarget *t)
 {
     struct pc_visual *v;
     MATRIX facing;
-    GameCar *car;
+    tCarData *car;
 
     if (!(v = GrabEnvEntry())) {
         return;

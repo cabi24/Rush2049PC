@@ -1,15 +1,6 @@
 /* MissileLock: a missile homes on a car (MAT3 shots.c). */
 #include "game/game.h"
 
-/* The car record (MAT3 tCarData; the PC's pc_car, host layout): the fields this reads. */
-typedef struct Player {
-    u8 unknown000[8]; f32 position[3];
-    u8 unknown014[0x110 - 0x14]; struct pc_visual visuals[21]; s8 collidable;
-    u8 unknown309[80]; s8 dead;
-    u8 unknown35A; s8 slot;
-    u8 unknown35C[0x380 - 0x35C]; void *input; u8 unknown35C_384[0x3B8 - 0x384];
-} Player;
-
 typedef struct Object {
     struct Object *next;
     s8 owner, unknown05, kind, flags;
@@ -22,7 +13,7 @@ extern f32 sqrtf(f32);
  * 90-degree cone ahead of it within 2000 feet: not its owner's, nor crashed, dead or not collidable. */
 void MissileLock(Object *object)
 {
-    Player *player;
+    tCarData *player;
     f32 local[3];
     f32 delta[3];
     f32 best[3];
@@ -32,9 +23,9 @@ void MissileLock(Object *object)
         if (object->owner != player->slot &&
             gCarTeam[object->owner] != gCarTeam[player->slot] &&
             !PC_MODEL_CRASHFLAG(player->slot) && player->collidable && !player->dead) {
-            delta[0] = player->position[0] - object->position[0];
-            delta[1] = player->position[1] - object->position[1];
-            delta[2] = player->position[2] - object->position[2];
+            delta[0] = player->dr_pos[0] - object->position[0];
+            delta[1] = player->dr_pos[1] - object->position[1];
+            delta[2] = player->dr_pos[2] - object->position[2];
             BodyVector(delta, local, &object->uv[0][0]);
             if (!(local[2] < 0.0f || local[0] < -local[2] || local[0] > local[2] ||
                 local[1] < -local[2] || local[1] > local[2])) {

@@ -1,18 +1,6 @@
 /* CheckCPs: the cars against the checkpoints, every frame (MAT3 checkpoint.c). */
 #include "game/game.h"
 
-/* The car record (MAT3 tCarData; the PC's pc_car, host layout): the fields this reads and sets. */
-typedef struct {
-    u8 pad0[4];
-    f32 modelTime;          /* +0x004 the model time of its position */
-    f32 dr_pos[3];          /* +0x008 its position (dead reckoned) */
-    u8 pad14[0x108 - 0x14];
-    f32 mileage;            /* +0x108 the distance it has driven */
-    u8 pad10C[0x110 - 0x10C]; struct pc_visual visuals[21]; u8 pad10C_308[0x358 - 0x308];
-    s8 crash_state;         /* +0x358 crashed (MAT3 +0x370) */
-    u8 pad359[0x380 - 0x359]; void *input; u8 pad359_384[0x3B8 - 0x384];
-} CarData;                  /* 0x3B8 */
-
 /* The model record (MAT3 tModelData): the fields this reads and sets. */
 typedef struct Model {
     _tCar *car;
@@ -49,7 +37,7 @@ void CheckCPs(void)
     s16 index;
     s32 side;
     f32 plane;
-    CarData *gc;
+    tCarData *gc;
     f32 *prev;
     Model *m;
     f32 move[3];

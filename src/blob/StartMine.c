@@ -4,8 +4,6 @@
  * up. */
 #include "game/game.h"
 
-
-
 /* The weapon (tCarData.battle.weapon.type) whose car takes less damage from the front: MAT3's shot code
  * makes the same exception for it. */
 #define WEAPON_FRONT_ARMOUR 5

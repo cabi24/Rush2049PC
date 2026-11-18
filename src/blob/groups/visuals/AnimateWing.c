@@ -7,8 +7,6 @@
 typedef struct Visual { void *opaque0; s16 index, object, slot, opaque10; uintptr_t flags; f32 time; void (*func)(struct Visual *v, s16 op); } Visual;
 typedef struct Model2056 { _tCar *car; Tune44 *tune; u8 type; u8 opaque9[919]; streetyp *lasttp[4]; u8 opaque944[72]; s16 state; u8 opaque1018[2]; s32 sound; u8 opaque1024[12]; const s16 *torquecurve; u8 opaque1040[568]; surftyp *movingSurface; u8 opaque1612[378]; s16 player; u8 opaque1992[64]; } Model2056;
 typedef struct Pose { u8 opaque0[20]; f32 angle; } Pose;
-typedef struct Player952 { u8 opaque0[232]; u32 flags; u8 opaque236[0x110 - 0xEC]; struct pc_visual visuals[21]; u8 opaque236_308[0x35C - 0x308]; s8 shift, quality, opaque862, disabled; u8 opaque864[32]; Pose *pose; u8 opaque900[52]; } Player952;
-/* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
 
 /* PC: game.frame_rate 60 (pc_game_fps.h). The wings step out and in one sixth at a frame whose model time is past
  * v->time, set 0.015 s on: less than a frame, so a step a frame, 30 a second on the N64. At 60 the gap is 0.03 s,
@@ -55,7 +53,7 @@ void AnimateWing(Visual *v, s16 op)
     s32 reverse;
     f32 basis[3][3];
     Model2056 *model;
-    Player952 *car;
+    tCarData *car;
 
     slot = v->slot;
     if (op == 0) {
@@ -125,10 +123,10 @@ grow:
         if (gNumPlayers == 1) StartSmoke(slot, reverse ? 7 : 6, 0, position);
     }
     car = PC_CAR(slot);
-    hulk = (car->flags & 0x10) != 0;
-    lucent = (gInvisibleCar != 0) || ((car->flags & 8) != 0);
-    if (CheckVisibleAll(v, !hulk && !car->disabled)) {
-        CheckVisible(v, car->quality >= 2, car->shift);
+    hulk = (car->appearance & 0x10) != 0;
+    lucent = (gInvisibleCar != 0) || ((car->appearance & 8) != 0);
+    if (CheckVisibleAll(v, !hulk && !car->carMine)) {
+        CheckVisible(v, car->view >= 2, car->camera);
         if (lucent) ObjInstanceList[v->object].flags ^= 0x80000000;
         else ObjInstanceList[v->object].flags &= 0x7FFFFFFF;
     }

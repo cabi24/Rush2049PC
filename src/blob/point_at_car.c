@@ -3,8 +3,6 @@
 
 typedef f32 Mat3[3][3];
 
-
-
 /* game.frame_rate 60: the elasticity is per frame of two retraces, e; a frame of one gets e^(1/2), so two of them
  * follow the car as one of two retraces does (docs/port/FRAMERATE.md 7). The N64's own scaling stays for 3-5. */
 #define PC_CAM_ELASTIC(e) (pc_fps60 && gLastFrameCount == 1 ? __builtin_sqrtf(e) : (e))

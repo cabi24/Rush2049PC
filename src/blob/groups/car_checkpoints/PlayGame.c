@@ -1,17 +1,6 @@
 /* PlayGame: one frame of a race in progress (MAT3 game.c). */
 #include "game/game.h"
 
-/* The car record (MAT3 tCarData; the PC's pc_car, host layout; MAT3's offsets past the visuals are 0x18 more). */
-typedef struct Car952 {
-    u8 pad000[237];
-    s8 restart;             /* 0x0ED set by the model: negative it crashed, positive it is back on the road */
-    u8 pad0EE[0x110 - 0xEE]; struct pc_visual visuals[21]; u8 pad0EE_308[0x35C - 0x308];
-    s8 camera;              /* 0x35C the camera showing it, -1 none */
-    s8 view;                /* 0x35D that camera's view (4 the crash view) */
-    s8 saveview;            /* 0x35E the view to go back to after the crash */
-    u8 pad35F[0x380 - 0x35F]; void *input; u8 pad35F_384[0x3B8 - 0x384];
-} Car952;
-
 /* A player's input record (gPlayers): the field this counts. */
 typedef struct Player76 { u8 pad00[64]; u16 numCrashes; u8 pad42[0x48 - 0x42]; void *ref; } Player76;
 
@@ -35,7 +24,7 @@ void PlayGame(void) {
     s32 i;
     s16 slot;
     s32 camera;
-    Car952 *car;
+    tCarData *car;
 
     Update_MDrive();
     if (gRace == kStunt) {

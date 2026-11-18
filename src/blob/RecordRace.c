@@ -13,15 +13,6 @@ typedef struct PlayerPad {
     u8 unknown66[6];
     tProfile **profile;
 } PlayerPad;
-/* A car's record as this reads it: its place, whether it finished, the distance driven (feet). */
-typedef struct CarRecord {
-    u8 unknown00[238];
-    s8 place;
-    s8 finished;
-    u8 unknown240[24];
-    float distance;
-    u8 unknown268[0x110 - 0x10C]; struct pc_visual visuals[21]; u8 unknown268_308[0x380 - 0x308]; void *input; u8 unknown268_384[0x3B8 - 0x384];
-} CarRecord;
 
 extern PlayerPad gPlayers[];
 
@@ -41,7 +32,7 @@ void RecordRace(void)
     s32 saveTrack;
     s32 player;
     s32 phase;
-    CarRecord *car;
+    tCarData *car;
     s32 lap;
     s32 rank;
     s32 shift;
@@ -116,7 +107,7 @@ void RecordRace(void)
                     }
                 }
             }
-            if (car->finished) {
+            if (car->place_locked) {
                 stats->totalRaces++;
                 if (car->place == 0 && gNumActiveCars >= 2) {
                     stats->total1st++;
@@ -137,7 +128,7 @@ void RecordRace(void)
             for (shift = 0; shift < gLap[player]; shift++) {
                 stats->totalTime += gLapTimes[player][shift];
             }
-            stats->totalMiles += car->distance / FEET_PER_TENTH_MILE;
+            stats->totalMiles += car->mileage / FEET_PER_TENTH_MILE;
         }
         SavePlayerStats(gPlayers[player].profile, saveTrack);
     }

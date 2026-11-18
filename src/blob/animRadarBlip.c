@@ -20,16 +20,6 @@ typedef struct MODELDAT {
     s8 drone_type;          /* 1996 */
     u8 pad7CD[2056 - 1997];
 } MODELDAT;
-/* A car record as this reads it: its position and orientation. */
-typedef struct CAR_DATA {
-    u8 pad0[8];
-    f32 dr_pos[3];          /* 8 */
-    u8 pad14[44 - 20];
-    f32 dr_uvs[3][3];       /* 44 */
-    u8 pad50[0xEF - 80];
-    s8 state;
-    u8 padF0[0x110 - 0xF0]; struct pc_visual visuals[21]; u8 padF0_308[0x380 - 0x308]; void *input; u8 padF0_384[0x3B8 - 0x384];
-} CAR_DATA;
 
 /* The blip of car animID & 0xF on the radar of player (animID >> 8) & 0xF: the car's position relative to the
  * player's car, turned into the player's car's frame, scaled to the radar (RADAR_RANGE feet across; mirrored with
@@ -39,8 +29,8 @@ typedef struct CAR_DATA {
 s32 animRadarBlip(tBlit *blt) {
     s32 me;
     MODELDAT *m;
-    CAR_DATA *gc;
-    CAR_DATA *mc;
+    tCarData *gc;
+    tCarData *mc;
     f32 scale;
     s16 slot;
     f32 rpos[3];

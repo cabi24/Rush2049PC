@@ -409,8 +409,6 @@ void model_iteration(void) {
     }
 }
 
-
-
 /* Step drone model `m` (MAT3 update_model): its step's time since its last one, then UpdateModel. */
 void update_model(tModelData *m) {
     s16 result;             /* unused */

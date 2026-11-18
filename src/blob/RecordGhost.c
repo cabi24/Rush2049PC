@@ -14,16 +14,6 @@ typedef struct PlayerPad {     /* 0x4C */
     tProfile **profile;        /* 0x48 */
 } PlayerPad;
 
-/* A car's record as this reads it: the race time and the distance driven (feet). */
-typedef struct CarData {       /* 0x3B8 */
-    u8 pad00[0xEF];
-    s8 finished;               /* 0xEF */
-    f32 time;                  /* 0xF0 */
-    u8 padF4[0x108 - 0xF4];
-    f32 dist;                  /* 0x108 */
-    u8 pad10C[0x110 - 0x10C]; struct pc_visual visuals[21]; u8 pad10C_308[0x380 - 0x308]; void *input; u8 pad10C_384[0x3B8 - 0x384];
-} CarData;
-
 extern PlayerPad gPlayers[];
 
 /* Adds each player's ghost race to its profile's stats for the track (the backward ones when gBackwards) and to the
@@ -36,7 +26,7 @@ void RecordGhost(void)
     s32 track, saveTrack;
     s32 i, j, k, n;
     tRaceStats *r;
-    CarData *car;
+    tCarData *car;
     f32 time;
 
     track = gTrackNum;
@@ -57,7 +47,7 @@ void RecordGhost(void)
                 r = &gTotalRaceStats[track];
             car = PC_CAR(gPlayers[i].car);
             if (PC_CAR_PLACE_LOCKED(gPlayers[i].car)) {
-                time = car->time;
+                time = car->score;
                 for (k = 0; k < 5; k++) {
                     if (r->scores[GHOST_SCORES][k] == 0.0f || time < r->scores[GHOST_SCORES][k]) {
                         for (n = 4; n > k; n--) {
@@ -83,7 +73,7 @@ void RecordGhost(void)
             r->totalLaps += gLap[i];
             for (n = 0; n < gLap[i]; n++)
                 r->totalTime += gLapTimes[i][n];
-            r->totalMiles += car->dist / FEET_PER_TENTH_MILE;
+            r->totalMiles += car->mileage / FEET_PER_TENTH_MILE;
         }
         SavePlayerStats(gPlayers[i].profile, saveTrack);
     }

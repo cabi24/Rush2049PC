@@ -3,21 +3,6 @@
 
 typedef f32 Vec3[3];
 typedef f32 Mat3[3][3];
-/* The car record (MAT3 tCarData; the PC's pc_car, host layout): the fields this reads and sets. */
-typedef struct Object {
-    u8 other0[8];
-    Vec3 pos;           /* 8 */
-    u8 other20[60];
-    Mat3 uvs;           /* 80 */
-    u8 other116[128];
-    s32 node;           /* 244 */
-    u8 other248[0x110 - 0xF8]; struct pc_visual visuals[21]; u8 other248_308[0x35B - 0x308];
-    s8 car;             /* 859 its slot */
-    s8 slot;            /* 860 its camera (MAT3 camera), -1 none */
-    s8 view;            /* 861 its camera's view */
-    s8 view2;           /* 862 the view to go back to after the crash view (MAT3 saveview) */
-    u8 other863[0x380 - 0x35F]; void *input; u8 other863_384[0x3B8 - 0x384];
-} Object;               /* 952 */
 /* The model record (MAT3 tModelData): the suspension and the fields this reads. */
 typedef struct Model {
     _tCar *car;
@@ -70,7 +55,7 @@ void CheckCameraView(void)
     s32 k;
     s32 view;
     s32 slot;
-    Object *obj;
+    tCarData *obj;
     Model *m;
     tCamera *cam;
     s32 i;
@@ -98,7 +83,7 @@ void CheckCameraView(void)
         obj = PC_CAR(cam->slot);
         m = PC_MODEL(cam->slot);
         view = obj->view;
-        slot = obj->slot;
+        slot = obj->camera;
         if (gGameState & GS_DEMO) {
             if ((gModelTime - lastSwitch[slot] > camera_nextSwitch[slot] || gModelTime < lastSwitch[slot]) && view != 4 && GetCountdownTimeRemaining() > 3.0f) {
                 lastSwitch[slot] = gModelTime;
@@ -139,20 +124,20 @@ void CheckCameraView(void)
                 SavePlayerCarView(pl->handle, view);
             }
             if (view == 1) {
-                cur_acc[obj->slot][0] = 0.0f;
-                cur_acc[obj->slot][1] = 0.0f;
-                cur_acc[obj->slot][2] = 0.0f;
+                cur_acc[obj->camera][0] = 0.0f;
+                cur_acc[obj->camera][1] = 0.0f;
+                cur_acc[obj->camera][2] = 0.0f;
             } else if (view == 2) {
                 init_view3(obj);
-                gCamera[obj->slot].fcam.pos[0] = obj->pos[0];
-                gCamera[obj->slot].fcam.pos[1] = obj->pos[1] + 1.0f;
-                gCamera[obj->slot].fcam.pos[2] = obj->pos[2];
+                gCamera[obj->camera].fcam.pos[0] = obj->dr_pos[0];
+                gCamera[obj->camera].fcam.pos[1] = obj->dr_pos[1] + 1.0f;
+                gCamera[obj->camera].fcam.pos[2] = obj->dr_pos[2];
             } else if (view == 3) {
                 init_view3(obj);
             }
         }
         if (view != obj->view) {
-            obj->view2 = view;
+            obj->saveview = view;
             obj->view = view;
         }
         update_camera(obj);

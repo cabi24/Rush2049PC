@@ -15,51 +15,6 @@ typedef struct Pad {
     u8 pad44[0x50 - 0x44];
 } Pad;
 
-typedef struct Defense {
-    u32 active;           /* 0x00 */
-    f32 invsTime;         /* 0x04 */
-    f32 shldTime;         /* 0x08 */
-    f32 shldScale;        /* 0x0c */
-    f32 unknown10;        /* 0x10 */
-} Defense;
-
-typedef struct Battle {
-    s8 type;              /* 0x00 */
-    s8 ammoCnt;           /* 0x01 */
-    s16 health;           /* 0x02 */
-    s16 damageThisFrame;  /* 0x04 */
-    u8 pad06[2];
-    Defense defense;      /* 0x08 */
-    s8 shoot;             /* 0x1c */
-    u8 fadeAlpha;         /* 0x1d */
-    s8 fadeState;         /* 0x1e */
-    s8 Points;            /* 0x1f */
-    s32 loaded;           /* 0x20 */
-    f32 fadeTime;         /* 0x24 */
-    f32 reloadingTime;    /* 0x28 */
-    f32 pitch;            /* 0x2c */
-    f32 yaw;              /* 0x30 */
-} Battle;
-
-typedef struct Car {
-    u8 pad00[8];
-    f32 pos[3];           /* 0x08 */
-    f32 vel[3];           /* 0x14 */
-    f32 acc[3];           /* 0x20 */
-    f32 uvs[3][3];        /* 0x2c */
-    u8 pad50[0x110 - 0x50]; struct pc_visual visuals[21];
-    s8 collidable;        /* 0x308 */
-    u8 pad309[0x34c - 0x309];
-    RGBA IRclr;           /* 0x34c */
-    u8 pad350[0x359 - 0x350];
-    s8 dead;              /* 0x359 */
-    u8 pad35a;
-    s8 slot;              /* 0x35b */
-    u8 pad35c[0x380 - 0x35c];
-    Pad *player;          /* 0x380 */
-    Battle battle;        /* 0x384 */
-} Car;
-
 typedef struct Model {
     _tCar *car;
     Tune44 *tune;
@@ -152,9 +107,9 @@ static const s32 sWeaponFx[10] = { 92, 87, 90, 88, 91, 93, 94, 95, 89, -1 };   /
 
 /* Turns car `car`'s gun (its yaw and pitch, 0.01 a frame) towards the nearest car of another team in a cone ahead of
  * it within 2000 feet, or back to straight ahead. */
-void ElevateGun(Car *car)
+void ElevateGun(tCarData *car)
 {
-    Car *hit;
+    tCarData *hit;
     f32 vec[3];
     f32 pos[3];
     f32 best = 2000.0f;
@@ -166,18 +121,18 @@ void ElevateGun(Car *car)
         if (car->slot == hit->slot || gCarTeam[car->slot] == gCarTeam[hit->slot] ||
             PC_MODEL_CRASHFLAG(hit->slot) || !hit->collidable || hit->dead)
             goto next;
-        pos[0] = hit->pos[0] - car->pos[0];
-        pos[1] = hit->pos[1] - car->pos[1];
-        pos[2] = hit->pos[2] - car->pos[2];
-        if (car->battle.type >= 8)
-            h = -1.0f * ShotOffsets[car->battle.type][1];
+        pos[0] = hit->dr_pos[0] - car->dr_pos[0];
+        pos[1] = hit->dr_pos[1] - car->dr_pos[1];
+        pos[2] = hit->dr_pos[2] - car->dr_pos[2];
+        if (car->battle.weapon.type >= 8)
+            h = -1.0f * ShotOffsets[car->battle.weapon.type][1];
         else
-            h = -1.0f * (ShotOffsets[car->battle.type][1] +
-                  weaponOffsets[car->battle.type][PC_MODEL_BODY(car->slot)][1]);
-        pos[0] = pos[0] + car->uvs[1][0] * h;
-        pos[1] = pos[1] + car->uvs[1][1] * h;
-        pos[2] = pos[2] + car->uvs[1][2] * h;
-        BodyVector(pos, vec, &car->uvs[0][0]);
+            h = -1.0f * (ShotOffsets[car->battle.weapon.type][1] +
+                  weaponOffsets[car->battle.weapon.type][PC_MODEL_BODY(car->slot)][1]);
+        pos[0] = pos[0] + car->dr_uvs[1][0] * h;
+        pos[1] = pos[1] + car->dr_uvs[1][1] * h;
+        pos[2] = pos[2] + car->dr_uvs[1][2] * h;
+        BodyVector(pos, vec, &car->dr_uvs[0][0]);
         if (vec[2] < 0.0f || vec[0] < -0.5f * vec[2] || vec[0] > 0.5f * vec[2] ||
             vec[1] < -vec[2] || vec[1] > vec[2] || vec[2] > best)
             continue;
@@ -200,10 +155,10 @@ next:;
  * put back or not collidable; a car as an upright cylinder 6.75 feet round and 3.5 high), the shot moved to the hit,
  * or NULL. A car carrying weapon 5 turns away shots that hit it from the front (shot flag 1). Mines (type 3) hit
  * nothing here. */
-Car *ShotToCarCollision(Shot *shot, f32 *old)
+tCarData *ShotToCarCollision(Shot *shot, f32 *old)
 {
-    Car *car;
-    Car *hit;
+    tCarData *car;
+    tCarData *hit;
     f32 dir[3];
     f32 normal[3];
     f32 delta[3];
@@ -233,28 +188,28 @@ Car *ShotToCarCollision(Shot *shot, f32 *old)
         if (shot->slot == car->slot || PC_MODEL_MOVING_STATE(i) != -1 ||
             !car->collidable || PC_MODEL_CRASHFLAG(i))
             continue;
-        delta[0] = car->pos[0] - old[0];
-        delta[1] = car->pos[1] - old[1];
-        delta[2] = car->pos[2] - old[2];
+        delta[0] = car->dr_pos[0] - old[0];
+        delta[1] = car->dr_pos[1] - old[1];
+        delta[2] = car->dr_pos[2] - old[2];
         t = (delta[0] * normal[0] + delta[1] * normal[1] + delta[2] * normal[2]) / d0;
         if (t < 0.0f || t > t0)
             continue;
         projected[0] = old[0] + dir[0] * t;
         projected[1] = old[1] + dir[1] * t;
         projected[2] = old[2] + dir[2] * t;
-        pos[0] = projected[0] - car->pos[0];
-        pos[1] = projected[1] - car->pos[1];
-        pos[2] = projected[2] - car->pos[2];
+        pos[0] = projected[0] - car->dr_pos[0];
+        pos[1] = projected[1] - car->dr_pos[1];
+        pos[2] = projected[2] - car->dr_pos[2];
         if (pos[1] < -shot->radius || pos[1] > 3.5f + shot->radius)
             continue;
         y = sqrtf(pos[0] * pos[0] + pos[2] * pos[2]);
         if (y > 6.75f + shot->radius - 0.5f)
             continue;
-        if (car->battle.type == 5) {
+        if (car->battle.weapon.type == 5) {
             pos2[0] = old[0] - shot->pos[0];
             pos2[1] = old[1] - shot->pos[1];
             pos2[2] = old[2] - shot->pos[2];
-            BodyVector(pos2, pos, &car->uvs[0][0]);
+            BodyVector(pos2, pos, &car->dr_uvs[0][0]);
             if (fabsf(fatan2(pos[0], pos[2])) < 1.35f)
                 shot->flags |= 1;
         }
@@ -270,8 +225,8 @@ Car *ShotToCarCollision(Shot *shot, f32 *old)
 /* The sonic blast `shot`: every other car within its growing ring is hit, pushed away and damaged once. */
 void SonicCarCollision(Shot *shot)
 {
-    Car *car;
-    Car *our;
+    tCarData *car;
+    tCarData *our;
     Model *m;
     s32 i;
     s32 dam;
@@ -303,9 +258,9 @@ void SonicCarCollision(Shot *shot)
         if (shot->slot == car->slot || PC_MODEL_MOVING_STATE(i) != -1 ||
             !car->collidable || (shot->slotDamaged & (1 << car->slot)))
             continue;
-        vec[0] = car->pos[0] - pos[0];
-        vec[1] = car->pos[1] - pos[1];
-        vec[2] = car->pos[2] - pos[2];
+        vec[0] = car->dr_pos[0] - pos[0];
+        vec[1] = car->dr_pos[1] - pos[1];
+        vec[2] = car->dr_pos[2] - pos[2];
         dist = vec[0] * vec[0] + vec[1] * vec[1] + vec[2] * vec[2];
         if (dist <= (scale * 4.0f) * (scale * 4.0f)) {
             shot->slotDamaged |= 1 << car->slot;
@@ -314,7 +269,7 @@ void SonicCarCollision(Shot *shot)
             vec2[2] = mul * (330000.0f * (vec[2] / rad));
             vec2[1] = mul * (330000.0f * (vec[1] / rad) + 66000.0f);
             vec2[0] = mul * (330000.0f * (vec[0] / rad));
-            BodyVector(vec2, vec, &car->uvs[0][0]);
+            BodyVector(vec2, vec, &car->dr_uvs[0][0]);
             m = PC_MODEL(car->slot);
             m->centerForce[0] = m->centerForce[0] + vec[0];
             m->centerForce[1] = m->centerForce[1] + vec[1];
@@ -401,7 +356,7 @@ reduceScale:
 
 /* Car `car`'s (model `m`, slot `i`) defence `defense`: its shield (grown to the car's size, spun, faded out) or
  * its invisibility (the car faded out and back) counts down and ends. */
-void UpdateDefense(Car *car, Model *m, Defense *defense, s32 i)
+void UpdateDefense(tCarData *car, Model *m, tCarDefense *defense, s32 i)
 {
     RGBA clr = { { 255, 255, 255, 255 } };
     s32 j, k;
@@ -418,12 +373,12 @@ void UpdateDefense(Car *car, Model *m, Defense *defense, s32 i)
     if (defense->active & 2) {
         if (m->crashflag)
             goto removeShield;
-        gCarShield[i].mat.pos[0] = car->pos[0];
-        gCarShield[i].mat.pos[1] = car->pos[1];
-        gCarShield[i].mat.pos[2] = car->pos[2];
-        CopyUV(&car->uvs[0][0], &gCarShield[i].mat.uvs[0][0]);
-        PitchUV(defense->unknown10, &gCarShield[i].mat.uvs[0][0]);
-        defense->unknown10 -= PC_FSCALE(0.005f);
+        gCarShield[i].mat.pos[0] = car->dr_pos[0];
+        gCarShield[i].mat.pos[1] = car->dr_pos[1];
+        gCarShield[i].mat.pos[2] = car->dr_pos[2];
+        CopyUV(&car->dr_uvs[0][0], &gCarShield[i].mat.uvs[0][0]);
+        PitchUV(defense->shldPitch, &gCarShield[i].mat.uvs[0][0]);
+        defense->shldPitch -= PC_FSCALE(0.005f);
         defense->shldTime -= gFrameSeconds;
         if (defense->shldTime <= 0.0f) {
             if (defense->active & 8) {
@@ -480,7 +435,7 @@ void UpdateShots(void)
     Shot *shot, *nexts;
     HitPoly *h;
     ShotObj *o;
-    Car *car, *hit;
+    tCarData *car, *hit;
     Model *m;
     f32 old[3];
     f32 vel;
@@ -501,25 +456,25 @@ void UpdateShots(void)
             car = PC_CAR(shot->slot);
             m = PC_MODEL(shot->slot);
             if (shot->incTime == 0) {
-                shot->pos[0] = car->pos[0];
-                shot->pos[1] = car->pos[1];
-                shot->pos[2] = car->pos[2];
+                shot->pos[0] = car->dr_pos[0];
+                shot->pos[1] = car->dr_pos[1];
+                shot->pos[2] = car->dr_pos[2];
                 off[0] = ShotOffsets[3][0] + weaponOffsets[3][m->body_type][0];
                 off[1] = ShotOffsets[3][1] + weaponOffsets[3][m->body_type][1];
                 off[2] = ShotOffsets[3][2] + weaponOffsets[3][m->body_type][2];
-                shot->pos[0] = shot->pos[0] + car->uvs[2][0]*off[2];
-                shot->pos[1] = shot->pos[1] + car->uvs[2][1]*off[2];
-                shot->pos[2] = shot->pos[2] + car->uvs[2][2]*off[2];
-                shot->pos[0] = shot->pos[0] + car->uvs[1][0]*off[1];
-                shot->pos[1] = shot->pos[1] + car->uvs[1][1]*off[1];
-                shot->pos[2] = shot->pos[2] + car->uvs[1][2]*off[1];
-                shot->pos[0] = shot->pos[0] + car->uvs[0][0]*off[0];
-                shot->pos[1] = shot->pos[1] + car->uvs[0][1]*off[0];
-                shot->pos[2] = shot->pos[2] + car->uvs[0][2]*off[0];
-                CopyUV(&car->uvs[0][0], &shot->uvs[0][0]);
+                shot->pos[0] = shot->pos[0] + car->dr_uvs[2][0]*off[2];
+                shot->pos[1] = shot->pos[1] + car->dr_uvs[2][1]*off[2];
+                shot->pos[2] = shot->pos[2] + car->dr_uvs[2][2]*off[2];
+                shot->pos[0] = shot->pos[0] + car->dr_uvs[1][0]*off[1];
+                shot->pos[1] = shot->pos[1] + car->dr_uvs[1][1]*off[1];
+                shot->pos[2] = shot->pos[2] + car->dr_uvs[1][2]*off[1];
+                shot->pos[0] = shot->pos[0] + car->dr_uvs[0][0]*off[0];
+                shot->pos[1] = shot->pos[1] + car->dr_uvs[0][1]*off[0];
+                shot->pos[2] = shot->pos[2] + car->dr_uvs[0][2]*off[0];
+                CopyUV(&car->dr_uvs[0][0], &shot->uvs[0][0]);
                 PitchUV(2.0734513f, &shot->uvs[0][0]);
                 if (car->battle.loaded == 1) {
-                    if (car->battle.type != 3 || m->crashflag || !car->collidable || car->dead) {
+                    if (car->battle.weapon.type != 3 || m->crashflag || !car->collidable || car->dead) {
                         car->battle.loaded = 0;
                         FreeStatLLE(&gShotList, shot);
                         continue;
@@ -543,7 +498,7 @@ void UpdateShots(void)
                     shot->radius = 0.0f;
                 }
                 if (car->battle.loaded == 2) {
-                    if (car->battle.type != 3 || m->crashflag || !car->collidable || car->dead) {
+                    if (car->battle.weapon.type != 3 || m->crashflag || !car->collidable || car->dead) {
                         car->battle.loaded = 0;
                         ShotDone(shot);
                         FreeStatLLE(&gShotList, shot);
@@ -570,14 +525,14 @@ void UpdateShots(void)
                         ZOID_SetColor(o->mbIdx, &clr);
                         o = shot->obj2;
                         ZOID_SetColor(o->mbIdx, &clr);
-                        if (car->battle.ammoCnt > 0)
-                            car->battle.ammoCnt--;
+                        if (car->battle.weapon.ammoCnt > 0)
+                            car->battle.weapon.ammoCnt--;
                         car->battle.shoot = 6;
                         PlayGameSound(sWeaponFx[3], shot->slot, 1, 1);
                         car->battle.reloadingTime = 1.0f;
-                        shot->vel[0] = car->vel[0] + 15.0f*shot->uvs[1][0];
-                        shot->vel[1] = car->vel[1] + 15.0f*shot->uvs[1][1];
-                        shot->vel[2] = car->vel[2] + 15.0f*shot->uvs[1][2];
+                        shot->vel[0] = car->dr_vel[0] + 15.0f*shot->uvs[1][0];
+                        shot->vel[1] = car->dr_vel[1] + 15.0f*shot->uvs[1][1];
+                        shot->vel[2] = car->dr_vel[2] + 15.0f*shot->uvs[1][2];
                         car->battle.loaded = 0;
                         shot->lifeTime = 5.0f;
                     } else {
@@ -785,9 +740,9 @@ carHit:
             }
         } else if (shot->obj) {
             SonicCarCollision(shot);
-            shot->obj->mat.pos[0] = car->pos[0];
-            shot->obj->mat.pos[1] = car->pos[1];
-            shot->obj->mat.pos[2] = car->pos[2];
+            shot->obj->mat.pos[0] = car->dr_pos[0];
+            shot->obj->mat.pos[1] = car->dr_pos[1];
+            shot->obj->mat.pos[2] = car->dr_pos[2];
             if (shot->incTime >= 0.0333333f) {
                 shot->incTime -= 0.0333333f;
                 ObjInstanceList[shot->obj->mbIdx].scale += 1.0f;
@@ -853,25 +808,25 @@ carHit:
 
 /* Fills in new shot `shot` fired by car `car`: its type, owner, time, position at the gun and velocity (MAT3
  * _InitNewShot). */
-void InitNewShot(Shot *shot, Car *car)
+void InitNewShot(Shot *shot, tCarData *car)
 {
     shot->slotDamaged = 0;
     shot->obj = 0;
     shot->obj2 = 0;
     shot->flags = 0x10;
-    shot->type = car->battle.type;
+    shot->type = car->battle.weapon.type;
     shot->slot = car->slot;
     shot->incTime = 0;
     shot->vel[2] = 0.0f;
     shot->vel[1] = 0.0f;
     shot->vel[0] = 0.0f;
-    shot->pos[0] = car->pos[0];
-    shot->pos[1] = car->pos[1];
-    shot->pos[2] = car->pos[2];
-    shot->old[0] = car->pos[0];
-    shot->old[1] = car->pos[1];
-    shot->old[2] = car->pos[2];
-    CopyUV(&car->uvs[0][0], &shot->uvs[0][0]);
+    shot->pos[0] = car->dr_pos[0];
+    shot->pos[1] = car->dr_pos[1];
+    shot->pos[2] = car->dr_pos[2];
+    shot->old[0] = car->dr_pos[0];
+    shot->old[1] = car->dr_pos[1];
+    shot->old[2] = car->dr_pos[2];
+    CopyUV(&car->dr_uvs[0][0], &shot->uvs[0][0]);
 }
 
 /* One frame of the spent shell cases: each falls and spins, and goes after its time. */
@@ -906,7 +861,7 @@ void ShotUpdate(void)
     Shot *shot;
     ShotCase *h;
     HitPoly *hp;
-    Car *car;
+    tCarData *car;
     Model *m;
     ColSize *sizep;
     f32 z;
@@ -917,37 +872,37 @@ void ShotUpdate(void)
         m = PC_MODEL(car->slot);
         if (car->battle.defense.active)
             UpdateDefense(car, m, &car->battle.defense, car->slot);
-        switch (car->battle.type) {
+        switch (car->battle.weapon.type) {
         case 0: case 1: case 6: case 8:
             ElevateGun(car);
             break;
         }
         if (car->player->edges & car->player->controls[6])
             goto resetWeapon;
-        if (!car->battle.ammoCnt) {
-            if (car->battle.type == 5) {
+        if (!car->battle.weapon.ammoCnt) {
+            if (car->battle.weapon.type == 5) {
                 sizep = &collsize[m->body_type];
                 m->bodyR[0][2] = m->bodyR[1][2] = sizep->colfront;
                 z = m->bodyR[0][2] > sizep->colrear ? m->bodyR[0][2] : sizep->colrear;
                 m->colrad = sqrtf(z*z + sizep->colside*sizep->colside + sizep->colheight*sizep->colheight);
             }
 resetWeapon:
-            car->battle.type = 8;
-            car->battle.ammoCnt = -1;
+            car->battle.weapon.type = 8;
+            car->battle.weapon.ammoCnt = -1;
             car->battle.pitch = 0.0f;
             car->battle.yaw = 0.0f;
         }
         if (car->battle.reloadingTime > 0.0f)
             car->battle.reloadingTime -= PC_DT30(gFrameSeconds);
-        if (car->battle.reloadingTime <= 0.0f && car->battle.ammoCnt) {
-            if (car->battle.type == 3) {
+        if (car->battle.reloadingTime <= 0.0f && car->battle.weapon.ammoCnt) {
+            if (car->battle.weapon.type == 3) {
                 if (car->battle.loaded)
                     continue;
                 car->battle.loaded = 1;
             } else {
-                if (!car->player || car->battle.type == 5 ||
+                if (!car->player || car->battle.weapon.type == 5 ||
                     (!(car->player->edges & car->player->controls[9]) &&
-                     (car->battle.type != 1 || !(car->player->levels & car->player->controls[9]))) ||
+                     (car->battle.weapon.type != 1 || !(car->player->levels & car->player->controls[9]))) ||
                     m->crashflag || !car->collidable || car->dead)
                     continue;
                 car->battle.shoot = 6;
@@ -958,7 +913,7 @@ resetWeapon:
             if (gShotList.head) {}
             InitNewShot(shot, car);
             if (shot->type != 3)
-                PlayGameSound(sWeaponFx[car->battle.type], car->slot, 1, 1);
+                PlayGameSound(sWeaponFx[car->battle.weapon.type], car->slot, 1, 1);
             StartStreak = 0;
             switch (shot->type) {
             case 2:
@@ -968,9 +923,9 @@ resetWeapon:
                 car->battle.reloadingTime = 0.1666667f;
                 shot->lifeTime = 3.1666667f;
                 shot->radius = 15.0f;
-                shot->vel[0] = car->vel[0] + 75.0f*shot->uvs[2][0];
-                shot->vel[1] = car->vel[1] + 75.0f*shot->uvs[2][1];
-                shot->vel[2] = car->vel[2] + 75.0f*shot->uvs[2][2];
+                shot->vel[0] = car->dr_vel[0] + 75.0f*shot->uvs[2][0];
+                shot->vel[1] = car->dr_vel[1] + 75.0f*shot->uvs[2][1];
+                shot->vel[2] = car->dr_vel[2] + 75.0f*shot->uvs[2][2];
                 break;
             case 4:
                 StartStreak = 1;
@@ -978,7 +933,7 @@ resetWeapon:
                 car->battle.reloadingTime = 1.0f;
                 shot->lifeTime = 15.0f;
                 shot->radius = 2.0f;
-                shot->vel[2] = 165.0f + (car->vel[0]*shot->uvs[2][0] + car->vel[1]*shot->uvs[2][1] + car->vel[2]*shot->uvs[2][2]);
+                shot->vel[2] = 165.0f + (car->dr_vel[0]*shot->uvs[2][0] + car->dr_vel[1]*shot->uvs[2][1] + car->dr_vel[2]*shot->uvs[2][2]);
                 break;
             case 6:
                 StartStreak = 1;
@@ -987,9 +942,9 @@ resetWeapon:
                 shot->lifeTime = 10.0f;
                 shot->radius = 1.f;
                 PitchUV(car->battle.pitch, &shot->uvs[0][0]);
-                shot->vel[0] = car->vel[0] + 50.0f*shot->uvs[2][0];
-                shot->vel[1] = car->vel[1] + 50.0f*shot->uvs[2][1];
-                shot->vel[2] = car->vel[2] + 50.0f*shot->uvs[2][2];
+                shot->vel[0] = car->dr_vel[0] + 50.0f*shot->uvs[2][0];
+                shot->vel[1] = car->dr_vel[1] + 50.0f*shot->uvs[2][1];
+                shot->vel[2] = car->dr_vel[2] + 50.0f*shot->uvs[2][2];
                 break;
             case 8:
                 car->battle.reloadingTime = 0.1666667f;
@@ -1015,22 +970,22 @@ resetWeapon:
                     off[0] = weaponOffsets[1][m->body_type][0] + CaseOffsets[0][0];
                     off[1] = weaponOffsets[1][m->body_type][1] + CaseOffsets[0][1];
                     off[2] = weaponOffsets[1][m->body_type][2] + CaseOffsets[0][2];
-                    h->mat.pos[0] = shot->pos[0] + car->uvs[2][0]*off[2];
-                    h->mat.pos[1] = shot->pos[1] + car->uvs[2][1]*off[2];
-                    h->mat.pos[2] = shot->pos[2] + car->uvs[2][2]*off[2];
-                    h->mat.pos[0] = h->mat.pos[0] + car->uvs[1][0]*off[1];
-                    h->mat.pos[1] = h->mat.pos[1] + car->uvs[1][1]*off[1];
-                    h->mat.pos[2] = h->mat.pos[2] + car->uvs[1][2]*off[1];
-                    h->mat.pos[0] = h->mat.pos[0] + car->uvs[0][0]*off[0];
-                    h->mat.pos[1] = h->mat.pos[1] + car->uvs[0][1]*off[0];
-                    h->mat.pos[2] = h->mat.pos[2] + car->uvs[0][2]*off[0];
-                    CopyUV(&car->uvs[0][0], &h->mat.uvs[0][0]);
+                    h->mat.pos[0] = shot->pos[0] + car->dr_uvs[2][0]*off[2];
+                    h->mat.pos[1] = shot->pos[1] + car->dr_uvs[2][1]*off[2];
+                    h->mat.pos[2] = shot->pos[2] + car->dr_uvs[2][2]*off[2];
+                    h->mat.pos[0] = h->mat.pos[0] + car->dr_uvs[1][0]*off[1];
+                    h->mat.pos[1] = h->mat.pos[1] + car->dr_uvs[1][1]*off[1];
+                    h->mat.pos[2] = h->mat.pos[2] + car->dr_uvs[1][2]*off[1];
+                    h->mat.pos[0] = h->mat.pos[0] + car->dr_uvs[0][0]*off[0];
+                    h->mat.pos[1] = h->mat.pos[1] + car->dr_uvs[0][1]*off[0];
+                    h->mat.pos[2] = h->mat.pos[2] + car->dr_uvs[0][2]*off[0];
+                    CopyUV(&car->dr_uvs[0][0], &h->mat.uvs[0][0]);
                     RollUV(0.3f + Random(0.23f), &h->mat.uvs[0][0]);
                     h->mbIdx = MBOX_NewObject(gWprObjList[0], &h->mat, -1, 0);
                     h->time = .5f + Random(0.3f);
-                    h->vel[0] = car->vel[0] + 28.0f*h->mat.uvs[1][0];
-                    h->vel[1] = car->vel[1] + 28.0f*h->mat.uvs[1][1];
-                    h->vel[2] = car->vel[2] + 28.0f*h->mat.uvs[1][2];
+                    h->vel[0] = car->dr_vel[0] + 28.0f*h->mat.uvs[1][0];
+                    h->vel[1] = car->dr_vel[1] + 28.0f*h->mat.uvs[1][1];
+                    h->vel[2] = car->dr_vel[2] + 28.0f*h->mat.uvs[1][2];
                     h->vel[2] *= 0.88f;
                     h->vel[1] *= 0.88f;
                     h->vel[0] *= 0.88f;
@@ -1043,31 +998,31 @@ resetWeapon:
                 break;
             }
             {
-                if (car->battle.type >= 8) {
-                    off[0] = ShotOffsets[car->battle.type][0];
-                    off[1] = ShotOffsets[car->battle.type][1];
-                    off[2] = ShotOffsets[car->battle.type][2];
+                if (car->battle.weapon.type >= 8) {
+                    off[0] = ShotOffsets[car->battle.weapon.type][0];
+                    off[1] = ShotOffsets[car->battle.weapon.type][1];
+                    off[2] = ShotOffsets[car->battle.weapon.type][2];
                 } else {
-                    off[0] = ShotOffsets[car->battle.type][0] + weaponOffsets[car->battle.type][m->body_type][0];
-                    off[1] = ShotOffsets[car->battle.type][1] + weaponOffsets[car->battle.type][m->body_type][1];
-                    off[2] = ShotOffsets[car->battle.type][2] + weaponOffsets[car->battle.type][m->body_type][2];
+                    off[0] = ShotOffsets[car->battle.weapon.type][0] + weaponOffsets[car->battle.weapon.type][m->body_type][0];
+                    off[1] = ShotOffsets[car->battle.weapon.type][1] + weaponOffsets[car->battle.weapon.type][m->body_type][1];
+                    off[2] = ShotOffsets[car->battle.weapon.type][2] + weaponOffsets[car->battle.weapon.type][m->body_type][2];
                 }
-                shot->pos[0] = shot->pos[0] + car->uvs[2][0]*off[2];
-                shot->pos[1] = shot->pos[1] + car->uvs[2][1]*off[2];
-                shot->pos[2] = shot->pos[2] + car->uvs[2][2]*off[2];
-                shot->pos[0] = shot->pos[0] + car->uvs[1][0]*off[1];
-                shot->pos[1] = shot->pos[1] + car->uvs[1][1]*off[1];
-                shot->pos[2] = shot->pos[2] + car->uvs[1][2]*off[1];
-                shot->pos[0] = shot->pos[0] + car->uvs[0][0]*off[0];
-                shot->pos[1] = shot->pos[1] + car->uvs[0][1]*off[0];
-                shot->pos[2] = shot->pos[2] + car->uvs[0][2]*off[0];
+                shot->pos[0] = shot->pos[0] + car->dr_uvs[2][0]*off[2];
+                shot->pos[1] = shot->pos[1] + car->dr_uvs[2][1]*off[2];
+                shot->pos[2] = shot->pos[2] + car->dr_uvs[2][2]*off[2];
+                shot->pos[0] = shot->pos[0] + car->dr_uvs[1][0]*off[1];
+                shot->pos[1] = shot->pos[1] + car->dr_uvs[1][1]*off[1];
+                shot->pos[2] = shot->pos[2] + car->dr_uvs[1][2]*off[1];
+                shot->pos[0] = shot->pos[0] + car->dr_uvs[0][0]*off[0];
+                shot->pos[1] = shot->pos[1] + car->dr_uvs[0][1]*off[0];
+                shot->pos[2] = shot->pos[2] + car->dr_uvs[0][2]*off[0];
             }
             if (StartStreak)
                 shot->streak = NewStreak(streaktype, shot->pos, shot->pos);
             else
                 shot->streak = 0;
-            if (car->battle.ammoCnt > 0 && car->battle.type != 5 && car->battle.type != 3)
-                car->battle.ammoCnt--;
+            if (car->battle.weapon.ammoCnt > 0 && car->battle.weapon.type != 5 && car->battle.weapon.type != 3)
+                car->battle.weapon.ammoCnt--;
         }
     }
     for (hp = gHitPolyList.head; hp; hp = (HitPoly *)shot) {

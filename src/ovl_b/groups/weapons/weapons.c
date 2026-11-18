@@ -4,31 +4,6 @@
 
 typedef union RGBA { u8 c[4]; u32 rgba; } RGBA;
 
-typedef struct Defense {
-    u32 active; f32 invsTime; f32 shldTime; f32 shldScale; f32 unknown10;
-} Defense;
-
-typedef struct Battle {
-    s8 type; s8 ammoCnt; s16 health; s16 damageThisFrame; u8 pad06[2];
-    Defense defense;      /* 0x08 */
-    s8 shoot;             /* 0x1c */
-    u8 fadeAlpha;         /* 0x1d */
-    s8 fadeState;         /* 0x1e */
-    s8 Points;            /* 0x1f */
-    s32 loaded;           /* 0x20 */
-    f32 fadeTime; f32 reloadingTime; f32 pitch; f32 yaw;
-} Battle;
-
-typedef struct Car {
-    u8 pad00[0x110 - 0x0]; struct pc_visual visuals[21]; u8 pad00_308[0x34C - 0x308];
-    RGBA IRclr;           /* 0x34c */
-    u8 pad350[0x35c - 0x350];
-    s8 camera;            /* 0x35c */
-    s8 view;              /* 0x35d */
-    u8 pad35e[0x380 - 0x35E]; void *input;
-    Battle battle;        /* 0x384 */
-} Car;
-
 /* A visual (MAT3 tVisual; the PC's 0x28-byte struct pc_visual: next, data and func are pointer-sized). The offsets
  * are the N64's. */
 typedef struct Visual {
@@ -110,7 +85,7 @@ void RemoveCannMFlash(s16 slot)
  * car's frame, its offset by body), the flashes and the ripple fade, and the weapon goes when the car has none. */
 void AnimateWeapon(Visual *v, s16 op)
 {
-    Car *car = PC_CAR(v->slot);
+    tCarData *car = PC_CAR(v->slot);
     s32 def;
     s32 i;
     s32 r1;
@@ -127,8 +102,8 @@ void AnimateWeapon(Visual *v, s16 op)
             RemoveGattMFlash(v->slot);
         else if (gCurWeaponType[v->slot] == 0)
             RemoveCannMFlash(v->slot);
-        car->battle.type = 8;
-        car->battle.ammoCnt = -1;
+        car->battle.weapon.type = 8;
+        car->battle.weapon.ammoCnt = -1;
         MBOX_HideObject(v->objnum, 0, 15);
         return;
     }
@@ -140,7 +115,7 @@ void AnimateWeapon(Visual *v, s16 op)
     }
     ZOID_SetColor(gCarParts[v->slot].weap, &clr);
     mat = ZOID_FindMatrix(gCarParts[v->slot].frame);
-    if (car->battle.type == 8) {
+    if (car->battle.weapon.type == 8) {
         MBOX_HideObject(v->objnum, 1, 15);
     } else if (car->camera >= 0 && car->view <= 1) {
         MBOX_ShowObject(v->objnum, 0, 15);
@@ -148,16 +123,16 @@ void AnimateWeapon(Visual *v, s16 op)
     } else {
         MBOX_ShowObject(v->objnum, 0, 15);
     }
-    if (gCurWeaponType[v->slot] != car->battle.type) {
-        off[0] = WEAPON_OFF(car->battle.type)[PC_MODEL_BODY(v->slot)][0];
-        off[1] = WEAPON_OFF(car->battle.type)[PC_MODEL_BODY(v->slot)][1];
-        off[2] = WEAPON_OFF(car->battle.type)[PC_MODEL_BODY(v->slot)][2];
+    if (gCurWeaponType[v->slot] != car->battle.weapon.type) {
+        off[0] = WEAPON_OFF(car->battle.weapon.type)[PC_MODEL_BODY(v->slot)][0];
+        off[1] = WEAPON_OFF(car->battle.weapon.type)[PC_MODEL_BODY(v->slot)][1];
+        off[2] = WEAPON_OFF(car->battle.weapon.type)[PC_MODEL_BODY(v->slot)][2];
         if (gCurWeaponType[v->slot] == 1)
             RemoveGattMFlash(v->slot);
         else if (gCurWeaponType[v->slot] == 0)
             RemoveCannMFlash(v->slot);
-        gCurWeaponType[v->slot] = car->battle.type;
-        switch (car->battle.type) {
+        gCurWeaponType[v->slot] = car->battle.weapon.type;
+        switch (car->battle.weapon.type) {
         case 8:
             return;
         case 0:
@@ -229,12 +204,12 @@ void AnimateWeapon(Visual *v, s16 op)
         case 7: def = 223; break;
         }
         ZOID_SetObjectDef(gCarParts[v->slot].weap, gObjList[def]);
-        ZOID_UpdateObject(gCarParts[v->slot].weap, WEAPON_OFF(car->battle.type)[PC_MODEL_BODY(v->slot)], 0);
+        ZOID_UpdateObject(gCarParts[v->slot].weap, WEAPON_OFF(car->battle.weapon.type)[PC_MODEL_BODY(v->slot)], 0);
     }
     {
-        off[0] = WEAPON_OFF(car->battle.type)[PC_MODEL_BODY(v->slot)][0];
-        off[1] = WEAPON_OFF(car->battle.type)[PC_MODEL_BODY(v->slot)][1];
-        off[2] = WEAPON_OFF(car->battle.type)[PC_MODEL_BODY(v->slot)][2];
+        off[0] = WEAPON_OFF(car->battle.weapon.type)[PC_MODEL_BODY(v->slot)][0];
+        off[1] = WEAPON_OFF(car->battle.weapon.type)[PC_MODEL_BODY(v->slot)][1];
+        off[2] = WEAPON_OFF(car->battle.weapon.type)[PC_MODEL_BODY(v->slot)][2];
         if (gCurWeaponType[v->slot] == 1) {
             off[0] += 0.01f;
             off[1] += 0.65f;

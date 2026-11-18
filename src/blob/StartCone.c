@@ -10,15 +10,6 @@ typedef struct VelRot {
     f32 vel[3];             /* 0x0C its velocity, feet a frame */
 } VelRot;
 
-/* The car record's view (MAT3 tCarData) in the PC layout: the velocity and the picked-up-mine flag. */
-typedef struct GameCar {
-    u8 pad000[0x14];
-    f32 dr_vel[3];          /* 0x14 the velocity, feet a second */
-    u8 pad020[0x110 - 0x20]; struct pc_visual visuals[21]; u8 pad308[0x35F - 0x308];
-    u8 carMine;             /* 0x35F the car carries a cone as a mine (the gCarMines cheat) */
-    u8 pad360[0x380 - 0x360]; void *input; u8 pad384[0x3B8 - 0x384];
-} GameCar;
-
 /* The model record's view (MAT3 tModelData): only its crash flag. */
 typedef struct ModelData {
     _tCar *car;
@@ -33,8 +24,6 @@ typedef struct ModelData {
     surftyp *movingSurface;
     u8 pad64C[0x808 - 0x64C];
 } ModelData;
-
-
 
 #define OBJ_CONE 236            /* the cone's object (MAT3 550) */
 #define OBJ_LIGHT_DEBRIS_A 339  /* the two objects that fly up only a foot a frame (MAT3 653 and 551) */
@@ -59,7 +48,7 @@ void StartCone(tTarget *t)
     f32 tmat[4][3];
     f32 *vel;
     VelRot *motion;
-    GameCar *car;
+    tCarData *car;
     TargInfo *info;
 
     info = &targetInfo[t->infoIdx];
