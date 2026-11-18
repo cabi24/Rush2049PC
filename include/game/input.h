@@ -101,11 +101,10 @@ extern u32 gActiveAutoEdges;
 extern OSMesgQueue controlsys_lock_queue;
 /* What ControlIRQ (the model thread, each retrace) leaves for UpdateControls (the game thread), under
  * controlsys_lock_queue: each stick's calibration (the raw value that reads as full), the buttons pressed since the
- * last UpdateControls, the buttons held (controlsys's s32[4]: the data loader has 4 bytes for its symbol), the raw
- * sticks. Volatile, as MAT3's controlsys.c declares them. */
+ * last UpdateControls, the buttons held, the raw sticks. Volatile, as MAT3's controlsys.c declares them. */
 extern volatile s8 gContStickRange[EXTENT(4)][2];
 extern volatile u32 gNewEdges[EXTENT(4)];
-extern s32 gNewLevels;
+extern volatile u32 gNewLevels[EXTENT(4)];
 extern volatile s8 gNewStick[EXTENT(4)][2];
 extern s8 gActiveControllers[EXTENT(4)];
 extern s8 gStickEdges[EXTENT(4)];

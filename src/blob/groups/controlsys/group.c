@@ -10,11 +10,6 @@
 s32 osRecvMesg(OSMesgQueue *mq, OSMesg *msg, s32 flags);
 s32 osSendMesg(OSMesgQueue *mq, OSMesg msg, s32 flags);
 
-/* The buttons held at the last ControlIRQ, one word a controller: MAT3's volatile unsigned int[4]. include/game
- * declares the 4 bytes the data loader gives its symbol (the 16 are free on the N64 as on the PC: scissorul follows). */
-VIEW(volatile s32[4], gNewLevels);
-#define gNewLevels gNewLevels_view
-
 /* The scheduler's retrace count (gScheduler.retraceCount), the controls' clock. */
 #define gTick gScheduler.retraceCount
 
