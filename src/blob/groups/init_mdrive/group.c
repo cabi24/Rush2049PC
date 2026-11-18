@@ -4,9 +4,6 @@
  * Init_MDrive. */
 #include "game/game.h"
 
-/* A tire in the model record (MAT3 anon_tradius_springK_5c) seen from its sideforce field (+0x50), the 92-byte
- * stride kept. */
-typedef struct TireForces { float sideforce, traction; u8 rest[84]; } TireForces;
 /* The model record (tModelData), the fields Init_MDrive and multiinit read and write. */
 typedef struct tModelData {
  _tCar *car;
@@ -15,9 +12,9 @@ typedef struct tModelData {
  streetyp *lasttp[4];
  u8 pad3B0[0x5C];
  const s16 *torquecurve;
- u8 pad410[0x70];
- TireForces tires[4];           /* +0x480 tires[i].sideforce, .traction */
- u8 pad5F0[0x640 - 0x5F0];
+ u8 pad410[0x20];
+ Tire tires[4];                 /* +0x430 */
+ u8 pad5A0[0x640 - 0x5A0];
  s8 crashflag;                  /* +0x640 */
  u8 pad641[0x648 - 0x641];
  surftyp *movingSurface;

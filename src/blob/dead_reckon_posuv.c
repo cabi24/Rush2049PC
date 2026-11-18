@@ -7,28 +7,6 @@
 
 #define mveccopy(a,r) {r[0]=a[0]; r[1]=a[1]; r[2]=a[2];}
 
-/* A tire's state (MAT3's anon_tradius_springK_5c, 0x5C bytes), the fields used here. */
-typedef struct tModelTire {
-    f32 tradius;                /* 0x00 the tire's radius, feet */
-    u8 pad04[0x48 - 0x04];
-    f32 angvel;                 /* 0x48 its angular speed, radians a second */
-    u8 pad4C[0x5C - 0x4C];
-} tModelTire;
-
-/* The snapshot (MAT3 tModelData.reckon, anon_base_rwa_base_rwv_90, 0x90 bytes). */
-typedef struct tReckon {
-    f32 base_rwa[3];            /* 0x00 the world acceleration, velocity and position at the last base update */
-    f32 base_rwv[3];            /* 0x0C */
-    f32 base_rwr[3];            /* 0x18 */
-    s16 rwmph;                  /* 0x24 the speed shown: mph times 4 */
-    f32 suscomp[4];             /* 0x28 each tire's suspension compression */
-    f32 airdist[4];             /* 0x38 each tire's height above the road */
-    f32 rwa[3];                 /* 0x48 the acceleration, velocity and position to draw */
-    f32 rwv[3];                 /* 0x54 */
-    f32 rwr[3];                 /* 0x60 */
-    f32 uvs[9];                 /* 0x6C the orientation to draw */
-} tReckon;
-
 /* The model record (tModelData, docs/port/CARS.md 4), the fields used here. */
 typedef struct tModelData {
     _tCar *car;
@@ -40,7 +18,7 @@ typedef struct tModelData {
     u8 pad3B0[0x40C - 0x3B0];
     const s16 *torquecurve;
     u8 pad410[0x430 - 0x410];
-    tModelTire tires[4];        /* 0x430 */
+    Tire tires[4];              /* 0x430 */
     u8 pad5A0[0x5CC - 0x5A0];
     f32 suscomp[4];             /* 0x5CC */
     u8 pad5DC[0x5EC - 0x5DC];

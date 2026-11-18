@@ -4,17 +4,9 @@
  * it passes to the wheels, and the engine's speed. */
 #include "game/game.h"
 
-/* The car's physics descriptor (MAT3 _tCar), the engine's and clutch's constants. */
-typedef struct tCar {
-    u8 pad0[0x60]; TireDesc *tires[4];             /* +0x60 each tire's constants */
-    u8 pad70[0xA0 - 0x70]; f32 enginvmi;           /* +0xA0 the engine's inverse inertia */
-    u8 padA4[4]; f32 clutchmaxt;                   /* +0xA8 the clutch's most torque */
-} tCar;
-/* The tune record (MAT3 anon_diffbl_weight_scale_2c), its clutch scale. */
-typedef struct tTune {u8 pad0[0x10]; f32 clutchmaxtk; /* +0x10 */} tTune;
 /* The model record (tModelData), the fields whatslips reads and writes. */
 typedef struct tModelData {
-    tCar *car; tTune *tune;                         /* +0x000 the physics descriptor, +0x004 its tune */
+    _tCar *car; tTune *tune;                        /* +0x000 the physics descriptor, +0x004 its tune */
     u8 pad8[0x3A0 - 0x008]; streetyp *lasttp[4];   /* +0x3A0 each tire's last road node */
     u8 pad3B0[0x3CC - 0x3B0]; f32 clutch;           /* +0x3CC 1 pressed, 0 released (SetClutch) */
     u8 pad3D0[0x3F4 - 0x3D0]; s16 gear; u8 pad3F6[0x404 - 0x3F6];   /* +0x3F4 */

@@ -5,14 +5,6 @@
  * speeds for the respawn's speed, and the car runs again. */
 #include "game/game.h"
 
-/* A tire's state (MAT3's anon_tradius_springK_5c, 0x5C bytes), the fields used here. */
-typedef struct tModelTire {
-  f32 tradius;                                  /* +0x00 the tire's radius, feet */
-  u8 pad04[0x48 - 0x04];
-  f32 angvel;                                   /* +0x48 its angular speed, radians a second */
-  u8 pad4C[0x5C - 0x4C];
-} tModelTire;
-
 /* The model record (tModelData, docs/port/CARS.md 4), the fields used here. */
 typedef struct tModelData {
   _tCar *car;
@@ -29,7 +21,7 @@ typedef struct tModelData {
   u8 pad3F8[0x40C - 0x3F8];
   const s16 *torquecurve;
   u8 pad410[0x430 - 0x410];
-  tModelTire tires[4];                          /* +0x430 */
+  Tire tires[4];                                /* +0x430 */
   u8 pad5A0[0x648 - 0x5A0];
   surftyp *movingSurface;
   u8 pad64C[0x660 - 0x64C];

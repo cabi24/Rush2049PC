@@ -4,13 +4,6 @@
  * moves the tires' and body corners' world positions with the car. */
 #include "game/game.h"
 
-/* The car's physics descriptor (MAT3 _tCar), its tire positions. */
-typedef struct {
-    char pad0[0x60];
-    TireDesc *tires[4];     /* 0x60 each tire's constants */
-    f32 tireR[4][3];        /* 0x70 each tire's position from the centre of mass, car frame */
-} tCar;
-
 /* An orientation matrix: rows the car's x (side), y (up) and z (forward) axes in world coordinates. */
 typedef struct {
     f32 fpuvs[3][3];
@@ -18,7 +11,7 @@ typedef struct {
 
 /* The model record (tModelData), the fields positions reads and writes. */
 typedef struct tModelData {
-    tCar *car;              /* 0x000 the physics descriptor */
+    _tCar *car;             /* 0x000 the physics descriptor */
     Tune44 *tune;
     char pad8[0x20];
     f32 a[3];               /* 0x028 the acceleration, car frame */

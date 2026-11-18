@@ -5,14 +5,6 @@
 #include "game/game.h"
 
 typedef f32 Vec3[3];
-/* A tire in the model record (MAT3 anon_tradius_springK_5c, tModelData.tires[i]). */
-typedef struct Tire {
-    f32 tradius,springK,rubdamp,cstiff,cfmax,invmi,zforce,afmax,k1,k2,k3;
-    u8 pad2C[0x44 - 0x2C];      /* l2, l3, m1 .. m4 */
-    f32 patchy,angvel,sliptorque,sideforce,traction;   /* angvel: the wheel's spin, radians a second */
-    s8 slipflag;
-    u8 align[3];
-} Tire;
 /* The model record (tModelData), the fields drivetrain reads and writes. */
 typedef struct tModelData {
     _tCar *car; Tune44 *tune;   /* +0x000 the physics descriptor and its tune */

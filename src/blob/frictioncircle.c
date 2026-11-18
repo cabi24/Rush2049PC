@@ -19,13 +19,6 @@ typedef struct tModelData {
     char pad410[0x5C0 - 0x410]; f32 mass;      /* +0x5C0 */
     char pad5C4[0x634 - 0x5C4]; f32 dt;        /* +0x634 the step, seconds */
 } tModelData;
-/* A tire in the model record (MAT3 anon_tradius_springK_5c, tModelData.tires[i]). */
-typedef struct Tire {
-    f32 tradius,springK,rubdamp,cstiff,cfmax,invmi,zforce,afmax,k1,k2,k3;
-    char pad44[24];
-    f32 patchy,angvel,sliptorque,sideforce,traction;
-    signed char slipflag;
-} Tire;
 
 extern f32 sqrtf(f32);
 extern f32 fabsf(f32);

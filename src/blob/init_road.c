@@ -7,16 +7,9 @@
 #define vecadd(a, b, r) { r[0] = a[0] + b[0]; r[1] = a[1] + b[1]; r[2] = a[2] + b[2]; }
 #define veccopy(a, r) { r[0] = a[0]; r[1] = a[1]; r[2] = a[2]; }
 
-/* The car's physics descriptor (MAT3 _tCar), its tire positions. */
-typedef struct {
-    /* 0x000 */ u8 pad0[0x60];
-    /* 0x060 */ TireDesc *tires[4];   /* each tire's constants */
-    /* 0x070 */ f32 tireR[4][3];   /* each tire's position from the centre of mass, car frame */
-} tCar;
-
 /* The model record (tModelData), the fields init_road reads and writes. */
 typedef struct tModelData {
-    /* 0x000 */ tCar *car;           /* the physics descriptor */
+    /* 0x000 */ _tCar *car;          /* the physics descriptor */
     /* 0x004 */ Tune44 *tune;
     /* 0x008 */ u8 pad8[0xEC];
     /* 0x0F4 */ f32 bodyR[4][3];        /* the body's corners, car frame */

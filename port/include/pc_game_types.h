@@ -149,7 +149,7 @@ extern struct pc_link pc_links[PC_LINK_SLOTS];
 
 struct pc_model {
     struct _tCar *car;                  /* +0x000 the physics descriptor: car_descriptors[], as gCarModels[body] */
-    struct Tune44 *tune;                /* +0x004 its tune: &gTune[handling] */
+    struct tTune *tune;                 /* +0x004 its tune: &gTune[handling] */
     unsigned char body;                 /* +0x008 the car's body, 0-12 (the roster's car) */
     signed char input_flags;            /* +0x009 the human's input flags (its input record's) */
     signed char autotrans;              /* +0x00A automatic transmission */

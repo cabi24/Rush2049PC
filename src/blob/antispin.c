@@ -3,8 +3,6 @@
  * A stage of the physics step (sym), after the forces: arcade handling on top of the tire model. */
 #include "game/game.h"
 
-/* The tune record (MAT3 anon_diffbl_weight_scale_2c, gTune[handling]). */
-typedef struct tTune { u8 pad0[0x24]; f32 antispin; /* +0x24 */ } tTune;
 /* The model record (tModelData), the fields antispin reads and writes. */
 typedef struct tModelData {
     _tCar *car;                 /* +0x000 the physics descriptor */

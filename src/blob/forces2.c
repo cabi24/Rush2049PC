@@ -5,8 +5,6 @@
 #include "game/game.h"
 
 typedef f32 Vec3[3];
-/* The tune record (MAT3 anon_diffbl_weight_scale_2c), its differential blend. */
-typedef struct tTune {f32 diffbl; /* +0x00 */} tTune;
 /* The model record (tModelData), the fields forces2 reads and writes. */
 typedef struct tModelData {
     _tCar *car;                 /* +0x000 the physics descriptor */

@@ -1,21 +1,9 @@
 /* find_best_gear.c: the gear an automatic gearbox starts in (MAT3 drivetra.c, find_best_gear()). */
 #include "game/game.h"
 
-/* The car's physics descriptor (MAT3 _tCar), its final drive. */
-typedef struct tCar {
-    u8 pad0[0x60];
-    TireDesc *tires[4];         /* +0x60 each tire's constants */
-    u8 pad70[0xA4 - 0x70];
-    f32 dwratio;                /* +0xA4 the differential's ratio */
-} tCar;
-/* The tune record (MAT3 anon_diffbl_weight_scale_2c), its gearbox scale. */
-typedef struct tTune {
-    u8 pad0[0xC];
-    f32 trans_scale;            /* +0x0C */
-} tTune;
 /* The model record (tModelData), the fields find_best_gear reads and writes. */
 typedef struct tModelData {
-    tCar *car;                  /* +0x000 the physics descriptor */
+    _tCar *car;                 /* +0x000 the physics descriptor */
     tTune *tune;                /* +0x004 the tune record */
     u8 pad8;
     s8 trans;                   /* +0x009 the transmission (a row of carTransGearRatio) */

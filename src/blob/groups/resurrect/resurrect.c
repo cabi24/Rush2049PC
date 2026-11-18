@@ -9,13 +9,6 @@
  * pc_grid_start: docs/port/MORECARS.md 4). */
 #include "game/game.h"
 
-typedef struct tTire {          /* anon_tradius_springK_5c */
-    float tradius;              /* 0x00 */
-    u8 pad04[0x48 - 0x04];
-    float angvel;               /* 0x48 */
-    u8 pad4C[0x5C - 0x4C];
-} tTire;
-
 typedef struct tResurrect {     /* anon_pos_save_pos_70 */
     float pos[3];               /* 0x00 */
     float save_pos[3];          /* 0x0c */
@@ -44,12 +37,6 @@ typedef struct tFastIn {        /* anon_modelIteration_modelTime_10 */
     s16 modelrun;               /* 0xc */
 } tFastIn;
 
-typedef struct tReckon {        /* anon_base_rwa_base_rwv_90 */
-    u8 pad00[0x60];
-    float rwr[3];               /* 0x60 */
-    float uvs[3][3];            /* 0x6c */
-} tReckon;
-
 /* The model record (tModelData, docs/port/CARS.md 4), the fields used here: MAT3's names and layout. */
 typedef struct tModelData {
     _tCar *car;
@@ -69,7 +56,7 @@ typedef struct tModelData {
     u8 pad3B0[0x40C - 0x3B0];
     const s16 *torquecurve;
     u8 pad410[0x430 - 0x410];
-    tTire tires[4];             /* 0x430 */
+    Tire tires[4];              /* 0x430 */
     u8 pad5A0[0x5CC - 0x5A0];
     float suscomp[4];           /* 0x5cc */
     u8 pad5DC[0x62C - 0x5DC];

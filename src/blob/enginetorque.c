@@ -3,12 +3,6 @@
  * engine() calls it each model step. */
 #include "game/game.h"
 
-/* The tune record (MAT3 anon_diffbl_weight_scale_2c), its torque scale. */
-typedef struct {
-    u8 pad0[8];
-    f32 torque_scale;       /* +0x08 */
-} tTune;
-
 /* The model record (tModelData), the fields enginetorque reads. */
 typedef struct tModelData {
     _tCar *car;             /* +0x000 the physics descriptor */

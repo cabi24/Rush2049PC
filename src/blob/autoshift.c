@@ -3,16 +3,9 @@
  * The drivetrain (drivetrain.c) calls it each step for a car with automatic transmission. */
 #include "game/game.h"
 
-/* The car's physics descriptor (MAT3 _tCar), its shift points. */
-typedef struct tCar {
-    u8 pad0[0x60]; TireDesc *tires[4];             /* +0x60 each tire's constants */
-    u8 pad70[0xAC - 0x70]; f32 upshiftangvel,downshiftangvel;   /* +0xAC, +0xB0 radians a second */
-} tCar;
-/* The tune record (MAT3 anon_diffbl_weight_scale_2c). */
-typedef struct tTune {u8 pad0[0x14]; f32 shiftk; /* +0x14 the shift points' scale */} tTune;
 /* The model record (tModelData), the fields autoshift reads and writes. */
 typedef struct tModelData {
-    tCar *car; tTune *tune;     /* +0x000 the physics descriptor, +0x004 its tune */
+    _tCar *car; tTune *tune;    /* +0x000 the physics descriptor, +0x004 its tune */
     u8 pad8[0x3A0 - 0x008]; streetyp *lasttp[4]; u8 pad3B0[0x3D0 - 0x3B0]; f32 throttle;            /* +0x3D0 0..1 */
     u8 pad3D4[0x3F4 - 0x3D4]; s16 gear,commandgear; /* +0x3F4 the gear, +0x3F6 the one the player asks for */
     u8 pad3F8[0x408 - 0x3F8]; f32 engangvel;       /* +0x408 the engine's speed, radians a second */

@@ -6,8 +6,6 @@
  * 1.0f / 3.4f is one unit in the last place off. */
 #include "game/game.h"
 
-/* A tire in the model record (MAT3 anon_tradius_springK_5c, tModelData.tires[i]). */
-typedef struct Tire { f32 tradius,springK,rubdamp,cstiff,cfmax,invmi,zforce,afmax,k1,k2,k3,l2,l3,m1,m2,m3,m4,patchy; u8 tail48[20]; } Tire;
 /* The model record (tModelData), the fields tire_constants reads. */
 typedef struct tModelData { _tCar *car; Tune44 *tune; u8 pad8[0x398]; streetyp *lasttp[4]; u8 pad3B0[0x5C]; const s16 *torquecurve; u8 pad410[0x20]; Tire tires[4]; u8 pad5A0[0x5BC - 0x5A0]; f32 weight; u8 pad5C0[0x5C8 - 0x5C0]; f32 wheelbase; u8 tail5CC[0x648 - 0x5CC]; surftyp *movingSurface; u8 tail64C[0x808 - 0x64C]; } tModelData;
 

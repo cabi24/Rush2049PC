@@ -2015,7 +2015,7 @@ def car_tables(c):
     # byte 9, gear g's ratio at [g + 1] (transmission, find_best_gear). 1 everywhere: with zeros a car's drive torque
     # is 0. The rows past the first are outside a one-row extent, which the generator refuses (BRINGUP.md 11).
     c.set_all("game", "carTransGearRatio", "f32", [1.0] * 48, "the gear ratios: 1 in every row and gear")
-    # The car tunes (gTune, three Tune44 of eleven f32): +4 is the mass factor; 1 in each, the rest 1 too.
+    # The car tunes (gTune, three tTune of eleven f32): +4 is the mass factor; 1 in each, the rest 1 too.
     for t in range(3):
         for k in range(11):
             c.set("game", "gTune", "f32", 1.0, "a tune's eleven factors: 1 (+4: the mass factor)" if t == k == 0

@@ -320,7 +320,7 @@ nothing. Risk: none to the game.
 Done 2026-11-09 (wave 3.1), as [CARS.md](CARS.md) 4 describes. What was done:
 
 - The descriptors first (9.5): `steady_leg_duration` is MAT3's `legDuration[2]` (8 bytes), and the table after it is
-  `car_descriptors[6]` of MAT3's `_tCar` (`include/game/types.h`, `cars.h`; MAT3's six descriptors at
+  `car_descriptors[6]` of MAT3's `_tCar` (`include/game/carphys.h` since wave 4; MAT3's six descriptors at
   0x801108D0..0x80110D08), named for the loader by carsetup's `pc_car_setup_data` with `frontTire` (`TireDesc[2]`).
   Its `tires[4]` are host pointers, so it is own storage (6 of 0xC8 bytes).
 - `struct pc_model`: `car`, `tune`, `lasttp[4]` (the plan's `node[4]`; MAT3's name), `torquecurve` and

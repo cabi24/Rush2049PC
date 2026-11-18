@@ -136,7 +136,7 @@ window addresses:
 | MAT3 offset | PC offset | Field | Points at | Set by |
 |---|---|---|---|---|
 | +0x000 | +0x000 | `car` (`_tCar *`) | the car type's physics descriptor, `car_descriptors[]` (below) | carsetup (`gCarModels[body]`), init_cars (the first) |
-| +0x004 | +0x008 | `tune` (`Tune44 *`) | `&gTune[handling]` (game data) | carsetup |
+| +0x004 | +0x008 | `tune` (`tTune *`) | `&gTune[handling]` (game data) | carsetup |
 | +0x3A0 | +0x3A8 | `lasttp[4]` (`streetyp *`) | each tire's last node of the road's surface tree (`stree_nodes`, the road file) | init_collision (the tree's root), TireSurf |
 | +0x40C | +0x428 | `torquecurve` (`const s16 *`) | `stdtorquecurve` (game data) | carsetup |
 | +0x648 | +0x668 | `movingSurface` (`surftyp *`) | the moving surface under the car (`stree_surf`, the road file), or NULL | road (NULL each step), TireSurf |
@@ -165,8 +165,8 @@ What changed with the pointers:
   view's `rwr`.
 - The names follow MAT3: TireSurf's and CollideCarBody's `node[4]` is `lasttp[4]`.
 
-**The physics descriptors** are `car_descriptors[6]`, declared in `include/game/cars.h` with MAT3's `_tCar`
-(`include/game/types.h`): MAT3's six (basic, forward, backward, shortie, stretch and truck, in MAT3's order) at N64
+**The physics descriptors** are `car_descriptors[6]`, declared in `include/game/carphys.h` with MAT3's `_tCar`
+(declared there too since wave 4, [RECORDS.md](RECORDS.md) 2.2): MAT3's six (basic, forward, backward, shortie, stretch and truck, in MAT3's order) at N64
 0x801108D0..0x80110D08, after the steady camera's `steady_leg_duration` (MAT3 `legDuration[2]`, whose `f32[272]`
 declaration had run over them; the loader named them `steady_leg_duration+0x8`). `gCarModels[13]` points at them
 by car type. Their `tires[4]` are host pointers to `frontTire`'s two `TireDesc` records (MAT3 `frontTire` and
@@ -174,9 +174,9 @@ by car type. Their `tires[4]` are host pointers to `frontTire`'s two `TireDesc` 
 on the N64. The data loader fills it from the image and resolves the tire pointers (into the game arena) and
 gCarModels' (into it) as it does for any own storage ([DATA.md](DATA.md) 4). Only pointers reach the descriptors and
 the tire records, and the loader places only data some file names, so carsetup's `pc_car_setup_data` names both
-(it named `frontTire` alone as `pc_tire_records`). Every view of a descriptor (the physics files' `tCar`s, the car
-select's `ModelDescription`) declares `tires` as pointers: `view_check.py --tag tCar,_tCar,ModelDescription
---n64-size 0xB4` finds 157 views, none disagreeing.
+(it named `frontTire` alone as `pc_tire_records`). Every file reads a descriptor through that one declaration: the
+physics files' own partial `tCar`s and the car select's `ModelDescription` went in wave 4 (RECORDS.md 2.2);
+`view_check.py --tag _tCar --n64-size 0xB4` finds the one view in each object, none disagreeing.
 
 Before wave 3 the record and the descriptor kept their N64 layouts: every pointee of their pointer fields was in the
 RDRAM window, so they held u32 window addresses (`enum n64p_X` fields, `N64P()` at each dereference, `N64W()` at
