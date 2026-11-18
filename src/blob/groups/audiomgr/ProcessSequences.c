@@ -43,7 +43,7 @@ void ProcessSequences(void) {
   next=(tAudioSequence *)seq->ll.next;
   if(seq->stop || (seq->sndTag == -1 && AudioTimeout(seq->startTime,seq->timeout))) {
    AudStopEffect(seq->sndTag);
-   FreeSequence((s32 *)seq);
+   FreeSequence(seq);
   } else {
    tag=(tFxSequence *)ConvertTag(seq->sndTag);
    if(tag) {
@@ -56,7 +56,7 @@ void ProcessSequences(void) {
     seq->next++;
     if(seq->next>=4) break;
    }
-   if(seq->next>=4) FreeSequence((s32 *)seq);
+   if(seq->next>=4) FreeSequence(seq);
    else {
     seq->sndTag=AudPlayEffect(seq->ids[seq->next++],seq->subId,seq->replace,seq->priority);
     ((tFxSequence *)ConvertTag(seq->sndTag))->data=seq;

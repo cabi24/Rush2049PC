@@ -3,17 +3,11 @@
  * for another screen stops the race's sound, unloads the track and sends the game to the front end with
  * gSkipToGameState saying which screen to open. The menu's and the scores' drawing is results_table.c. */
 #include "game/game.h"
+#include "game/audiomgr.h"
 #define OSMesgQueue OSMesgQueueView   /* this file's own OSMesgQueue: include/game's OSMesgQueue is another type */
 
 typedef struct { s32 opaque[6]; } OSMesgQueue;
 typedef struct Voice Voice;
-
-/* An audio manager command (GetCmd's message, audiomgr_thread.c's tAudioMsg): only the command byte is set here. */
-typedef struct {
-    s16 type;
-    u8 cmd, used;
-    u32 payload[5];
-} SceneMsg;
 
 #define TEXT_GAME_OVER_TITLE 63     /* gText.single[]: the screen's title */
 
@@ -81,10 +75,10 @@ void gameover_uninitScreen(void)
  * way out of a race is then dropped, but nothing else is: with no message it is written into a scratch message
  * that is never sent, so the cars, the effects' emitters and the next state are set as before; a message the
  * full queue refuses is given back. */
-static SceneMsg pc_scratch_msg;
-static SceneMsg *pc_cmd(SceneMsg *m) { return m ? m : &pc_scratch_msg; }
+static tAudioMsg pc_scratch_msg;
+static tAudioMsg *pc_cmd(tAudioMsg *m) { return m ? m : &pc_scratch_msg; }
 #define PC_CMD(m) pc_cmd(m)
-#define PC_CMD_SEND_UNLESS_SCRATCH(q,m) if((m)!=&pc_scratch_msg&&osSendMesg(q,m,0)!=0)(m)->used=0
+#define PC_CMD_SEND_UNLESS_SCRATCH(q,m) if((m)!=&pc_scratch_msg&&osSendMesg(q,m,0)!=0)(m)->hdr.used=0
 
 /* The menu's input. Start or A takes the row:
  * - score: the score page;
@@ -95,7 +89,7 @@ static SceneMsg *pc_cmd(SceneMsg *m) { return m ? m : &pc_scratch_msg; }
  * Up and down (auto-repeating) move between the offered rows, wrapping round. */
 void controlMain(void)
 {
-    SceneMsg *msg;
+    tAudioMsg *msg;
 
     if (gActiveEdges & BUTTON_ACCEPT) {
         PlayStartABSound(gActiveEdges);
@@ -106,7 +100,7 @@ void controlMain(void)
         case kGameOverMainMenuRaceAgain:
             if (gRace == kGhost) {
                 osRecvMesg(&audio_lock_queue, 0, 1);
-                (msg = PC_CMD(GetCmd()))->cmd = kAudioCmdKillSong;
+                (msg = PC_CMD(GetCmd()))->hdr.cmd = kAudioCmdKillSong;
                 osSendMesg(&audio_lock_queue, 0, 0);
                 PC_CMD_SEND_UNLESS_SCRATCH(&audio_command_queue, msg);
                 UnloadTrack(gTrackNum);
@@ -127,7 +121,7 @@ void controlMain(void)
                 gameover_uninitScreen();
                 gRestartGame = 1;
                 osRecvMesg(&audio_lock_queue, 0, 1);
-                (msg = PC_CMD(GetCmd()))->cmd = kAudioCmdStopAllEffects;
+                (msg = PC_CMD(GetCmd()))->hdr.cmd = kAudioCmdStopAllEffects;
                 osSendMesg(&audio_lock_queue, 0, 0);
                 PC_CMD_SEND_UNLESS_SCRATCH(&audio_command_queue, msg);
                 AbortGame();
@@ -139,7 +133,7 @@ void controlMain(void)
         case kGameOverMainMenuNextRace:
         case kGameOverMainMenuQuit:
             osRecvMesg(&audio_lock_queue, 0, 1);
-            (msg = PC_CMD(GetCmd()))->cmd = kAudioCmdKillSong;
+            (msg = PC_CMD(GetCmd()))->hdr.cmd = kAudioCmdKillSong;
             osSendMesg(&audio_lock_queue, 0, 0);
             PC_CMD_SEND_UNLESS_SCRATCH(&audio_command_queue, msg);
             UnloadTrack(gTrackNum);
@@ -191,7 +185,7 @@ void controlMain(void)
  * of Start, A or B goes back to the menu. */
 void updateGameOverScreen(void)
 {
-    SceneMsg *msg;
+    tAudioMsg *msg;
     void *entity;
     if (gameover_inited == 0) {
         setGameOverState(kGameOverStateMain);
@@ -211,7 +205,7 @@ void updateGameOverScreen(void)
     BlinkResurrectingCars();
     if (gSoftReset) {
         osRecvMesg(&audio_lock_queue, 0, 1);
-        msg = PC_CMD(GetCmd()); msg->cmd = kAudioCmdKillSong; osSendMesg(&audio_lock_queue, 0, 0);
+        msg = PC_CMD(GetCmd()); msg->hdr.cmd = kAudioCmdKillSong; osSendMesg(&audio_lock_queue, 0, 0);
         PC_CMD_SEND_UNLESS_SCRATCH(&audio_command_queue, msg);
         UnloadTrack(gTrackNum);
         entity = gEnvList;

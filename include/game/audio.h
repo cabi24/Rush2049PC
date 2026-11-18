@@ -50,6 +50,33 @@ enum {
 /* The horns' effects: SND_HORN_FIRST + the horn. */
 #define SND_HORN_FIRST 26
 
+/* A sound group of MusyX's project that is pushed before its sounds play (sound_push_group): the four boot groups
+ * of effects (boot_sfx_groups, AudioInitSys) and a song's (song_groups[song], AudioSongPlay). Read from the ROM. */
+typedef struct SoundGroupEntry {
+    u16 unused;         /* not read */
+    u16 group;          /* the group's id in the project */
+} SoundGroupEntry;
+
+/* The sample DMAs of the sound library (MusyX): a list of reads from the cartridge that musyx_start_dma_list (its
+ * DMA service) records in pc_sample_dma_list and starts, and the sample DMA thread runs one after another
+ * (sample_dma_next), signalling the list's done queue after the last. The list is the PC's own storage
+ * (src/blob/groups/sample_dma_next/sample_dma_next.c): with its two host pointers it doesn't fit the N64's 16 bytes. */
+typedef struct SampleDmaRequest {
+    u32 size;           /* bytes */
+    u32 devAddr;        /* the cartridge address */
+    void *vAddr;        /* the buffer */
+} SampleDmaRequest;
+typedef struct SampleDmaList {
+    s8 active;          /* a list is in progress */
+    u8 unused1;
+    u16 count;          /* its requests */
+    u16 next;           /* the requests started (sample_dma_next) */
+    u16 unused6;
+    SampleDmaRequest *reqs;
+    OSMesgQueue *done;  /* signalled when the last request is done */
+} SampleDmaList;
+extern SampleDmaList pc_sample_dma_list;
+
 /* Data */
 extern u64 rspbootTextStart[EXTENT(26)];
 extern u64 rspbootTextEnd[EXTENT(452)];
@@ -212,7 +239,7 @@ extern f32 sLastHornTime[EXTENT(4)];
 extern char *gSongNames[EXTENT(12)];
 extern s8 gInited_AudioMgr;
 extern struct tFxSequence *gFxTags;
-extern struct anon_te_tag_c *gSortedFxTags;
+extern struct tSortedFxTag *gSortedFxTags;
 extern s32 gNumStartCmds;
 extern s32 gNumStopCmds;
 extern u32 gNextFxId;
@@ -222,7 +249,7 @@ extern struct tSfxEmitter *gEmitters;
 extern s32 gNumFxTags;
 extern s32 gNumListeners;
 extern s32 gNumEmitters;
-extern struct Chan *gSequences;
+extern struct tAudioSequence *gSequences;
 extern s32 gNumFxPlaying;
 extern s32 gNumFxPending;
 extern s32 gNumFxInterrupted;
@@ -248,8 +275,8 @@ extern SoundServices audio_driver_services;
 extern s16 gBumpLRTab[EXTENT(16)];
 extern s16 gBumpFBTab[EXTENT(16)];
 extern f32 sPitchRange[EXTENT(4)];
-extern ResourceRange song_groups[EXTENT(12)];
-extern ResourceRange boot_sfx_groups[EXTENT(4)];
+extern SoundGroupEntry song_groups[EXTENT(12)];
+extern SoundGroupEntry boot_sfx_groups[EXTENT(4)];
 extern u8 gEffectLoop[EXTENT(228)];
 extern char audio_title_player_format[EXTENT(64)];
 extern char audio_init_texture_name_1[EXTENT(8)];
@@ -275,7 +302,7 @@ extern OSMesg audio_lock_msg[EXTENT(1)];
 extern OSMesgQueue audio_command_queue;
 extern tOrderedList gSortedFxTagTree;
 extern AudioList gFreeFxTags;
-extern FxTagList gPlayingFxTags;
+extern AudioList gPlayingFxTags;
 extern struct tSfxVoice *gSfxInstances;
 extern AudioList gInterruptedFxTags;
 extern s32 gNumChannels;
@@ -305,6 +332,9 @@ extern void *musyx_sdir;
 extern void *musyx_pool;
 extern f32 gAudioSeconds;
 extern u8 musyx_task_done_msg[EXTENT(4)];
+/* The function the audio retrace thread calls each retrace (audio_retrace_thread_entry): MusyX's, which its retrace
+ * service musyx_set_retrace_callback installs; 0 for none. */
+extern void (*musyx_retrace_callback)();
 extern f32 audio_cursorSpeed;
 extern u8 *sound_codebook_cache;
 extern struct AudioNode *sound_codebook_nodes;
@@ -399,6 +429,8 @@ void InterruptFxTag(struct tFxSequence *tag);
 void LoadFrontEndWaves(void);
 void LockAndLoad(s32 id);
 void musyx_submit_audio_task(void *task);
+s32 musyx_set_retrace_callback(void (*callback)(void));
+s32 musyx_start_dma_list(SampleDmaRequest *reqs, s32 count, OSMesgQueue *doneQueue);
 struct tSfxCmd *NewCmd(void);
 struct tSfxEmitter *NewEmitter(void);
 void NewListener(void);

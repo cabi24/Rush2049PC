@@ -32,7 +32,6 @@ struct CarA;
 struct CarB;
 struct CarE;
 struct CarState;
-struct Chan;
 struct CollisionObject;
 struct CollisionReckon;
 struct Command;
@@ -42,7 +41,6 @@ struct Defense;
 struct Descriptor;
 struct Descriptor72;
 struct Dims;
-struct DmaReq;
 struct Dynamic;
 struct EUCar;
 struct Effect;
@@ -241,7 +239,6 @@ struct __OSThreadprofile_s;
 struct _tBlit_2;
 struct _tSusp;
 struct anon_kerns_value_c;
-struct anon_te_tag_c;
 struct internal_state;
 struct tAudioSequence;
 struct pathtyp;
@@ -260,6 +257,7 @@ struct tPS_File;
 struct tPaletteDef;
 struct tPlayerProfile;
 struct tSfxCmd;
+struct tSortedFxTag;
 struct tSfxEmitter;
 struct tSfxListener;
 struct tSfxVoice;
@@ -846,14 +844,6 @@ typedef struct EmitGroup { /* 0x18 bytes */
     struct SmallNode *small; /* 0x10 */
 } EmitGroup;
 
-typedef struct FxTagList { /* 0x18 bytes */
-    char handle;     /* 0x0 */
-    char dbl;        /* 0x1 */
-    s32 numElements; /* 0x4 */
-    void *head;      /* 0x8 */
-    void *tail;      /* 0x10 */
-} FxTagList;
-
 typedef struct Impact120 { /* 0x78 bytes */
     Impact24 point[5]; /* 0x0 */
 } Impact120;
@@ -1065,15 +1055,6 @@ typedef struct ArbEntry { /* 0x50 bytes */
     void *s;     /* 0x8 its scissor rectangle (scissor0 ...) */
     u8 rest[64]; /* 0x10 */
 } ArbEntry;
-
-typedef struct DmaList { /* 0x18 bytes */
-    u16 pad0;                   /* 0x0 */
-    u16 count;                  /* 0x2 */
-    u16 next;                   /* 0x4 */
-    u16 pad6;                   /* 0x6 */
-    struct DmaReq *reqs;        /* 0x8 */
-    struct OSMesgQueue_s *done; /* 0x10 */
-} DmaList;
 
 /* A flipbook frame of texture animation (MAT3 tTextureBase): the texture's name, the texture once found, the image
  * to show (its texBase, or the address its display list loads). */

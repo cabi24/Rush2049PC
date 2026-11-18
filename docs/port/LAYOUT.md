@@ -244,7 +244,6 @@ both arrays for an index that is no car slot, such as -1). `In` has the PC layou
 |---|---|
 | `GetStatLLE`, `FreeStatLLE` | they reach an element's link back (`tDLLE.prev`, its second pointer) only on a doubly linked list (the skid marks); the flow joins every list's elements, and a singly linked list's element has a field of its own there (POINTERS.md 9.5). Until NATIVE.md step 3 the rule was on `pc_statll_link`/`pc_statll_set_link`, which took a link at the width the node pool's `n64` flag gave |
 | audio_retrace_thread_entry's `Sched`, lib_1050_sdk's `PcSched` | a PC view of the native scheduler padded in host bytes to curRSPTask (ULTRA.md); both reach +0x2B0 |
-| ProcessEmitters's `Effect` | a PC view of the FX tag padded in host bytes; each access is the tag's field |
 | sequencer.c's `Seq_*`, `SequenceContext*` views | PC views of a sequence slot padded in host bytes (`SEQ_PC_OFF`, include/sequence_context.h) |
 | updatefx's `AudioMsg`, entity_lookup's `Msg` | a stop's or an interrupt's tag after the header (tAudioMsg's startEffect, +8); the union's N64 positions are its largest member's (updatefx's is shared with the N64 build, so it scores 4) |
 | ghost_files.c's `DecodeGhost` | a heap handle slot is 8 bytes holding a zero-extended window address; a u32 reader takes its low half (POINTERS.md 9.10) |
@@ -252,16 +251,16 @@ both arrays for an index that is no car slot, such as -1). `In` has the PC layou
 | Update_MDrive | the s16 at +0xF4 is the node handle's low half |
 | blast.c's `StartBlast` | StartBlast's data is an s16 slot or an f32 position (endian_check's NOT_FOLLOWED) |
 | src/rom's `__osSiDmaBuffer` | libultra builds the PIF commands byte by byte in its word buffer |
-| `NewEmitter` | the source's active byte; ProcessEmitters's `Source` names it and `queued` as a u32 word nothing reads whole |
+| `NewEmitter` | the source's free byte (`tSfxEmitter.free`, the first byte after its links) |
 | `game_memcmp` | a byte compare (memcmp) |
 | InterruptFxTag.c's `caller_a`, `caller_b` | dead stand-in callers kept for matching; their walk through the tag's list field is not the tags' link |
 
 `REFERENCE`: level_objects' `Node` (the level-object nodes) and `Matrix64` (the dead-reckoning records),
-audiomgr_thread's `tFxSequence`, `anon_ll_id_3c` and the sorted-tag node `anon_te_tag_c` (also for AudioInit's
-pools, through its `Voice` and `Chan`),
-ProcessEmitters's `Source` (also for entity_helpers' `CamSlot`), NewMultiBlit's `Blit` (for any view named
-`Blit`). `SYMBOL_REFERENCE`: `audiomgr_gCmds` takes audiomgr_thread's `tAudioMsg`, since gen_data chose transform's
-`Msg`. `LINKS`: `InsertLLE`, `pool_init`, `InitStatLL`.
+include/game/audiomgr.h's `tFxSequence`, `tAudioSequence`, the sorted-tag node `tSortedFxTag` and the 3D-sound source
+`tSfxEmitter` (in any unit: since wave 4 they are one declaration each, [RECORDS.md](RECORDS.md) 4.4), NewMultiBlit's
+`Blit` (for any view named `Blit`). `SYMBOL_REFERENCE`: `pc_snd_msgs` (N64 `audiomgr_gCmds`) takes `tAudioMsg`,
+since the port's declaration `pc_snd_msg` is no view the game writes through. `LINKS`: `InsertLLE`, `pool_init`,
+`InitStatLL`.
 
 ## 8. Limits
 

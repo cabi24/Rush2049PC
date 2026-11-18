@@ -1278,9 +1278,10 @@ else()
 endif()
 add_test(NAME endian_check COMMAND ${Python3_EXECUTABLE} ${PORT_TOOLS}/endian_check.py --build ${CMAKE_BINARY_DIR}
     ${ENDIAN_CHECK_ARGS})
-# The audio manager's records (docs/port/SYNTH.md): every live view of an fx tag (N64 0x44 bytes), a sequence
-# (0x3C), an emitter (0x2C) and the command table has the host layout of audiomgr_thread.c's views, read from the
-# DWARF of the game's objects (tools/port/view_check.py; ELF objects only).
+# The audio manager's records (include/game/audiomgr.h, docs/port/RECORDS.md 4.4): the files that read an fx tag
+# (N64 0x44 bytes), a sequence (0x3C) or an emitter (0x2C) see the header's one declaration, whose N64 layout (the
+# data generator's, from DWARF) must keep the N64 size (tools/port/view_check.py; ELF objects only). The messages
+# (pc_snd_msgs, tAudioMsg) are a union: port/config/voices.c asserts their 32 bytes.
 if(NOT WIN32)
     set(SOUND_FX_VIEWS
         src/blob/groups/save/AudioInit.c src/blob/groups/audio_emitters/group.c
@@ -1301,15 +1302,11 @@ if(NOT WIN32)
     string(REPLACE ";" "," SOUND_EMITTER_VIEWS "${SOUND_EMITTER_VIEWS}")
     set(VIEW_CHECK ${Python3_EXECUTABLE} ${PORT_TOOLS}/view_check.py --build ${CMAKE_BINARY_DIR})
     add_test(NAME views_sound_fxtag COMMAND ${VIEW_CHECK} --n64-size 0x44 --in ${SOUND_FX_VIEWS}
-        --tag tFxSequence,Node68,Voice,Entity,Effect,FxTag,Node,Record,ResEntry)
+        --tag tFxSequence)
     add_test(NAME views_sound_sequence COMMAND ${VIEW_CHECK} --n64-size 0x3C --in ${SOUND_SEQ_VIEWS}
-        --tag anon_ll_id_3c,Sequence,Chan,RecA,Event,Node16)
+        --tag tAudioSequence)
     add_test(NAME views_sound_emitter COMMAND ${VIEW_CHECK} --n64-size 0x2C --in ${SOUND_EMITTER_VIEWS}
-        --tag Cam,CamSlot,Owner,RecB,Source)
-    # The commands (N64 audiomgr_gCmds) are PC data now (pc_snd_msgs, docs/port/DECOUPLE.md 9), which each reader casts
-    # to its own view, so the views are the live readers' record types (the three the symbol's declarations were).
-    add_test(NAME views_sound_commands COMMAND ${VIEW_CHECK} --n64-size 0x20 --tag ShutdownMsg,Slot24,Slot18
-        --in src/blob/groups/heap_release/AudioShutdown.c,src/blob/groups/save/AudioInit.c,src/blob/groups/abort_game/GetCmd.c)
+        --tag tSfxEmitter)
     # The road collision's views of the car's model record (pc_models): the tires' road nodes at MAT3's +0x3A0 and the
     # moving surface at +0x648 are host pointers (docs/port/CARS.md 4).
     add_test(NAME views_model_road COMMAND ${VIEW_CHECK} --n64-size 0x808 --tag VCar,EUCar,tModelData

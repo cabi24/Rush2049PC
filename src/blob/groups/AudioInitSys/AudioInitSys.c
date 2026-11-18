@@ -2,12 +2,6 @@
  * AudioInitSys): the sound threads, the MusyX library and its data, the boot sound groups and the sound server. */
 #include "game/game.h"
 
-/* A sound group to push (its id in the project, MusyX's group id). */
-typedef struct { u16 other,id; } Instrument4;
-
-VIEW(Instrument4[4], boot_sfx_groups);
-#define boot_sfx_groups boot_sfx_groups_view
-
 
 extern void osCreateMesgQueue(void *,void *,s32);
 extern void osCreateThread(void *,s32,void (*)(void *),void *,void *,s32);
@@ -73,7 +67,7 @@ void AudioInitSys(s32 maxVoices,s32 maxSfx,s32 maxMusic)
         audio_driver_started=1;
     }
     for(j=0;j<4;j++) {
-        sound_push_group(musyx_project,boot_sfx_groups[j].id,musyx_samples,musyx_sdir,musyx_pool);
+        sound_push_group(musyx_project,boot_sfx_groups[j].group,musyx_samples,musyx_sdir,musyx_pool);
     }
     sound_fade_volume(127,0,255);
     sound_fade_master_volume(127,0,1,1);

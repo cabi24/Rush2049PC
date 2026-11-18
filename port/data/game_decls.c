@@ -19,6 +19,5 @@ extern s32 pc_audio_pool_fail_every;   /* src/blob/groups/abort_game/GetCmd.c: d
 extern s32 *const pc_extra_blbits;   /* src/blob/groups/zlib_deflate/group.c: defines it */
 extern u8 pc_frame_dl[2][296128];   /* src/blob/groups/heap_release/initsystem_start.c: defines it */
 extern f32 pc_pole_offsets[12][3];   /* src/blob/groups/resurrect/resurrect.c: defines it */
-extern DmaList pc_sample_dma_list;   /* src/blob/groups/sample_dma_next/sample_dma_next.c: defines it */
 extern Gfx pc_text_dl[2][2400];   /* src/blob/groups/blit/init.c: defines it */
 extern const void *const pc_car_setup_data[2];   /* src/blob/groups/carsetup/group.c: defines it */

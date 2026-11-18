@@ -36,30 +36,17 @@ void osCreateMesgQueue(OSMesgQueue *mq, OSMesg *msg, s32 count);
 s32 osRecvMesg(OSMesgQueue *mq, OSMesg *msg, s32 flags);
 s32 osSendMesg(OSMesgQueue *mq, OSMesg msg, s32 flags);
 
-/* PC: the DMA request list has its own storage, and its done queue follows the 8-byte request pointer
- * (sample_dma_next.c's DmaList, docs/port/MUSYX_DATA.md 8.1). The fields used here: */
-typedef struct SampleDmaList {
-    s8 active;          /* its first byte: the list is running */
-    u8 pad1[0x10 - 1];
-    OSMesgQueue *done;  /* +0x10 signalled when the last request is done */
-} SampleDmaList;
-#define sample_dma_list pc_sample_dma_list
-extern SampleDmaList sample_dma_list;
-/* Its done field, read by byte offset as the decompiled code does (a plain field read gives other unoptimised
- * code). */
-#define DMA_LIST_DONE M2C_FIELD(&sample_dma_list, OSMesgQueue **, 0x10)
-
-/* The thread's body (arg unused): make the cartridge-read queue (one message), mark the list inactive, then forever:
- * wait for a read to complete and start the list's next; when none is left, mark the list inactive and signal its
- * done queue. */
+/* The thread's body (arg unused): make the cartridge-read queue (one message), mark the list (pc_sample_dma_list,
+ * game/audio.h) inactive, then forever: wait for a read to complete and start the list's next; when none is left,
+ * mark the list inactive and signal its done queue. */
 void sample_dma_thread_entry(intptr_t arg) {
     osCreateMesgQueue((OSMesgQueue *) &sample_dma_pi_queue, (void **) &sample_dma_pi_msg, 1);
-    sample_dma_list.active = 0;
+    pc_sample_dma_list.active = 0;
     for (;;) {
         osRecvMesg((OSMesgQueue *) &sample_dma_pi_queue, NULL, 1);
         if (sample_dma_next() == 0) {
-            sample_dma_list.active = 0;
-            osSendMesg(DMA_LIST_DONE, NULL, 1);
+            pc_sample_dma_list.active = 0;
+            osSendMesg(pc_sample_dma_list.done, NULL, 1);
         }
     }
 }

@@ -923,7 +923,6 @@ default stays `original` (the N64's sound).
 | `assets_mxvoices` | the per-voice storage through the library's own allocator, nodes and controllers at 96 ([DECOUPLE.md](DECOUPLE.md) 9); with the node loop at 32, 2 checks fail |
 | `assets_musyx`, `assets_audiocmds`, `assets_sound`, `assets_audiomgr` | as before, on the PC arrays (32 voices, 128 messages walked) |
 | `assets_mgrstart` | the manager's thread (`audio_manager_thread_entry`) on scripted queues: two or three starts for one waiting tag give one voice, the first kept, the others counted; a start, the pass's interrupt and a start give two; a start for a freed tag frees it; a start and a stop. Without the guard (10.4), 3 checks fail |
-| `views_sound_commands` | the live readers' views of the messages (`ShutdownMsg`, `Slot24`, `Slot18`) agree on the host layout; the PC declaration is 32 bytes (asserted in `voices.c`) |
 | `frontend.voices`, `frontend.engines` | the settings, `pc_snd_setup`, the engines' choice and its hysteresis, fades and listeners, the budget ([FRONTEND.md](FRONTEND.md)) |
 | `frontend.menu.live` | F1 > Audio: Voices after a restart, Drones' engines at once |
 | `synth_voices_race12` | the synthetic race of 12 (`synth_rom.py --sounds`) at original, 48, 64 and 96: the same game trace at each; at original no subframe past 32 voices; each size mixes more voices with fewer starts refused, until one refuses none |
