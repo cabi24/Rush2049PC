@@ -1,6 +1,6 @@
 /* include/game/carphys.h: the car's physics descriptors: a car type's descriptor (MAT3's _tCar), the handling tunes and
- * the tires' constants, which the model record (physics.h) points to for each car; and the tires the model record
- * holds, filled from those constants when a car is set up (carsetup). */
+ * the tires' constants, which the model record (physics.h) points to for each car; and two records the model record
+ * holds: its tires, filled from those constants when a car is set up (carsetup), and its dead reckoning. */
 #ifndef GAME_CARPHYS_H
 #define GAME_CARPHYS_H
 
