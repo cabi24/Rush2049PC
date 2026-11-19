@@ -6,10 +6,10 @@
 void SetFrameColor(short slot, unsigned int *col) {
     CarParts *car = &gCarParts[slot];
     short frame, hood, tire0, tire1, tire2, tire3;
-    frame = car->frame; ObjInstanceList[frame].color = *col;
-    hood = car->hood; ObjInstanceList[hood].color = *col;
-    tire0 = car->tires[0]; ObjInstanceList[tire0].color = *col;
-    tire1 = car->tires[1]; ObjInstanceList[tire1].color = *col;
-    tire2 = car->tires[2]; ObjInstanceList[tire2].color = *col;
-    tire3 = car->tires[3]; ObjInstanceList[tire3].color = *col;
+    frame = car->frame; ObjInstanceList[frame].color.rgba = *col;
+    hood = car->hood; ObjInstanceList[hood].color.rgba = *col;
+    tire0 = car->tires[0]; ObjInstanceList[tire0].color.rgba = *col;
+    tire1 = car->tires[1]; ObjInstanceList[tire1].color.rgba = *col;
+    tire2 = car->tires[2]; ObjInstanceList[tire2].color.rgba = *col;
+    tire3 = car->tires[3]; ObjInstanceList[tire3].color.rgba = *col;
 }

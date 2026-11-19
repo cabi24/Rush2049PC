@@ -1,7 +1,6 @@
 /* StartGraphics: begin a frame's display list (MAT3 gfx.c; the N64 side, the RDP set-up of every frame). */
 #include "game/game.h"
 
-#define FRAME_MATRIX_OFFSET 1728   /* where a frame buffer's matrices start (frame_matrix_cursor) */
 #define ZBUFFER_CLEAR 0xFFFCFFFC   /* the depth buffer's far value, twice (a fill colour covers two pixels) */
 #define SPLIT_LINE_COLOR 0x00010001 /* near black, the lines between the windows of a split screen */
 
@@ -26,8 +25,8 @@ void StartGraphics(void) {
     FrameRecord *frame;
     frame=&frame_records[frame_record_index];
     frame_dynamic=(struct Dynamic *)frame->commands;   /* the buffer starts with the frame's dynamic data */
-    frame_matrix_cursor=(u8 *)frame_dynamic+FRAME_MATRIX_OFFSET;
-    frame_dl=(Gfx *)((u8 *)frame_dynamic+PC_GLIST_OFFSET);
+    frame_matrix_cursor=frame_dynamic->matrices;
+    frame_dl=frame_dynamic->glist;
     if (!init_lists_read) {
         pc_gfx_list_from_n64(rsp_init_list, rsp_init_dl, RSP_INIT_COMMANDS);
         pc_gfx_list_from_n64(rdp_init_list, rdp_init_dl, RDP_INIT_COMMANDS);

@@ -10,7 +10,7 @@
 void UpdateVisuals(s16 slot)
 {
     tCarData *car = &pc_cars[slot];
-    tVisual *v = (tVisual *) &car->visuals[0];   /* wave 4: tVisual */
+    tVisual *v = &car->visuals[0];
     s16 i;
     f32 usec;
 

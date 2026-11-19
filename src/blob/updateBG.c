@@ -1,28 +1,6 @@
 /* updateBG: the front end's scrolling background (MAT3 front.c updateBG): four textured quads (backPolys) whose
  * texture coordinates drift each frame, wrapping by a whole texture so the numbers stay small. */
 #include "game/game.h"
-#define MotionFrame MotionFrameView   /* this file's own MotionFrame: include/game's MotionFrame is another type */
-
-typedef struct Dims {
-    char pad0[0x10];
-    u16 width;
-    u16 height;
-} Dims;
-
-typedef struct {
-    /* PC: the rectangle createBG reads (min/max x, y): the PC loader fills initialized data by its declarations, and
-     * bytes here would stay big-endian (docs/port/ENDIAN.md). */
-    f32 bounds[4];
-    f32 dx;
-    f32 dy;
-    f32 xs[4];
-    f32 ys[4];
-} Motion; /* 0x38: one quad's drift (dx, dy textures a second) and its corners' coordinates */
-
-/* gBackRects[windows - 1]: the four quads' motion for each split-screen layout. */
-typedef struct {
-    Motion slot[4];
-} MotionFrame; /* 0xE0 */
 
 /* Each frame, for each of the four quads that is up: move its corners' texture coordinates by its drift times the
  * frame's length; when all four corners are past one texture width (height) the same way, shift them all back by
@@ -76,8 +54,8 @@ void updateBG(void) {
             for (i = 0; i < list->nverts; i++) {
                 list->verts[i].tc[0] += shift[0];
                 list->verts[i].tc[1] += shift[1];
-                gBackRects[gNumWindows - 1].slot[slot].xs[i] = list->verts[i].tc[0];
-                gBackRects[gNumWindows - 1].slot[slot].ys[i] = list->verts[i].tc[1];
+                gBackRects[gNumWindows - 1].slot[slot].offX[i] = list->verts[i].tc[0];
+                gBackRects[gNumWindows - 1].slot[slot].offY[i] = list->verts[i].tc[1];
             }
             offsetsValid[gNumWindows - 1] = 1;
         }

@@ -32,7 +32,6 @@ struct Command;
 struct Config64;
 struct Descriptor;
 struct Descriptor72;
-struct Dims;
 struct Dynamic;
 struct EUCar;
 struct Effect;
@@ -352,12 +351,18 @@ typedef struct AudioMenuRect { /* 0x10 bytes */
     s32 cx; /* 0xC */
 } AudioMenuRect;
 
+/* One of the front end's four scrolling background quads (gBackRects[windows - 1].slot[quad]): its rectangle, which
+ * createBG scales by the background's distance, its drift, and its corners' texture coordinates, which updateBG moves
+ * and keeps here for createBG to start from (offsetsValid). */
 typedef struct BackgroundMotion { /* 0x38 bytes */
-    f32 bounds[4]; /* 0x0 */
-    f32 dx;        /* 0x10 */
+    f32 minX;      /* 0x0 the rectangle */
+    f32 maxX;      /* 0x4 */
+    f32 minY;      /* 0x8 */
+    f32 maxY;      /* 0xC */
+    f32 dx;        /* 0x10 its drift, textures a second */
     f32 dy;        /* 0x14 */
-    f32 xs[4];     /* 0x18 */
-    f32 ys[4];     /* 0x28 */
+    f32 offX[4];   /* 0x18 its corners' texture coordinates */
+    f32 offY[4];   /* 0x28 */
 } BackgroundMotion;
 
 typedef struct CoinSlot { /* 0x34 bytes */
@@ -1086,10 +1091,7 @@ typedef struct tTargetStructPath { /* 0x48 bytes */
  * spinning coin AnimateCoin makes and turns, and who has yet to find it (StartCoin). No pointers: 0x4C bytes. */
 typedef struct tTargetStructCoin {
     s32 dlIdx;          /* the spinning coin's scene object (ZOID_AddObject's handle; its low half the object) */
-    struct {
-        f32 uvs[3][3];  /* its orientation */
-        f32 pos[3];     /* its position */
-    } mat;              /* wave 4: tUVMatrix */
+    tUVMatrix mat;      /* its orientation (uvs) and position (pos) */
     f32 glowTime;       /* MAT3's; no code reads it */
     f32 sc;             /* MAT3's; no code reads it */
     f32 angV[3];        /* its spin, radians a second about x, y and z */

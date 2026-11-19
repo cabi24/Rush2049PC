@@ -28,7 +28,7 @@ void controls_initButtons(s8 player) {
             h = ZOID_AddObject(MBOX_FindObject_WORK(controls_buttonNames[e->type], 0, (s8)(gNumModels[0] - 1), 1), e->matrix, none,
                                       (e->type == 0 || e->type == 1 || e->type == 2 || e->type == 9 || e->type == 10) ? 0x42000 : 0);
             e->handle = h;
-            ObjInstanceList[h].color = color.rgba;
+            ObjInstanceList[h].color.rgba = color.rgba;
             MBOX_HideObject(h, 1, 15);
             MBOX_ShowObject(e->handle, 0, mask);
         }

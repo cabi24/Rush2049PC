@@ -28,7 +28,8 @@ static void _InitGfx_Init(void)
     frame_records[0].colorBuffer = framebuffer_a; frame_records[1].colorBuffer = framebuffer_b;
     frame_records[0].commands = DL_BUFFER_0; frame_records[1].commands = DL_BUFFER_1;
     frame_records[0].doneMsg.type = OS_SC_DONE_MSG; frame_records[1].doneMsg.type = OS_SC_DONE_MSG;
-    frame_dynamic = frame_records[0].commands; frame_matrix_cursor = (u8 *)frame_records[0].commands + 1728;
+    frame_dynamic = frame_records[0].commands;
+    frame_matrix_cursor = ((struct Dynamic *)frame_records[0].commands)->matrices;
     frame_dl_start = frame_dl = (u8 *)frame_records[0].commands + PC_GLIST_OFFSET;
 }
 

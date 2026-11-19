@@ -1,22 +1,7 @@
 #include "game/game.h"
 
-typedef struct {
-    f32 minX;            /* 0x00 */
-    f32 maxX;            /* 0x04 */
-    f32 minY;            /* 0x08 */
-    f32 maxY;            /* 0x0C */
-    f32 delX;            /* 0x10 */
-    f32 delY;            /* 0x14 */
-    f32 offX[4];         /* 0x18 */
-    f32 offY[4];         /* 0x28 */
-} BackRect; /* 0x38 */
-
 typedef struct SoundState SoundState;
 
-VIEW(BackRect[4][4], gBackRects);
-#define gBackRects gBackRects_view
-VIEW(void *, bg_texture);
-#define bg_texture bg_texture_view
 void ZOID_ShowPoly_bg(tPoly *poly)
 {
     poly->flags &= ~0x8000;
@@ -34,17 +19,17 @@ void createBG(void)
         tRGBA backColor = { { 0x00, 0x00, 0xC0, 0xFF } };
 
         bg_texture = MBOX_FindTexture_WORK("BACKGROUND_SFX", &texIdx, 0, gNumModels[0] - 1, 1);
-        polyVerts[0][0] = (f32)bgDist * gBackRects[gNumWindows - 1][polyIdx].maxX;
-        polyVerts[0][1] = (f32)bgDist * gBackRects[gNumWindows - 1][polyIdx].maxY;
+        polyVerts[0][0] = (f32)bgDist * gBackRects[gNumWindows - 1].slot[polyIdx].maxX;
+        polyVerts[0][1] = (f32)bgDist * gBackRects[gNumWindows - 1].slot[polyIdx].maxY;
         polyVerts[0][2] = (f32)bgDist;
-        polyVerts[1][0] = (f32)bgDist * gBackRects[gNumWindows - 1][polyIdx].minX;
-        polyVerts[1][1] = (f32)bgDist * gBackRects[gNumWindows - 1][polyIdx].maxY;
+        polyVerts[1][0] = (f32)bgDist * gBackRects[gNumWindows - 1].slot[polyIdx].minX;
+        polyVerts[1][1] = (f32)bgDist * gBackRects[gNumWindows - 1].slot[polyIdx].maxY;
         polyVerts[1][2] = (f32)bgDist;
-        polyVerts[2][0] = (f32)bgDist * gBackRects[gNumWindows - 1][polyIdx].minX;
-        polyVerts[2][1] = (f32)bgDist * gBackRects[gNumWindows - 1][polyIdx].minY;
+        polyVerts[2][0] = (f32)bgDist * gBackRects[gNumWindows - 1].slot[polyIdx].minX;
+        polyVerts[2][1] = (f32)bgDist * gBackRects[gNumWindows - 1].slot[polyIdx].minY;
         polyVerts[2][2] = (f32)bgDist;
-        polyVerts[3][0] = (f32)bgDist * gBackRects[gNumWindows - 1][polyIdx].maxX;
-        polyVerts[3][1] = (f32)bgDist * gBackRects[gNumWindows - 1][polyIdx].minY;
+        polyVerts[3][0] = (f32)bgDist * gBackRects[gNumWindows - 1].slot[polyIdx].maxX;
+        polyVerts[3][1] = (f32)bgDist * gBackRects[gNumWindows - 1].slot[polyIdx].minY;
         polyVerts[3][2] = (f32)bgDist;
         backPolys[polyIdx] = ZOID_NewPoly(4, polyVerts, texIdx, &backColor,
                                             gBackCamera[gNumWindows - 1][polyIdx] | 0x1210, 1);
@@ -55,8 +40,8 @@ void createBG(void)
 
             backPoly = backPolys[polyIdx];
             for (vertIdx = 0; vertIdx < backPoly->nverts; vertIdx++) {
-                backPoly->verts[vertIdx].tc[0] = gBackRects[gNumWindows - 1][polyIdx].offX[vertIdx];
-                backPoly->verts[vertIdx].tc[1] = gBackRects[gNumWindows - 1][polyIdx].offY[vertIdx];
+                backPoly->verts[vertIdx].tc[0] = gBackRects[gNumWindows - 1].slot[polyIdx].offX[vertIdx];
+                backPoly->verts[vertIdx].tc[1] = gBackRects[gNumWindows - 1].slot[polyIdx].offY[vertIdx];
             }
         }
     }

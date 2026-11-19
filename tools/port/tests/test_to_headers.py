@@ -18,6 +18,13 @@ HERE = Path(__file__).resolve().parent
 TOOLS = HERE.parent
 REPO = TOOLS.parents[1]
 
+# The VIEW macro the tool's views use (include/game/view.h until wave 4 removed the last view, docs/port/RECORDS.md).
+VIEW_H = """\
+#define GAME_VIEW_STR(s) GAME_VIEW_STR2(s)
+#define GAME_VIEW_STR2(s) #s
+#define VIEW(T, x) extern __typeof__(T) x##_view __asm__(GAME_VIEW_STR(__USER_LABEL_PREFIX__) #x)
+"""
+
 HEADER = """\
 #ifndef GAME_GAME_H
 #define GAME_GAME_H
@@ -80,7 +87,7 @@ def main():
         root = Path(td)
         (root / "include/game").mkdir(parents=True)
         (root / "include/game/game.h").write_text(HEADER)
-        shutil.copy(REPO / "include/game/view.h", root / "include/game/view.h")
+        (root / "include/game/view.h").write_text(VIEW_H)
         (root / "port/data").mkdir(parents=True)
         (root / "port/data/game_decls.c").write_text(DECLS)
         (root / "src").mkdir()

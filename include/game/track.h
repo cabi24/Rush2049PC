@@ -38,7 +38,8 @@
 typedef struct tModelPart {
     char name[16];          /* 0x00 its model's name (MBOX_FindObject_WORK) */
     UVMatrixRows mat;       /* 0x10 its place relative to its parent: uvs[0..2] the orientation's rows, uvs[3] the
-                             * position (wave 4: tUVMatrix) */
+                             * position (tUVMatrix's layout, as four rows: WorldCullObjects reads the position as a
+                             * fourth row, by index) */
     u32 dlflags;            /* 0x40 its scene node's flags (OBJ_*, scene.h) */
     s16 next;               /* 0x44 its next sibling, an index into WorldBase; -1 none */
     s16 child;              /* 0x46 its first child, the same */

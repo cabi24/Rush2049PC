@@ -19,12 +19,9 @@ s32 CheckVisibleAll(tVisual *v, s32 on) {
     return on;
 }
 
-/* PC: the scene node's host layout, as every view has it (docs/port/POINTERS.md 9). */
-typedef struct { u32 flags, culling; f32 *mat; f32 scale, w; u16 index; s16 child, next, numLights; void *lights, *texture[4], *tile, *tileSize, *palette; u32 color, envcolor; } ObjInstance;
-#define TBL ((ObjInstance *) &ObjInstanceList)
 /* deleted static: the scene node's matrix pointer (ZOID_FindMatrix); inlined at all three uses (this is what puts
  * the index in a0 and the pointer in a1) */
-static f32 *model_mat(s16 objnum) { return TBL[objnum].mat; }
+static f32 *model_mat(s16 objnum) { return (f32 *)ObjInstanceList[objnum].mat; }   /* its orientation, then position */
 /* game.frame_rate 60: the flame's frame index steps once a frame of two retraces, so it flickers and dies out at the
  * N64's rate (pc_game_fps.h, docs/port/FRAMERATE.md 7) */
 #define PC_IF30(c) ((!pc_fps60 || pc_frame_steps) && (c))

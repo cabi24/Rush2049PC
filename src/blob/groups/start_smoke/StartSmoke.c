@@ -299,20 +299,20 @@ void StartSmoke(s16 slot, u32 type, s32 water, f32 *smkoffset)
             MBOX_HideObject(smk->mbIdx, 0, 1 << car->camera);
         if (type >= SMOKE_WING0) {
             switch (gCarWings[slot + 1][m->body_type]) {
-            case 0: { s16 h = smk->mbIdx; ObjInstanceList[h].color = wg1.rgba; } break;
-            case 1: { s16 h = smk->mbIdx; ObjInstanceList[h].color = wg2.rgba; } break;
-            case 2: { s16 h = smk->mbIdx; ObjInstanceList[h].color = wg3.rgba; } break;
+            case 0: { s16 h = smk->mbIdx; ObjInstanceList[h].color.rgba = wg1.rgba; } break;
+            case 1: { s16 h = smk->mbIdx; ObjInstanceList[h].color.rgba = wg2.rgba; } break;
+            case 2: { s16 h = smk->mbIdx; ObjInstanceList[h].color.rgba = wg3.rgba; } break;
             }
         } else if (type == SMOKE_WRECK) {
-            OBJ_COLOR(ObjInstanceList[smk->mbIdx].color)[0] = gCarBlastSmokeClr[slot];
-            OBJ_COLOR(ObjInstanceList[smk->mbIdx].color)[1] = gCarBlastSmokeClr[slot];
-            OBJ_COLOR(ObjInstanceList[smk->mbIdx].color)[2] = gCarBlastSmokeClr[slot];
-            OBJ_COLOR(ObjInstanceList[smk->mbIdx].color)[3] = 255;
+            ObjInstanceList[smk->mbIdx].color.c[0] = gCarBlastSmokeClr[slot];
+            ObjInstanceList[smk->mbIdx].color.c[1] = gCarBlastSmokeClr[slot];
+            ObjInstanceList[smk->mbIdx].color.c[2] = gCarBlastSmokeClr[slot];
+            ObjInstanceList[smk->mbIdx].color.c[3] = 255;
             gCarBlastSmokeClr[slot] -= 3;
             if (gCarBlastSmokeClr[slot] < 53) gCarBlastSmokeClr[slot] = 53;
-        } else if (type == SMOKE_FIRE) { s16 h = smk->mbIdx; ObjInstanceList[h].color = wht.rgba; }
-        else if (surface == SURF_VIS_DIRT) { s16 h = smk->mbIdx; ObjInstanceList[h].color = dtClr.rgba; }
-        else { s16 h = smk->mbIdx; ObjInstanceList[h].color = rdClr.rgba; }
+        } else if (type == SMOKE_FIRE) { s16 h = smk->mbIdx; ObjInstanceList[h].color.rgba = wht.rgba; }
+        else if (surface == SURF_VIS_DIRT) { s16 h = smk->mbIdx; ObjInstanceList[h].color.rgba = dtClr.rgba; }
+        else { s16 h = smk->mbIdx; ObjInstanceList[h].color.rgba = rdClr.rgba; }
         smk->mat.pos[0] = pos[0];
         smk->mat.pos[1] = pos[1];
         smk->mat.pos[2] = pos[2];

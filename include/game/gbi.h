@@ -11,6 +11,8 @@
 #ifndef GAME_GBI_H
 #define GAME_GBI_H
 
+#include "game/types.h"   /* Vtx, the frame buffer's view vertices */
+
 /* ---- the values the records take ---- */
 
 /* gSPMatrix's parameters: projection or modelview, load or multiply, push the modelview first or not. */
@@ -549,5 +551,73 @@ static inline Gfx gbi_rectangle_texture(u32 s, u32 t, u32 dsdx, u32 dtdy) {
     GBI_PUT(pkt, gbi_rectangle_texture(GBI_FIELD(s, 16), GBI_FIELD(t, 16), GBI_FIELD(dsdx, 16), \
                                        GBI_FIELD(dtdy, 16))) \
 }
+
+/* ---------------------------------------------------------------- the data the commands point at */
+
+/* libultra's records for the data a list's commands name by pointer (gbi.h, mbi.h): a fixed-point matrix (guMtxF2L's,
+ * MATRIX), a viewport (VIEWPORT), the lights and the lookat a node's environment map takes (LIGHT). The renderer reads
+ * them by these layouts (port/gfx). */
+typedef s32 Mtx_t[4][4];
+typedef union Mtx {
+    Mtx_t m;
+    long long int force_structure_alignment;
+} Mtx;
+typedef struct {
+    short vscale[4];
+    short vtrans[4];
+} Vp_t;
+typedef union {
+    Vp_t vp;
+    long long int force_structure_alignment[2];
+} Vp;
+
+typedef struct {
+    unsigned char col[3];
+    char pad1;
+    unsigned char colc[3];
+    char pad2;
+    signed char dir[3];
+    char pad3;
+} Light_t;
+typedef union {
+    Light_t l;
+    long long int force_structure_alignment[2];
+} Light;
+typedef struct {
+    unsigned char col[3];
+    char pad1;
+    unsigned char colc[3];
+    char pad2;
+} Ambient_t;
+typedef union {
+    Ambient_t l;
+    long long int force_structure_alignment[1];
+} Ambient;
+typedef struct Lights2 {
+    Ambient a;
+    Light l[2];
+} Lights2;
+typedef struct LookAt {
+    Light l[2];
+} LookAt;
+typedef f32 MtxF[4][4];
+
+/* A frame's command buffer (frame_dynamic, system.h: one of frame_records[].commands, StartGraphics), the data its
+ * display list points at and then the list itself, in the order port/include/pc_game_types.h's PC_FRAME_* lay it out:
+ * each view's viewport, vertex, projection and camera, the lookats of the environment-mapped nodes, the identity, then
+ * the nodes' matrices (frame_matrix_cursor walks them) and the display list (frame_dl). */
+struct Dynamic {
+    Vp vp[4];                           /* each view's viewport */
+    Vtx vtx[4];                         /* each view's vertex (OBJ_VIEW_VERTEX) */
+    Mtx proj[4];                        /* each view's projection */
+    Mtx look[4];                        /* each view's camera */
+    LookAt la[PC_FRAME_LOOKATS];        /* the environment-mapped nodes' lookats, a view's at most */
+    Mtx ident;                          /* the identity */
+    Mtx matrices[PC_FRAME_MATRICES];    /* the nodes' matrices, from PC_FRAME_MATRIX_OFFSET */
+    Gfx glist[PC_GLIST_LEN];            /* the display list, from PC_GLIST_OFFSET */
+};
+_Static_assert(__builtin_offsetof(struct Dynamic, matrices) == PC_FRAME_MATRIX_OFFSET, "struct Dynamic: the matrices");
+_Static_assert(__builtin_offsetof(struct Dynamic, glist) == PC_GLIST_OFFSET, "struct Dynamic: the list");
+_Static_assert(sizeof(struct Dynamic) == PC_FRAME_BYTES, "struct Dynamic: its size");
 
 #endif /* GAME_GBI_H */

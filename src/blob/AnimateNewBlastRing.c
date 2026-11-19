@@ -52,7 +52,7 @@ release:
             clr.c[2]=255;
             clr.c[3]=gBlastRingObjs[v->slot].ralpha;
             phase=gBlastRingObjs[v->slot].ringNode;
-            ObjInstanceList[phase].color=clr.rgba;
+            ObjInstanceList[phase].color.rgba=clr.rgba;
             if(gBlastRingObjs[v->slot].ralpha>=25) {
                 gBlastRingObjs[v->slot].ralpha-=24;
             }

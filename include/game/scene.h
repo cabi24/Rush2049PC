@@ -42,10 +42,6 @@ struct tCamera;   /* a window's camera (camera.h), which the scene draw looks th
 #define OBJ_LATE_B            0x800000    /* drawn in the second pass after the flat polygons */
 #define OBJ_HIDDEN            0x80000000  /* not drawn in any view */
 
-/* ObjInstanceList[].color and .envcolor hold a colour's bytes R, G, B, A in memory, as the scene draw reads them; a
- * word only moves them (docs/port/ENDIAN.md). OBJ_COLOR(node->color)[i] is byte i. */
-#define OBJ_COLOR(word)       ((u8 *)&(word))
-
 /* tModelDef.lod[].flags: what a level of detail of an object needs before its display list. */
 #define LOD_TEXTURED          0x1         /* load its texture (the node's, or the one ZOID_ChangeTexture set) */
 #define LOD_RESET_TLUT        0x2         /* its list changes the palette: load the node's again after it */
@@ -95,8 +91,8 @@ typedef struct ObjectInstance {
     struct TexTile *tile;         /* the part of the texture to load in place of the model's */
     struct TexTile *tileSize;     /* the part of it to draw */
     struct tPaletteDef *palette;  /* a palette in place of the model's */
-    u32 color;                    /* the primitive colour: bytes R, G, B, A (OBJ_COLOR); wave 4: tRGBA */
-    u32 envcolor;                 /* the environment colour, likewise; wave 4: tRGBA */
+    tRGBA color;                  /* the primitive colour */
+    tRGBA envcolor;               /* the environment colour */
 } ObjectInstance;
 
 /* A window of the scene (MAT3 tWindowInfo; ZoidWinInfo, one a player in split screen): where on the screen it

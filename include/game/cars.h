@@ -186,8 +186,7 @@ typedef struct tCarData {
     f32 last_distance;          /* the distance a frame before */
     f32 mileage;                /* the distance driven (InitCPTime zeroes it at the start) */
     f32 crashtime;              /* the model time it crashed (the wreck's wait to respawn) */
-    struct pc_visual visuals[CAR_VISUALS];   /* the car's visuals, VIS_* (MAT3's 22 less the headlights) */
-                                /* wave 4: tVisual */
+    tVisual visuals[CAR_VISUALS];   /* the car's visuals, VIS_* (MAT3's 22 less the headlights) */
     s8 collidable;              /* other cars collide with it */
     s8 solid;                   /* it can be hit (it blinks, not solid, after a respawn) */
     f32 collide_time;           /* the model time it stopped being solid */

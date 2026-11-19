@@ -6,21 +6,6 @@
  * guLookAtReflectF (no matrix). */
 #include "game/game.h"
 
-/* The RSP's Light_t and LookAt (libultra gbi.h): colours and an s8 direction (-128..127 for -1..1). */
-typedef struct {
-    u8 col[3];
-    char pad1;
-    u8 colc[3];
-    char pad2;
-    s8 dir[3];
-    char pad3;
-    char pad4[4];
-} Light_t;
-
-typedef struct LookAt {
-    Light_t l[2];
-} LookAt;
-
 extern f32 sqrtf(f32);
 #pragma intrinsic(sqrtf)
 
@@ -56,25 +41,25 @@ void lookat_reflect_fill(LookAt *l, f32 xEye, f32 yEye, f32 zEye, f32 xAt, f32 y
     xUp = yLook * zRight - zLook * yRight;
     yUp = zLook * xRight - xLook * zRight;
     zUp = xLook * yRight - yLook * xRight;
-    l->l[0].dir[0] = FTOFRAC8(xRight);
-    l->l[0].dir[1] = FTOFRAC8(yRight);
-    l->l[0].dir[2] = FTOFRAC8(zRight);
-    l->l[1].dir[0] = FTOFRAC8(xUp);
-    l->l[1].dir[1] = FTOFRAC8(yUp);
-    l->l[1].dir[2] = FTOFRAC8(zUp);
+    l->l[0].l.dir[0] = FTOFRAC8(xRight);
+    l->l[0].l.dir[1] = FTOFRAC8(yRight);
+    l->l[0].l.dir[2] = FTOFRAC8(zRight);
+    l->l[1].l.dir[0] = FTOFRAC8(xUp);
+    l->l[1].l.dir[1] = FTOFRAC8(yUp);
+    l->l[1].l.dir[2] = FTOFRAC8(zUp);
 
-    l->l[0].col[0] = 0;
-    l->l[0].col[1] = 0;
-    l->l[0].col[2] = 0;
-    l->l[0].pad1 = 0;
-    l->l[0].colc[0] = 0;
-    l->l[0].colc[1] = 0;
-    l->l[0].colc[2] = 0;
-    l->l[0].pad2 = 0;
-    l->l[1].col[0] = 0;
-    l->l[1].col[1] = 0x80;
-    l->l[1].col[2] = 0;
-    l->l[1].pad1 = 0;
-    l->l[1].colc[0] = 0;
-    l->l[1].colc[1] = 0x80;
+    l->l[0].l.col[0] = 0;
+    l->l[0].l.col[1] = 0;
+    l->l[0].l.col[2] = 0;
+    l->l[0].l.pad1 = 0;
+    l->l[0].l.colc[0] = 0;
+    l->l[0].l.colc[1] = 0;
+    l->l[0].l.colc[2] = 0;
+    l->l[0].l.pad2 = 0;
+    l->l[1].l.col[0] = 0;
+    l->l[1].l.col[1] = 0x80;
+    l->l[1].l.col[2] = 0;
+    l->l[1].l.pad1 = 0;
+    l->l[1].l.colc[0] = 0;
+    l->l[1].l.colc[1] = 0x80;
 }

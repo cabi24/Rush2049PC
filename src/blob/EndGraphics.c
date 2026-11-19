@@ -1,17 +1,11 @@
 /* EndGraphics: end a frame's display list and hand it to the scheduler (MAT3 gfx.c; the N64 side of it). */
 #include "game/game.h"
 
-
-/* PC: the frame's buffer as pc_game_types.h lays it out, PC_GLIST_LEN commands from PC_GLIST_OFFSET; at the end of
- * its list pc_frame_pools checks the list, the frame's matrices (frame_matrix_cursor) and its lookats, which the SDK's empty
- * `if` didn't: a Debug build stops when one ran past its end (docs/port/MORECARS.md 8). */
+/* PC: the frame's buffer (struct Dynamic, gbi.h), PC_GLIST_LEN commands from PC_GLIST_OFFSET; at the end of its
+ * list pc_frame_pools checks the list, the frame's matrices (frame_matrix_cursor) and its lookats, which the SDK's
+ * empty `if` didn't: a Debug build stops when one ran past its end (docs/port/MORECARS.md 8). */
 #define GLIST_LEN PC_GLIST_LEN
 #define PC_FRAME_OVER pc_frame_pools(frame_dynamic, frame_dl, frame_matrix_cursor)
-
-typedef struct Dynamic {
-    u8 pad[PC_GLIST_OFFSET];
-    Gfx glist[GLIST_LEN];
-} Dynamic;
 
 /* PC, game.frame_rate 60 (docs/port/FRAMERATE.md 7): the frame's task waits in the scheduler's task queue until a
  * command on its event queue wakes it (sched_main, SCHED_CMD_SCHEDULE). In real time on the PC the RSP finishes the

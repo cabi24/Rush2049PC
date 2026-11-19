@@ -4,9 +4,6 @@
  * with gSPMatrix; build_node_matrix_rows4 is its twin for the camera-facing nodes. */
 #include "game/game.h"
 
-/* The RSP's Mtx: a 4x4 s15.16 matrix as 16 words, the integer halves of the 16 elements (two to a word, row by row)
- * in words 0-7, their fractions in words 8-15. */
-typedef u32 Mtx[16];
 /* A node's place: its orientation (3x3, row by row: the object's axes) and its position (MAT3 tUVMatrix). */
 typedef struct XForm {
     f32 m[9];
@@ -26,7 +23,9 @@ float sqrtf(float);
  * further by dividing the whole matrix, its rotation, its place and its w, by a power of two h
  * (pc_draw_range_scale): every vertex comes out h times smaller in x, y, z and w, the same point on the screen with
  * the same z/w, so the same depth and fog. Inside the N64's range h is 1 and every word is the N64's. */
-s32 build_node_matrix(s32 view, XForm *src, Mtx *out, f32 w, s32 depth) {
+/* out is the RSP's matrix (Mtx, gbi.h) as 16 words: a 4x4 s15.16 matrix, the integer halves of the 16 elements (two
+ * to a word, row by row) in words 0-7, their fractions in words 8-15. */
+s32 build_node_matrix(s32 view, XForm *src, u32 (*out)[16], f32 w, s32 depth) {
     f32 x, y, z, sc;
     s32 a, b, c, d, h;
     u32 *words = (u32 *)out;

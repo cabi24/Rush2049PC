@@ -6,5 +6,5 @@ void ZOID_SetEnvColor(short node, tRGBA *col)
 {
     ObjectInstance *obj;
     obj = &ObjInstanceList[node];
-    obj->envcolor = col->rgba;
+    obj->envcolor.rgba = col->rgba;
 }

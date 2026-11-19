@@ -4,8 +4,6 @@
  * shared 4x4 float matrix (zoid_view_matrix, zoid_upright_matrix or a scaled copy), the position the node's. */
 #include "game/game.h"
 
-/* The RSP's Mtx (build_node_matrix.c). */
-typedef u32 Mtx[16];
 float sqrtf(float);
 #pragma intrinsic (sqrtf)
 
@@ -19,7 +17,8 @@ float sqrtf(float);
  * further by dividing the whole matrix, its rotation, its place and its w, by a power of two h
  * (pc_draw_range_scale): every vertex comes out h times smaller in x, y, z and w, the same point on the screen with
  * the same z/w, so the same depth and fog. Inside the N64's range h is 1 and every word is the N64's. */
-s32 build_node_matrix_rows4(s32 view, f32 (*m)[4], f32 *pos, Mtx *out, f32 w, s32 depth) {
+/* out: the RSP's matrix as 16 words, as build_node_matrix writes it. */
+s32 build_node_matrix_rows4(s32 view, f32 (*m)[4], f32 *pos, u32 (*out)[16], f32 w, s32 depth) {
     f32 x, y, z, sc;
     s32 a, b, c, d, h;
     u32 *words = (u32 *)out;

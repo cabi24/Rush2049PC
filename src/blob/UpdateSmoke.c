@@ -175,8 +175,8 @@ release:
             }
             gFrameSeconds;      /* a read of the volatile and nothing more (MAT3: t = gFrameSeconds, unused) */
             if (puff->lifeTime < 1.0f) {
-                if (OBJ_COLOR(ObjInstanceList[puff->mbIdx].color)[3] >= 9) {
-                    PC_EACH30(OBJ_COLOR(ObjInstanceList[puff->mbIdx].color)[3] -= 9;)
+                if (ObjInstanceList[puff->mbIdx].color.c[3] >= 9) {
+                    PC_EACH30(ObjInstanceList[puff->mbIdx].color.c[3] -= 9;)
                 }
             }
             if (type == SMOKE_WRECK) {

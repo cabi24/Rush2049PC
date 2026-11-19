@@ -48,7 +48,7 @@ s32 ZOID_AddObject(s32 obj, void *mat, s16 parent, s32 flags) {
     node->tile = 0;
     node->tileSize = 0;
     node->palette = 0;
-    node->color = 0;
+    node->color.rgba = 0;
     ZOID_InsertObject(i, parent);
     return (s16)i;
 }

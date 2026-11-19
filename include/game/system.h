@@ -182,8 +182,8 @@ extern OSMesg si_lock_msg;
 extern FrameRecord frame_records[EXTENT(2)];
 extern void *framebuffer_a;
 extern void *framebuffer_b;
-extern struct Dynamic *frame_dynamic;
-extern u8 *frame_matrix_cursor;
+extern struct Dynamic *frame_dynamic;       /* the frame's command buffer (gbi.h) */
+extern union Mtx *frame_matrix_cursor;      /* the next of its nodes' matrices */
 extern s32 video_texture_filter;
 extern s32 video_color_dither;
 extern s32 video_dither_filter;

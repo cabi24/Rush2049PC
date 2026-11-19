@@ -18,69 +18,9 @@
 typedef struct TexTile {
     u16 uls, ult, lrs, lrt;
 } TexTile;
-/* ---- libultra's types (gbi.h, mbi.h) ---- */
-typedef s32 Mtx_t[4][4];
-typedef union {
-    Mtx_t m;
-    long long int force_structure_alignment;
-} Mtx;
-typedef struct {
-    short vscale[4];
-    short vtrans[4];
-} Vp_t;
-typedef union {
-    Vp_t vp;
-    long long int force_structure_alignment[2];
-} Vp;
-
-typedef struct {
-    unsigned char col[3];
-    char pad1;
-    unsigned char colc[3];
-    char pad2;
-    signed char dir[3];
-    char pad3;
-} Light_t;
-typedef union {
-    Light_t l;
-    long long int force_structure_alignment[2];
-} Light;
-typedef struct {
-    unsigned char col[3];
-    char pad1;
-    unsigned char colc[3];
-    char pad2;
-} Ambient_t;
-typedef union {
-    Ambient_t l;
-    long long int force_structure_alignment[1];
-} Ambient;
-typedef struct Lights2 {
-    Ambient a;
-    Light l[2];
-} Lights2;
-typedef struct LookAt {
-    Light l[2];
-} LookAt;
-typedef f32 MtxF[4][4];
-
 /* The frame's buffer of RSP data a view's commands point at (*frame_dynamic): per view its viewport, its vertex (the
  * OBJ_VIEW_VERTEX one), projection and lookat matrices; the reflections' lookats (frame_lookat_count of them); the
  * identity. */
-typedef struct {
-    Vp vp[4];       /* 0x000 */
-    Vtx vtx[4];     /* 0x040 */
-    Mtx proj[4];    /* 0x080 */
-    Mtx look[4];    /* 0x180 */
-    LookAt la[32];  /* 0x280 */
-    Mtx ident;      /* 0x680 */
-} GfxBuf;
-
-VIEW(GfxBuf *, frame_dynamic);
-#define frame_dynamic frame_dynamic_view
-VIEW(Mtx *, frame_matrix_cursor);
-#define frame_matrix_cursor frame_matrix_cursor_view
-
 float sqrtf(float);
 float fabsf(float);
 
@@ -418,7 +358,7 @@ s32 zoid_draw_object(Gfx **gp, ObjectInstance *parent, s32 depth, s32 use_parent
                                    node->tile->lrs >> 3, node->tile->lrt >> 3);
                 }
                 if ((def->lod[lod].flags & LOD_PRIM_COLOR) || (node->flags & OBJ_PRIM_COLOR)) {
-                    alpha = OBJ_COLOR(node->color)[3];
+                    alpha = node->color.c[3];
                     /* OBJ_FADE: full from 0 to 24 feet, gone at 80 */
                     if ((node->flags & OBJ_FADE) && node_eye_distance > 24.0f) {
                         if (node_eye_distance > 80.0f) {
@@ -427,11 +367,11 @@ s32 zoid_draw_object(Gfx **gp, ObjectInstance *parent, s32 depth, s32 use_parent
                             alpha = alpha * (80.0f - node_eye_distance) / 56.0f;
                         }
                     }
-                    gDPSetPrimColor(gfx++, 0, 0, OBJ_COLOR(node->color)[0], OBJ_COLOR(node->color)[1], OBJ_COLOR(node->color)[2], alpha);
+                    gDPSetPrimColor(gfx++, 0, 0, node->color.c[0], node->color.c[1], node->color.c[2], alpha);
                 }
                 if (node->flags & OBJ_ENV_COLOR) {
-                    gDPSetEnvColor(gfx++, OBJ_COLOR(node->envcolor)[0], OBJ_COLOR(node->envcolor)[1], OBJ_COLOR(node->envcolor)[2],
-                                   OBJ_COLOR(node->envcolor)[3]);
+                    gDPSetEnvColor(gfx++, node->envcolor.c[0], node->envcolor.c[1], node->envcolor.c[2],
+                                   node->envcolor.c[3]);
                 }
                 gSPDisplayList(gfx++, dl);
                 if (zoid_tlut_mode == 0) {

@@ -130,7 +130,7 @@ void controls_updateButtons(s8 player) {
             if(!valid)controls_buttonInfo[player][i].alpha=0;
             color.c[3]=controls_buttonInfo[player][i].alpha;
             handle = controls_buttonInfo[player][i].handle;
-            ObjInstanceList[handle].color=color.rgba;
+            ObjInstanceList[handle].color.rgba=color.rgba;
             if (i==10) {
                 controls_buttonInfo[player][12].position[0]=controls_buttonInfo[player][i].position[0];
                 controls_buttonInfo[player][12].position[1]=controls_buttonInfo[player][i].position[1];
@@ -140,7 +140,7 @@ void controls_updateButtons(s8 player) {
                 WPitchUV(controls_buttonInfo[player][i].angle-HALF_PI,controls_buttonInfo[player][12].matrix);
                 ZOID_SetTexture((s16)controls_buttonInfo[player][12].handle,tex,-1);
                 handle = controls_buttonInfo[player][12].handle;
-                ObjInstanceList[handle].color=color.rgba;
+                ObjInstanceList[handle].color.rgba=color.rgba;
             }
             shown=controls_validOption(player,i);
             if(!shown) {

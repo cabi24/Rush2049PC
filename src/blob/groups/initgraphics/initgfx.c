@@ -37,6 +37,6 @@ void InitGfx(void)
     frame_records[0].commands = DL_BUFFER_0;
     frame_records[1].commands = DL_BUFFER_1;
     frame_dynamic = (struct Dynamic *)frame_records[0].commands;   /* the buffer starts with the frame's dynamic data */
-    frame_matrix_cursor = frame_records[0].commands + 1728;
+    frame_matrix_cursor = ((struct Dynamic *)frame_records[0].commands)->matrices;
     frame_dl = (Gfx *)(frame_records[0].commands + PC_GLIST_OFFSET);
 }

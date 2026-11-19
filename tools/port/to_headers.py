@@ -18,7 +18,8 @@ files share, declared once. This tool rewrites a file so that it includes those 
   docs/port/PROTOTYPES.md why that is harmless). A datum's: when the file declared it with the headers' very type as
   the file sees it (an array open-ended: EXTENT, include/game/basic.h).
 - **A datum the file reads through another type** (its own struct, a signed copy, an array with a bound) keeps that
-  view, as two lines after the include (include/game/view.h):
+  view, as two lines after the include (the VIEW macro, which was include/game/view.h; since wave 4 no file of the
+  tree reads a datum through a view, and the header is gone: docs/port/RECORDS.md):
 
       VIEW(Cam152[], gCamera);
       #define gCamera gCamera_view

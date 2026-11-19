@@ -4,5 +4,5 @@
 /* Set node `node`'s primitive colour, which its display lists may draw with, to *col. */
 void ZOID_SetColor(short node, tRGBA *col)
 {
-    ObjInstanceList[node].color = col->rgba;
+    ObjInstanceList[node].color.rgba = col->rgba;
 }

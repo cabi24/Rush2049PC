@@ -218,7 +218,8 @@ typedef struct MenuButton {
     f32 angle;         /* how far it has turned, radians: a row's button turns over to pi while the row is selected,
                         * showing its other side, and back to 0; the cursor spins. The text beside a button is
                         * hidden while it is edge-on (EDGE_ON_FROM to EDGE_ON_TO) */
-    f32 matrix[3][3];  /* its orientation (wave 4: tUVMatrix, with position: MAT3 mat.uvs) */
+    f32 matrix[3][3];  /* its orientation (MAT3 mat.uvs: with position, MAT3's tUVMatrix mat, kept as two fields by
+                        * the names the screens' code reads them by) */
     f32 position[3];   /* its place (MAT3 mat.pos) */
     u8 alpha;          /* its text's opacity, 0-255, 0 hidden: the screens whose lists scroll fade the buttons at the
                         * list's ends (the mode, audio and video screens leave it 0 and draw their text regardless) */
@@ -230,7 +231,7 @@ typedef struct StartScreenButton {
     s32 type;          /* its model, startscr_buttonNames[type] */
     s32 handle;        /* its scene object, -1 until it is made */
     f32 angle;         /* how far it has turned over, radians */
-    f32 matrix[3][3];  /* its orientation (wave 4: tUVMatrix, with position) */
+    f32 matrix[3][3];  /* its orientation (MAT3 mat.uvs, as MenuButton's) */
     f32 position[3];   /* its place */
 } StartScreenButton;
 
@@ -274,7 +275,7 @@ extern MotionFrame gBackRects[EXTENT(4)];
 extern s32 gBackCamera[EXTENT(4)][4];
 extern tBlit *backBlit;
 extern tPoly *backPolys[EXTENT(4)];
-extern struct Dims *bg_texture;
+extern struct tTexture *bg_texture;   /* the background's texture (createBG) */
 extern s32 offsetsValid[EXTENT(5)];
 extern tRGBA controller_dim_color;
 extern tBlitDef gameover_multiblit[EXTENT(1)];

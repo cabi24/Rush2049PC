@@ -76,10 +76,10 @@ typedef struct tReckon {
  * their order are MAT3's, and their names but for color (the N64 game keeps three paint colours where MAT3 has
  * PaintJob and an unused short).
  *
- * The vectors and matrices are float arrays, as MAT3 declares them (wave 4: B2's vector and matrix types). The tires'
- * states, the respawn and the dead reckoning are records of their own (anonymous in MAT3): Tire, tResurrect and
- * tReckon, above. The record has no pointer but its five (car, tune, lasttp, torquecurve, movingSurface), and every
- * pointee is game data or the road file. */
+ * The vectors and matrices are float arrays, as MAT3 declares them and as the vector functions take them (f32 *).
+ * The tires' states, the respawn and the dead reckoning are records of their own (anonymous in MAT3): Tire,
+ * tResurrect and tReckon, above. The record has no pointer but its five (car, tune, lasttp, torquecurve,
+ * movingSurface), and every pointee is game data or the road file. */
 typedef struct tModelData {
     /* The car and its owner's choices (init_cars, carsetup) */
     struct _tCar *car;          /* the physics descriptor: car_descriptors[], as gCarModels[body_type] */
@@ -94,37 +94,37 @@ typedef struct tModelData {
     s8 tireRims;                /* the rims (gTireRims) */
 
     /* Forces and motion in the car's frame (forces1, forces2, torques, accelerations, velocities) */
-    f32 f[3];                   /* the total force; wave 4: Vec3 */
-    f32 m[3];                   /* the total moment; wave 4: Vec3 */
-    f32 a[3];                   /* the acceleration, feet a second squared; wave 4: Vec3 */
-    f32 aa[3];                  /* the angular acceleration, radians a second squared; wave 4: Vec3 */
-    f32 v[3];                   /* the velocity, feet a second (v[2] the forward speed); wave 4: Vec3 */
-    f32 w[3];                   /* the angular velocity, radians a second (w[1] the yaw rate); wave 4: Vec3 */
-    f32 d[3];                   /* the drag and the wind: [0] across, [1] up, [2] along; wave 4: Vec3 */
-    f32 tireForce[4][3];        /* each tire's force; [i][1] its load, the road pushing up; wave 4: Vec3 */
-    f32 tireV[4][3];            /* each tire's contact patch's velocity; wave 4: Vec3 */
+    f32 f[3];                   /* the total force */
+    f32 m[3];                   /* the total moment */
+    f32 a[3];                   /* the acceleration, feet a second squared */
+    f32 aa[3];                  /* the angular acceleration, radians a second squared */
+    f32 v[3];                   /* the velocity, feet a second (v[2] the forward speed) */
+    f32 w[3];                   /* the angular velocity, radians a second (w[1] the yaw rate) */
+    f32 d[3];                   /* the drag and the wind: [0] across, [1] up, [2] along */
+    f32 tireForce[4][3];        /* each tire's force; [i][1] its load, the road pushing up */
+    f32 tireV[4][3];            /* each tire's contact patch's velocity */
     f32 bodyForce[4][3];        /* the force at each body corner, where the body touches the world */
-    f32 bodyR[4][3];            /* the body's collision corners from the centre, [0] front right; wave 4: Vec3 */
-    f32 centerForce[3];         /* the force at the centre of mass this step (collisions ...); wave 4: Vec3 */
+    f32 bodyR[4][3];            /* the body's collision corners from the centre, [0] front right */
+    f32 centerForce[3];         /* the force at the centre of mass this step (collisions ...) */
     f32 centerForceLast[3];     /* the last step's (sym) */
-    f32 centerMoment[3];        /* the moment about the centre of mass; wave 4: Vec3 */
+    f32 centerMoment[3];        /* the moment about the centre of mass */
     f32 peak_body_force[2][3];  /* the body's largest forces since the cameras last read them: +x +z, -x -z */
     f32 peak_center_force[2][3]; /* the centre's (the cameras' shake, the bump sounds) */
-    f32 tireuvs[4][3][3];       /* each tire's orientation; wave 4: Basis */
-    f32 g[3];                   /* gravity; wave 4: Vec3 */
+    f32 tireuvs[4][3][3];       /* each tire's orientation */
+    f32 g[3];                   /* gravity */
 
     /* Motion in the world (positions) */
     f32 rwa[3];                 /* the acceleration */
     f32 rwv[3];                 /* the velocity, feet a second */
-    f32 rwr[3];                 /* the position, feet; wave 4: Vec3 */
-    f32 rwr2[3];                /* the position a step ago; wave 4: Vec3 */
+    f32 rwr[3];                 /* the position, feet */
+    f32 rwr2[3];                /* the position a step ago */
     f32 tireRwr[4][3];          /* each tire's position */
     f32 bodyrwr[4][3];          /* each body corner's position */
     f32 bodyrwr2[4][3];         /* the same a step ago */
-    f32 grw[3];                 /* gravity: (0, -weight, 0); wave 4: Vec3 */
+    f32 grw[3];                 /* gravity: (0, -weight, 0) */
     f32 stuntW[3];              /* the rotation summed for the stunt score */
-    f32 uvs[3][3];              /* the orientation, rows the car's x, y, z axes (uvs[1][1] 1 upright); wave 4: Basis */
-    f32 roaduvs[4][3][3];       /* the road's orientation under each tire; wave 4: Basis */
+    f32 uvs[3][3];              /* the orientation, rows the car's x, y, z axes (uvs[1][1] 1 upright) */
+    f32 roaduvs[4][3][3];       /* the road's orientation under each tire */
     struct streetyp *lasttp[4]; /* each tire's last node of the road's surface tree, where TireSurf starts */
 
     /* The steering, the pedals as the simulation sees them, the engine and the drivetrain */

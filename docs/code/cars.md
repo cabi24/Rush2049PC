@@ -290,7 +290,7 @@ encodings (`G_*`, libultra's names), and so do the walkers of the files' lists, 
   (docs/port/RECORDS.md 3.2; before, the datum was `ArbEntry`, bytes after its pointers). The scene nodes (`ObjectInstance`, MAT3's fields, typed
   pointers), the model files' tables (`ModelDefTable`, `TextureDefTable`, `PaletteDefTable`), the car parts
   (`CarParts`), the surface tree (`surftyp` ...) and the pools (`tStatList`, MAT3's fields) are one type each since
-  2026-11-09. A scene colour word holds R, G, B, A in memory; `OBJ_COLOR` reads its bytes.
+  2026-11-09. A scene colour (`tRGBA`) holds R, G, B, A in memory; `.c[i]` is byte i, `.rgba` the word.
 
 ## 11. The original game's oddities
 
