@@ -132,6 +132,8 @@ The data's types no longer come from the files' declarations at all but from inc
    [DECOUPLE.md](DECOUPLE.md), at scale), native pointers in data, the heap and the overlays as PC memory; the last
    data in the N64's byte order converted.
    The plan, its census (`tools/port/window_census.py`) and its 14 steps: [NATIVE.md](NATIVE.md).
+4. **Wave 4**: one type per record: every record the game shares declared once in include/game, with MAT3's names,
+   and no file's own copy or `VIEW()` line left ([RECORDS.md](RECORDS.md)).
 
 ### Wave 1: flatten (2026-11-08)
 
@@ -423,3 +425,27 @@ directory bytes, as between any two builds). What the plan's census counted is d
 is the cartridge's format (the loader's decoding of its pointers, the bus addresses of its streams, the display
 lists' segments), the heap's N64 accounting, and the guard's range.
 
+### Wave 4: one type per record (2026-11-18 to 2026-11-19)
+
+Thirteen agents on main 7d065d8e each took one area's records: the car's physics (A1, A2), the game car, the scene
+and the blits (B1 to B3), the players, the saves, the menus and the sound (C1 to C4), the OS records (D1, D2), the
+port's last N64 addresses (E) and the docs (F). Each record the game shares is now declared once, in its
+subsystem's header in include/game, with MAT3's names. No file keeps its own copy with only its fields and byte
+pads, and include/game/view.h is gone with the last `VIEW()` line. Over the tree, record declarations in .c files
+went from 913 to 130, tags declared in more than one file from 129 to 29 (in src/ alone 92 to 7), and `VIEW()`
+lines from 100 to 0. Most of the 29 are the boot code's and libultra's own records, which don't see include/game.
+The port's N64 address map is down to one constant, `N64_CART_SPAN`, how much cartridge the N64 could
+address ([port-addresses.md](../code/port-addresses.md)).
+
+The lead merged the branches and then swapped in the records the agents had marked for the merge: the car's
+visuals and drone path, the coin's matrix, the scene objects' colours, and the frame buffer's `struct Dynamic`.
+[RECORDS.md](RECORDS.md) 6 has the merge's decisions, what is left and the proof. In short:
+- objsame against the base differs in 154 units, the branches' own 153 plus one from the lead's swaps, each
+  explained in its section;
+- the gate is 64 of 64 `same` with ctest 571 of 571;
+- the audible cartridge and the optimized build are 64 of 64;
+- the guard is 64 of 64 clean;
+- ASan over all 65 paths found nothing; CI's ASan and UBSan sets pass, as do the realtime tests;
+- on the Pi, the 45 retail scripts, each also under the guard and under ASan, are `same` against wave 3.6's build;
+- the saves' game pages are the same byte for byte;
+- warnings went from 88 to 81 on Linux and 61 to 54 in the mingw build.

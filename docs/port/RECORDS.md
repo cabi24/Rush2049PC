@@ -6,7 +6,7 @@ only the fields it touches and skips the rest with byte arrays.
 
 The headers before this wave declared each datum once (PCONLY.md 2). Many records still had a different struct in each
 file that reads them: the physics model, for example, had 73 declarations across the files that use it. A file that
-read a datum with a different type said so with a `VIEW()` line ([view.h](../../include/game/view.h)). Those copies
+read a datum with a different type said so with a `VIEW()` line (include/game/view.h, gone since the end of this wave). Those copies
 had to agree on the layout, and `view_check.py`, `view_audit.py` and `layout_check.py`
 ([LAYOUT.md](LAYOUT.md)) checked that they did. With one declaration there is nothing to disagree.
 
@@ -226,9 +226,9 @@ four). `scenes`, in the record's alignment padding, is the PC's own (MORECARS.md
 | `CarTlut` | cars.h | a car slot's palette (`car_palettes[slot].palBase`, 256 entries): the paint, the tail lights' 8 and the headlights' 8 |
 | `tTargetStructCoin` | types.h, by `tTargetStructPath` | a coin target's record (MAT3's): its spinning object, its spin, who has yet to find it |
 
-Embedded records that are other agents' stay as the copies declared them, marked for the merge: the visuals
-`struct pc_visual visuals[21]` (B2's `tVisual`), `struct pc_car_nav mpctl` (A2's `tPathPoint`), the coin's `mat`
-(B2's `tUVMatrix`); the colours `IRclr` and `prevIRclr` are `tRGBA` (B3's), as MAT3 and the two files that read their
+Embedded records that were other agents' were declared as the copies had them, marked for the merge, which swapped
+the records in (section 6): the visuals `tVisual visuals[CAR_VISUALS]` (B2's), `tPathPoint mpctl` (A2's), the coin's
+`tUVMatrix mat` (B2's); the colours `IRclr` and `prevIRclr` are `tRGBA` (B3's), as MAT3 and the two files that read their
 bytes had them. The input record is `struct tPadState *player` (C1's), a pointer.
 
 **The other tags it had**, each a file's own struct over the same storage, with only that file's fields and byte
@@ -338,7 +338,7 @@ once the records that embed them move to include/game.
 | `tBlastObj`, `tBlastStruct`, `tBlastRingStruct` | pc_game_types.h | a car's fireball (four flame balls and a glow) and shock ring; `pc_blasts`, `pc_blast_rings` | 3 files' `tBlastObj`, 2 files' `tBlastRingStruct`, InitBlast's `tBlastStruct`, `struct pc_blast_obj`, `pc_blast`, `pc_blast_ring` |
 | `tBlastMat` | scene.h | a blast sprite's matrix; `gBlastMats` (moved from types.h) | (one already) |
 | `tPaletteAnim`, `tTextureSwap`, `tTextureBase` | scene.h | a track's palette animation, a texture flipbook and its frame; `PaletteLists`, `TextureSwapLists`, `texture_swap_shared_frames` | 2 files' each, types.h's `Item12`, the `Row20` and `Sequence20` tags |
-| `CarTlut` | scene.h | a car's palette's colours: paint, tail lights, headlights | 2 files' `CarTlut` |
+| `CarTlut` | cars.h (B1 declared it too; the merge kept cars.h's, section 6) | a car's palette's colours: paint, tail lights, headlights | 2 files' `CarTlut` |
 
 Where the files disagreed:
 
@@ -480,8 +480,8 @@ listed 33 (the nine that were byte structs). The blits' data have their records 
 IA blits' (`blit_ia_palette`'s last four bytes, the first two of `blit_tile_lines`, one storage). blit.h and maths.h
 say so where they are declared; [NATIVE.md](NATIVE.md) 18.4.
 
-**Left.** weapons.c and shots.c keep their `union RGBA` for one member, the car view's `IRclr` (the typedef says
-`wave 4: tRGBA`): the car record is B1's (3.1), whose header gives it its type. The blit animators of hud.h and
+**Left.** weapons.c and shots.c kept their `union RGBA` for one member, the car view's `IRclr`, until the merge: B1's
+car record (3.1) types it `tRGBA`, and the union went. The blit animators of hud.h and
 frontend.h whose parameter is an `s32` or a `void *` (`animPlace`, `hud_updateFrame`, `animLapCount` ...) keep it:
 as a `tBlit *` an unused parameter spills eight bytes instead of four at -O0, which changes the Debug build's code.
 Three blit and pane pointers stay `intptr_t` (`highscore_blit`, `audio_gTitlePane`, `options_gTitlePane`): gen_data
@@ -763,8 +763,8 @@ of those left are the players' and cars' records, C1's and B1's). Over the whole
 
 Left, as other agents' records: the players' input records (`gPlayers`: `Player`, `PadState`, `InputRecord`,
 `Player76` ..., C1), whose profile field is typed `tProfile **` in every file this changed; the circuit in progress
-(`tCircuit`, C3), which `tSaveData.circuit` embeds as types.h's `tCircuitRecord` (`/* wave 4: tCircuit */`) and
-circuitscr, ContinueCircuit, SetCircuitCode and UpdateCircuit still read through their own `struct tCircuit`; the
+(`tCircuit`, C3), which `tSaveData.circuit` embedded as types.h's `tCircuitRecord` until the merge made it C3's
+`tCircuit`, read through the profile (section 6); the
 list headers (`tDLList`: paksysdc's and save.c's `ListHead`, the lists' owner); libultra's `OSPfs` and `OSPfsState`
 (`PakFileState`, D1); `Header` in ZOID_SetPolyFlags.c and ZOID_ClearPolyFlags.c, which is a flat polygon's start
 (MAT3 `tPoly`, B2), not a pak file's; `gPrevUnlockedTires` (frontend.h, read flat by highscore_InitScreen).
@@ -775,8 +775,8 @@ list headers (`tDLList`: paksysdc's and save.c's `ListHead`, the lists' owner); 
 |---|---|---|---|
 | `MenuButton` (MAT3 `tMenuButton`) | frontend.h | One 3D button of a menu screen: the model it shows (`type`), its scene object (`handle`), how far it has turned (`angle`), the matrix and position its object draws by, and its text's opacity (`alpha`). Every screen's `buttonInfo` table but the start screen's: options, audio, video, controls, mode, track, car, circuit, player and record | include/game's `ScreenButton` (the audio and video screens' tables) and `ModeScreenButton` (the mode screen's); the files' `ButtonInfo` (audio.c, videoscr.c, options_anim.c), `Button` (audio_initScreen.c, updateAudioScreen.c, op_initButtons.c, optionscr/buttons.c, videoscr_update/group.c, video_init.c), `UButton` (audio_uninitScreen.c), `Item` (controls_updateButtons.c), `Slot64` (modescr.c, modescr_init.c), `Slot` (modescr_animText.c), `tMenuButton` (trackscr.c) |
 | `StartScreenButton` (MAT3 startscr.c's `buttonInfo`, `anon_buttonType_objIdx_3c`) | frontend.h | The start menu's buttons: a `MenuButton` without the alpha, 4 bytes shorter | `ButtonInfo` (start_screen/group.c) |
-| `Battle` (MAT3 `tCarData.battle`, `anon_weapon_health_30`) | types.h, the race section | A car's state in a battle: its weapon and ammunition, health, defence, gun's aim, and its fade while invisible. The game car embeds it by value, so it is declared before the cars' header | the copies in weapons.c, shots.c and StartWeaponIcon.c |
-| `Defense` (MAT3 `anon_active_invsTime_10`) | types.h, the race section | The battle record's defence: the invisibility and the shield the power-ups give, and their countdowns | the same three files |
+| `tCarBattle` (MAT3 `tCarData.battle`, `anon_weapon_health_30`) | cars.h (C3 declared it as `Battle` in types.h; the merge kept B1's, section 6) | A car's state in a battle: its weapon and ammunition, health, defence, gun's aim, and its fade while invisible. The game car embeds it by value | the copies in weapons.c, shots.c and StartWeaponIcon.c |
+| `tCarDefense` (MAT3 `anon_active_invsTime_10`) | cars.h (C3's `Defense`, likewise) | The battle record's defence: the invisibility and the shield the power-ups give, and their countdowns | the same three files |
 | `tCircuit` (MAT3 `tCircuit`) | types.h, in the profile's file (`tSaveData.circuit`) | A profile's circuit in progress: its type, races driven, seed, difficulty, time, and each car's place in each race. A file format: its comments keep the file's offsets | include/game's `tCircuitRecord`; the copies in UpdateCircuit.c, SetCircuitCode.c, ContinueCircuit.c and circuitscr.c |
 | `tCircuitTrack` (MAT3 `tCircuitTrack`) | types.h | One race of a circuit, `gCircuitTracks[]`: the track, its direction, mirror, fog and wind | include/game's `CircuitTrackSlot` |
 | `TextBox` | text.h | A box of text on the screen: `gScreenRect`, where the record screen draws its views (`TB_DrawTextScrollBox`) | zlib's `config` (gScreenRect's declaration), recordscr_draw.c's `TextBox` |
@@ -785,7 +785,7 @@ The pause screen's three text animators (`animPauseText`, `animSureText`, `animT
 a blit's first fields; they take the blit (`struct Blit *`) as every blit animator does, so `MenuItem` is gone. The
 fields have MAT3's names, but where the screens' files already agreed on a clearer one: `MenuButton`'s `type` and
 `handle` (MAT3 `buttonType`, `objIdx`), which some 300 reads in two dozen files use. Its matrix and position stay two
-fields, marked `/* wave 4: tUVMatrix */`: they are MAT3's `mat` (`uvs`, `pos`), and the files read them as `matrix`
+fields, as frontend.h's comment says: they are MAT3's `mat` (`uvs`, `pos`), and the files read them as `matrix`
 and `position` in some 900 places, so swapping in the matrix record means renaming those reads too.
 
 Fields the copies disagreed on, and how they were settled:
@@ -837,7 +837,7 @@ VIEW lines of these data 16 to 0; tags declared in more than one file 92 to 84 (
   `->circuit.death` and so on once the profile's views go.
 - The car record's copies keep their own battle fields, flattened (`InitBattlePlayer.c`, `powerups.c`,
   `battle_damage/group.c`, `animate_arrow/group.c`, `update_model/group.c`, `rocket.c`, the car record's PC
-  declaration `struct pc_car`): the game car's (3.1), which embeds `Battle`.
+  declaration `struct pc_car`): the game car's (3.1), which embeds `tCarBattle`.
 
 ### 4.4 Sound
 
@@ -1035,6 +1035,116 @@ in the unit; RelWithDebInfo: inlined into the same libultra calls), the schedule
 read `gScheduler.retraceCount` (its offset moved): get_input_idle_seconds.c, animDot.c, animCountdownTimer.c,
 pakerr/group.c, save/group.c, SetPakError.c. ULTRA.md 11.4 has the proof.
 
-## 6. The proof
+## 6. The merge and the proof
 
-(The lead's, after the merge.)
+Sections 2 to 5 are each agent's report on its own branch. The lead merged the 13 branches into `w4-int` in this
+order: A1, B3, C2, C4, D1, F, C3, C1, E, A2, B1, D2, B2. It then finished what the agents had marked for the merge.
+This section says what the merge decided, what it changed after the last branch, and how the merged tree was checked.
+
+### 6.1 Where two branches declared the same record
+
+- **The battle record.** C3 declared it in types.h as `Battle` and `Defense`; B1 declared it in cars.h, with the
+  game car, as `tCarBattle`, `tCarWeapon` and `tCarDefense`. The merge kept B1's: the game car is its only owner.
+- **The car palette.** B1 (cars.h) and B2 (scene.h) each moved `CarTlut` into a header. The merge kept cars.h's
+  and wrote the palette's entry ranges (paint, tail lights, headlights) into its comment.
+- **The circuit in progress.** The profile's save data embedded include/game's `tCircuitRecord`; C3 made `tCircuit` the one
+  declaration. `tSaveData.circuit` is now a `tCircuit`. UpdateCircuit, SetCircuitCode and the track screen reach it
+  through the profile, as C1 typed it: `(*(*gPlayers[gCircuitPlayer].save)->datah)->circuit`.
+- **The physics descriptors.** A1 declared the tires, the respawn flight and the dead reckoning in place in the model
+  record, waiting for A2's records. A2's `Tire`, `tResurrect` and `tReckon` now live in modeldata.h, and carphys.h
+  and track.h include it. The `Tune44` alias went; `tModelData.tune` is a `struct tTune *`.
+- **The scheduler.** D2's rewrite replaced scheduler.c, and `scheduler_declarations.h` went with it.
+
+### 6.2 After the last branch
+
+- **The embedded records swapped in.** The game car's `tVisual visuals[CAR_VISUALS]` and `tPathPoint mpctl`, the
+  coin's `tUVMatrix mat`, and the scene objects' `tRGBA color` and `envcolor`. The `OBJ_COLOR` macro went: stores
+  write `.color.rgba` and byte reads use `.color.c[i]`. The background motion's record has its fields named
+  (`minX` ... `offY[4]`), so createBG and updateBG read it without their own copies.
+- **The frame's buffer.** `struct Dynamic` is declared whole in gbi.h, the game's only copy, beside libultra's
+  matrix, viewport and light types. Static asserts pin its matrices, its display list and its size to the
+  frame pool's constants. `frame_matrix_cursor` is a `union Mtx *`.
+- **The last views.** zoid_draw, EndGraphics, createBG, updateBG, lookat_reflect_fill and the two node-matrix
+  builders lost their own copies, and include/game/view.h was deleted. No `VIEW()` line is left.
+- **The vectors kept as float arrays.** The model record's vectors and matrices (`f32 rwr[3]`, `f32 uvs[3][3]`) and
+  the menu buttons' matrix and position stay float arrays. MAT3 declares them so, and the vector functions take
+  `f32 *`, so a `tVec3` there would need a cast at every call. The headers say this where the fields are declared;
+  the `wave 4` markers are gone.
+
+### 6.3 What is left
+
+The counts below cover the whole tree's C (src/ and include/). They count `struct` and `union` declarations with a
+body, as section 2.1 did:
+
+| | Before (7d065d8e) | After |
+|---|---|---|
+| record declarations in .c files | 913 | 130 |
+| tags declared in more than one file (their declarations) | 129 (589) | 29 (61) |
+| ... of those, in src/ alone | 92 | 7 |
+| `VIEW()` lines | 100 | 0 |
+| byte arrays named `pad...` or `unk...` in .c files | 1,422 | 34 |
+
+20 of the 29 tags are not copies within the game:
+- 19 are the boot code's sound and OS records, and libultra's own. src/rom, its headers in include/ and include/PR don't
+  include include/game, so each of these is declared once on each side: `AudioConfiguration`, `ChannelState`, `EmitGroup`, `LargeNode`,
+  `LayerRecord`, `OSContStatus`, `OSMesgQueue_s`, `RegisteredSamples`, `ResourceRange`, `ResourceRecord`,
+  `SampleRecord`, the four `Sequence...` records, `SmallNode`, `SoundEmitterAddView`, `VideoDefault` and
+  `__OSThreadContext`.
+- `Vector` is MusyX's own.
+
+The 9 within the game:
+- `Vec3` and `Basis` in the physics files (forces1, collision, carsetup, calctireuv).
+- `Link` and `List` (InsertLLE and RemoveLLE: MAT3's linked list), and `BSTNode` (the binary tree's two walkers).
+- `Effect`, two different records under one tag (hudextra_icons and new_streak).
+- worlddam.c's byte view of `tRGBA`, renamed `tRGBAView` there.
+- animStuntPoints' own `tStuntCoin`.
+- ControllerUpdate's copy of libultra's `OSContPad`.
+
+Also left, under several names for one record:
+- The list header: `tDLList`, `ListHead` and `AudioList`.
+- The matrix: types.h's `UVMat`, `MuzzleMat` and `UVMatrixRows`, which the weapons' and HUD icons' records embed.
+
+### 6.4 The proof
+
+**Compiled code** (objsame against the reference build of 7d065d8e, 961 units):
+- Debug: 154 units differ. That is the 153 the branches' own reports list (their union) plus `UpdateSmoke`, from
+  6.2. RelWithDebInfo: 162.
+- Against the tree before 6.2 (67a743cb, built from its own sources), 957 units are the same and 4 differ in
+  instruction selection only: UpdateSmoke, StartSmoke and zoid_draw fold the colour byte's offset into the load or
+  store, and sparks adds the node matrix's offset before the load rather than in it. They make the same loads and
+  stores.
+
+**Rocky:**
+- The gate passes: ctest 571 of 571, and 64 of 64 paths `same`.
+- The audible cartridge and the optimized build: 64 of 64 each, after one path rerun alone in each. The optimized
+  ctest: 571 of 571.
+- The static checks:
+  - `offset_check`, `alias_check` and `bounds_check`: none open or new.
+  - census: 1,064 of 1,064 files compile, with no pointer warning.
+  - `n64_audit`: no class grew.
+  - `endian_check --check-loader`: 122 places, none wrong.
+  - `window_census`: `be.ranges` 32, `be.rgba.game` 0.
+- `layout_check`: open findings 5 to 4 and reviewed 15 to 14, with none new. The sample DMA list's view and
+  ProcessEmitters' `Effect` view are gone.
+- Warnings: 88 to 81 on Linux and 61 to 54 in the mingw build. The 7 that went are
+  `-Wcompare-distinct-pointer-types`.
+- The generated data: every datum keeps its storage, and only type names changed. The exception is the storage of
+  12 threads, queues and messages the native OS layer no longer uses (D1, D2), which is gone.
+- The guard: 64 of 64 runs clean.
+- ASan over 65 paths on both cartridges: no report.
+- CI's sanitizer sets: ASan 398 of 398 and UBSan 545 of 545. The only report is `sanitize_fault_chain`'s deliberate
+  fault, as before the wave.
+- The realtime tests: 61 of 61.
+
+**The Pi, with the retail cartridge:**
+- datacheck and assetcheck pass.
+- The 45 retail scripts against wave 3.6's build, with screenshots and sound: all `same`. Two of them, `menu` and
+  `t2b`, were rerun alone, because the reference's own two runs disagreed while the mingw build loaded the Pi.
+- The 120 fps race: `same`.
+- The guard: 44 of 44 clean. Under ASan and UBSan, 44 of 44 `same` with no report.
+- A texture pack: 1,354 textures replaced in both builds.
+- The saves:
+  - the game's pages are the same byte for byte;
+  - the PC header differs only in its CRC and version string;
+  - `saves_check`: 19 ok and 5 failing on both builds, the same five ghost scenarios as wave 3.6.
+- The loader's report is the same as wave 3.6's.
