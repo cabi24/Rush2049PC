@@ -4,18 +4,6 @@
  * (StopSkid) the mark is "active" and fades here, once a frame, until it is gone. */
 #include "game/game.h"
 
-/* A skid mark, an element of gSkidList (skids.c's tSkid, the N64's 36-byte form; PC: its two links and the polygon
- * handle are pointer-sized, PcEffectObj in types.h). */
-typedef struct tSkid tSkid;
-struct tSkid {
-    tSkid *next;
-    tSkid *prev;        /* the doubly linked list's back link (GetStatLLE), pointer-sized here */
-    f32 lastTime;       /* gSeconds when the skid last grew: the fade starts from it */
-    struct tPoly *poly; /* the mark's polygon (ZOID_NewPoly) */
-    f32 pos[3];         /* the mark's middle (StopSkid) */
-    u8 color[4];        /* r, g, b, alpha */
-    s32 active;         /* set once the skid has stopped: the mark fades */
-};
 /* PC: a float to u32 that is negative while a mark's lastTime is ahead of the clock. Undefined in C, and the hosts
  * differ: x86-64 and IDO's code for the N64 go through a signed conversion and keep the bits (-125 is 0xFFFFFF83, no
  * fade), aarch64's fcvtzu gives 0 (the fade at full). So through s32 below 0, as the N64 (docs/port/SANITIZE.md). */
@@ -42,9 +30,9 @@ void AnimateSkids(void) {
             t = (gSeconds - s->lastTime) / (((f32)numfree + (f32)numfree)/100.0f + 2.0f);
             xlu = F2U(t * 255.0f + 63.0f);
             if (xlu < 255) {
-                s->color[3] = 255 - xlu;
-                if (s->color[3] > 192) s->color[3] = 192;
-                ZOID_UpdatePoly(s->poly, 4, 0, 0, s->color, 0, 0);
+                s->color.c[3] = 255 - xlu;
+                if (s->color.c[3] > 192) s->color.c[3] = 192;
+                ZOID_UpdatePoly(s->poly, 4, 0, 0, s->color.c, 0, 0);
                 s = s->next;
             } else {
                 next = s->next;

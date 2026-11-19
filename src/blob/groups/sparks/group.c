@@ -7,13 +7,6 @@
  * spark textures while its scrape lasts, turned along the car's motion and smaller at low speed. */
 #include "game/game.h"
 
-/* A car visual (MAT3 tVisual) as the sparks use it. PC: next is a host pointer. */
-typedef struct tVisual {
-    /* 0x0 */ void *next;
-    /* 0x8 */ s16 index;        /* the spark's texture, 0-5, -1 not sparking */
-    /* 0xA */ s16 objnum;       /* the spark's scene object */
-    /* 0xC */ s16 slot;         /* the car */
-} tVisual;
 
 
 /* Show visual v's spark object in every view if `on`, else hide it; returns `on`. */

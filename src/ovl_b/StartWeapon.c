@@ -1,19 +1,6 @@
 /* StartWeapon: a car's weapon appears on it (MAT3 weapons.c). */
 #include "game/game.h"
 
-/* A visual (MAT3 tVisual; the PC's 0x28-byte struct pc_visual: next, data and func are pointer-sized). The offsets
- * are the N64's. */
-typedef struct tVisual tVisual;
-struct tVisual {
-    tVisual *next;      /* 0x00 */
-    s16 index;          /* 0x04 */
-    s16 objnum;         /* 0x06 */
-    s16 slot;           /* 0x08 */
-    uintptr_t data;     /* 0x0C */
-    f32 timeStamp;      /* 0x10 */
-    void (*func)(tVisual *, s16); /* 0x14 */
-};
-
 extern f32 weaponOffsets[8][13][3];
 
 /* Puts the weapon on car `slot` if it has none: its weapon visual (visual 20) animates it (AnimateWeapon), the

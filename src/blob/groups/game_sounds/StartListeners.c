@@ -2,7 +2,6 @@
 #include "game/game.h"
 #include "game/audiomgr.h"
 
-typedef struct Vec3 { f32 x, y, z; } Vec3;
 /* A player's input record keeps its listener (tPadState.listener) as the listener's number in gListeners
  * (AudInit3D's array), -1 for none: MAT3's tPadState keeps a pointer, which the record's 4 bytes there can't hold.
  * AudAddListener gives -1 (as a pointer) when the sound manager has no listeners. */
@@ -22,7 +21,7 @@ void StartListeners(void)
         for (i = 0; i < gNumPlayers; i++) {
             if (gRace != kGhost || gPlayers[i].slot == 0)
                 gPlayers[i].listener = listener_number(AudAddListener(&unitmatrix_origin, &unitmatrix_origin,
-                                                                      (Vec3 *)unitmatrix[2], (Vec3 *)unitmatrix[1]));
+                                                                      (tVec3 *)unitmatrix[2], (tVec3 *)unitmatrix[1]));
             else gPlayers[i].listener = -1;
         }
         AudSetMasterVol((f32)gOptions[kOptEffectsVolume] / 10.0f, 0.1f, 0, 1);

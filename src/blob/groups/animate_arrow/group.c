@@ -6,27 +6,6 @@
  * drawn on the view's edge instead, pointing the way to turn. */
 #include "game/game.h"
 
-/* A car visual (MAT3 tVisual). PC: 0x28 bytes: next, data and func are pointer-sized (struct pc_visual,
- * docs/port/CARS.md 3). */
-typedef struct tVisual {
-    struct tVisual *next;
-    s16 index;      /* 4: the view this arrow is drawn in */
-    s16 objnum;     /* 6: its polygon (PolyInstanceList) */
-    s16 slot;       /* 8: the car it marks */
-    uintptr_t data;
-    f32 timeStamp;
-    void (*func)(struct tVisual *, s16);
-} tVisual;
-/* A view's window (ZoidWinInfo[view], MAT3 tWindowInfo): its view angles. PC: the two pointers are host ones. */
-typedef struct tWindowInfo {
-    void *vp; void *s; u8 pad8[0xC - 0x8];
-    f32 whviewang;          /* 12: the horizontal view angle, radians */
-    f32 wvviewang;          /* 16: the vertical one */
-    u8 pad14[72 - 20];
-} tWindowInfo;
-/* A scene polygon (PolyInstanceList, MAT3 tPoly): four vertices. */
-typedef struct Vertex20 {f32 x,y,z;s16 s,t;u32 color;} Vertex20;
-typedef struct tPoly {s16 count;u16 flags,parameter,unknown;Vertex20 verts[4];} tPoly;
 
 /* A unit square in the xy plane: the shape of the arrows, skid marks and other one-polygon effects. */
 f32 gDummyVtx[4][3] = { { 1.0f, 1.0f, 0.0f }, { -1.0f, 1.0f, 0.0f }, { -1.0f, -1.0f, 0.0f }, { 1.0f, -1.0f, 0.0f } };

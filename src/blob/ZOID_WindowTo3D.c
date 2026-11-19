@@ -4,22 +4,6 @@
  * arrows, the menu cars) at screen positions. */
 #include "game/game.h"
 
-/* A matrix (MAT3 tUVMatrix, as its mat3 view): the rotation's three rows, then the position. */
-typedef struct tUVMatrix { f32 uvs[3][3]; f32 pos[3]; } tUVMatrix;
-
-/* A window (MAT3 tWindowInfo; 0x48 bytes on the N64, 0x50 on the PC, whose two pointers are 8 bytes): the
- * projection's numbers. */
-typedef struct tWindowInfo {
-    void *vp; void *s; char pad0_8[0x1C - 0x8];
-    f32 wihvangtan;             /* 0.5 / tan(half the horizontal field of view) */
-    f32 wivvangtan;             /* 0.5 / tan(half the vertical one) */
-    f32 wwidth;                 /* the size, pixels */
-    f32 wheight;
-    f32 whcenter;               /* the centre, pixels */
-    f32 wvcenter;
-    char pad52[72 - 52];
-} tWindowInfo;
-
 /* PC: the HUD's horizontal offset for a wider screen (port/gfx), so a 3D object placed at a HUD position lands
  * where the HUD is drawn. 0 at the original width. */
 int pc_gfx_hud_dx(int x);

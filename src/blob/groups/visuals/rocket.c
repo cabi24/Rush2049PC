@@ -7,23 +7,7 @@ float fabsf(float);
 #pragma intrinsic (sqrtf)
 #pragma intrinsic (fabsf)
 
-/* A scene node's matrix: its rotation (CopyUV copies the 3x3) and its position relative to its parent. */
-typedef struct tUVMatrix {
-    /* 0x00 */ f32 uvs[3][3];
-    /* 0x24 */ f32 pos[3];
-} tUVMatrix;
 
-/* A car visual (tVisual) on the PC: 0x28 bytes, next, data and func pointer-sized (struct pc_visual, docs/port/CARS.md
- * 3). */
-typedef struct tVisual {
-    /* 0x00 */ void *next;
-    /* 0x08 */ s16 index;
-    /* 0x0A */ s16 objnum;
-    /* 0x0C */ s16 slot;
-    /* 0x10 */ uintptr_t data;
-    /* 0x18 */ f32 timeStamp;
-    /* 0x20 */ intptr_t func;
-} tVisual;
 /* The colour car `car` takes this frame (its IR colour): the average of the track colours (gTrackColors) its four
  * tires' road polygons name, and, as its rear left tire gets more than 20 feet off the ground, more and more
  * (fully at 60 feet) the track's base colour (gTrackBaseColors). Alpha 255. MAT3 also smooths it with the last

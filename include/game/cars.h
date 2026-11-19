@@ -113,10 +113,10 @@
  * builds; the game made it, so its entries are in the host's byte order): the paint's 160 entries, then the tail
  * lights' 8 (StartCar sets them dim or bright, AnimateBrakeLights rewrites them each frame) and the headlights' 8. */
 typedef struct CarTlut {
-    u16 paint[160];
-    u16 taillights[8];
-    u16 headlights[8];
-    u16 rest[80];               /* the rest of the 256, which no code names */
+    u16 paint[160];             /* entries 0-159 */
+    u16 taillights[8];          /* entries 160-167 */
+    u16 headlights[8];          /* entries 168-175 */
+    u16 rest[80];               /* entries 176-255: the rest of the 256, which no code names */
 } CarTlut;
 
 /* A car's defence in battle (MAT3 tCarData.battle.defense): its invisibility and its shield. UpdateDefense (shots.c)
@@ -312,13 +312,13 @@ extern s16 gEnvCount;
 extern s16 gEnvCountMax;
 extern s8 gCarTeam[EXTENT(4)];
 extern s8 gCarTeamColor[EXTENT(4)];   /* each team's paint (a colour choice) */
-/* gEnvirons: declared by its files (src/blob/InitEnvs.c: defines it) */
-extern struct tVisual *gEnvList;
-extern struct Node *gFreeVis;
+extern tVisual gEnvirons[EXTENT(100)];   /* the environment visuals' pool (InitEnvs) */
+extern tVisual *gEnvList;
+extern tVisual *gFreeVis;   /* the pool's free visuals */
 extern CarParts gCarParts[EXTENT(52)];
 extern s16 gBlastMatCnt;
 extern tBlastMat gBlastMats[EXTENT(50)];
-extern PcPuff gSmokeObjs[EXTENT(100)];
+extern SmokePuff gSmokeObjs[EXTENT(100)];
 extern tStatList gSmokeList;
 extern u32 paint_colors[EXTENT(32)];
 extern u16 gFireTexs[EXTENT(1416)];
@@ -335,7 +335,7 @@ extern s8 gMassiveMass;
 extern struct tTexture *gWheelTextures[EXTENT(24)];
 extern s8 gDriveHulk[EXTENT(4)];
 extern tStatList gSkidList;
-extern PcEffectObj gSkidArray[EXTENT(100)];
+extern tSkid gSkidArray[EXTENT(100)];
 extern u16 gTexList[EXTENT(10)];
 extern s8 gFrameScale;
 extern s8 gFadePlayerArrow[EXTENT(4)][4];
@@ -346,33 +346,33 @@ extern tStatList gStreakPolyList;
 extern PcFade gStreakPolyArray[EXTENT(150)];
 
 /* Functions */
-void AddToEnvList(struct tVisual *v);
-void AnimateArrow(struct tVisual *v, s16 op);
-void AnimateBlast(struct tVisual *v, s16 op);
-void AnimateBrakeLights(struct tVisual *v, s16 op);
-void AnimateBSpark(struct tVisual *v, s16 op);
-void AnimateFrame(struct tVisual *v, s16 op);
-void AnimateLFSpark(struct tVisual *v, s16 op);
-void AnimateLRSpark(struct tVisual *v, s16 op);
-void AnimateNewBlast(struct tVisual *v, s16 op);
-void AnimateNewBlastRing(struct tVisual *v, s16 op);
-void AnimateRFSpark(struct tVisual *v, s16 op);
+void AddToEnvList(tVisual *v);
+void AnimateArrow(tVisual *v, s16 op);
+void AnimateBlast(tVisual *v, s16 op);
+void AnimateBrakeLights(tVisual *v, s16 op);
+void AnimateBSpark(tVisual *v, s16 op);
+void AnimateFrame(tVisual *v, s16 op);
+void AnimateLFSpark(tVisual *v, s16 op);
+void AnimateLRSpark(tVisual *v, s16 op);
+void AnimateNewBlast(tVisual *v, s16 op);
+void AnimateNewBlastRing(tVisual *v, s16 op);
+void AnimateRFSpark(tVisual *v, s16 op);
 void AnimateRocketFlame(s16 slot, s32 hulk);
-void AnimateRRSpark(struct tVisual *v, s16 op);
-void AnimateShadow(struct tVisual *v, s16 op);
+void AnimateRRSpark(tVisual *v, s16 op);
+void AnimateShadow(tVisual *v, s16 op);
 void AnimateSkids(void);
-void AnimateTire(struct tVisual *v, s16 op);
-void AnimateWing(struct Visual *v, s16 op);
-void AnimateWingFlame(struct tVisual *v, s16 op);
+void AnimateTire(tVisual *v, s16 op);
+void AnimateWing(tVisual *v, s16 op);
+void AnimateWingFlame(tVisual *v, s16 op);
 u32 blend_rgb5551(u32 left, u32 right, s32 ratio);
-s32 CheckVisible(struct tVisual *v, s32 on, s32 camera);
-s32 CheckVisibleAll(struct tVisual *v, s32 on);
+s32 CheckVisible(tVisual *v, s32 on, s32 camera);
+s32 CheckVisibleAll(tVisual *v, s32 on);
 void ContinueSkid(void);
 void CreateCar(s16 slot, s16 camlink, s32 for_game);
 void *game_bsearch(void *key, void *base, u32 nmemb, u32 size, s32 (*compar)(void *, void *));
 tRGBA GetCarsIRColor(struct tCarData *car, struct tModelData *m);
-struct tVisual *GrabEnvEntry(void);
-void HandleASpark(struct tVisual *v, s32 on, s32 spark, f32 x, f32 y, f32 z, s16 op);
+tVisual *GrabEnvEntry(void);
+void HandleASpark(tVisual *v, s32 on, s32 spark, f32 x, f32 y, f32 z, s16 op);
 void InitBlast(void);
 void InitCarDynamicObjs(s16 slot, s16 car, s8 model);
 s32 InitCarObj(s32 objnum, s16 camlink, s16 parent, s32 flags, s16 slot, s16 car_obj_num, s32 for_game);
@@ -390,7 +390,7 @@ u16 *MakeRamps(u16 *colors, u32 first_color, u32 second_color, u32 third_color);
 u8 pick_random_masked_bit(u8 index);
 u16 PickCar(s16 slot, u8 type);
 void PositionObject(s32 objnum, f32 dx, f32 dy, f32 dz, f32 x, f32 y, f32 z);
-void ReleaseEnviron(struct tVisual *v, s32 unlink);
+void ReleaseEnviron(tVisual *v, s32 unlink);
 void RemoveCar(s16 slot);
 void RemoveEnvirons(void);
 void SetFrameColor(s16 slot, u32 *col);
@@ -408,7 +408,7 @@ void StartSparks(s16 slot);
 void StartWater(s16 slot, u32 tire);
 void StartWing(s16 slot, s16 side);
 void StartWingFlame(s16 slot, s16 side);
-void StopSkid(struct tNewSkid *ns);
+void StopSkid(tNewSkid *ns);
 void UpdateEnvirons(void);
 void UpdateShotObject(struct Shot *shot, s32 unt);
 void UpdateSkids(s32 slot);

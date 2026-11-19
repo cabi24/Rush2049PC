@@ -6,9 +6,6 @@
 float fabsf(float);
 float sqrtf(float);
 
-typedef struct V3 { float x, y, z; } V3;
-
-
 
 #define MAX_VEL 100.0f
 /* game.frame_rate 60: DeathCam moves the camera a gain g of the way to its target each frame of two retraces; a

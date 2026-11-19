@@ -6,28 +6,6 @@
  * each frame. */
 #include "game/game.h"
 
-/* A palette animation (MAT3 tPaletteAnim); state is a PALANIM_* (scene.h). */
-typedef struct tPaletteAnim {
-    char *name;         /* the palette's name (a texture's for the scrolls); NULL ends the list */
-    s16 start, end;
-    s8 offset;
-    s8 state;
-    s16 speed;          /* the period, in 30 Hz frames */
-    f32 time;           /* the time left to the next step, seconds */
-    void *ptr;          /* the palette's colours, or the texture's load display list */
-} tPaletteAnim;
-
-/* A texture flipbook (MAT3 tTextureSwap): the texture swapTexs[startnum] shows swapTexs[idx]'s image, idx stepping
- * every initTime seconds. */
-typedef struct tTextureSwap {
-    s16 num;            /* the frames; 0 ends the list */
-    s16 startnum;       /* the frame whose texture is the one drawn */
-    s16 fd;             /* 1 steps forward, 0 backward */
-    s16 idx;            /* the frame shown */
-    f32 time, initTime;
-    Item12 *swapTexs;   /* the frames (MAT3 tTextureBase: name, tex, texBase) */
-} tTextureSwap;
-
 /* Find the textures and palettes of the track's (gTrackNum) animations, none in the attract demo without the
  * Expansion Pak. Palette animations: each restarts its period, and gets its palette's colours (or for a scroll, the
  * texture's load display list). Flipbooks (not when the race restarts: they are found already): each frame's
@@ -48,10 +26,10 @@ void InitTextureAnimation(void) {
     if (!plist) goto flipbooks;
     while (plist->name) {
         plist->time = 0.0333333f;
-        if (plist->state >= PALANIM_SCROLL_S) plist->ptr = MBOX_FindTexture_WORK(plist->name, &index, 0, gNumModels[0] - 1, 1)->texBase;
+        if (plist->state >= PALANIM_SCROLL_S) plist->ptr.commands = MBOX_FindTexture_WORK(plist->name, &index, 0, gNumModels[0] - 1, 1)->texBase;
         else {
             palette = MBOX_FindPalette_WORK(plist->name, &index, 0, gNumModels[0] - 1);
-            if (palette) plist->ptr = palette->palBase;
+            if (palette) plist->ptr.palette = palette->palBase;
         }
         plist++;
     }

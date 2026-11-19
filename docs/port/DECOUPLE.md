@@ -411,9 +411,9 @@ already for its segment pointer. 2026-10-29, on main 597098e.
 | `gCarSmokeDir` | `pc_tire_fx` | u32[6], 24 B | `unsigned int[12]`, 48 B | each car's tire-effect latches, a bit per tire and effect (0x1-0x8 and 0x100-0x800 the tire puffs, 0x10-0x80 and 0x80000 the smoke, 0x1000-0x8000 the trails) | StartSmoke, StartWater, UpdateSmoke, InitWingSmoke, InitSmokeBlast (three copies), InitSmoke (the reset) |
 | `gCarBlastSmokeClr` | `pc_smoke_shade` | u8[6], 8 B by the gap | `unsigned char[12]`, 12 B | the grey of its smoke, 175 fading by 3 a puff to 53 | StartSmoke |
 | `gCarWingSmokePos` | `pc_trail_pts` | f32[6][6], 144 B | `float[12][6]`, 288 B | its two trails' last points | StartSmoke |
-| `gBlastObjs` | `pc_blasts` | `tBlastStruct[6]`, 2,400 B | `struct pc_blast[12]`, 4,800 B | MAT3 gBlastObjs: the blast after a crash, four blast objects and a glow, each a scene object on a matrix inside the record | blast.c (StartNewBlast, StartNewBlast), AnimateNewBlast, InitBlast (InitBlasts) |
-| `gBlastRingObjs` | `pc_blast_rings` | `tBlastRingStruct[6]`, 360 B to `gTempCircuitFirstTrack` | `struct pc_blast_ring[12]`, 720 B | MAT3 gBlastRingObjs: the ring, a scene object on its matrix | blast.c (StartNewBlastRing, inlined in StartBlast, StartBlast), AnimateNewBlastRing, InitBlast |
-| `gNewSkid` | `pc_skids` | `WheelSlot[6][4]`, 2,208 B (own storage, 2,304 host) | `struct pc_skid[12][4]`, 4,608 B | the arcade's NewSkid per tire: the skid segment drawn (a host pointer into the segment pool `gSkidArray`) and its edges | skid_marks/group.c (UpdateSkids, StartSkid, UpdateSkid, ContinueSkid), InitSkids (the reset; two copies) |
+| `gBlastObjs` | `pc_blasts` | `tBlastStruct[6]`, 2,400 B | `struct pc_blast[12]` (`tBlastStruct` since wave 4), 4,800 B | MAT3 gBlastObjs: the blast after a crash, four blast objects and a glow, each a scene object on a matrix inside the record | blast.c (StartNewBlast, StartNewBlast), AnimateNewBlast, InitBlast (InitBlasts) |
+| `gBlastRingObjs` | `pc_blast_rings` | `tBlastRingStruct[6]`, 360 B to `gTempCircuitFirstTrack` | `struct pc_blast_ring[12]` (`tBlastRingStruct`), 720 B | MAT3 gBlastRingObjs: the ring, a scene object on its matrix | blast.c (StartNewBlastRing, inlined in StartBlast, StartBlast), AnimateNewBlastRing, InitBlast |
+| `gNewSkid` | `pc_skids` | `WheelSlot[6][4]`, 2,208 B (own storage, 2,304 host) | `struct pc_skid[12][4]` (`tNewSkid`), 4,608 B | the arcade's NewSkid per tire: the skid segment drawn (a host pointer into the segment pool `gSkidArray`) and its edges | skid_marks/group.c (UpdateSkids, StartSkid, UpdateSkid, ContinueSkid), InitSkids (the reset; two copies) |
 | `resurrect_save_pos` | `pc_resurrect_mid` | f32[6][3], 72 B | `float[12][3]`, 144 B | the resurrect's midpoint (the arcade's update_resurrecting_car) | UpdateResurrectingCar |
 
 **Inventory.** 16 objects reference the seven names (nm over `game_objects.txt`), all under `src/`, three of them weak
@@ -475,7 +475,8 @@ the wing's animator (AnimateWing) with one player. The humans have the first slo
 no slot past 3 reads it (a slot 4 or 5 would read `gWingSizes`'s float bytes, which the PC holds swapped).
 
 **The change.** `pc_game_types.h`: the four arrays, `struct pc_uv_matrix`, `struct pc_blast_obj`, `struct pc_blast`,
-`struct pc_blast_ring` and `struct pc_skid` (with MAT3's and the arcade's field names, which blast.c's,
+`struct pc_blast_ring` and `struct pc_skid` (since wave 4 MAT3's `tUVMatrix`, `tBlastObj`, `tBlastStruct`,
+`tBlastRingStruct` and `tNewSkid`, RECORDS.md 3.2; with MAT3's and the arcade's field names, which blast.c's,
 AnimateNewBlast's and skid_marks' views have), the record arrays, and `PC_BLASTS`, `PC_BLAST_RINGS` and
 `PC_SKIDS` as `void *`. Each of the 16 files changes its declaration only: under `TARGET_PC` its N64 name is the PC
 storage. In 8 files it is the PC array (`#define gCarSmokeDir pc_tire_fx`, `#define gBlastObjs pc_blasts`: their views
@@ -1027,7 +1028,7 @@ read a node through views of their own at the N64 offsets.
 **What the tables say.** `data_symbols.txt` loses `gTargetArray` (gen_data retires it and the three names the image
 tables have inside its range, `D_80150000`, `D_80150004` and `gEffectsPoolBase`, which no C names); `data.c` loses its
 `.set` and gains `pc_target_nodes` (`struct tTarget[130]`, 15,600 bytes, `.bss`). Four own storages change type, all
-BSS: `gTargetList` (`tStatList`, 40 bytes as before), `gEnvirons` (`EnvironNode[100]`, 4,000 bytes, its data word a
+BSS: `gTargetList` (`tStatList`, 40 bytes as before), `gEnvirons` (`EnvironNode[100]`, `tVisual[100]` since wave 4, 4,000 bytes, its data word a
 pointer-sized long), `CollisionTargetPtrs` (`tTarget *[30]`) and `gTargetGroupList` (`struct pc_target_group *`). The
 synthetic cartridge is the same file. The game arena's 0x8014D280-0x80150B60 has no symbol now. The proof and the
 crossings are NATIVE.md step 3's (section 10).

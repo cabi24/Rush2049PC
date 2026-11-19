@@ -36,13 +36,11 @@ struct Dims;
 struct Dynamic;
 struct EUCar;
 struct Effect;
-struct EffectObj;
 struct EngineState;
 struct Entity;
 struct Entry;
 struct GsmState;
 struct H12;
-struct Header;
 struct Header88;
 struct Heap;
 struct In;
@@ -83,8 +81,6 @@ struct Place;
 struct Player;
 struct PlayerData;
 struct PlayerRec;
-struct PointList;
-struct Poly;
 struct Pool;
 struct QNode;
 struct Rec32;
@@ -97,11 +93,9 @@ struct ResSlot;
 struct ResourceGroup;
 struct ResourceOffsets;
 struct Respawn;
-struct Row20;
 struct SalMatrix;
 struct SalVector;
 struct SampleRecord;
-struct Sequence20;
 struct SequencePageEntry;
 struct SequencePlayParams;
 struct SequenceHead;
@@ -137,9 +131,7 @@ struct V3s;
 struct Vec3;
 struct VehicleModel;
 struct View;
-struct Visual;
 struct Voice;
-struct WheelSlot;
 struct X;
 struct XForm;
 struct __OSInodeCache;
@@ -160,7 +152,6 @@ struct tModelData;
 struct tModelDef;
 struct tModelPart;
 struct tNewSkid;
-struct tPoly;
 struct tPadState;       /* a player's input record: game/input.h defines it */
 struct tPaletteDef;
 struct tPlayerProfile;
@@ -170,9 +161,6 @@ struct tSfxEmitter;
 struct tSfxListener;
 struct tSfxVoice;
 struct tTexture;
-struct tUVMatrix;
-struct tVisual;
-struct tWindowInfo;
 struct tree_desc_s;
 struct z_stream_s;
 union tAudioMsg;
@@ -754,24 +742,6 @@ typedef struct tOrderedList { /* 0x18 bytes */
 
 /* ---- scene: the scene objects (mbox and zoid), models, textures, windows, the sky and the world */
 
-/* A window (MAT3 tWindowInfo, ZoidWinInfo[4]; 0x48 bytes on the N64, 0x50 on the PC, whose two pointers are 8 bytes):
- * its viewport and scissor rectangle, then as bytes the flags, the view angles and their tangents, the size and
- * centre, the aspect, the clip planes and the fog (min, max, colour), which the window files read through their own
- * tWindowInfo: the data loader keeps this declaration's field runs for the own-BSS datum (docs/code/race.md 6). */
-typedef struct ArbEntry { /* 0x50 bytes */
-    void *vp;    /* 0x0 its viewport (vp0 ...) */
-    void *s;     /* 0x8 its scissor rectangle (scissor0 ...) */
-    u8 rest[64]; /* 0x10 */
-} ArbEntry;
-
-/* A flipbook frame of texture animation (MAT3 tTextureBase): the texture's name, the texture once found, the image
- * to show (its texBase, or the address its display list loads). */
-typedef struct Item12 { /* 0x18 bytes */
-    char *name;                  /* 0x0 */
-    struct tTexture *tex;        /* 0x8 */
-    void *texBase;               /* 0x10 */
-} Item12;
-
 /* A model WAD's records (MAT3's names; pc_game_types.h declares them: the WAD's converter builds them beside the
  * file, port/assets/wad.c). */
 typedef struct tLod tLod;                         /* a level of detail of an object definition */
@@ -804,41 +774,10 @@ typedef struct TargetPathTable { /* 0x10 bytes (MAT3 anon_paths_count_8) */
     s32 count;                      /* 0x8 */
 } TargetPathTable;
 
-/* A scene node, an entry of ObjInstanceList (MAT3 ObjInstance; the N64's 0x44 bytes with the pointers widened):
- * its flags (OBJ_*, scene.h), its culling word, its matrix (a tUVMatrix, relative to its parent), the object handle
- * ((model << 10) | definition; 0xFFFF a free node), the first child and the next sibling (-1 none), its lights, a
- * texture for each level of detail, its tile, tile size and palette, and two colours. */
-typedef struct ObjectInstance { /* 0x68 bytes */
-    u32 flags;                    /* 0x0 OBJ_* (scene.h) */
-    u32 culling;                  /* 0x4 its culling box: (first cull vertex << 3) | 7 (ZOID_BuildCullingList), 0 none */
-    struct tUVMatrix *mat;        /* 0x8 its matrix, relative to its parent */
-    f32 scale;                    /* 0x10 */
-    f32 w;                        /* 0x14 the matrix's w */
-    u16 index;                    /* 0x18 its object, (model << 10) | definition; 0xFFFF a free node */
-    s16 child;                    /* 0x1A its first child, -1 none */
-    s16 next;                     /* 0x1C its next sibling, -1 none */
-    s16 numLights;                /* 0x1E its own lights' count, -1 the scene's */
-    struct Lights2 *lights;       /* 0x20 its own lights */
-    struct tTexture *texture[4];  /* 0x28 a texture per level of detail in place of the model's, NULL none */
-    struct TexTile *tile;         /* 0x48 the part of the texture to load in place of the model's */
-    struct TexTile *tileSize;     /* 0x50 the part of it to draw */
-    struct tPaletteDef *palette;  /* 0x58 a palette in place of the model's */
-    u32 color;                    /* 0x60 the primitive colour, OBJ_COLOR */
-    u32 envcolor;                 /* 0x64 the environment colour, OBJ_COLOR */
-} ObjectInstance;
-
 typedef struct PcViewport { /* 0x10 bytes */
     s16 scale[4];     /* 0x0 */
     s16 translate[4]; /* 0x8 */
 } PcViewport;
-
-typedef struct PolyInstance { /* 0x58 bytes */
-    s16 nverts;   /* 0x0 */
-    u16 flags;    /* 0x2 */
-    u16 texidx;   /* 0x4 */
-    s16 z;        /* 0x6 */
-    u8 verts[80]; /* 0x8 */
-} PolyInstance;
 
 /* A world tree's name and root node (MAT3 anon_woff_wname_14, the world WAD's WHDR entry; WorldTable): declared in
  * pc_game_types.h, where the world's converter builds the table beside the file, the root a host pointer
@@ -1022,10 +961,6 @@ typedef struct tCircuit { /* 0x4C bytes */
     u8 unused4A[2];    /* 0x4A zero */
 } tCircuit;
 
-
-typedef struct tBlastMat { /* 0x8 bytes */
-    struct tUVMatrix *mat; /* 0x0 */
-} tBlastMat;
 
 /* A pool of fixed-size elements (MAT3 tStatList; InitStatLL, GetStatLLE, FreeStatLLE, ClearStatLL): its elements
  * linked through their first pointer (MAT3 tStatLLE) and, when dbl, back through their second (tDLLE), the ones in
@@ -1307,31 +1242,6 @@ typedef struct Collision16 { /* 0x10 bytes */
     f32 height; /* 0xC */
 } Collision16;
 
-/* An environment visual, an entry of gEnvirons (a tVisual, struct pc_visual's layout: the next on its list, its
- * index, scene node and car slot, a data word, a time and its animator). The data word is pointer-sized: a target's
- * visual keeps its node there (a tTarget *). */
-typedef struct EnvironNode { /* 0x28 bytes */
-    struct Node *next; /* 0x0 */
-    s16 index;         /* 0x8 */
-    s16 objnum;        /* 0xA */
-    s16 slot;          /* 0xC */
-    uintptr_t data;    /* 0x10 */
-    f32 timeStamp;     /* 0x18 */
-    void *func;        /* 0x20 */
-} EnvironNode;
-
-/* A skid mark, an entry of gSkidArray (MAT3 tSkid): its list links, when it last grew, its polygon, its middle, its
- * colour, and whether it has stopped (and so fades). */
-typedef struct PcEffectObj { /* 0x38 bytes */
-    void *next;      /* 0x0 */
-    void *prev;      /* 0x8 */
-    f32 lastTime;    /* 0x10 */
-    void *poly;      /* 0x18 */
-    f32 pos[3];      /* 0x20 */
-    u8 color[4];     /* 0x2C */
-    s32 active;      /* 0x30 */
-} PcEffectObj;
-
 /* A segment of a light streak's ribbon, an entry of gStreakPolyArray (MAT3 tStreakPoly): its polygon, the seconds
  * it has left, the time to its next fade step, its colour and its streak. */
 typedef struct PcFade { /* 0x30 bytes */
@@ -1343,23 +1253,6 @@ typedef struct PcFade { /* 0x30 bytes */
     u8 clr[4];     /* 0x20 */
     void *s;       /* 0x28 */
 } PcFade;
-
-/* A smoke or spray puff, an entry of gSmokeObjs (MAT3 smoke.c's puff): its orientation and size, its position, its
- * scene node, the seconds it has left, the time to its next animation frame, its drift, its data word (PUFF_*),
- * its car and its animation frame. */
-typedef struct PcPuff { /* 0x60 bytes */
-    void *next;       /* 0x0 */
-    f32 uvs[3][3];    /* 0x8 */
-    f32 pos[3];       /* 0x2C */
-    s32 mbIdx;        /* 0x38 */
-    u8 pad3C[4];      /* 0x3C MAT3 tlifeTime, a float the code reads through its own views */
-    f32 lifeTime;     /* 0x40 */
-    f32 swTime;       /* 0x44 */
-    f32 vel[3];       /* 0x48 */
-    u32 data;         /* 0x54 */
-    s16 slot;         /* 0x58 */
-    s16 tIdx;         /* 0x5A */
-} PcPuff;
 
 /* A light streak behind a battle shot, an entry of gStreakArray (MAT3 tStreak): its flags (STREAK_*), the time to
  * its next segment, its shot's new and last points, and its ribbon's back edge ([0] the lower corner, [1] the
@@ -1549,16 +1442,6 @@ typedef struct tCircuitCar { /* 0x4C bytes */
 } tCircuitCar;
 
 /* ---- camera: the cameras */
-
-/* A window's camera (MAT3 anon_mat_n64_98, gCamera[4], one per window): where it looks from. */
-typedef struct tCamera { /* 0x98 bytes */
-    UVMat mat;        /* 0x00 its orientation and position, as the cameras set them */
-    UVMat n64;        /* 0x30 what the N64 draws by: mat with four elements negated (UpdateCameras) */
-    UVMat fcam;       /* 0x60 the fixed camera's: its pos is where the crash and finish views look from */
-    f32 view2spring;  /* 0x90 */
-    u8 slot;          /* 0x94 the car it shows (ZeroCamera starts camera i on car i) */
-    u8 pad95[3];
-} tCamera;
 
 typedef struct PcFscls { /* 0x1EC bytes */
     f32 fscls[3];          /* 0x0 */

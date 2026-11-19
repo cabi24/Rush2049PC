@@ -37,6 +37,6 @@ void StartKnockdown(tTarget *t)
     PointInDir(car->dr_vel, &facing);
     CopyUV(facing.uvs, t->mat.uvs);
     v->next = gEnvList;
-    gEnvList = (struct tVisual *) v;
+    gEnvList = (tVisual *) v;
     PlayTargetSound(targetInfo[t->infoIdx].sound, t->slot, t->mat.pos, 2);
 }

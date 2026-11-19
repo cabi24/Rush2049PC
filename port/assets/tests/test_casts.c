@@ -27,8 +27,8 @@ void InitBlast(void);
 
 void *gBlastMats[50];                      /* gBlastMats: blast.c's tBlastMat, a matrix pointer an entry */
 int16_t gBlastMatCnt;
-struct pc_blast_ring pc_blast_rings[PC_MAX_LINKS];   /* the blast rings, 0x3C bytes each (data.c's in the game) */
-struct pc_blast pc_blasts[PC_MAX_LINKS];             /* the blasts, 0x190 bytes each */
+tBlastRingStruct pc_blast_rings[PC_MAX_LINKS];   /* the blast rings, 0x3C bytes each (data.c's in the game) */
+tBlastStruct pc_blasts[PC_MAX_LINKS];             /* the blasts, 0x190 bytes each */
 static float blast_mats[50][12];
 static int blast_next;
 
@@ -66,7 +66,7 @@ static struct pc_visual visuals[4];
 static struct { void *v; int arg; } calls[8];
 static int ncalls;
 
-static void record(void *v, short arg)
+static void record(tVisual *v, short arg)
 {
     if (ncalls < 8)
         calls[ncalls].v = v, calls[ncalls].arg = arg;
@@ -74,11 +74,11 @@ static void record(void *v, short arg)
 }
 
 /* A visual whose animator ends it: it unlinks itself, as ReleaseEnviron does from the head. */
-static void end_self(void *v, short arg)
+static void end_self(tVisual *v, short arg)
 {
     record(v, arg);
     if (gEnvList == v)
-        gEnvList = ((struct pc_visual *)v)->next;
+        gEnvList = v->next;
 }
 
 static void test_visuals(void)

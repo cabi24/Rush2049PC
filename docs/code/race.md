@@ -149,14 +149,14 @@ the N64 draws by (`n64`) and updates the sky.
   declares the pointers too.
 - **The car record** (`tCarData` in cars.h, `pc_cars`, 0x510 bytes on the PC) is the N64's with host pointers in its
   visuals and input record, every field named as MAT3 names it ([RECORDS.md](../port/RECORDS.md) 3.1).
-- **Data laid out by bytes**: `ZoidWinInfo`'s `ArbEntry` (MAT3 `tWindowInfo`) keeps a byte array where the files
-  read fields: it is own BSS, whose field runs data.c carries, so its real members change data.c (runs the loader
-  does not use for BSS); its last view (ZOID_InitializeWindow, which writes the clip planes and the fog) waits for that, wave 3.
+- **Data laid out by bytes**: `ZoidWinInfo` was `ArbEntry`, a byte array where the files read fields, until wave 4
+  gave it its real members (MAT3's `tWindowInfo`, scene.h; [RECORDS.md](../port/RECORDS.md) 3.2): it is own BSS, so
+  only data.c's runs for it changed, which the loader does not use for BSS.
   `gCamera` (`tCamera`), `gStuntInfo` (`StuntInfo`, MAT3 tStuntInfo) and `gCannMuzzleObjs` (`tCMuzzleObj`) have
   their real members since 2026-11-09: they are arena BSS, which data.c places by address and size only.
 - **One type per datum** (2026-11-09): every file reads the race, track and camera data by include/game's types;
   the records some files still complete for themselves are those include/game leaves incomplete (`tBasicTargetPath`,
-  `pathtyp`, `tModelPart`, `tVisual`), and `tCircuit` in the profile.
+  `pathtyp`, `tModelPart`; `tVisual` until wave 4, now one record, RECORDS.md 3.2), and `tCircuit` in the profile.
 - **The profile's data** is read through save.h's `tProfile` and `tSaveData` (the circuits, the ghosts; wave 4,
   [RECORDS.md](../port/RECORDS.md) 4.2).
 - **Walks to the next datum**: the arena keeps some arrays longer than include/game declares (`gCircuitCars[6]`,

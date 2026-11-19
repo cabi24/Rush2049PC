@@ -6,24 +6,6 @@
 extern f32 fabsf(f32);
 #pragma intrinsic(fabsf)
 
-/* A car visual (tVisual) on the PC: 0x28 bytes, next, data and func pointer-sized (struct pc_visual, docs/port/CARS.md
- * 3). */
-typedef struct tVisual {
-    /* 0x00 */ void *next;
-    /* 0x08 */ s16 index;
-    /* 0x0A */ s16 objnum;          /* the shadow's polygon */
-    /* 0x0C */ s16 slot;
-    /* 0x10 */ uintptr_t data;
-    /* 0x18 */ f32 timeStamp;
-    /* 0x20 */ void (*func)(struct tVisual *v, s16 op);
-} tVisual;
-
-/* A polygon of the scene (PolyInstanceList). */
-typedef struct Poly {
-    /* 0x00 */ s16 active;
-    /* 0x02 */ u16 flags;
-    /* 0x04 */ u8 pad[0x54];
-} Poly;
 
 #define rng(x, lo, hi) (((x) < (lo)) ? (lo) : (((x) > (hi)) ? (hi) : (x)))
 

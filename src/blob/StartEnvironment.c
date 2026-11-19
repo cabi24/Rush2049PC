@@ -2,20 +2,6 @@
  * StartShadow(), StartArrow()). */
 #include "game/game.h"
 
-/* A car visual (tVisual) on the PC: 0x28 bytes, next, data and func pointer-sized (struct pc_visual,
- * docs/port/CARS.md 3). */
-typedef struct tVisual {
-    struct tVisual *next;       /* 0x00 */
-    s16 index;                  /* 0x08 */
-    s16 objnum;                 /* 0x0A */
-    s16 slot;                   /* 0x0C */
-    uintptr_t data;             /* 0x10 */
-    float timeStamp;            /* 0x18 */
-    void (*func)(struct tVisual *, s16);   /* 0x20 */
-} tVisual;
-
-typedef PolyInstance tPoly;   /* a flat polygon (MAT3 tPoly) */
-
 extern f32 gDummyVtx[4][3];            /* gDummyVtx */
 
 /* Give car `slot` its shadow: a four-cornered polygon (the shadow texture, gTexList[6], in gShadowColor at alpha
@@ -29,7 +15,7 @@ static void StartShadow(s16 slot)
     v->slot = slot;
     v->timeStamp = gModelTime;
     gShadowColor.c[3] = 192;
-    v->objnum = (PolyInstance *)ZOID_NewPoly(4, gDummyVtx, gTexList[6], &gShadowColor, ((gGameState & GS_CAR) ? 1 : 15) | 0x200 | 0x8000, 1) - PolyInstanceList;
+    v->objnum = ZOID_NewPoly(4, gDummyVtx, gTexList[6], &gShadowColor, ((gGameState & GS_CAR) ? 1 : 15) | 0x200 | 0x8000, 1) - PolyInstanceList;
 }
 
 /* Give a human's car `slot` in split screen its arrows: one polygon for each other player's window (window mask bit

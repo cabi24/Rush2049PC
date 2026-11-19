@@ -6,8 +6,11 @@
 /* What is left of the N64's memory map: the cartridge's bus addresses. */
 #include "pc_n64_map.h"
 
-/* Pointer-sized integers. */
+/* Pointer-sized integers (uintptr_t also in pc_game_types.h, for the PC layer's files that include it alone). */
+#ifndef PC_UINTPTR_T
+#define PC_UINTPTR_T
 typedef __UINTPTR_TYPE__ uintptr_t;
+#endif
 typedef __INTPTR_TYPE__ intptr_t;
 
 /* Display lists: Gfx, a command's record, which the game builds and port/gfx renders (pc_gfx_list.h); GfxWords, a

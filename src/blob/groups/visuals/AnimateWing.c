@@ -2,9 +2,6 @@
  * wings control is held, with its sound, and back in, tilting it with the car's pitch and puffing smoke. */
 #include "game/game.h"
 
-/* PC: a visual (tVisual) is 0x28 bytes: next, data and func are pointer-sized (struct pc_visual, docs/port/CARS.md 3);
- * a wing keeps its flags in the data word. */
-typedef struct Visual { void *opaque0; s16 index, object, slot, opaque10; uintptr_t flags; f32 time; void (*func)(struct Visual *v, s16 op); } Visual;
 
 /* PC: game.frame_rate 60 (pc_game_fps.h). The wings step out and in one sixth at a frame whose model time is past
  * v->time, set 0.015 s on: less than a frame, so a step a frame, 30 a second on the N64. At 60 the gap is 0.03 s,
@@ -19,11 +16,11 @@ __inline void wing_sound_on(tModelData *model)
     AudChangeEffectVol(model->wingSnd, 0.5f);
 }
 /* Starts the wing sliding out: shown, flags out-and-moving (0x1110), the first step a moment from now. */
-__inline void wing_extend(Visual *v, tModelData *model)
+__inline void wing_extend(tVisual *v, tModelData *model)
 {
-    MBOX_ShowObject(v->object, 0, 15);
-    v->flags |= 0x1110;
-    v->time = gModelTime + PC_GAP30(0.015f); v->index = 0;
+    MBOX_ShowObject(v->objnum, 0, 15);
+    v->data |= 0x1110;
+    v->timeStamp = gModelTime + PC_GAP30(0.015f); v->index = 0;
 }
 /* Stops the wing's sound. */
 __inline void wing_sound_off(tModelData *model)
@@ -40,7 +37,7 @@ __inline void wing_sound_off(tModelData *model)
  * (two at 60 fps), its offset (wingOffsets by car type, to the side the visual mirrors) scaled by the step; the
  * sound plays while it moves. While out it tilts with the car's pitch and, for one player, smokes. It is hidden
  * with the car (a hulk, a disabled car), at low detail, and see-through with the car. */
-void AnimateWing(Visual *v, s16 op)
+void AnimateWing(tVisual *v, s16 op)
 {
     s32 hulk, lucent;
     s16 slot;
@@ -55,69 +52,69 @@ void AnimateWing(Visual *v, s16 op)
 
     slot = v->slot;
     if (op == 0) {
-        if (v->object >= 0) MBOX_HideObject(v->object, 0, 15);
+        if (v->objnum >= 0) MBOX_HideObject(v->objnum, 0, 15);
         v->func = 0;
-        v->object = -1;
+        v->objnum = -1;
         return;
     }
     model = &pc_models[slot];
-    reverse = (v->flags & 1) ? 1 : 0;
+    reverse = (v->data & 1) ? 1 : 0;
     sign = reverse ? 1.0f : -1.0f;
     position[0] = wingOffsets[model->body_type][0] * (0, sign);
     position[1] = wingOffsets[model->body_type][1];
     position[2] = 0.0f;
     if (model->wing == 0 || gCoastFlag) {
-        if (v->flags & 0x10) {
-            v->flags &= ~0x100;
-            v->flags |= 0x1200;
+        if (v->data & 0x10) {
+            v->data &= ~0x100;
+            v->data |= 0x1200;
             if (model->wingSnd == -1) {
                 model->wingSnd = AudPlayEffect(61, model->slot, 2, 2);
                 AudChangeEffectPitch(model->wingSnd, 0.75f);
                 AudChangeEffectVol(model->wingSnd, 0.5f);
             }
-        } else if (!(v->flags & 0x1000)) {
+        } else if (!(v->data & 0x1000)) {
             InitWingSmoke(slot, reverse);
-            MBOX_HideObject(v->object, 0, 15);
+            MBOX_HideObject(v->objnum, 0, 15);
             return;
         }
     }
-    if (model->wing != 0 && !(v->flags & 0x10)) {
+    if (model->wing != 0 && !(v->data & 0x10)) {
         wing_extend(v, model);
         if (model->wingSnd == -1) wing_sound_on(model);
     }
-    if (v->flags & 0x1000) {
-        if (v->flags & 0x100) {
+    if (v->data & 0x1000) {
+        if (v->data & 0x100) {
 grow:
-            if (v->time < gModelTime) {
+            if (v->timeStamp < gModelTime) {
                 position[0] *= (f32)v->index / 6.0f;
-                ZOID_UpdateObject(v->object, position, 0);
-                v->time = gModelTime + PC_GAP30(0.015f); v->index++;
+                ZOID_UpdateObject(v->objnum, position, 0);
+                v->timeStamp = gModelTime + PC_GAP30(0.015f); v->index++;
                 if (v->index == 6) {
-                    v->flags &= ~0x1100;
+                    v->data &= ~0x1100;
                     wing_sound_off(model);
                 }
             }
-        } else if (v->flags & 0x200) {
+        } else if (v->data & 0x200) {
             if (model->wing != 0 && !gCoastFlag) {
-                v->flags &= ~0x200;
-                v->flags |= 0x100;
+                v->data &= ~0x200;
+                v->data |= 0x100;
                 goto grow;
             }
-            if (v->time < gModelTime) {
+            if (v->timeStamp < gModelTime) {
                 position[0] *= (f32)v->index / 6.0f;
-                ZOID_UpdateObject(v->object, position, 0);
-                v->time = gModelTime + PC_GAP30(0.015f); v->index--;
+                ZOID_UpdateObject(v->objnum, position, 0);
+                v->timeStamp = gModelTime + PC_GAP30(0.015f); v->index--;
                 if (v->index == -1) {
-                    v->flags &= ~0x1210;
+                    v->data &= ~0x1210;
                     wing_sound_off(model);
                 }
             }
         }
     }
-    if (v->flags & 0x10) {
+    if (v->data & 0x10) {
         CopyUV(unitmatrix, basis);
         PitchUV(((tPadState *)pc_cars[slot].player)->analog[1] * 0.507f, basis);
-        ZOID_UpdateObject(v->object, 0, basis);
+        ZOID_UpdateObject(v->objnum, 0, basis);
         if (gNumPlayers == 1) StartSmoke(slot, reverse ? 7 : 6, 0, position);
     }
     car = &pc_cars[slot];
@@ -125,7 +122,7 @@ grow:
     lucent = (gInvisibleCar != 0) || ((car->appearance & 8) != 0);
     if (CheckVisibleAll(v, !hulk && !car->carMine)) {
         CheckVisible(v, car->view >= 2, car->camera);
-        if (lucent) ObjInstanceList[v->object].flags ^= 0x80000000;
-        else ObjInstanceList[v->object].flags &= 0x7FFFFFFF;
+        if (lucent) ObjInstanceList[v->objnum].flags ^= 0x80000000;
+        else ObjInstanceList[v->objnum].flags &= 0x7FFFFFFF;
     }
 }

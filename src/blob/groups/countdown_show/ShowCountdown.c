@@ -1,11 +1,6 @@
 /* ShowCountdown: the countdown's numbers in front of each window's camera (MAT3 countdown.c). */
 #include "game/game.h"
 
-/* A 3D polygon of the scene (ZOID_NewPoly): the fields this file needs. */
-typedef struct Poly {
-    s16 active;
-    u16 flags;
-} Poly;
 s32 sprintf(char *, const char *, ...);
 
 /* With `active`, shows the countdown's number (texture CNTDWN3, 2, 1) on a square in front of each window's camera,
@@ -18,7 +13,7 @@ void ShowCountdown(s32 active)
     s32 i;
     s32 winidx;
     char str[20];
-    static Poly *poly[12];
+    static tPoly *poly[12];
     static u16 polyTidx;
     static u16 lastCountDown;
     static u8 polyColor[4] = { 0xFF, 0xFF, 0xFF, 0xC0 };

@@ -4,14 +4,6 @@
  * a viewport (vp0 ...) and a scissor rectangle (scissor0 ...). */
 #include "game/game.h"
 
-/* A window (MAT3 tWindowInfo; 0x48 bytes on the N64, 0x50 on the PC, whose two pointers are 8 bytes): its
- * viewport and scissor, then the projection's numbers (ZOID_SetWindow), the clip planes and the fog. */
-typedef struct tWindowInfo {
-    void *vp;
-    void *s;
-    u8 rest[64];
-} tWindowInfo;
-
 /* One window, window 0, covering the whole screen (screen_width by screen_height) with the default field of view
  * (HFOV), viewport vp0 and scissor rectangle scissor0. (ZOID_SetScissor and ZOID_SetViewport are written out
  * here.) */

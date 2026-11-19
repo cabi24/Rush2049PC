@@ -5,16 +5,13 @@
 float fabsf(float);
 float sqrtf(float);
 
-typedef struct V3 { float x, y, z; } V3;
-
-
 
 /* Car `car`'s steady camera (view 7). `mode` 0 starts it at `pos` looking at the car (init_steady_move_cam). Then
  * it flies in legs of steady_leg_duration seconds, pointing at the car (`pos`, its orientation into `uvs`): leg 0
  * from the start to 40 feet behind the car and 5 up, leg 1 from there to the rear chase camera's place
  * (UpdateRearCamera), and at the end (leg 2) the car's view becomes view3's, or a player's saved view (or 2). */
 void steady_move_cam(s16 mode, tCarData *car, f32 *pos, void *uvs) {
-    V3 delta[4];
+    tVec3 delta[4];
     f32 res[3], pos2[3];
     s32 pl;
 

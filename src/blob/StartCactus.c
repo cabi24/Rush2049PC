@@ -27,7 +27,7 @@ void StartCactus(tTarget *t)
         LookInDir(&fallDir[0], t->mat.uvs);
         t->Flags = (u8) (t->Flags & ~(TARGET_ACTIVE | TARGET_HIT));
         v->next = gEnvList;
-        gEnvList = (struct tVisual *) v;
+        gEnvList = (tVisual *) v;
         PlayTargetSound(targetInfo[t->infoIdx].sound, t->slot, t->mat.pos, 2);
     }
 }

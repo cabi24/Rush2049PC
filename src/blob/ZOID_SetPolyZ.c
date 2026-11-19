@@ -2,6 +2,6 @@
 #include "game/game.h"
 
 /* Set polygon `poly`'s depth `z`, which orders the screen-space polygons. */
-void ZOID_SetPolyZ(PolyInstance *poly, s16 z) {
+void ZOID_SetPolyZ(tPoly *poly, s16 z) {
     poly->z = z;
 }

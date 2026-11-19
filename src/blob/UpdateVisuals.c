@@ -1,9 +1,6 @@
 /* UpdateVisuals.c: animate a car's visuals for a frame (MAT3 visuals.c, UpdateVisuals()). */
 #include "game/game.h"
 
-/* A car visual (tVisual) on the PC: 0x28 bytes, next, data and func pointer-sized (struct pc_visual, docs/port/CARS.md
- * 3). */
-typedef struct tVisual { struct tVisual *next; s16 index, objnum, slot; uintptr_t data; f32 timeStamp; void (*func)(struct tVisual *v, s16 op); } tVisual;
 
 /* Once a frame for car `slot`: judge whether the frame rate is good enough for the costly effects (gGoodFrameRate:
  * the last frame took under 36 ms at 50 Hz, 45 ms in split screen, else 30 ms; frame_cycle_count is in CPU counts,

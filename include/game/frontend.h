@@ -273,7 +273,7 @@ extern tBlitDef trackBack[EXTENT(2)];
 extern MotionFrame gBackRects[EXTENT(4)];
 extern s32 gBackCamera[EXTENT(4)][4];
 extern tBlit *backBlit;
-extern struct PointList *backPolys[EXTENT(4)];
+extern tPoly *backPolys[EXTENT(4)];
 extern struct Dims *bg_texture;
 extern s32 offsetsValid[EXTENT(5)];
 extern tRGBA controller_dim_color;
@@ -540,7 +540,7 @@ extern f32 recordscr_cursorZ;
 extern tBlitDef recordscr_mblit[EXTENT(1)];
 extern s8 recordscr_inited;
 extern void *recordscr_blit;
-extern tBlitSet *recordscr_viewPane;
+extern tBlitSet *recordscr_viewPane;   /* the records screen's pane (MAT3 viewPane) */
 extern s8 gViewTrackValid[EXTENT(32)];
 extern s8 gViewStatValid[EXTENT(6)][13];
 extern s8 recordscr_gSelectPakIdx;
@@ -742,7 +742,7 @@ extern char recordscr_button_texture_name[EXTENT(104)];
 extern char startscr_player_count_format[EXTENT(4)];
 extern char startscr_button_player_count_format[EXTENT(136)];
 extern u8 titlescr_prompt_text[EXTENT(1216)];
-extern ResourceRange trackscr_arrowPos[EXTENT(2)][4];
+extern ScreenPos16 trackscr_arrowPos[EXTENT(2)][4];   /* the track screen's arrows' places (animArrows) */
 extern char trackscr_laps_format[EXTENT(4)];
 extern char trackscr_option5_format[EXTENT(4)];
 extern char trackscr_option6_format[EXTENT(4)];
@@ -777,7 +777,7 @@ extern s16 gProgressWidth;
 extern s16 gProgressHeight;
 extern s16 gProgressTop;
 extern s16 gMenuBottom;
-extern s32 *gCarMatrices[EXTENT(48)];
+extern tUVMatrix *gCarMatrices[EXTENT(48)];   /* the car screens' scene matrices, 12 a player (InitCarObj) */
 extern tRGBA carscr_marker_colors[EXTENT(4)][3];
 extern s32 carscr_buttonsInited[EXTENT(4)];
 extern s32 carscr_buttonsJustInited[EXTENT(4)];

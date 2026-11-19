@@ -7,9 +7,6 @@
 #include "game/game.h"
 
 
-VIEW(void *[48], gCarMatrices);
-#define gCarMatrices gCarMatrices_view
-
 /* A profile's per-car settings (GetPlayerCarSetting, SavePlayerCarSetting; a ghost's tGhostHeader.settings). */
 #define CAR_SETTING_HANDLING 0
 #define CAR_SETTING_ENGINE 1
@@ -1133,7 +1130,6 @@ void showGridMap(s32 enabled)
     }
 }
 
-typedef struct tUVMatrix { f32 uvs[9]; f32 pos[3]; } ZMatrix;   /* a scene node's matrix (ZOID_FindMatrix) */
 ComponentLights compLight[2] = {
     {{0, 128, 0}, 0, {0, 128, 0}, 0, {{{192, 192, 192}, 0, {192, 192, 192}, 0, {0, 100, 0}, 0}, {{0}}}},
     {{255, 0, 0}, 0, {255, 0, 0}, 0, {{{192, 192, 192}, 0, {192, 192, 192}, 0, {0, 100, 0}, 0}, {{0}}}},

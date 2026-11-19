@@ -2,7 +2,6 @@
 #include "game/game.h"
 #define tRGBA tRGBAView   /* this file's own tRGBA: include/game's tRGBA is another type */
 
-typedef struct tPoly tPoly;
 typedef struct tRGBA { u8 c[4]; } tRGBA;
 
 extern f32 fabsf(f32);

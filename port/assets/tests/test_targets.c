@@ -35,7 +35,7 @@
 typedef struct {
     const char *name, *file;
     void (*start)(void *);
-    void (*visual)(void *, short);
+    void (*visual)(struct pc_visual *, short);   /* a visual's animator (tVisual.func) */
     int16_t kind;
     uint16_t flags;
     int16_t shape;
@@ -185,8 +185,8 @@ void RotateCollisionObject(int32_t id, float *pos, float *mat, float *m) {}
 /* the table's functions */
 static void *g_started;
 static void start_fn(void *t) { g_started = t; }
-static void visual_fn(void *v, short op) {}
-static void camera_visual_fn(void *v, short op) {}
+static void visual_fn(struct pc_visual *v, short op) {}
+static void camera_visual_fn(struct pc_visual *v, short op) {}
 static int32_t g_hit_calls;
 static int32_t hit_fn(void *a, void *b, void *c, int32_t d) { g_hit_calls++; return 1; }
 

@@ -193,7 +193,7 @@ void AbortGame(void);
 void AddBattlePointInternal(s8 row, s8 column, s8 delta);
 void AddStunt(s32 idx, s32 code);
 void AnimateCase(void);
-void AnimateWeapon(struct Visual *v, s16 op);
+void AnimateWeapon(tVisual *v, s16 op);
 void BattleDamage(struct tCarData *attacker, struct tCarData *victim, s32 damage);
 void CarSetup(void);
 void Check2WheelSide(void);

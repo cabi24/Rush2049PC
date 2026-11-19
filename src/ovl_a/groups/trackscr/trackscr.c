@@ -390,8 +390,6 @@ void trackscr_UninitScreen(void)
     trackscr_inited = 0;
 }
 
-typedef struct UVMatrix { f32 uvs[3][3]; f32 pos[3]; } UVMatrix;   /* tUVMatrix */
-
 /* The screen's moving parts, MAT3's function-local statics (image A's data: a load of the image puts back their first
  * values, docs/port/DATA.md 5): the carousel's spin and the fog's place (showTrackSelect), the fog texture's tile
  * (BlowFog), the highlighted map's places and spin (trackscr_animTrackMap), the maps' place (animTrackMaps), and the
@@ -412,7 +410,7 @@ f32 trackscr_cursorSpeed = 0.0f;
  * highlighted track's (yFog). MAT3 draws a spinning model with the angle; the N64 computes it and draws nothing. */
 void showTrackSelect(void)
 {
-    UVMatrix fogMat;
+    tUVMatrix fogMat;
     f32 uv[3][3];
     f32 speed;
     f32 frames;

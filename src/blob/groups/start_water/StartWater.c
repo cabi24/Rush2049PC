@@ -8,20 +8,6 @@
 float fabsf(float);
 #pragma intrinsic (fabsf)
 
-/* A smoke puff (MAT3 smoke.c's anon_ll_mat_58, types.h's PcPuff); the offsets are the N64's. */
-typedef struct SmokePuff {
-    void *next;             /* the pool link: a puff (UpdateSmoke's SmokePuff), pointer-sized here */
-    f32 uvs[3][3];          /* +0x04 */
-    f32 pos[3];             /* +0x28 */
-    s32 mbIdx;              /* +0x34 its scene object */
-    u8 pad38[8];
-    f32 swTime;             /* +0x40 seconds to its next animation frame */
-    f32 vel[3];             /* +0x44 its offset from the tire */
-    s32 data;               /* +0x50 PUFF_WATER, the tire << PUFF_TYPE_SHIFT */
-    s16 slot;               /* +0x54 */
-    s16 tIdx;               /* +0x56 its animation frame */
-} SmokePuff;
-
 /* On the PC the tire-effect latches are pc_tire_fx, PC_MAX_LINKS long, with no N64 address (pc_game_types.h,
  * docs/port/DECOUPLE.md 6). */
 #define gCarSmokeDir pc_tire_fx
@@ -30,7 +16,7 @@ typedef struct SmokePuff {
 /* Put puff `smk` in the scene as frame tIdx of the spray's animation (gObjList[205..212]). */
 static void attach(SmokePuff *smk) {
     s32 handle;
-    handle = ZOID_AddObject(gObjList[205 + smk->tIdx], smk->uvs, -1, 0x40000);
+    handle = ZOID_AddObject(gObjList[205 + smk->tIdx], &smk->mat, -1, 0x40000);
     smk->mbIdx = handle;
 }
 
@@ -40,7 +26,7 @@ static void attach(SmokePuff *smk) {
  * The two puffs share the turn and size and differ in their sideways offset and animation frame (0 and 4). */
 void StartWater(s16 slot, u32 tire) {
     tCarData *car;
-    s32 data;
+    u32 data;
     s32 i, j;
     f32 pos2[3];
     f32 offset;
@@ -74,7 +60,7 @@ void StartWater(s16 slot, u32 tire) {
     pos2[2] = car->dr_vel[2];
     NormalVector(pos2);
     LookInDir(pos2, mat);
-    CopyUV(mat, smk->uvs);
+    CopyUV(mat, smk->mat.uvs);
     if (mph2 < 90) {
         if (mph < 0) {
             offset2 = (f32)mph2 / 70.0f * 0.75f + 0.25f;
@@ -83,13 +69,13 @@ void StartWater(s16 slot, u32 tire) {
         }
         for (i = 0; i < 3; i++) {
             for (j = 0; j < 3; j++) {
-                smk->uvs[i][j] *= offset2;
+                smk->mat.uvs[i][j] *= offset2;
             }
         }
     }
-    smk->pos[0] = car->dr_tirepos[tire][0];
-    smk->pos[1] = car->dr_tirepos[tire][1];
-    smk->pos[2] = car->dr_tirepos[tire][2];
+    smk->mat.pos[0] = car->dr_tirepos[tire][0];
+    smk->mat.pos[1] = car->dr_tirepos[tire][1];
+    smk->mat.pos[2] = car->dr_tirepos[tire][2];
     smk->vel[0] = car->dr_uvs[0][0];
     smk->vel[1] = car->dr_uvs[0][1];
     smk->vel[2] = car->dr_uvs[0][2];
@@ -98,11 +84,11 @@ void StartWater(s16 slot, u32 tire) {
     smk->vel[0] *= offset;
     smk->vel[1] *= offset;
     smk->vel[2] *= offset;
-    smk->pos[0] = smk->pos[0] + smk->vel[0];
-    smk->pos[1] = smk->pos[1] + smk->vel[1];
-    smk->pos[2] = smk->pos[2] + smk->vel[2];
-    smk->pos[1] += 1.25f;
-    smk->mbIdx = ZOID_AddObject(gObjList[205], smk->uvs, -1, 0x40000);
+    smk->mat.pos[0] = smk->mat.pos[0] + smk->vel[0];
+    smk->mat.pos[1] = smk->mat.pos[1] + smk->vel[1];
+    smk->mat.pos[2] = smk->mat.pos[2] + smk->vel[2];
+    smk->mat.pos[1] += 1.25f;
+    smk->mbIdx = ZOID_AddObject(gObjList[205], &smk->mat, -1, 0x40000);
 
     if (snap != start_water_sentinel) DEBUG_PRINT(("x"));
     smk = GetStatLLE(&gSmokeList);
@@ -110,17 +96,17 @@ void StartWater(s16 slot, u32 tire) {
     smk->swTime = 0.0333333f;
     smk->data = data;
     smk->slot = slot;
-    CopyUV(mat, smk->uvs);
+    CopyUV(mat, smk->mat.uvs);
     if (mph2 < 90) {
         for (i = 0; i < 3; i++) {
             for (j = 0; j < 3; j++) {
-                smk->uvs[i][j] *= offset2;
+                smk->mat.uvs[i][j] *= offset2;
             }
         }
     }
-    smk->pos[0] = car->dr_tirepos[tire][0];
-    smk->pos[1] = car->dr_tirepos[tire][1];
-    smk->pos[2] = car->dr_tirepos[tire][2];
+    smk->mat.pos[0] = car->dr_tirepos[tire][0];
+    smk->mat.pos[1] = car->dr_tirepos[tire][1];
+    smk->mat.pos[2] = car->dr_tirepos[tire][2];
     smk->vel[0] = car->dr_uvs[0][0];
     smk->vel[1] = car->dr_uvs[0][1];
     smk->vel[2] = car->dr_uvs[0][2];
@@ -129,9 +115,9 @@ void StartWater(s16 slot, u32 tire) {
     smk->vel[0] *= offset;
     smk->vel[1] *= offset;
     smk->vel[2] *= offset;
-    smk->pos[0] = smk->pos[0] + smk->vel[0];
-    smk->pos[1] = smk->pos[1] + smk->vel[1];
-    smk->pos[2] = smk->pos[2] + smk->vel[2];
-    smk->pos[1] += 1.25f;
+    smk->mat.pos[0] = smk->mat.pos[0] + smk->vel[0];
+    smk->mat.pos[1] = smk->mat.pos[1] + smk->vel[1];
+    smk->mat.pos[2] = smk->mat.pos[2] + smk->vel[2];
+    smk->mat.pos[1] += 1.25f;
     attach(smk);
 }

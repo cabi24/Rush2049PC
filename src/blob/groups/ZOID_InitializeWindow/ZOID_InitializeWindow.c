@@ -1,19 +1,6 @@
 /* ZOID_InitializeWindow/ZOID_InitializeWindow.c: set a window up from scratch (MAT3 zoidwindow.c, ZOID_InitializeWindow()). */
 #include "game/game.h"
 
-/* A window (MAT3 tWindowInfo; 0x48 bytes on the N64, 0x50 on the PC, whose two pointers are 8 bytes). */
-typedef struct tWindowInfo {
-    void *vp, *s;
-    int flags;
-    f32 whviewang, wvviewang, whvangtan, wvvangtan, wihvangtan, wivvangtan;
-    f32 wwidth, wheight, whcenter, wvcenter, aspect;
-    f32 frontclip, backclip;    /* the near and far clip planes, feet */
-    s16 fogmin, fogmax;
-    u8 fogcolor[4];
-} tWindowInfo;
-VIEW(tWindowInfo[], ZoidWinInfo);
-#define ZoidWinInfo ZoidWinInfo_view
-
 /* Set window `idx` up: viewport `vp` and scissor `s`, clip planes at 2.5 and 2,000 feet (MAT3: 0.01 and 4,000; the
  * world is drawn out to gViewableDistance, set here too), `width` by `height` pixels centred at (hcenter, vcenter)
  * with fields of view `hang` and `vang` degrees (ZOID_SetWindow), the fog range 1000 to 999 (MAT3: 0 to 0) in

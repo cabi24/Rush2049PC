@@ -129,7 +129,7 @@ void send_all_trees(struct internal_state *s, s32 lcodes, s32 dcodes, s32 blcode
 void send_tree(struct internal_state *s, ct_data *tree, s32 max_code);
 void SetupWaveModel(s32 idx, s32 first);
 void SetWaveInstanceModel(s32 index);
-void StartSkid(struct WheelSlot *ns, s16 slot, u32 tire, u8 *color);
+void StartSkid(tNewSkid *ns, s16 slot, u32 tire, u8 *color);
 void stop_current_song(void);
 u32 tr_flush_block(struct internal_state *s, char *buf, u32 stored_len, s32 eof);
 void tr_init(struct internal_state *s);
@@ -141,7 +141,7 @@ void UnloadWaveAll(s32 wave);
 void UnloadWaveInstance(s32 index);
 void unlock_memory(void *ptr);
 void UnlockWaveInstance(s32 index);
-void UpdateSkid(struct WheelSlot *slot, s16 player, u32 wheel, u8 *color);
+void UpdateSkid(tNewSkid *slot, s16 player, u32 wheel, u8 *color);
 void ValidateWaveInstance(s32 index, s32 loaded, s32 ready);
 void WalkBST(tOrderedList *tree, void (*WalkFunc)(void *, s32));
 void WalkBSTInternal(tOrderedList *tree, void *root, s32 *num, void (*WalkFunc)(void *, s32));

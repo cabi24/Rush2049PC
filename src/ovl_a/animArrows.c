@@ -2,10 +2,6 @@
  * being changed, up and down when the options list scrolls. */
 #include "game/game.h"
 
-typedef struct Point { s16 x, y; } Point;
-
-VIEW(Point[][4], trackscr_arrowPos);
-#define trackscr_arrowPos trackscr_arrowPos_view
 
 #define TEXT_TRACK_OPTIONS 1        /* gText.tab[]: the race options' names (trackscr_gOpts indexes them) */
 #define ARROW_LEFT 0                /* the item (animID bits 4-7) */

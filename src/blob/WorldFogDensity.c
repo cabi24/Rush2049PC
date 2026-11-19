@@ -17,17 +17,6 @@ typedef struct FogRegion {
     s16 backclip;       /* the view's far end (backclip) */
 } FogRegion; /* 0xC */
 
-/* A window (MAT3 tWindowInfo), the fields used here. */
-typedef struct tWindowInfo {
-    void *first; void *bounds; char pad0_8[0x3C - 0x8];
-    f32 backclip;       /* 0x3C the far clip distance, feet */
-    u16 fogmin;         /* 0x40 the fog's start, in the RSP's fog depth units (0-1000) */
-    u16 fogmax;         /* 0x42 the fog's full */
-    char pad44[4];
-} tWindowInfo; /* 0x48 */
-/* PC: a window is 80 bytes, its first two words are pointers (docs/port/POINTERS.md 10). */
-#define WININFO_SIZE (s32)sizeof(tWindowInfo)
-
 f32 sqrtf(f32);
 #pragma intrinsic(sqrtf)
 
@@ -48,7 +37,7 @@ void WorldFogDensity(s32 winidx, f32 *pos) {
     f32 ratio;
 
     if (gFogIntensity) {
-        win = (tWindowInfo *) ((intptr_t) ZoidWinInfo + winidx * WININFO_SIZE);
+        win = &ZoidWinInfo[winidx];
         win->fogmin = fogMin[gNumPlayers][gFogIntensity];
         win->fogmax = 1000;
         win->backclip = fogDistance[gNumPlayers][gFogIntensity];

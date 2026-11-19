@@ -11,27 +11,13 @@ typedef struct {
     f32 offY[4];         /* 0x28 */
 } BackRect; /* 0x38 */
 
-typedef struct {
-    s16 tc[2];
-    u8 pad4[16];
-} PolyVert; /* 0x14 */
-
-typedef struct Poly {
-    s16 nverts;          /* 0x00 */
-    u16 flags;           /* 0x02 */
-    u8 pad4[16];
-    PolyVert verts[4];   /* 0x14 */
-} Poly;
-
 typedef struct SoundState SoundState;
 
 VIEW(BackRect[4][4], gBackRects);
 #define gBackRects gBackRects_view
-VIEW(Poly *[4], backPolys);
-#define backPolys backPolys_view
 VIEW(void *, bg_texture);
 #define bg_texture bg_texture_view
-void ZOID_ShowPoly_bg(Poly *poly)
+void ZOID_ShowPoly_bg(tPoly *poly)
 {
     poly->flags &= ~0x8000;
 }
@@ -64,7 +50,7 @@ void createBG(void)
                                             gBackCamera[gNumWindows - 1][polyIdx] | 0x1210, 1);
         ZOID_ShowPoly_bg(backPolys[polyIdx]);
         if (offsetsValid[gNumWindows - 1] == 1) {
-            Poly *backPoly;
+            tPoly *backPoly;
             s32 vertIdx;
 
             backPoly = backPolys[polyIdx];

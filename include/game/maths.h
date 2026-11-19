@@ -11,6 +11,19 @@
 /* A 3x3 orientation's element (row, col) at p, f32s by rows (UVECT). */
 #define UV_AT(p, row, col) (*((f32 *) (((s8 *) (p)) + ((row) * 3 + (col)) * 4)))
 
+/* Types */
+
+/* A point or a direction (MAT3 tVec3): in the world, feet (x across, y up, z along), or in a body's own frame. Most
+ * of the game's code keeps vectors as f32[3]; this is the record for code that names the three. */
+typedef struct tVec3 {
+    f32 x;
+    f32 y;
+    f32 z;
+} tVec3;
+
+/* A frame, an orientation and a position: tUVMatrix (MAT3's), port/include/pc_game_types.h, where the PC's own
+ * records that hold one (the blasts) need it whole; every game file sees it. */
+
 /* Data */
 /* The identity transform (MAT3 float unitmatrix[4][3]): the identity rotation's three rows (a tUVMatrix), then the
  * position, the zero vector (unitmatrix_origin). Code copies the rotation (36 bytes) or the whole (48 bytes), or

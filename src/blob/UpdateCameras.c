@@ -8,7 +8,7 @@ void UpdateCameras(void)
 {
     s32 i;
     tCamera *cam;
-    UVMat *n64;
+    tUVMatrix *n64;
 
     for (i = 0; i < (s16) gNumWindows; i++) {
         cam = &gCamera[i];

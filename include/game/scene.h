@@ -4,6 +4,8 @@
 
 #include "game/types.h"
 
+struct tCamera;   /* a window's camera (camera.h), which the scene draw looks through */
+
 /* Constants */
 
 /* tPaletteAnim.state: what a track's palette animation does each period (TextureAnimation). The colours of 4-8 are
@@ -73,11 +75,149 @@
 #define POLY_SCREEN           0x4000      /* a filled rectangle in screen coordinates */
 #define POLY_HIDDEN           0x8000      /* not drawn (ZOID_HidePoly) */
 
+/* Types */
+
+/* A scene node (ObjInstanceList; MAT3's mbox and zoid objects): an object definition drawn by a matrix relative to
+ * its parent's, in a tree of first children and next siblings that the scene draw walks (Traverse), with what it
+ * draws in place of its model's (lights, textures, a tile, a palette) and its colours. */
+typedef struct ObjectInstance {
+    u32 flags;                    /* OBJ_* */
+    u32 culling;                  /* its culling box: (first cull vertex << 3) | 7 (ZOID_BuildCullingList), 0 none */
+    tUVMatrix *mat;               /* its matrix, relative to its parent */
+    f32 scale;
+    f32 w;                        /* the matrix's w */
+    u16 index;                    /* its object, (model << 10) | definition; 0xFFFF a free node */
+    s16 child;                    /* its first child, -1 none */
+    s16 next;                     /* its next sibling, -1 none */
+    s16 numLights;                /* its own lights' count, -1 the scene's */
+    struct Lights2 *lights;       /* its own lights */
+    struct tTexture *texture[4];  /* a texture per level of detail in place of the model's, NULL none */
+    struct TexTile *tile;         /* the part of the texture to load in place of the model's */
+    struct TexTile *tileSize;     /* the part of it to draw */
+    struct tPaletteDef *palette;  /* a palette in place of the model's */
+    u32 color;                    /* the primitive colour: bytes R, G, B, A (OBJ_COLOR); wave 4: tRGBA */
+    u32 envcolor;                 /* the environment colour, likewise; wave 4: tRGBA */
+} ObjectInstance;
+
+/* A window of the scene (MAT3 tWindowInfo; ZoidWinInfo, one a player in split screen): where on the screen it
+ * draws, its projection (ZOID_SetWindow), its clip planes and its fog (ZOID_SetFog, WorldFogDensity). The scene
+ * draw (zoid_draw_window) builds each view from it; ZOID_ProjectWindow and ZOID_WindowTo3D map between the world
+ * and its pixels. */
+typedef struct tWindowInfo {
+    PcViewport *vp;     /* its viewport (vp0 ...) */
+    u16 *s;             /* its scissor rectangle (scissor0 ...): left, top, right, bottom, pixels */
+    u32 flags;          /* 1: drawn orthographic (ZOID_SetWindow was given no field of view), 0 in perspective */
+    f32 whviewang;      /* the horizontal field of view, radians */
+    f32 wvviewang;      /* the vertical one */
+    f32 whvangtan;      /* the tangent of half the horizontal one */
+    f32 wvvangtan;      /* the tangent of half the vertical one */
+    f32 wihvangtan;     /* 0.5 / whvangtan: a point's screen x is wwidth * wihvangtan * x / z + whcenter */
+    f32 wivvangtan;     /* 0.5 / wvvangtan */
+    f32 wwidth;         /* its size, pixels */
+    f32 wheight;
+    f32 whcenter;       /* its centre on the screen, pixels */
+    f32 wvcenter;
+    f32 aspect;         /* wwidth / wheight (half the height in the N64's interlaced modes) */
+    f32 frontclip;      /* the near clip plane, feet */
+    f32 backclip;       /* the far one */
+    u16 fogmin;         /* the fog's range in the RDP's depth units (0-1000): it starts at fogmin and is full at */
+    u16 fogmax;         /* fogmax. MAT3 has fogmin signed; every reader takes it unsigned */
+    u8 fogcolor[4];     /* the fog's colour: red, green, blue, alpha */
+} tWindowInfo;
+
+/* A flat polygon's corner (MAT3 anon_ob_tc_18, whose texture coordinates are floats). */
+typedef struct tPolyVertex {
+    f32 ob[3];          /* where it is: feet times 16, the scene's units (a POLY_SCREEN polygon's: pixels, x and y) */
+    s16 tc[2];          /* its texture coordinates s and t, in 32nds of a texel */
+    tRGBA cn;           /* its colour (a POLY_SCREEN polygon's is its first corner's) */
+} tPolyVertex;
+
+/* A flat polygon of the scene (MAT3 tPoly; PolyInstanceList, ZOID_NewPoly): a triangle or a quad drawn after the
+ * scene's models, a car's shadow or arrow, a skid mark, a scorch mark, the countdown, the front end's background.
+ * A POLY_SCREEN one is a filled rectangle on the screen, from its first corner's x and y to its second's. */
+typedef struct tPoly {
+    s16 nverts;         /* how many corners it has (3 or 4), 0 a free polygon */
+    u16 flags;          /* POLY_* */
+    u16 texidx;         /* its texture's handle with POLY_TEXTURED: (model << 10) | index */
+    s16 z;              /* its depth with POLY_FIXED_DEPTH (ZOID_SetPolyZ) */
+    tPolyVertex verts[4];
+} tPoly;
+
+/* A blast sprite's matrix (MAT3 tBlastMat; gBlastMats, 50 taken in turn by StartBlast). */
+typedef struct tBlastMat {
+    tUVMatrix *mat;     /* from the scene's persistent pool (ZOID_NewMatrix, InitBlast) */
+} tBlastMat;
+
+/* A skid mark (MAT3 tSkid; gSkidArray, listed by gSkidList): a quad laid along a tire's track while it skids
+ * (UpdateSkids), which fades once the skid has stopped (StopSkid, AnimateSkids). */
+typedef struct tSkid {
+    struct tSkid *next;     /* the pool's links (MAT3 tStatDLLE: GetStatLLE, FreeStatLLE) */
+    struct tSkid *prev;
+    f32 lastTime;           /* gSeconds when the skid last grew: its fade starts from it */
+    tPoly *poly;            /* its quad (ZOID_NewPoly) */
+    f32 pos[3];             /* its middle once it has stopped (StopSkid): the far-mark search takes the farthest */
+    tRGBA color;            /* its colour; its alpha fades */
+    s32 active;             /* set once the skid has stopped: the mark fades */
+} tSkid;
+
+/* A smoke puff (MAT3 smoke.c's anon_ll_mat_58; gSmokeObjs, listed by gSmokeList): tire smoke, a wreck's smoke, a
+ * blast's flames, the wing trails, a water spray (StartSmoke, StartWater), which UpdateSmoke moves, grows, fades
+ * and animates until it is done. */
+typedef struct SmokePuff {
+    struct SmokePuff *next; /* the pool's link (MAT3 tStatLLE) */
+    tUVMatrix mat;          /* its orientation and size, and its position: its scene object draws by it */
+    union {
+        s32 mbIdx;          /* its scene object's handle (MBOX_NewObject) */
+        s16 mbNode;         /* the handle's low half, the node, as the PC (little-endian) holds it */
+    };
+    f32 tlifeTime;          /* MAT3's whole life; nothing reads it */
+    f32 lifeTime;           /* seconds left (fire: the size it grows to) */
+    f32 swTime;             /* seconds to its next animation frame */
+    f32 vel[3];             /* its drift, feet a second (fire, a water spray: its offset from the car) */
+    u32 data;               /* PUFF_FORWARD, PUFF_WATER, its type << PUFF_TYPE_SHIFT (cars.h) */
+    s16 slot;               /* the car it came from */
+    s16 tIdx;               /* its animation frame, 0-7 (fire: -1 while growing, then 0-14) */
+} SmokePuff;
+
+/* A track's palette animation (MAT3 tPaletteAnim; PaletteLists, InitTextureAnimation, TextureAnimation): a palette
+ * rotation or swap, a traffic light, a lamp chaser, or a texture scroll. */
+typedef struct tPaletteAnim {
+    char *name;         /* the palette's name (a texture's for the scrolls); NULL ends a track's list */
+    s16 start, end;     /* the entries it works on; a scroll's position and its wrap */
+    s8 offset;          /* the swaps' gap, a scroll's step, the chasers' count */
+    s8 state;           /* what it does: PALANIM_* (0-10) */
+    s16 speed;          /* its period, in 30 Hz frames */
+    f32 time;           /* the seconds to its next step */
+    union {
+        u16 *palette;   /* the palette's colours (PALANIM_ROTATE_UP to PALANIM_CHASE7) */
+        Gfx *commands;  /* the texture's load display list (the scrolls) */
+    } ptr;
+} tPaletteAnim;
+
+/* A frame of a texture flipbook (MAT3 tTextureBase; texture_swap_shared_frames, a flipbook's swapTexs). */
+typedef struct tTextureBase {
+    char *name;         /* its texture's name */
+    tTexture *tex;      /* the texture, once found (InitTextureAnimation) */
+    void *texBase;      /* the image it shows: the texture's texBase, or the image its load display list loads */
+} tTextureBase;
+
+/* A texture flipbook (MAT3 tTextureSwap; TextureSwapLists): the texture of frame startnum shows frame idx's image,
+ * idx stepping every initTime seconds. */
+typedef struct tTextureSwap {
+    s16 num;            /* the frames; 0 ends a track's list */
+    s16 startnum;       /* the frame whose texture is the one drawn */
+    s16 fd;             /* 1 steps forward, 0 backward */
+    s16 idx;            /* the frame shown */
+    f32 time;           /* the seconds to its next step */
+    f32 initTime;       /* its period, seconds */
+    tTextureBase *swapTexs;
+} tTextureSwap;
+
 /* Data */
 extern ModelDefTable gRomObjDefPtrs[EXTENT(64)];
-extern Item12 texture_swap_shared_frames[EXTENT(400)];
-extern struct Sequence20 *TextureSwapLists[EXTENT(19)];
-extern struct Row20 *PaletteLists[EXTENT(19)];
+extern tTextureBase texture_swap_shared_frames[EXTENT(400)];   /* frames several flipbooks share */
+extern tTextureSwap *TextureSwapLists[EXTENT(19)];   /* each track's flipbooks */
+extern tPaletteAnim *PaletteLists[EXTENT(19)];       /* each track's palette animations */
 extern u32 track1Parts[EXTENT(117)][4];
 extern u32 track2Parts[EXTENT(117)][4];
 extern u32 track3Parts[EXTENT(117)][4];
@@ -127,7 +267,7 @@ extern f32 tan_q1;
 extern u32 gBgColor;
 /* Each window's sky dome matrix (SkyInit; SkyUpdate keeps it on the camera), NULL for none: a matrix of the
  * persistent pool (ZOID_NewMatrix). MAT3 sky.c's tUVMatrix *skyMatrices[4]; the N64 kept them as 32-bit addresses. */
-extern struct tUVMatrix *skyMatrices[EXTENT(4)];
+extern tUVMatrix *skyMatrices[EXTENT(4)];
 extern ObjectInstance ObjInstanceList[EXTENT(600)];
 extern PaletteDefTable gPalDefPtrs[EXTENT(64)];
 extern s8 gFogIntensity;
@@ -166,11 +306,11 @@ extern s32 gMaxMatrices;
 extern s32 cull_vertex_count;
 extern s32 cull_vertex_max;
 extern volatile s16 ObjHead;
-extern PolyInstance PolyInstanceList[EXTENT(39)];
+extern tPoly PolyInstanceList[EXTENT(39)];   /* the flat polygons: gNumPolyInsts in use (200 at most, ZOID_NewPoly) */
 extern s32 gMatrices[EXTENT(560)];
 extern s32 gNumPolyInsts;
 extern f32 gGlobalCameraFacingScale;
-extern ArbEntry ZoidWinInfo[EXTENT(4)];
+extern tWindowInfo ZoidWinInfo[EXTENT(4)];   /* the scene's windows (gNumZoidWindows in use) */
 extern s8 gSplitScreen;
 
 /* Functions */
@@ -210,6 +350,7 @@ s32 texcmp(u8 *ta, u8 *tb);
 void TextureAnimation(void);
 s32 Traverse(Gfx **gp, ObjectInstance *parent, ObjectInstance *node, s32 view, s32 depth,
              s32 more_after, s32 use_parent_distance, struct tPaletteDef *palette);
+tWindowInfo *view_bind(s32 k, void *vp, s16 *r);
 s32 world_name_compare(void *name, void *entry);
 void WorldClear(void);
 void WorldCullObjects(s32 unused, f32 *pos, s32 show);
@@ -217,34 +358,34 @@ void WorldFogDensity(s32 winidx, f32 *pos);
 void ZOID_BuildCullingList(f32 *min, f32 *max, s16 node);
 s32 ZOID_AddObject(s32 obj, void *mat, s16 parent, s32 flags);
 s32 ZOID_ChangeTexture(u16 obj, s16 lod, u16 texidx);
-void ZOID_ClearPolyFlags(struct Header *poly, u16 mask);
+void ZOID_ClearPolyFlags(tPoly *poly, u16 mask);
 s32 zoid_draw_object(Gfx **gp, ObjectInstance *parent, s32 depth, s32 use_parent_distance,
                      ObjectInstance *node, s32 view, struct tPaletteDef *palette);
-void zoid_draw_window(s32 view, tCamera *eye);
-struct tUVMatrix *ZOID_FindMatrix(s16 node);
+void zoid_draw_window(s32 view, struct tCamera *eye);
+tUVMatrix *ZOID_FindMatrix(s16 node);
 s16 ZOID_FindObjInstance(void *name);
 void *ZOID_GetColor(s16 node);
 void ZOID_GetFog(u16 *min, u16 *max, u8 *red, u8 *green, u8 *blue, u8 *alpha, s32 winidx);
-void *ZOID_GetWindow(s32 winidx);
-void ZOID_HidePoly(PolyInstance *poly);
+tWindowInfo *ZOID_GetWindow(s32 winidx);
+void ZOID_HidePoly(tPoly *poly);
 void ZOID_Init(void);
-struct tWindowInfo *ZOID_InitializeWindow(s32 idx, void *vp, void *s, f32 hang, f32 vang, f32 width, f32 height,
-                                          f32 hcenter, f32 vcenter);
+tWindowInfo *ZOID_InitializeWindow(s32 idx, void *vp, void *s, f32 hang, f32 vang, f32 width, f32 height,
+                                   f32 hcenter, f32 vcenter);
 void ZOID_InsertObject(s16 node, s16 parent);
 s16 ZOID_LastSibling(s16 node);
 void zoid_load_palette(Gfx **gfxp, struct tPaletteDef *pal);
 void zoid_load_texture(Gfx **gp, struct tTexture *tex, struct TexTile *rect, struct TexTile *clip,
                        struct tPaletteDef *palettes);
-void *ZOID_NewMatrix(void);
-struct tPoly *ZOID_NewPoly(s32 nverts, f32 *xyz, u16 texidx, u8 *color, u16 flags, s32 useTidx);
+tUVMatrix *ZOID_NewMatrix(void);
+tPoly *ZOID_NewPoly(s32 nverts, f32 *xyz, u16 texidx, u8 *color, u16 flags, s32 useTidx);
 s32 zoid_node_visible(void *node, s32 view);
 u32 ZOID_ObjectFlags(s16 node);
 s16 ZOID_ObjParent(s16 node);
 s16 ZOID_ObjPrevObj(s16 node);
-void ZOID_ProjectWindow(s32 widx, f32 *point, struct tUVMatrix *mat, f32 *body, s16 *screen);
+void ZOID_ProjectWindow(s32 widx, f32 *point, tUVMatrix *mat, f32 *body, s16 *screen);
 void ZOID_RemoveObject(s16 node);
 void ZOID_RemoveObjectTree(s16 node, s32 removeChildren);
-void ZOID_RemovePoly(struct tPoly *poly);
+void ZOID_RemovePoly(tPoly *poly);
 void ZOID_Reset(void);
 void zoid_reset_lights(void);
 void ZOID_ResetWindows(void);
@@ -255,25 +396,26 @@ s32 zoid_set_window_count(s32 count);
 void ZOID_SetBGColor(u16 rgba5551);
 void ZOID_SetColor(s16 node, tRGBA *col);
 void ZOID_SetEnvColor(s16 node, tRGBA *col);
-struct tWindowInfo *ZOID_SetFog(s16 min, s16 max, u8 red, u8 green, u8 blue, u8 alpha, u32 winidx);
+tWindowInfo *ZOID_SetFog(s16 min, s16 max, u8 red, u8 green, u8 blue, u8 alpha, u32 winidx);
 void ZOID_SetObjectDef(s16 node, u16 def);
 void ZOID_SetObjectFlags(s32 node, u32 flags);
 void ZOID_SetObjectParent(s16 node, s16 newparent);
 void ZOID_SetObjLights(s32 node, s32 numLights, void *lights);
-void ZOID_SetPolyFlags(struct Header *poly, u16 mask);
-void ZOID_SetPolyZ(PolyInstance *poly, s16 z);
+void ZOID_SetPolyFlags(tPoly *poly, u16 mask);
+void ZOID_SetPolyZ(tPoly *poly, s16 z);
 void ZOID_SetScissor(u16 *s, u16 ulx, u16 uly, u16 lrx, u16 lry);
 void ZOID_SetTexture(s16 node, void *tex, s32 lod);
 void ZOID_SetViewport(s32 winidx, void *vp, void *s);
-struct tWindowInfo *ZOID_SetWindow(s32 winidx, f32 hangle, f32 vangle, f32 width, f32 height, f32 hcenter,
-                                   f32 vcenter);
-void ZOID_ShowPoly(PolyInstance *poly);
+tWindowInfo *ZOID_SetWindow(s32 winidx, f32 hangle, f32 vangle, f32 width, f32 height, f32 hcenter,
+                            f32 vcenter);
+void ZOID_ShowPoly(tPoly *poly);
+void ZOID_ShowPoly_bg(tPoly *poly);
 s32 ZOID_SplitMenuScreen(s32 num);
 s32 zoid_subtree_visible(ObjectInstance *node, s32 view);
 s32 ZOID_SplitScreen(s32 n);
 s16 ZOID_TrueObjParent(s16 child);
-void ZOID_UpdatePoly(struct tPoly *poly, s32 nverts, struct Vec3 *xyz, u16 texidx, u8 *color, u16 flags, s32 useTidx);
+void ZOID_UpdatePoly(tPoly *poly, s32 nverts, tVec3 *xyz, u16 texidx, u8 *color, u16 flags, s32 useTidx);
 void ZOID_UpdateObject(s16 node, void *pos, void *uvs);
-void ZOID_WindowTo3D(s32 widx, s16 *screen, struct tUVMatrix *mat, f32 zdist, f32 *point);
+void ZOID_WindowTo3D(s32 widx, s16 *screen, tUVMatrix *mat, f32 zdist, f32 *point);
 
 #endif /* GAME_SCENE_H */

@@ -4,9 +4,6 @@
  * animator rewrites the eight tail-light entries each frame. */
 #include "game/game.h"
 
-/* A car visual (tVisual) on the PC: next a host pointer (docs/port/CARS.md 3). */
-typedef struct tVisual { void *next; s16 index, objnum; s16 slot; } tVisual;
-
 #define CP(src) do { \
     tlut->taillights[0] = (src)[0]; tlut->taillights[1] = (src)[1]; tlut->taillights[2] = (src)[2]; tlut->taillights[3] = (src)[3]; \
     tlut->taillights[4] = (src)[4]; tlut->taillights[5] = (src)[5]; tlut->taillights[6] = (src)[6]; tlut->taillights[7] = (src)[7]; } while (0)

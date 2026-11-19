@@ -4,6 +4,18 @@
 
 #include "game/types.h"
 
+/* Types */
+
+/* A window's camera (MAT3 anon_mat_n64_98, gCamera[4], one a window): where it looks from. */
+typedef struct tCamera {
+    tUVMatrix mat;    /* its orientation and position, as the cameras set them */
+    tUVMatrix n64;    /* what the scene draw looks by: mat with four elements negated (UpdateCameras) */
+    tUVMatrix fcam;   /* the fixed camera's: its pos is where the crash and finish views look from */
+    f32 view2spring;
+    u8 slot;          /* the car it shows (ZeroCamera starts camera i on car i) */
+    u8 unused[3];
+} tCamera;
+
 /* Data */
 extern f32 view0_eye_height;
 extern f32 view0_eye_forward;
@@ -35,7 +47,7 @@ extern f32 view3_xvec_min_len;
 extern f32 view1_suscomp_bias;
 extern f32 fixed_cam_pos[EXTENT(4)][3];
 extern s8 fixed_cam_mode[EXTENT(4)];
-extern Vector steady_start_pos[EXTENT(4)];
+extern tVec3 steady_start_pos[EXTENT(4)];
 extern s16 steady_stage[EXTENT(4)];
 extern f32 steady_leg_time[EXTENT(2)];
 extern s16 maxpath_cam_start_point[EXTENT(4)];

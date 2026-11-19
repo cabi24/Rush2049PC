@@ -1,11 +1,6 @@
 /* AnimateWingFlame.c (visuals): a car's wing flame each frame (MAT3 visuals.c, AnimateWingFlame()). */
 #include "game/game.h"
 
-/* A car visual (tVisual) on the PC: 0x28 bytes, next, data and func pointer-sized (struct pc_visual, docs/port/CARS.md
- * 3). */
-typedef struct tVisual {void *next;s16 index,objnum,slot;u16 pad;uintptr_t data;u32 timeStamp;intptr_t func;} tVisual;
-/* A scene node's matrix, its rotation part. */
-typedef struct tUVMatrix {f32 uvs[3][3];} tUVMatrix;
 
 /* The flame of car v->slot's wing on side v->data (0 left, 1 right; VIS_WING_FLAMES + side), each frame: while the
  * wing is out (its visual's data bit 0x10, set by AnimateWing) the flame shows, stretched along its Y axis by the
