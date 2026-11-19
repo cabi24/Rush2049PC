@@ -32,7 +32,7 @@ tree has now.
 | [r4.md](r4.md) | 0x800CD798-0x800E847C: the car simulation (collision, road, respawning, the physics step, the drivetrain, the drones' driving), car sounds, the option screens, pak errors, the model thread, the heap |
 | [r5.md](r5.md) | 0x800E847C to the end of the image and its data: the main loop and race flow, the frame pipeline, the camera, the HUD, records and unlocks, the screens' animators, track objects, the MusyX glue |
 | [overlays.md](overlays.md) | the two runtime images: A, the front end (every menu screen), and B, the battle/stunt HUD extras |
-| [port-addresses.md](port-addresses.md) | every N64 address the port's own code (`port/`, `tools/`) still spells, and what replaces it |
+| [port-addresses.md](port-addresses.md) | the N64 addresses left in the port (`port/`, `tools/`), and why each stays |
 | [NAMING.md](NAMING.md) | the naming conventions, every disagreement between the areas and its decision, aliases, the labels to drop, what wave 2 does by hand |
 | [The headers](#the-headers-includegame) (below) | `include/game`: the declarations every game file shares, and what a file still declares itself |
 
@@ -97,7 +97,7 @@ again ([NATIVE.md](../port/NATIVE.md) 18).
 
 ## The headers (include/game)
 
-Every game file under `src/blob`, `src/ovl_a`, `src/ovl_b` and `nonmatching/` starts with `#include "game/game.h"`:
+Every game file under `src/blob`, `src/ovl_a` and `src/ovl_b` starts with `#include "game/game.h"`:
 one declaration of each type, datum and function the files share (the boot segment's `src/rom` keeps its own,
 `rom_tu.h` and `include/PR`). Until 2026-11-08 each file carried instead the context the decompiler (m2c) wrote,
 thousands of lines of typedefs, structs and externs, most of them unused ([PCONLY.md](../port/PCONLY.md) 4,
@@ -130,18 +130,21 @@ that points to a structure only its own file defines is `struct Name *`, the str
 (the build renames them `n64_*`) and libultra's.
 
 **Types.** The structures the shared data and prototypes need, printed from the compiler's own record of them
-(DWARF), so each lays out as it did. A structure keeps the name the files gave it when no file uses that name for
-another type; else it has a new one (`tMenuButton`, `ScreenButton`, `UVMatrixRows`, `OSThreadBytes` ... the MAT3 name
-where the layout is MAT3's, else what it is). Structures that lay out alike are one type.
+(DWARF), so each lays out as it did. A structure kept the name the files gave it when no file used that name for
+another type; else it had a new one (`tMenuButton`, `ScreenButton`, `OSThreadBytes` ... the MAT3 name where the layout
+is MAT3's, else what it is). Structures that lay out alike are one type. Since wave 4 each shared record has one
+complete declaration, with MAT3's name where it has one, and the files' partial copies of it are gone
+([RECORDS.md](../port/RECORDS.md)).
 
-**What a file keeps.** Its code, untouched; the types only it uses (a struct with just the fields it reads, the
-decompiler's padded views); declarations of what the headers don't declare; and two kinds of lines after the
-include:
+**What a file keeps.** Its code, untouched; the types only it uses; declarations of what the headers don't declare;
+and, at the conversion, two kinds of lines after the include:
 
-- a **view**, where the file reads a shared datum through another type than the headers': `VIEW(Cam152[], gCamera);`
-  then `#define gCamera gCamera_view`. VIEW declares `gCamera_view` with the file's type and the datum's own symbol
-  (an assembler label), so the code compiles exactly as with the file's old declaration (1,764 views after the conversion, 109 after wave 2c: each left where the canonical type would change the
-  data loader's layout or the record still has several struct copies, PCONLY.md 4);
+- a **view** (none since wave 4, and `include/game/view.h` with them), where the file read a shared datum through
+  another type than the headers': `VIEW(Cam152[], gCamera);` then `#define gCamera gCamera_view`. VIEW declared
+  `gCamera_view` with the file's type and the datum's own symbol (an assembler label), so the code compiled exactly
+  as with the file's old declaration (1,764 views after the conversion, 109 after wave 2c, each left where the
+  canonical type would change the data loader's layout or the record still had several struct copies, PCONLY.md 4;
+  0 after wave 4, which gave each record one type);
 - a **rename**, where the file's own type has a name the headers give another type: `#define Gfx GfxView   /* this
   file's own Gfx: include/game's Gfx is another type */` (150 of them, mostly libultra's types the decompiler
   wrote as opaque words).
