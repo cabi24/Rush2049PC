@@ -87,6 +87,39 @@ SCALAR_VIEW = re.compile(r"^(\?|ptr|[us](8|16|32|64)|f(32|64)|u?intptr_t|size_t|
                          r"\b(unsigned|signed|short|long|int|char|float|double|void|_Bool)\b")
 
 
+def map_words(runs, en):
+    """gen_data.map_offset(runs, n) for every n in range(0, en, 4), in one pass over the runs.
+
+    map_offset gives an offset inside a run's element the host place of that element (the first run in program order
+    that holds it, by the repetition its stride puts it in), and an offset no run holds the host place after the run
+    end before it (the latest N64 end at or below it; of two runs ending there, the later one), padding mapping
+    linearly; with no run end below it, the offset itself."""
+    out = [None] * ((en + 3) // 4)
+    ends = []   # (N64 end, program order, host end) of each repetition of each run
+    for order, (kind, count, n64o, hosto, rep, ns, hs) in enumerate(runs):
+        ke, kh = gd.N64_ESZ[kind], gd.esz_host(kind)
+        for i in range(rep if ns else 1):
+            start, end = n64o + i * ns, n64o + i * ns + count * ke
+            ends.append((end, order, hosto + i * hs + count * kh))
+            for w in range((start + 3) // 4, min((end + 3) // 4, len(out))):
+                off = w * 4
+                if out[w] is not None or (ns and min((off - n64o) // ns, rep - 1) != i):
+                    continue
+                within = off - start
+                j = within // ke
+                out[w] = hosto + i * hs + j * kh + min(within - j * ke, kh - 1)
+    ends.sort()
+    k, best = 0, (0, 0)
+    for w, v in enumerate(out):
+        if v is None:
+            off = w * 4
+            while k < len(ends) and ends[k][0] <= off:
+                best = (ends[k][0], ends[k][2])
+                k += 1
+            out[w] = best[1] + (off - best[0])
+    return tuple(out)
+
+
 class Moved:
     """A record type whose PC layout moved fields: its canon struct, N64 and host sizes, scalars by host offset."""
 
@@ -103,9 +136,19 @@ class Moved:
     def key(self):
         return (self.en, self.eh, tuple((x[1], x[0], x[2], x[3]) for x in sorted(self.ref.by_h.values())))
 
+    _families = {}   # canonical element type -> its family()
+
     def family(self):
-        """The record's identity across views: its sizes and where its pointers are, N64 and host."""
-        return (self.en, self.eh, tuple(self.ref.n2h(n) for n in range(0, self.en, 4)))
+        """The record's identity across views: its sizes and where its pointers are, N64 and host.
+
+        Computed once per canonical type, and in one pass over the field program (map_words): word by word through
+        gen_data.map_offset, which scans every run for each word, the frame buffer's `struct Dynamic` (968 KB, 108,007
+        runs) took some 26 billion steps, hours on Rocky and past CI's 6-hour limit."""
+        f = Moved._families.get(self.ref.e)
+        if f is None:
+            words = map_words(self.ref.runs, self.en) if self.ref.runs else tuple(range(0, self.en, 4))
+            f = Moved._families[self.ref.e] = (self.en, self.eh, words)
+        return f
 
     def named(self):
         return sum(1 for x in self.ref.by_h.values() if not x[6] and not ec.is_pad(x[5] or "")
